@@ -1,7 +1,7 @@
 use super::{ProcessScanner, ProcessSnapshot};
 use async_trait::async_trait;
 use std::{collections::BTreeMap, error::Error};
-use sysinfo::{ProcessesToUpdate, System};
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
 pub struct MacOsScanner;
 
@@ -12,8 +12,14 @@ pub fn create_scanner() -> Box<dyn ProcessScanner> {
 #[async_trait]
 impl ProcessScanner for MacOsScanner {
     async fn scan(&self) -> Result<Vec<ProcessSnapshot>, Box<dyn Error + Send + Sync>> {
-        let mut system = System::new_all();
-        system.refresh_processes(ProcessesToUpdate::All, true);
+        // Scans run every few seconds and need only exe paths, so nothing
+        // else is read.
+        let mut system = System::new();
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_exe(UpdateKind::OnlyIfNotSet),
+        );
 
         let mut processes = BTreeMap::new();
         for process in system.processes().values() {

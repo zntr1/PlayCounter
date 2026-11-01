@@ -14,6 +14,15 @@ mod notification_overlay {
     pub const MAIN_LABEL: &str = "main";
 }
 
+// The synthetic profile holds no launcher sign-ins to end.
+mod library {
+    pub mod kept_logins {
+        pub async fn sign_out_everywhere(_app: &tauri::AppHandle) -> Result<(), String> {
+            Ok(())
+        }
+    }
+}
+
 use std::{fs, sync::atomic::Ordering, time::Duration};
 use tauri::{Manager, WebviewUrl, WebviewWindow};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};

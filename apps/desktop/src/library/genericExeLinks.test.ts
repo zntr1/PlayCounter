@@ -4,6 +4,7 @@ import { canSuggestCustomGameToCommunity } from "../store";
 import { launchTargetsForGame } from "../gameLaunch";
 import { isGenericExeName } from "./exeCandidates";
 import {
+  gameFolderName,
   gamesLinkedToExe,
   genericExeFolder,
   genericFolderLink,
@@ -63,8 +64,46 @@ describe("generic exe names", () => {
     "love.exe",
     "Launcher.exe",
     "start.exe",
+    "games.exe",
+    "javaw.exe",
+    "java.exe",
+    // Spelled as the games ship them: an entry that does not match the real
+    // name fails here.
+    "AdvHD.exe",
+    "SiglusEngine_Steam.exe",
+    "BGI.exe",
+    "LyraGame.exe",
+    "ShooterGame.exe",
+    "VRExpPluginExample.exe",
+    "VRExpPluginExample-Win64-Shipping.exe",
+    "fm.exe",
+    "CricketCaptain.exe",
+    "xrEngine.exe",
+    "Windows.exe",
+    "GameClient.exe",
   ])("treats %s as generic", (exeName) => {
     expect(isGenericExeName(exeName)).toBe(true);
+  });
+
+  it.each([
+    [String.raw`D:\Games\Tupac`, "Tupac"],
+    [
+      String.raw`D:\SteamLibrary\steamapps\common\Age of History 3\jre\bin`,
+      "Age of History 3",
+    ],
+    [String.raw`D:\Games\Zomboid\jre64\bin`, "Zomboid"],
+    [String.raw`D:\Games\Tool\runtime\bin`, "Tool"],
+    [String.raw`D:\Games\ELDEN RING\Game`, "ELDEN RING"],
+    // Where the Minecraft launcher keeps the Java it runs.
+    [
+      String.raw`C:\Users\Phil\AppData\Roaming\.minecraft\runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin`,
+      "minecraft",
+    ],
+    [String.raw`D:\Games\Java Island`, "Java Island"],
+    [String.raw`\\nas\games\Tupac`, "Tupac"],
+    ["D:\\", undefined],
+  ])("calls %s %j", (folder, name) => {
+    expect(gameFolderName(folder)).toBe(name);
   });
 
   it.each(["eldenring.exe", "Celeste.exe", "GameA.exe", "Tupac.exe"])(
@@ -73,6 +112,19 @@ describe("generic exe names", () => {
       expect(isGenericExeName(exeName)).toBe(false);
     },
   );
+
+  // Only game files belong on the list. Starters and launchers many games ship
+  // are not the game.
+  it.each([
+    "start_protected_game.exe",
+    "EOSBootstrapper.exe",
+    "EAAntiCheat.GameServiceLauncher.exe",
+    "REDprelauncher.exe",
+    "SteamLauncher.exe",
+    "WPLauncher.exe",
+  ])("keeps %s, which only starts a game, off the list", (exeName) => {
+    expect(isGenericExeName(exeName)).toBe(false);
+  });
 
   it("links a generic exe to the folder it runs from, as the path spells it", () => {
     expect(genericExeFolder({ exeName: "Game.exe", exePath: TUPAC })).toBe(
@@ -210,13 +262,30 @@ describe("moving name links of generic exes to folders", () => {
     ]);
   });
 
+  // Nothing tells which folder it meant, and a name link claims every copy on
+  // the PC. The game's hours are in its sessions, not in the link.
   it.each([
     ["no Play file", new Map<string, LaunchTarget>()],
     ["another game's Play file", new Map([["game.exe", target(TUPAC, -9)]])],
-  ])("keeps the name link with %s", (_label, launchTargets) => {
+  ])("drops the name link with %s", (_label, launchTargets) => {
+    const exeCache = new Map([["game.exe", nameLink()]]);
+    const scoped = new Map<string, ScopedExeLink>();
+    expect(moveGenericNameLinksToFolders(exeCache, scoped, launchTargets)).toBe(
+      true,
+    );
+    expect(exeCache.has("game.exe")).toBe(false);
+    expect(scoped.size).toBe(0);
+  });
+
+  // A game still running from before this start (an update restarts the
+  // app) only gets the time PlayCounter was closed if its copy still counts as
+  // it. A later start moves or drops the link.
+  it("keeps the name link while its game still runs from before this start", () => {
     const exeCache = new Map([["game.exe", nameLink()]]);
     expect(
-      moveGenericNameLinksToFolders(exeCache, new Map(), launchTargets),
+      moveGenericNameLinksToFolders(exeCache, new Map(), new Map(), [
+        { gameId: -5, source: "custom" },
+      ]),
     ).toBe(false);
     expect(exeCache.get("game.exe")).toEqual(nameLink());
   });

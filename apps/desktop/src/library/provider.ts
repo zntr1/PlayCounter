@@ -14,12 +14,18 @@ export type LibraryScanOptions = {
   onAuthorizeUrl?: (url: string) => void;
   onXboxProgress?: (stage: XboxImportProgressStage) => void;
   onRateLimitWait?: (waiting: boolean) => void;
+  /** Called as the scan moves from the account to the installs on this PC. */
+  onStage?: (stage: "account" | "installs") => void;
   openAuthorizeUrl?: boolean;
+  /** Background work: never create an interactive OAuth attempt. */
+  savedLoginOnly?: boolean;
   /** Explicit user action only; background scans must never open sign-in. */
   battleNetAccount?: boolean;
   battleNetProductIds?: readonly string[];
   /** Explicit user action only; background scans must never open sign-in. */
   epicAccount?: boolean;
+  /** Explicit user action only; background scans must never open sign-in. */
+  gogAccount?: boolean;
 };
 
 export type LocalLibraryProvider = {

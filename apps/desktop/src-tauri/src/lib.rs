@@ -17,13 +17,16 @@ use tauri::{
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 mod automatic_backups;
+mod close_game;
 mod controller;
 mod emulator_launch;
 mod exe_details;
+mod fullscreen;
 mod hotkeys;
 mod ignored_processes;
 mod launch;
 mod library;
+mod live_timer;
 mod notification_overlay;
 mod playstation_pad;
 mod process;
@@ -451,8 +454,10 @@ pub fn run() {
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
         .manage(quick_note::QuickNoteState::default())
+        .manage(live_timer::LiveTimerState::default())
         .manage(library::battlenet_account::AccountState::default())
         .manage(library::epic_account::EpicAccountState::default())
+        .manage(library::gog_account::GogAccountState::default())
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
@@ -468,8 +473,10 @@ pub fn run() {
                 .with_filter(|label| {
                     !label.starts_with("battlenet-sign-in-")
                         && !label.starts_with("epic-sign-in-")
+                        && !label.starts_with("gog-sign-in-")
                         && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
                         && label != quick_note::LABEL
+                        && !label.starts_with(live_timer::LABEL_PREFIX)
                 })
                 .build(),
         )
@@ -516,6 +523,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             main_window_ready,
             main_window_parked,
+            fullscreen::set_main_fullscreen,
             hotkeys::set_global_hotkey,
             install_uuid,
             adopt_install_uuid,
@@ -543,16 +551,32 @@ pub fn run() {
             get_exe_icon,
             get_exe_details,
             launch::launch_executable,
+            close_game::close_game_processes,
             launch::reveal_executable,
             launch::verify_launch_paths,
             library::library_detect_providers,
             library::library_list_accounts,
             library::library_scan,
             library::library_scan_xbox_local,
+            library::achievements::steam_read_achievements,
+            library::achievements::steam_achievement_catalog,
             library::battlenet_account::library_battlenet_account_games,
+            library::battlenet_account::library_battlenet_sign_in,
             library::battlenet_account::library_cancel_battlenet_account,
             library::epic_account::library_epic_account_games,
+            library::epic_account::library_epic_sign_in,
             library::epic_account::library_cancel_epic_account,
+            library::epic_achievements::epic_read_achievements,
+            library::gog_account::library_gog_account_games,
+            library::gog_account::library_gog_sign_in,
+            library::gog_account::library_cancel_gog_account,
+            library::gog_achievements::gog_read_achievements,
+            library::kept_logins::logins_list,
+            library::kept_logins::logins_check,
+            library::kept_logins::logins_sign_out,
+            library::xbox_login::xbox_login_claim_hash,
+            library::xbox_login::xbox_login_keep,
+            library::xbox_login::xbox_login_sync_start,
             library::library_inspect_executable,
             library::library_launch_app,
             library::library_verify_installs,
@@ -573,10 +597,14 @@ pub fn run() {
             notification_overlay::notification_overlay_activate,
             quick_note::quick_note_open,
             quick_note::quick_note_ready,
-            quick_note::quick_note_close
+            quick_note::quick_note_close,
+            live_timer::live_timer_show,
+            live_timer::live_timer_hide,
+            live_timer::live_timer_ready
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
+            library::battlenet_account::clean_up_profile(app.handle());
             // The loader (including its startup-error/retry state) and the app
             // call main_window_ready after painting. A timer must not bypass
             // that handshake: a slow WebView would expose an empty, immovable

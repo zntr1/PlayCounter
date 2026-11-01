@@ -2,9 +2,7 @@
 //! isolated app profile; checks visible controls without entering credentials.
 #![cfg(windows)]
 
-#[allow(dead_code)]
-#[path = "../src/library/battlenet_account.rs"]
-mod battlenet_account;
+include!("support/battlenet_modules.rs");
 #[path = "../src/webview_args.rs"]
 mod webview_args;
 

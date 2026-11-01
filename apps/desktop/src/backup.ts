@@ -7,7 +7,8 @@ import {
   normalizeFeedbackReplyCursor,
   type FeedbackReplyCursor,
 } from "./notifications";
-import { DEFAULT_API_ENDPOINT } from "./store";
+import { DEFAULT_API_ENDPOINT, type ExeCacheEntry } from "./store";
+import { readWatchFolders } from "./library/watchFolderState";
 import {
   readPersistedRecord,
   STORAGE_KEY,
@@ -57,6 +58,7 @@ const NOTIFICATION_STATE_KEYS = [
   "suppressContributionNotificationsOnce",
   "lastSeenReleaseNotesVersion",
   "languageNoticeSeen",
+  "battleNetPlaytimeNoticeSeen",
   "discordInviteSnoozedAt",
   "discordInviteDone",
 ];
@@ -238,6 +240,16 @@ export async function importLocalData(): Promise<ImportResult> {
   const envelope = parseEnvelope(raw);
   const data = createTransferData(envelope.data);
   validateBackupData(data, "data");
+  if (Array.isArray(data.exeCache)) {
+    // Discovered apps of the PC that made the backup wait until they run
+    // here. A file a watched folder already found here is on this PC.
+    const foundHere = readWatchFolders().pending;
+    data.exeCache = (data.exeCache as ExeCacheEntry[]).map((entry) =>
+      entry.state === "unmatched" && !foundHere[entry.exeName.toLowerCase()]
+        ? { ...entry, fromBackup: true }
+        : entry,
+    );
+  }
   data.notifications = [];
   data.discoveredReviewReminder = null;
   data.suppressStartupNotificationsOnce = true;

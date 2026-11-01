@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef } from "react";
+import { useWindowDragRegion } from "../../fullscreen";
 
 export function ModalWindowDragRegion() {
   const regionRef = useRef<HTMLDivElement>(null);
+  const dragRegion = useWindowDragRegion();
 
   useLayoutEffect(() => {
     const region = regionRef.current;
@@ -30,7 +32,7 @@ export function ModalWindowDragRegion() {
     <div
       ref={regionRef}
       aria-hidden="true"
-      data-tauri-drag-region
+      data-tauri-drag-region={dragRegion}
       className="absolute inset-x-0 top-0 h-16"
     />
   );

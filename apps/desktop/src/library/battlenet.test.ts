@@ -9,10 +9,7 @@ import {
   hydrate,
   normalizePersistedLibraryImport,
 } from "../tracker";
-import {
-  importGroupForGame,
-  hasImportableActivity,
-} from "../ui/views/ImportLibraryView";
+import { importGroupForGame, hasImportableActivity } from "./importGroups";
 import { libraryStatCards, summarizeLibraryStats } from "../ui/myGamesStats";
 import { buildLibraryImportCommit } from "./importPlan";
 import { commitLibraryImports } from "./commit";

@@ -569,6 +569,22 @@ describe("section collapse preferences", () => {
   });
 });
 
+describe("toasts", () => {
+  it("stacks at most two, so quick Ignore clicks keep the button free", () => {
+    useAppStore.setState({ toasts: [] });
+    for (const exeName of ["Steam.exe", "Discord.exe", "Spotify.exe"]) {
+      useAppStore
+        .getState()
+        .addToast({ tone: "success", title: `${exeName} ignored` });
+    }
+    const titles = useAppStore.getState().toasts.map((toast) => toast.title);
+    expect(titles).toHaveLength(2);
+    expect(titles).toEqual(
+      expect.arrayContaining(["Spotify.exe ignored", "Discord.exe ignored"]),
+    );
+  });
+});
+
 describe("ignored process sharing preference", () => {
   it("updates and persists automatic sharing", async () => {
     const originalSettings = useAppStore.getState().settings;

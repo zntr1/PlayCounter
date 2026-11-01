@@ -44,6 +44,8 @@ pub async fn reset_local_data(app: tauri::AppHandle, window: WebviewWindow) -> R
     if window.label() != super::notification_overlay::MAIN_LABEL {
         return Err("Reset is only available in the main PlayCounter window.".into());
     }
+    // Kept launcher sign-ins go first: Epic's session ends at Epic too.
+    super::library::kept_logins::sign_out_everywhere(&app).await?;
     let handle = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let data = handle

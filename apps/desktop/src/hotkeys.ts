@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
+import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
@@ -12,11 +13,13 @@ const t = getT("settings");
 export type HotkeySetting =
   | "showWindowHotkey"
   | "currentSessionHotkey"
-  | "quickNoteHotkey";
+  | "quickNoteHotkey"
+  | "liveTimerHotkey";
 const actions: Record<HotkeySetting, string> = {
   showWindowHotkey: "show-window",
   currentSessionHotkey: "current-session",
   quickNoteHotkey: "quick-note",
+  liveTimerHotkey: "live-timer",
 };
 /** Hotkeys the main window handles itself; they need its event listeners. */
 const listened: Partial<Record<HotkeySetting, () => void>> = {
@@ -25,10 +28,12 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
   quickNoteHotkey: () => {
     if (!openQuickNoteForCurrentSession()) showCurrentSessionOverlay();
   },
+  liveTimerHotkey: () => cycleLiveTimer(),
 };
 const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   currentSessionHotkey: "playcounter:current-session-hotkey",
   quickNoteHotkey: "playcounter:quick-note-hotkey",
+  liveTimerHotkey: "playcounter:live-timer-hotkey",
 };
 export const useHotkeyStatus = create<{
   errors: Partial<Record<HotkeySetting, string>>;

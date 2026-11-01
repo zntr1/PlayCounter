@@ -1,6 +1,6 @@
-import type { Game } from "@playcounter/shared";
+import type { Game, Session } from "@playcounter/shared";
 import { isWindowsExecutablePath } from "../gameLaunch";
-import type { ExeCacheEntry, LaunchTarget } from "../store";
+import type { ActiveSession, ExeCacheEntry, LaunchTarget } from "../store";
 import { isGenericExeName } from "./exeCandidates";
 import { scopedLocalGameId } from "./localGameIds";
 import {
@@ -27,6 +27,27 @@ export function genericExeFolder({ exeName, exePath }: ExeFile) {
   if (!isWindowsExecutablePath(exePath)) return null;
   const folder = exePath.replace(/[\\/]+[^\\/]*$/, "");
   return normalizeWindowsDir(folder) ? folder : null;
+}
+
+/** Folders that hold a game's runtime or files, never its name: a bundled
+ *  Java (`jre\bin`, `runtime\bin`), a JDK, a `Game` subfolder, and the
+ *  platform folder of the Java the Minecraft launcher keeps
+ *  (`runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin`). */
+const UNNAMED_FOLDER =
+  /^(?:(?:bin|jre|jdk|java|runtime|game)(?:$|[-_.\d])|windows-(?:x64|x86|arm64)$)/i;
+
+/** What a generic exe's folder is called, as a search term or in a message:
+ *  the folder itself, or the first one above it that names something
+ *  (`…\Age of History 3\jre\bin` → "Age of History 3"), without the dot of a
+ *  hidden folder (`.minecraft` → "minecraft"). Never the drive. */
+export function gameFolderName(folder: string) {
+  const names = folder.split(/[\\/]/).filter(Boolean).slice(1);
+  for (let index = names.length - 1; index >= 0; index -= 1) {
+    if (!UNNAMED_FOLDER.test(names[index])) {
+      return names[index].replace(/^\./, "");
+    }
+  }
+  return names.at(-1);
 }
 
 /** Local id for a game named on this PC. Generic names get one per folder, so
@@ -110,17 +131,52 @@ export function gamesLinkedToExe(
   return [...games.values()];
 }
 
+/** Games whose sessions ran an exe name, latest first. A generic name's game
+ *  can have no link left (a name link dropped on load, a backup from another
+ *  PC) while its hours stay: the picker offers it, so picking it keeps one
+ *  game. */
+export function gamesPlayedWithExe(
+  exeName: string,
+  sessions: readonly Session[],
+): Game[] {
+  const key = exeName.toLowerCase();
+  const games = new Map<string, Game>();
+  const played = sessions
+    .filter((session) => session.exeName.toLowerCase() === key)
+    .sort(
+      (left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt),
+    );
+  for (const session of played) {
+    const source = session.source ?? "igdb";
+    const id = `${source}:${session.gameId}`;
+    if (!session.gameName || games.has(id)) continue;
+    games.set(id, {
+      id: session.gameId,
+      igdbId: session.igdbId,
+      name: session.gameName,
+      coverUrl: session.coverUrl ?? "",
+      source,
+    });
+  }
+  return [...games.values()];
+}
+
 /**
  * Save data from before folder links: a generic name linked by name alone
  * moves to the folder of its remembered Play file, keeping the game's id so
- * its hours stay together. Without a Play file of that game the name link
- * stays; nothing tells which folder it meant. Mutates both maps; returns
- * whether anything moved.
+ * its hours stay together. Without a Play file of that game the name link is
+ * dropped: nothing tells which folder it meant, and it would claim every copy
+ * on the PC. The game keeps its hours in its sessions, and the picker offers
+ * it again (gamesPlayedWithExe). A game still running from before this start
+ * keeps its link until a later start, so the time it ran while PlayCounter
+ * was closed still counts. Mutates both maps; returns whether anything
+ * changed.
  */
 export function moveGenericNameLinksToFolders(
   exeCache: Map<string, ExeCacheEntry>,
   scopedExeLinks: Map<string, ScopedExeLink>,
   launchTargets: ReadonlyMap<string, LaunchTarget>,
+  runningGames: readonly Pick<ActiveSession, "gameId" | "source">[] = [],
 ) {
   let changed = false;
   for (const [key, entry] of [...exeCache]) {
@@ -151,6 +207,14 @@ export function moveGenericNameLinksToFolders(
       target.owner.gameId !== entry.gameId ||
       target.owner.source !== (entry.source ?? null)
     ) {
+      const running = runningGames.some(
+        (game) =>
+          game.gameId === entry.gameId && (game.source ?? "igdb") === source,
+      );
+      if (!running) {
+        exeCache.delete(key);
+        changed = true;
+      }
       continue;
     }
     const link = genericFolderLink(

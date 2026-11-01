@@ -10,6 +10,7 @@ import type {
   IdentifierFlagReason,
   LibraryFeaturedGame,
   LibraryStatCardId,
+  LiveTimerCorner,
   Session,
   Settings,
   Theme,
@@ -65,6 +66,7 @@ import type {
 import { libraryEntryKey } from "./library/types";
 import { scopedExeLinkKey } from "./library/scopedLinks";
 import { isGenericExeName } from "./library/exeCandidates";
+import type { KeptLoginService } from "./library/keptLogins";
 import type { LocalLinkRef } from "./localLinks";
 import type { RejectedGameFile } from "./rejectedGameFiles";
 import {
@@ -207,6 +209,9 @@ export type ExeCacheEntry = {
   /** Last seen path of an unmatched executable, so Discovered can show its
    *  folder, icon and product name after it stops. Stays on this PC. */
   exePath?: string;
+  /** An unmatched executable that came in with a backup and has not run on
+   *  this PC yet. Discovered hides it until it does; its time is kept. */
+  fromBackup?: boolean;
 };
 
 export type LaunchTargetOwner = {
@@ -403,7 +408,8 @@ export type DesktopOverlaySettingKey =
   | "overlayMilestones"
   | "overlayActionRequired"
   | "overlayDiscoveries"
-  | "overlayShowClock";
+  | "overlayShowClock"
+  | "liveTimerEnabled";
 
 export type ActiveTour = {
   tourId: string;
@@ -526,6 +532,8 @@ export type AppState = {
   suppressContributionNotificationsOnce: boolean;
   /** The one-time "PlayCounter is now in German" notice was answered. */
   languageNoticeSeen: boolean;
+  /** "Battle.net has no past playtime" was confirmed once on this PC. */
+  battleNetPlaytimeNoticeSeen: boolean;
   /** When "Not now" first hid the Discord invite. It comes back two weeks
    *  later, once. */
   discordInviteSnoozedAt: string | null;
@@ -548,6 +556,7 @@ export type AppState = {
   resetTourProgress: () => void;
   markReleaseNotesSeen: (version: string) => void;
   dismissLanguageNotice: () => void;
+  markBattleNetPlaytimeNoticeSeen: () => void;
   snoozeDiscordInvite: () => void;
   finishDiscordInvite: () => void;
   openCurrentReleaseNotes: () => void;
@@ -673,8 +682,14 @@ export type AppState = {
     enabled: boolean,
   ) => void;
   setOverlayMonitor: (monitor: string) => void;
+  setLiveTimerCorner: (corner: LiveTimerCorner) => void;
+  setPlaytimeReminderMinutes: (minutes: number | null) => void;
   setHotkey: (
-    key: "showWindowHotkey" | "currentSessionHotkey" | "quickNoteHotkey",
+    key:
+      | "showWindowHotkey"
+      | "currentSessionHotkey"
+      | "quickNoteHotkey"
+      | "liveTimerHotkey",
     shortcut: string | null,
   ) => void;
   setDesktopOverlaySetting: (
@@ -692,6 +707,7 @@ export type AppState = {
   recordAutomaticDetection: (keys: string[]) => boolean;
   carryAutoDetectedGameKey: (from: string, to: string) => void;
   setEmulatorIgnoredSetting: (emulatorId: string, ignored: boolean) => void;
+  setLoginWarning: (service: KeptLoginService, enabled: boolean) => void;
   setDevNumber: (
     key: "pollingIntervalSeconds" | "unmatchedRetryDays",
     value: number,
@@ -764,6 +780,9 @@ const defaultSettings: Settings = {
   overlayActionRequired: true,
   overlayDiscoveries: false,
   overlayShowClock: false,
+  liveTimerEnabled: false,
+  liveTimerCorner: "top-left",
+  playtimeReminderMinutes: null,
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
@@ -939,6 +958,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   suppressStartupNotificationsOnce: false,
   suppressContributionNotificationsOnce: false,
   languageNoticeSeen: false,
+  battleNetPlaytimeNoticeSeen: false,
   discordInviteSnoozedAt: null,
   discordInviteDone: false,
   activeTour: null,
@@ -1040,6 +1060,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   dismissLanguageNotice: () => {
     set({ languageNoticeSeen: true });
+    persistSoon();
+  },
+  markBattleNetPlaytimeNoticeSeen: () => {
+    if (get().battleNetPlaytimeNoticeSeen) return;
+    set({ battleNetPlaytimeNoticeSeen: true });
     persistSoon();
   },
   snoozeDiscordInvite: () => {
@@ -1529,7 +1554,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ installPresenceMarker }),
   addToast: (toast) =>
     set((state) => ({
-      toasts: [{ ...toast, id: nextToastId++ }, ...state.toasts].slice(0, 5),
+      // Two at most: toasts take clicks, a taller stack covers the buttons
+      // the user is clicking through.
+      toasts: [{ ...toast, id: nextToastId++ }, ...state.toasts].slice(0, 2),
     })),
   dismissToast: (toastId) =>
     set((state) => ({
@@ -1974,6 +2001,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({ settings: { ...state.settings, overlayMonitor } }));
     persistSoon();
   },
+  setLiveTimerCorner: (liveTimerCorner) => {
+    set((state) => ({ settings: { ...state.settings, liveTimerCorner } }));
+    persistSoon();
+  },
+  setPlaytimeReminderMinutes: (playtimeReminderMinutes) => {
+    set((state) => ({
+      settings: { ...state.settings, playtimeReminderMinutes },
+    }));
+    persistSoon();
+  },
   setHotkey: (key, shortcut) => {
     set((state) => ({ settings: { ...state.settings, [key]: shortcut } }));
     persistSoon();
@@ -2069,6 +2106,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     persistSoon();
   },
+  setLoginWarning: (service, enabled) => {
+    set((state) => {
+      const off = new Set(state.settings.loginWarningsOff ?? []);
+      if (enabled) off.delete(service);
+      else off.add(service);
+      return {
+        settings: { ...state.settings, loginWarningsOff: [...off].sort() },
+      };
+    });
+    persistSoon();
+  },
   setDevNumber: (key, value) => {
     set((state) => ({
       settings: { ...state.settings, [key]: Math.max(1, value) },
@@ -2133,15 +2181,41 @@ export function customHeroArtKey(game: {
   return `${game.source ?? "custom"}:${game.gameId}`;
 }
 
+// Every card in My Games asks for its journal with the same three maps, and
+// building the index reads all of them: one index per set of maps. The store
+// replaces a map when it changes, so the same map means the same contents.
+let lastPersonalIdentity:
+  | {
+      gameMetadata: AppState["gameMetadata"];
+      exeCache: AppState["exeCache"];
+      libraryImports: AppState["libraryImports"];
+      identity: (game: GameIdentityRef) => string;
+    }
+  | undefined;
+
 export function personalGameIdentity(
   state: Pick<AppState, "gameMetadata" | "exeCache" | "libraryImports">,
 ) {
+  if (
+    lastPersonalIdentity?.gameMetadata === state.gameMetadata &&
+    lastPersonalIdentity.exeCache === state.exeCache &&
+    lastPersonalIdentity.libraryImports === state.libraryImports
+  )
+    return lastPersonalIdentity.identity;
   const resolver = createGameIdentityResolver(
     state.gameMetadata,
     state.exeCache,
     state.libraryImports,
   );
-  return (game: GameIdentityRef) => resolvedCanonicalGameKey(game, resolver);
+  const identity = (game: GameIdentityRef) =>
+    resolvedCanonicalGameKey(game, resolver);
+  lastPersonalIdentity = {
+    gameMetadata: state.gameMetadata,
+    exeCache: state.exeCache,
+    libraryImports: state.libraryImports,
+    identity,
+  };
+  return identity;
 }
 
 export function getGameJournal(

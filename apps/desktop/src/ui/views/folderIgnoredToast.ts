@@ -1,5 +1,6 @@
 import type { Toast } from "../../store";
 import { getT } from "../../i18n";
+import { gameFolderName } from "../../library/genericExeLinks";
 
 const t = getT("discovered");
 
@@ -9,7 +10,7 @@ export function notifyFolderIgnored(
   folder: string,
   addToast: (toast: Omit<Toast, "id">) => void,
 ) {
-  const folderName = folder.split(/[\\/]/).filter(Boolean).at(-1) ?? folder;
+  const folderName = gameFolderName(folder) ?? folder;
   addToast({
     tone: "success",
     title: t("{{exeName}} ignored in {{folderName}}", { exeName, folderName }),

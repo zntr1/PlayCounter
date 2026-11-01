@@ -42,6 +42,7 @@ import {
 import {
   useAppStore,
   useIsOffline,
+  type AppState,
   type ExeCacheEntry,
   type ProcessSnapshot,
   type Toast,
@@ -50,6 +51,7 @@ import {
   countNeedsReview,
   getDiscoveryStatus,
   NEEDS_REVIEW_STATUSES,
+  type DiscoveryReviewInput,
   type DiscoveryStatus,
 } from "../../discoveredReview";
 import { ExeIcon } from "../ExeIcon";
@@ -98,7 +100,10 @@ import {
   readWatchFolders,
 } from "../../library/watchFolderState";
 import { isGenericExeName } from "../../library/exeCandidates";
-import { isSortedGenericCopy } from "../../library/genericExeLinks";
+import {
+  gameFolderName,
+  isSortedGenericCopy,
+} from "../../library/genericExeLinks";
 import { notifyFolderIgnored } from "./folderIgnoredToast";
 import { appLocale, getT } from "../../i18n";
 import { nativeText } from "../../nativeText";
@@ -236,32 +241,36 @@ const statusToTone: Record<DiscoveryStatus, DiscoveryGroup["tone"]> = {
 };
 
 export function useNeedsReviewCount() {
-  const processes = useAppStore((state) => state.processes);
-  const exeCache = useAppStore((state) => state.exeCache);
-  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
-  const userIgnoredProcesses = useAppStore(
-    (state) => state.userIgnoredProcesses,
-  );
-  const blacklist = useAppStore((state) => state.blacklist);
-  const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
+  return useAppStore(selectNeedsReviewCount);
+}
 
-  return useMemo(() => {
-    return countNeedsReview({
-      processes,
-      exeCache,
-      ignoredProcesses,
-      userIgnoredProcesses,
-      blacklist,
-      ambiguousMatches,
-    });
-  }, [
-    processes,
-    exeCache,
-    ignoredProcesses,
-    userIgnoredProcesses,
-    blacklist,
-    ambiguousMatches,
-  ]);
+// App shows this count in the sidebar. Subscribing to the process list there
+// re-rendered the whole app on every scan, because each scan stores a new
+// list; a number re-renders only when it changes.
+let reviewInput: DiscoveryReviewInput | undefined;
+let reviewCount = 0;
+
+function selectNeedsReviewCount(state: AppState) {
+  if (
+    !reviewInput ||
+    reviewInput.processes !== state.processes ||
+    reviewInput.exeCache !== state.exeCache ||
+    reviewInput.ignoredProcesses !== state.ignoredProcesses ||
+    reviewInput.userIgnoredProcesses !== state.userIgnoredProcesses ||
+    reviewInput.blacklist !== state.blacklist ||
+    reviewInput.ambiguousMatches !== state.ambiguousMatches
+  ) {
+    reviewInput = {
+      processes: state.processes,
+      exeCache: state.exeCache,
+      ignoredProcesses: state.ignoredProcesses,
+      userIgnoredProcesses: state.userIgnoredProcesses,
+      blacklist: state.blacklist,
+      ambiguousMatches: state.ambiguousMatches,
+    };
+    reviewCount = countNeedsReview(reviewInput);
+  }
+  return reviewCount;
 }
 
 function sortDiscovered(
@@ -562,7 +571,7 @@ export function DiscoveredView() {
     const folderName =
       pendingFolderFind(exeName)?.folderName ??
       (localOnly && exePath
-        ? exePath.split(/[\\/]/).filter(Boolean).at(-2)
+        ? gameFolderName(exePath.replace(/[\\/][^\\/]*$/, ""))
         : undefined);
     if (folderName) correction.setSearch(folderName);
     setSuggestionTarget({

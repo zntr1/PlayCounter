@@ -64,6 +64,8 @@ import {
   Square,
   Timer,
   Trash2,
+  Trophy,
+  UsersRound,
   WifiOff,
 } from "lucide-react";
 import {
@@ -218,6 +220,7 @@ import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { achievementSources } from "./games/GameAchievementsTab";
 import { isRejectedGameFile } from "../../rejectedGameFiles";
 import { PickGameFileDialog } from "./games/GameFileList";
 import {
@@ -292,6 +295,8 @@ import {
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { LaunchKeyHint } from "./games/LaunchKeyHint";
 import { controllerButtonName } from "../ControllerButtonGlyph";
+import { CloseGameDialog } from "./games/CloseGameDialog";
+import { CloseKeyHint } from "./games/CloseKeyHint";
 import { useControllerKind } from "../../controllerKind";
 import {
   findManualLaunchTarget,
@@ -2163,6 +2168,7 @@ export function MyGamesView({
             <ProviderBadge provider="xbox" />
             <ProviderBadge provider="battlenet" />
             <ProviderBadge provider="epic" />
+            <ProviderBadge provider="gog" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-text-muted">{t("Emulator")}</span>
@@ -2510,7 +2516,7 @@ export function MyGamesView({
                         id="library-show-provider-tabs"
                         label={t("Launcher groups")}
                         help={t(
-                          "Steam, Xbox, Battle.net and Epic Games as their own entries under My Games.",
+                          "Steam, Xbox, Battle.net, Epic Games and GOG as their own entries under My Games.",
                         )}
                         checked={showProviderTabs}
                         onChange={setMyGamesShowProviderTabs}
@@ -2944,6 +2950,15 @@ function EmptyLibraryPanel({
       </div>
       {importProviders.length > 0 ? (
         <div className="border-t border-border/60 px-6 py-6">
+          <Button
+            variant="secondary"
+            icon={UsersRound}
+            className="mx-auto mb-4"
+            data-controller-item="view-link"
+            onClick={() => setActiveView("accounts")}
+          >
+            {getT("accounts")("Manage accounts")}
+          </Button>
           <p className="text-sm text-text-muted">
             {t(
               "You can also import games and past playtime. It's completely optional.",
@@ -3004,6 +3019,15 @@ function ProviderImportCallout({
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
         {config.emptyBody}
       </p>
+      <Button
+        variant="secondary"
+        icon={UsersRound}
+        className="mx-auto mt-6"
+        data-controller-item="view-link"
+        onClick={() => setActiveView("accounts")}
+      >
+        {getT("accounts")("Manage accounts")}
+      </Button>
       <Button
         variant="primary"
         icon={Download}
@@ -3214,6 +3238,18 @@ export function GameLibraryCard({
     [game.igdbId, playcounterLibrary],
   );
   const [showDetails, setShowDetails] = useState(false);
+  // "Achievements" in the card menu opens Details on that tab.
+  const [detailsTab, setDetailsTab] = useState<"general" | "achievements">(
+    "general",
+  );
+  const openDetails = (tab: "general" | "achievements" = "general") => {
+    setDetailsTab(tab);
+    setShowDetails(true);
+  };
+  const hasGameAchievements = useMemo(
+    () => achievementSources(game).length > 0,
+    [game],
+  );
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   // The one file Report, Convert or Check match is about (see flowExeName).
@@ -3238,6 +3274,11 @@ export function GameLibraryCard({
   );
   const [renameName, setRenameName] = useState("");
   const [launching, setLaunching] = useState(false);
+  // Close game, or "Close A and start B?" when `start` is set.
+  const [closeRequest, setCloseRequest] = useState<{
+    sessions: ActiveSession[];
+    start?: () => void;
+  } | null>(null);
 
   const closeDemoDialogs = () => {
     setDemoAction(null);
@@ -3307,6 +3348,20 @@ export function GameLibraryCard({
             (session.source ?? null) === alias.source,
         ),
     ),
+  );
+  // The game runs on this PC (not a timer), so it can be closed. Only the
+  // id: a checkpoint of the running session must not re-render the card.
+  const runningSessionId = useAppStore(
+    (state) =>
+      state.activeSessions.find(
+        (session) =>
+          !session.timer &&
+          game.aliases.some(
+            (alias) =>
+              session.gameId === alias.gameId &&
+              (session.source ?? null) === alias.source,
+          ),
+      )?.id,
   );
   useEffect(() => {
     if (!launching || !launchTourDemo) return;
@@ -3426,6 +3481,12 @@ export function GameLibraryCard({
   );
   const epicLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "epic" && entry.installed,
+  );
+  const gogImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "gog",
+  );
+  const gogLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "gog" && entry.installed,
   );
   const importedProviders = libraryProviders(game.libraryImports);
   const unknownDurationProviders = importedProviders.filter((provider) =>
@@ -3555,6 +3616,25 @@ export function GameLibraryCard({
           : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
+  const closableSessionId =
+    showPlayButton && playButtonRunning && controllerNavigable
+      ? runningSessionId
+      : undefined;
+  const canCloseGame = closableSessionId !== undefined;
+  const handleCloseGame = () => {
+    const session = useAppStore
+      .getState()
+      .activeSessions.find((active) => active.id === closableSessionId);
+    if (session) setCloseRequest({ sessions: [session] });
+  };
+  const closeGameDialog = closeRequest ? (
+    <CloseGameDialog
+      sessions={closeRequest.sessions}
+      nextGameName={closeRequest.start ? game.name : undefined}
+      onStart={closeRequest.start}
+      onClose={() => setCloseRequest(null)}
+    />
+  ) : null;
   const canEditCover = game.source === "custom";
   const shownCover = useCoverUrl(
     { ...game, gameName: game.name },
@@ -3697,7 +3777,8 @@ export function GameLibraryCard({
     steamImportEntry ??
     xboxImportEntry ??
     battleNetImportEntry ??
-    epicImportEntry;
+    epicImportEntry ??
+    gogImportEntry;
   const libraryMatchOffer =
     !demo && trackingUnavailable && offeredImport
       ? libraryMatchOffers.get(
@@ -4461,7 +4542,29 @@ export function GameLibraryCard({
     });
   }
 
-  async function handleLaunch(target = primaryLaunchTarget) {
+  /** Play while another game runs asks "Close A and start B?" first. */
+  function askToCloseOtherGames(start: () => void) {
+    if (demo) return false;
+    const others = useAppStore
+      .getState()
+      .activeSessions.filter(
+        (session) =>
+          !session.timer &&
+          !game.aliases.some(
+            (alias) =>
+              session.gameId === alias.gameId &&
+              (session.source ?? null) === alias.source,
+          ),
+      );
+    if (others.length === 0) return false;
+    setCloseRequest({ sessions: others, start });
+    return true;
+  }
+
+  async function handleLaunch(
+    target = primaryLaunchTarget,
+    alongsideOthers = false,
+  ) {
     contextMenu.close();
     if (launchTourDemo) {
       // Show the usual Starting… state first; the sample finishes on a timer.
@@ -4507,6 +4610,12 @@ export function GameLibraryCard({
       });
       return;
     }
+    if (
+      !alongsideOthers &&
+      askToCloseOtherGames(() => void handleLaunch(target, true))
+    ) {
+      return;
+    }
     if (!onAcquireLaunch(launchKey)) {
       addToast({
         tone: "info",
@@ -4546,6 +4655,7 @@ export function GameLibraryCard({
 
   async function handleEmulatorLaunch(
     mapping: (typeof gameEmulatorMappings)[number],
+    alongsideOthers = false,
   ) {
     contextMenu.close();
     if (hasActiveSession) {
@@ -4554,6 +4664,14 @@ export function GameLibraryCard({
         title: t("{{name}} is already running", { name: game.name }),
         detail: t("PlayCounter is already tracking this game."),
       });
+      return;
+    }
+    if (
+      !alongsideOthers &&
+      !launching &&
+      !launchBlocked &&
+      askToCloseOtherGames(() => void handleEmulatorLaunch(mapping, true))
+    ) {
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
@@ -4608,8 +4726,9 @@ export function GameLibraryCard({
 
   /** Starts an installed game through the launcher it was imported from. */
   async function handleLauncherLaunch(
-    providerId: "steam" | "xbox" | "epic",
+    providerId: "steam" | "xbox" | "epic" | "gog",
     entry: { externalId: string } | undefined,
+    alongsideOthers = false,
   ) {
     if (!entry) return;
     contextMenu.close();
@@ -4619,6 +4738,16 @@ export function GameLibraryCard({
         title: t("{{name}} is already running", { name: game.name }),
         detail: t("PlayCounter is already tracking this game."),
       });
+      return;
+    }
+    if (
+      !alongsideOthers &&
+      !launching &&
+      !launchBlocked &&
+      askToCloseOtherGames(
+        () => void handleLauncherLaunch(providerId, entry, true),
+      )
+    ) {
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
@@ -4665,6 +4794,8 @@ export function GameLibraryCard({
     handleLauncherLaunch("steam", steamLaunchEntry);
   const handleXboxLaunch = () => handleLauncherLaunch("xbox", xboxLaunchEntry);
   const handleEpicLaunch = () => handleLauncherLaunch("epic", epicLaunchEntry);
+  // GOG games start their own start file; GOG GALAXY is not involved.
+  const handleGogLaunch = () => handleLauncherLaunch("gog", gogLaunchEntry);
 
   async function handleInstallInSteam() {
     if (!steamImportEntry) return;
@@ -4828,6 +4959,8 @@ export function GameLibraryCard({
       void handleSteamLaunch();
     } else if (epicLaunchEntry) {
       void handleEpicLaunch();
+    } else if (gogLaunchEntry) {
+      void handleGogLaunch();
     } else {
       void handleLaunch();
     }
@@ -4938,6 +5071,7 @@ export function GameLibraryCard({
     ) : showDetails ? (
       <GameDetailsDialog
         game={game}
+        initialTab={detailsTab}
         launchKey={`${launchKey}:details`}
         launchBlocked={launchBlocked}
         onAcquireLaunch={onAcquireLaunch}
@@ -5012,11 +5146,22 @@ export function GameLibraryCard({
           dataTour={demo ? "demo-menu-details" : undefined}
           onClick={() => {
             contextMenu.close();
-            setShowDetails(true);
+            openDetails();
           }}
         >
           {t("Open Details")}
         </ContextMenuItem>
+        {hasGameAchievements ? (
+          <ContextMenuItem
+            icon={Trophy}
+            onClick={() => {
+              contextMenu.close();
+              openDetails("achievements");
+            }}
+          >
+            {t("Achievements")}
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem
           dataTour={demo ? "demo-menu-show-history" : undefined}
           icon={History}
@@ -5713,12 +5858,17 @@ export function GameLibraryCard({
           controllerNavigable
             ? launching
               ? t("{{game}}, starting", { game: game.name })
-              : hasPrimaryLaunchTarget
-                ? t("{{game}}, press {{button}}, Space or Enter to play", {
+              : canCloseGame
+                ? t("{{game}}, running, press {{button}} to stop", {
                     game: game.name,
-                    button: controllerButtonName(controllerKind, "A"),
+                    button: controllerButtonName(controllerKind, "X"),
                   })
-                : t("{{game}}, no launch file saved", { game: game.name })
+                : hasPrimaryLaunchTarget
+                  ? t("{{game}}, press {{button}}, Space or Enter to play", {
+                      game: game.name,
+                      button: controllerButtonName(controllerKind, "A"),
+                    })
+                  : t("{{game}}, no launch file saved", { game: game.name })
             : undefined
         }
         className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -5817,7 +5967,7 @@ export function GameLibraryCard({
                 icon={Info}
                 aria-label={t("Open details for {{name}}", { name: game.name })}
                 title={t("Open details")}
-                onClick={() => setShowDetails(true)}
+                onClick={() => openDetails()}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               {!demo || libraryPractice ? (
@@ -6054,7 +6204,33 @@ export function GameLibraryCard({
             </span>
           </button>
         ) : null}
-        {showLaunchFooter ? (
+        {canCloseGame ? (
+          <div
+            className={clsx(
+              "flex shrink-0 items-stretch border-t border-success-border bg-success-tint font-semibold",
+              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+            )}
+          >
+            <span className="flex min-w-0 flex-1 items-center justify-center gap-2 text-success">
+              <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+              </span>
+              {t("Running")}
+            </span>
+            <button
+              type="button"
+              data-controller-stop
+              aria-label={t("Stop {{name}}", { name: game.name })}
+              title={t("Stop game")}
+              onClick={handleCloseGame}
+              className="flex shrink-0 items-center gap-1.5 border-l border-success-border bg-danger-solid px-3 text-white transition hover:bg-danger-solid-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger/60"
+            >
+              <CloseKeyHint size={isLarge ? 12 : 11} />
+              {t("Stop")}
+            </button>
+          </div>
+        ) : showLaunchFooter ? (
           <button
             type="button"
             aria-label={
@@ -6204,6 +6380,7 @@ export function GameLibraryCard({
         {renderContextMenu()}
         {renderDetailsDialog()}
         {launchFileDialog}
+        {closeGameDialog}
         {renderDemoAction()}
         {showAddPlaytime ? (
           <AddPlaytimeDialog
@@ -6431,12 +6608,17 @@ export function GameLibraryCard({
         controllerNavigable
           ? launching
             ? t("{{game}}, starting", { game: game.name })
-            : hasPrimaryLaunchTarget
-              ? t("{{game}}, press {{button}}, Space or Enter to play", {
+            : canCloseGame
+              ? t("{{game}}, running, press {{button}} to stop", {
                   game: game.name,
-                  button: controllerButtonName(controllerKind, "A"),
+                  button: controllerButtonName(controllerKind, "X"),
                 })
-              : t("{{game}}, no launch file saved", { game: game.name })
+              : hasPrimaryLaunchTarget
+                ? t("{{game}}, press {{button}}, Space or Enter to play", {
+                    game: game.name,
+                    button: controllerButtonName(controllerKind, "A"),
+                  })
+                : t("{{game}}, no launch file saved", { game: game.name })
           : undefined
       }
       className="game-library-card group relative isolate rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -6700,6 +6882,17 @@ export function GameLibraryCard({
               className="shrink-0 border-accent/30 bg-accent-tint text-accent-ink hover:border-accent hover:bg-accent hover:text-accent-fg"
             />
           ) : null}
+          {canCloseGame ? (
+            <IconButton
+              data-controller-stop
+              aria-label={t("Stop {{name}}", { name: game.name })}
+              title={t("Stop game")}
+              onClick={handleCloseGame}
+              className="border-danger/50 bg-danger/10 text-danger hover:border-danger-solid hover:bg-danger-solid hover:text-white"
+            >
+              <CloseKeyHint size={11} />
+            </IconButton>
+          ) : null}
 
           {!selectionMode ? (
             <div
@@ -6744,6 +6937,7 @@ export function GameLibraryCard({
       {renderContextMenu()}
       {renderDetailsDialog()}
       {launchFileDialog}
+      {closeGameDialog}
       {renderDemoAction()}
       {showAddPlaytime ? (
         <AddPlaytimeDialog
@@ -7677,10 +7871,15 @@ function LibraryImportMatchCheckDialog({
                     provider: providerLabel,
                     id: entry.externalId,
                   })
-                : t("{{provider}} Title ID {{id}}", {
-                    provider: providerLabel,
-                    id: entry.externalId,
-                  })
+                : entry.provider === "gog"
+                  ? t("{{provider}} ID {{id}}", {
+                      provider: providerLabel,
+                      id: entry.externalId,
+                    })
+                  : t("{{provider}} Title ID {{id}}", {
+                      provider: providerLabel,
+                      id: entry.externalId,
+                    })
       }
       icon={Search}
       onClose={onCancel}

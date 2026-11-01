@@ -24,6 +24,7 @@ import {
   Play,
   Settings,
   Trophy,
+  UsersRound,
   Wifi,
   WifiOff,
   X,
@@ -47,6 +48,11 @@ import {
   Suspense,
 } from "react";
 import { initializeTracker } from "../tracker";
+import {
+  useLauncherAccountChecks,
+  useLoginWarningCount,
+} from "../library/loginHealth";
+import { importProfile } from "../library/importProfiles";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
 import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
@@ -62,6 +68,7 @@ import { RequestWarning } from "./RequestWarning";
 import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
+import { WhatsNewDialog } from "./WhatsNewDialog";
 import { SidebarButton } from "./SidebarButton";
 import { LanguageNotice } from "./LanguageNotice";
 import { DiscordInviteDialog, discordInviteDue } from "./DiscordInviteDialog";
@@ -81,6 +88,7 @@ import {
   DEFAULT_MENU_SCALE,
   normalizeInterfaceScale,
 } from "../interfaceScale";
+import { toggleFullscreen, useWindowDragRegion } from "../fullscreen";
 import {
   ControllerButtonGlyph,
   controllerButtonName,
@@ -129,14 +137,15 @@ import {
   findUnseenReleaseNotes,
   isEmptyDisplayNotes,
   parseManifestNotes,
-  toDisplayNotes,
   updateDisplayNotes,
 } from "../releaseNotes";
 import { appLocale, getT } from "../i18n";
 
 const t = getT("shell");
+const accountsT = getT("accounts");
 
-const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
+const ImportLibraryView = lazy(() => import("./import/ImportLibraryView"));
+const LauncherAccountsView = lazy(() => import("./views/LauncherAccountsView"));
 
 class ImporterErrorBoundary extends Component<
   { children: ReactNode },
@@ -269,13 +278,30 @@ function views(): Record<ViewId, ViewMeta> {
       // Mounted separately so its shared data can load before the cards.
       component: null,
     },
+    accounts: {
+      label: accountsT("Launcher accounts"),
+      subtitle: accountsT("Manage your launcher connections in one place."),
+      icon: UsersRound,
+      component: (
+        <Suspense
+          fallback={
+            <PlayCounterLoader
+              label={accountsT("Launcher accounts")}
+              className="min-h-[320px] text-text-muted"
+            />
+          }
+        >
+          <LauncherAccountsView />
+        </Suspense>
+      ),
+    },
     import: {
       label: t("Import library"),
       subtitle: t("Bring an existing game library into PlayCounter"),
       icon: Download,
       component: (
         <div className="grid gap-4">
-          <div>
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
               icon={ArrowLeft}
@@ -283,6 +309,14 @@ function views(): Record<ViewId, ViewMeta> {
               onClick={backToMyGames}
             >
               {t("Back to My Games")}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={UsersRound}
+              data-controller-item="view-link"
+              onClick={() => useAppStore.getState().setActiveView("accounts")}
+            >
+              {accountsT("Manage accounts")}
             </Button>
           </div>
           <ImporterErrorBoundary>
@@ -352,7 +386,7 @@ function sidebarSections(): Array<{
     {
       id: "system",
       label: t("System"),
-      items: ["discovered", "settings", "dev"],
+      items: ["discovered", "accounts", "settings", "dev"],
     },
   ];
 }
@@ -391,6 +425,7 @@ export function App() {
   const activeView = useAppStore((state) => state.activeView);
   const language = useAppStore((state) => state.settings.language);
   const parkedInTray = useParkedInTray();
+  const dragRegion = useWindowDragRegion();
   // My Games and Now Playing carry their own hero; My History too, built
   // from the play history itself, so the pinned-game banner stays off there.
   const viewBannerEnabled = useAppStore(
@@ -434,13 +469,16 @@ export function App() {
       : views()[activeView].label;
   const activeViewSubtitle =
     activeView === "import"
-      ? libraryImportProvider === "xbox"
-        ? t("Bring your Xbox games and playtime into PlayCounter")
-        : libraryImportProvider === "battlenet"
-          ? t("Add your Battle.net games to PlayCounter")
-          : libraryImportProvider === "epic"
-            ? t("Bring your Epic Games library and playtime into PlayCounter")
-            : t("Bring your Steam library and playtime into PlayCounter")
+      ? importProfile(libraryImportProvider).hasPlaytime
+        ? t(
+            "Bring your {{providerName}} games and their playtime into PlayCounter",
+            {
+              providerName: LIBRARY_PROVIDER_LABELS[libraryImportProvider],
+            },
+          )
+        : t("Add your {{providerName}} games to PlayCounter", {
+            providerName: LIBRARY_PROVIDER_LABELS[libraryImportProvider],
+          })
       : views()[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);
   const activeTourId = activeTour?.tourId ?? null;
@@ -485,6 +523,8 @@ export function App() {
   const backendHealth = useAppStore((state) => state.backendHealth);
   const isOffline = useIsOffline();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  useLauncherAccountChecks(apiEndpoint);
+  const accountsNeedingSignIn = useLoginWarningCount();
   const addToast = useAppStore((state) => state.addToast);
   const needsReviewCount = useNeedsReviewCount();
   const hasAmbiguousMatch = useAppStore(
@@ -625,6 +665,25 @@ export function App() {
     const observer = new ResizeObserver(syncWidth);
     observer.observe(content);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenKey = (event: KeyboardEvent) => {
+      if (
+        event.key !== "F11" ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      event.preventDefault();
+      void toggleFullscreen().catch((error) =>
+        console.warn("fullscreen toggle failed", error),
+      );
+    };
+    window.addEventListener("keydown", handleFullscreenKey);
+    return () => window.removeEventListener("keydown", handleFullscreenKey);
   }, []);
 
   useEffect(() => {
@@ -850,7 +909,7 @@ export function App() {
         )}
       >
         <div
-          data-tauri-drag-region
+          data-tauri-drag-region={dragRegion}
           className={clsx(
             "flex h-[72px] shrink-0 items-center",
             sidebarCollapsed ? "justify-center px-2" : "gap-2 px-4",
@@ -881,14 +940,14 @@ export function App() {
           ) : (
             <>
               <img
-                data-tauri-drag-region
+                data-tauri-drag-region={dragRegion}
                 src="/brand/playcounter-mark.svg"
                 alt=""
                 draggable={false}
                 className="h-11 w-11 shrink-0 object-contain"
               />
               <span
-                data-tauri-drag-region
+                data-tauri-drag-region={dragRegion}
                 className="min-w-0 flex-1 animate-label-in leading-none motion-reduce:animate-none"
               >
                 <PlayCounterWordmark
@@ -959,11 +1018,19 @@ export function App() {
                     badge={
                       item === "discovered"
                         ? needsReviewCount
-                        : isEmulatorId(item)
-                          ? sidebarEmulatorBadge(item)
+                        : item === "accounts"
+                          ? accountsNeedingSignIn || undefined
+                          : isEmulatorId(item)
+                            ? sidebarEmulatorBadge(item)
+                            : undefined
+                    }
+                    warn={
+                      item === "now"
+                        ? hasAmbiguousMatch
+                        : item === "accounts"
+                          ? accountsNeedingSignIn > 0
                           : undefined
                     }
-                    warn={item === "now" ? hasAmbiguousMatch : undefined}
                     isPlaying={
                       item === "now" && !hasAmbiguousMatch
                         ? activeSessionsCount > 0
@@ -1107,7 +1174,7 @@ export function App() {
         <header
           ref={titleBarRef}
           data-tour="header"
-          data-tauri-drag-region
+          data-tauri-drag-region={dragRegion}
           style={{ zoom: menuScale }}
           className={clsx(
             // z-30 lifts help and notification popovers above the content;
@@ -1154,7 +1221,7 @@ export function App() {
             </div>
           ) : null}
           <div
-            data-tauri-drag-region
+            data-tauri-drag-region={dragRegion}
             className="flex min-w-0 flex-1 items-center justify-center px-4"
           >
             <GlobalSearch />
@@ -1360,29 +1427,13 @@ export function App() {
         <FeedbackDialog onClose={() => setFeedbackOpen(false)} />
       ) : null}
       {currentNotesOpen && appVersion && installedReleaseNotes.length > 0 ? (
-        <ReleaseNotesDialog
-          version={appVersion}
-          eyebrow={t("New update")}
-          sections={installedReleaseNotes.map((note) => ({
-            version: note.version,
-            notes: toDisplayNotes(note),
-          }))}
+        <WhatsNewDialog
+          releases={installedReleaseNotes}
           onClose={() => closeCurrentReleaseNotes(appVersion)}
           onStartTour={(id) => {
             closeCurrentReleaseNotes(appVersion);
             useAppStore.getState().startTour(id);
           }}
-          footer={
-            <div className="flex justify-end">
-              <Button
-                variant="primary"
-                data-autofocus
-                onClick={() => closeCurrentReleaseNotes(appVersion)}
-              >
-                {t("Got it")}
-              </Button>
-            </div>
-          }
         />
       ) : null}
       {discordInviteOpen ? (
@@ -1488,6 +1539,7 @@ function ControllerModeFooter() {
         <ControllerHint button="B" label={t("Back")} />
         <ControllerHint button="RIGHT_STICK" label={t("Scroll")} />
         <ControllerHint button="VIEW" label={t("Card size")} />
+        <ControllerHint button="MENU" label={t("Fullscreen")} />
         <div
           className="flex min-w-0 items-center gap-1.5"
           aria-label={t(

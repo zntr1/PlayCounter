@@ -102,7 +102,7 @@ function dictionary(validate: Validator): Validator {
 }
 
 const source = oneOf("igdb", "community", "custom");
-const provider = oneOf("steam", "xbox", "battlenet", "epic");
+const provider = oneOf("steam", "xbox", "battlenet", "epic", "gog");
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
@@ -173,6 +173,7 @@ const exeEntry = object(
     trackedSeconds: nonnegative,
     runningSince: date,
     addedAt: date,
+    fromBackup: boolean,
   },
 );
 const libraryImport = object(
@@ -312,6 +313,7 @@ const settings = object({}, {
   showWindowHotkey: nullable(string),
   currentSessionHotkey: nullable(string),
   quickNoteHotkey: nullable(string),
+  liveTimerHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
   language: string,
@@ -383,11 +385,20 @@ const settings = object({}, {
   overlayActionRequired: boolean,
   overlayDiscoveries: boolean,
   overlayShowClock: boolean,
+  liveTimerEnabled: boolean,
+  liveTimerCorner: oneOf(
+    "top-left",
+    "top-right",
+    "bottom-left",
+    "bottom-right",
+  ),
+  playtimeReminderMinutes: nullable(positiveId),
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
   hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
+  loginWarningsOff: array(nonempty),
   showInstallInSteam: boolean,
   showAdultArt: boolean,
 } satisfies Record<keyof Settings, Validator>);
@@ -458,6 +469,7 @@ const validateBackupShape: Validator = object(
                 "xbox",
                 "battlenet",
                 "epic",
+                "gog",
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),

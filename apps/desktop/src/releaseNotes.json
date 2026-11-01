@@ -1,5 +1,413 @@
 [
   {
+    "version": "1.5.0",
+    "headline": "See your achievements, stay signed in to your launchers and close games right from PlayCounter.",
+    "highlights": [
+      {
+        "title": "Your achievements, game by game",
+        "text": "See what you unlocked on Steam, Xbox, Epic Games and GOG, when you got it and what's still missing.",
+        "hint": "Right-click a game in My Games → Achievements",
+        "image": "achievements"
+      },
+      {
+        "title": "Sign in once",
+        "text": "PlayCounter keeps your Xbox, Epic Games, GOG and Battle.net sign-ins on this PC, encrypted by Windows, and shows all your launchers on one page.",
+        "hint": "Sidebar → System → Launcher accounts",
+        "image": "accounts"
+      },
+      {
+        "title": "Stop a game right from My Games",
+        "text": "A running game shows a red Stop where Play was. Force stop ends a game that won't close.",
+        "hint": "On a controller: X (Xbox) or Square (PlayStation)",
+        "image": "stop"
+      },
+      {
+        "title": "A timer on your game",
+        "text": "A small timer in a corner of the game's window shows how long you've played. A reminder can pop up every 30 minutes to 4 hours of play.",
+        "hint": "Settings → While you play",
+        "image": "timer"
+      },
+      {
+        "title": "One import for every launcher",
+        "text": "Steam, Xbox, Epic Games, GOG and Battle.net now import the same way. Your games come sorted, and Wrong game? fixes a bad match.",
+        "hint": "Right-click a launcher under My Games → Import games",
+        "image": "import"
+      },
+      {
+        "title": "Import from GOG",
+        "text": "Bring in your GOG games with the playtime GOG recorded, start installed ones with Play and see their achievements."
+      },
+      {
+        "title": "Fullscreen for your TV",
+        "text": "Press F11, click the new button in the title bar or press Menu/Options on your controller."
+      },
+      {
+        "title": "Less CPU",
+        "text": "PlayCounter needs about a sixth of the CPU it used to while it watches for games, and the import review reacts faster."
+      },
+      {
+        "title": "Fewer messages at once",
+        "text": "At most two messages stack up in the corner, so they no longer cover the buttons you're clicking."
+      },
+      {
+        "title": "Fixes",
+        "text": "Games with their own Java no longer count as Minecraft, game files several games share are told apart by their folder, and one game the server can't look up no longer stops an import."
+      }
+    ],
+    "translations": {
+      "de": {
+        "headline": "Sieh deine Erfolge, bleib bei deinen Launchern angemeldet und schließ Spiele direkt in PlayCounter.",
+        "highlights": [
+          {
+            "title": "Deine Erfolge, Spiel für Spiel",
+            "text": "Sieh, was du bei Steam, Xbox, Epic Games und GOG freigeschaltet hast, wann, und was noch fehlt.",
+            "hint": "Rechtsklick auf ein Spiel in „Meine Spiele“ → „Erfolge“"
+          },
+          {
+            "title": "Nur einmal anmelden",
+            "text": "PlayCounter behält deine Anmeldungen bei Xbox, Epic Games, GOG und Battle.net auf diesem PC, von Windows verschlüsselt, und zeigt alle deine Launcher auf einer Seite.",
+            "hint": "Seitenleiste → „System“ → „Launcher-Konten“"
+          },
+          {
+            "title": "Spiele direkt in „Meine Spiele“ beenden",
+            "text": "Ein laufendes Spiel zeigt ein rotes „Beenden“, wo „Spielen“ war. „Beenden erzwingen“ stoppt ein Spiel, das sich nicht schließt.",
+            "hint": "Am Controller: X (Xbox) oder Quadrat (PlayStation)"
+          },
+          {
+            "title": "Ein Timer im Spiel",
+            "text": "Ein kleiner Timer in einer Ecke des Spielfensters zeigt, wie lange du schon spielst. Auf Wunsch erinnert dich ein Pop-up alle 30 Minuten bis 4 Stunden Spielzeit.",
+            "hint": "„Einstellungen“ → „Während du spielst“"
+          },
+          {
+            "title": "Ein Import für alle Launcher",
+            "text": "Steam, Xbox, Epic Games, GOG und Battle.net importierst du jetzt gleich. Deine Spiele kommen sortiert an, und „Falsches Spiel?“ korrigiert eine falsche Zuordnung.",
+            "hint": "Rechtsklick auf einen Launcher unter „Meine Spiele“ → „Spiele importieren“"
+          },
+          {
+            "title": "Aus GOG importieren",
+            "text": "Hol deine GOG-Spiele mit der Spielzeit, die GOG erfasst hat, starte installierte mit „Spielen“ und sieh dir ihre Erfolge an."
+          },
+          {
+            "title": "Vollbild für deinen Fernseher",
+            "text": "Drück F11, klick auf das neue Symbol in der Titelleiste oder drück am Controller die Menü- oder Options-Taste."
+          },
+          {
+            "title": "Weniger CPU",
+            "text": "PlayCounter braucht beim Erkennen deiner Spiele nur noch etwa ein Sechstel der CPU-Leistung, und die Import-Übersicht reagiert schneller."
+          },
+          {
+            "title": "Weniger Meldungen auf einmal",
+            "text": "Höchstens zwei Meldungen stapeln sich in der Ecke und verdecken nicht mehr, was du gerade anklickst."
+          },
+          {
+            "title": "Behoben",
+            "text": "Spiele mit eigenem Java zählen nicht mehr als Minecraft, Spieldateien, die sich mehrere Spiele teilen, werden an ihrem Ordner unterschieden, und ein Spiel, das der Server nicht nachschlagen kann, hält keinen Import mehr auf."
+          }
+        ]
+      },
+      "es": {
+        "headline": "Mira tus logros, mantén la sesión iniciada en tus lanzadores y cierra juegos desde PlayCounter.",
+        "highlights": [
+          {
+            "title": "Tus logros, juego a juego",
+            "text": "Mira qué desbloqueaste en Steam, Xbox, Epic Games y GOG, cuándo y qué te falta.",
+            "hint": "Clic derecho en un juego de Mis juegos → “Logros”"
+          },
+          {
+            "title": "Inicia sesión una sola vez",
+            "text": "PlayCounter guarda tus sesiones de Xbox, Epic Games, GOG y Battle.net en este PC, cifradas por Windows, y muestra todos tus lanzadores en una sola página.",
+            "hint": "Barra lateral → Sistema → Cuentas de lanzadores"
+          },
+          {
+            "title": "Detén un juego desde Mis juegos",
+            "text": "Un juego en ejecución muestra un “Detener” en rojo donde estaba “Jugar”. “Forzar detención” termina un juego que no se cierra.",
+            "hint": "Con un mando: X (Xbox) o Cuadrado (PlayStation)"
+          },
+          {
+            "title": "Un cronómetro en tu juego",
+            "text": "Un pequeño cronómetro en una esquina de la ventana del juego muestra cuánto llevas jugando. Si quieres, un aviso aparece cada 30 minutos a 4 horas de juego.",
+            "hint": "Configuración → “Mientras juegas”"
+          },
+          {
+            "title": "Una importación para todos los lanzadores",
+            "text": "Steam, Xbox, Epic Games, GOG y Battle.net ahora se importan igual. Tus juegos llegan ordenados y “¿Juego equivocado?” corrige una asociación incorrecta.",
+            "hint": "Clic derecho en un lanzador bajo Mis juegos → “Importar juegos”"
+          },
+          {
+            "title": "Importar desde GOG",
+            "text": "Trae tus juegos de GOG con el tiempo de juego que registró GOG, inicia los instalados con “Jugar” y mira sus logros."
+          },
+          {
+            "title": "Pantalla completa para tu tele",
+            "text": "Pulsa F11, haz clic en el nuevo botón de la barra de título o pulsa Menú/Options en tu mando."
+          },
+          {
+            "title": "Menos CPU",
+            "text": "PlayCounter usa alrededor de una sexta parte de la CPU de antes mientras detecta juegos, y la revisión de la importación responde más rápido."
+          },
+          {
+            "title": "Menos mensajes a la vez",
+            "text": "Como mucho se apilan dos mensajes en la esquina, así que ya no tapan los botones en los que haces clic."
+          },
+          {
+            "title": "Correcciones",
+            "text": "Los juegos con su propio Java ya no cuentan como Minecraft, los archivos de juego que comparten varios juegos se distinguen por su carpeta, y un juego que el servidor no puede consultar ya no detiene una importación."
+          }
+        ]
+      },
+      "fr": {
+        "headline": "Consultez vos succès, gardez vos connexions aux launchers et fermez vos jeux depuis PlayCounter.",
+        "highlights": [
+          {
+            "title": "Vos succès, jeu par jeu",
+            "text": "Voyez ce que vous avez débloqué sur Steam, Xbox, Epic Games et GOG, quand, et ce qui manque encore.",
+            "hint": "Clic droit sur un jeu dans Mes jeux → « Succès »"
+          },
+          {
+            "title": "Une seule connexion",
+            "text": "PlayCounter garde vos connexions Xbox, Epic Games, GOG et Battle.net sur ce PC, chiffrées par Windows, et réunit tous vos launchers sur une seule page.",
+            "hint": "Barre latérale → Système → Comptes des launchers"
+          },
+          {
+            "title": "Arrêtez un jeu depuis Mes jeux",
+            "text": "Un jeu en cours affiche un « Arrêter » rouge à la place de « Jouer ». « Forcer l'arrêt » arrête un jeu qui ne se ferme pas.",
+            "hint": "À la manette : X (Xbox) ou Carré (PlayStation)"
+          },
+          {
+            "title": "Un chrono sur votre jeu",
+            "text": "Un petit chrono dans un coin de la fenêtre du jeu indique depuis combien de temps vous jouez. Un rappel peut s'afficher toutes les 30 minutes à 4 heures de jeu.",
+            "hint": "Paramètres → « Pendant que vous jouez »"
+          },
+          {
+            "title": "Un import pour tous les launchers",
+            "text": "Steam, Xbox, Epic Games, GOG et Battle.net s'importent désormais de la même façon. Vos jeux arrivent triés, et « Mauvais jeu ? » corrige une mauvaise association.",
+            "hint": "Clic droit sur un launcher sous Mes jeux → « Importer des jeux »"
+          },
+          {
+            "title": "Importer depuis GOG",
+            "text": "Importez vos jeux GOG avec le temps de jeu enregistré par GOG, lancez les jeux installés avec « Jouer » et voyez leurs succès."
+          },
+          {
+            "title": "Le plein écran pour votre télé",
+            "text": "Appuyez sur F11, cliquez sur le nouveau bouton de la barre de titre ou appuyez sur Menu/Options sur votre manette."
+          },
+          {
+            "title": "Moins de processeur",
+            "text": "PlayCounter utilise environ six fois moins de processeur pendant qu'il détecte vos jeux, et la vérification de l'import réagit plus vite."
+          },
+          {
+            "title": "Moins de messages à la fois",
+            "text": "Deux messages au plus s'empilent dans le coin : ils ne couvrent plus les boutons sur lesquels vous cliquez."
+          },
+          {
+            "title": "Corrections",
+            "text": "Les jeux avec leur propre Java ne comptent plus comme Minecraft, les fichiers de jeu partagés par plusieurs jeux sont distingués par leur dossier, et un jeu que le serveur ne peut pas consulter ne bloque plus un import."
+          }
+        ]
+      },
+      "pl": {
+        "headline": "Osiągnięcia, zapamiętane logowania do launcherów i zamykanie gier prosto z PlayCounter.",
+        "highlights": [
+          {
+            "title": "Twoje osiągnięcia, gra po grze",
+            "text": "Zobacz, co jest odblokowane w Steam, Xbox, Epic Games i GOG, kiedy, i czego jeszcze brakuje.",
+            "hint": "Kliknij prawym przyciskiem grę w Moje gry → „Osiągnięcia”"
+          },
+          {
+            "title": "Zaloguj się tylko raz",
+            "text": "PlayCounter przechowuje logowania do Xbox, Epic Games, GOG i Battle.net na tym PC, zaszyfrowane przez Windows, i pokazuje wszystkie launchery na jednej stronie.",
+            "hint": "Pasek boczny → System → Konta launcherów"
+          },
+          {
+            "title": "Zatrzymaj grę prosto z Moje gry",
+            "text": "Uruchomiona gra pokazuje czerwony przycisk „Zatrzymaj” tam, gdzie był „Graj”. „Wymuś zatrzymanie” kończy grę, która się nie zamyka.",
+            "hint": "Na kontrolerze: X (Xbox) lub Kwadrat (PlayStation)"
+          },
+          {
+            "title": "Licznik w grze",
+            "text": "Mały licznik w rogu okna gry pokazuje, jak długo trwa granie. Na życzenie przypomnienie wyskakuje co 30 minut do 4 godzin gry.",
+            "hint": "Ustawienia → „Podczas gry”"
+          },
+          {
+            "title": "Jeden import dla wszystkich launcherów",
+            "text": "Steam, Xbox, Epic Games, GOG i Battle.net importują się teraz tak samo. Gry przychodzą uporządkowane, a „Nie ta gra?” poprawia błędne powiązanie.",
+            "hint": "Kliknij prawym przyciskiem launcher pod Moje gry → „Importuj gry”"
+          },
+          {
+            "title": "Importuj z GOG",
+            "text": "Przenieś swoje gry z GOG razem z czasem gry zapisanym przez GOG, uruchamiaj zainstalowane przyciskiem „Graj” i sprawdzaj ich osiągnięcia."
+          },
+          {
+            "title": "Pełny ekran dla telewizora",
+            "text": "Naciśnij F11, kliknij nowy przycisk na pasku tytułu albo naciśnij Menu/Options na kontrolerze."
+          },
+          {
+            "title": "Mniej CPU",
+            "text": "PlayCounter zużywa około sześciu razy mniej mocy procesora podczas wykrywania gier, a ekran importu reaguje szybciej."
+          },
+          {
+            "title": "Mniej komunikatów naraz",
+            "text": "W rogu zbierają się najwyżej dwa komunikaty, więc nie zasłaniają już klikanych przycisków."
+          },
+          {
+            "title": "Poprawki",
+            "text": "Gry z własną Javą nie liczą się już jako Minecraft, pliki gier wspólne dla kilku gier są rozróżniane po folderze, a jedna gra, której serwer nie może sprawdzić, nie zatrzymuje już importu."
+          }
+        ]
+      },
+      "pt-BR": {
+        "headline": "Veja suas conquistas, mantenha o login nos seus launchers e feche jogos direto do PlayCounter.",
+        "highlights": [
+          {
+            "title": "Suas conquistas, jogo a jogo",
+            "text": "Veja o que você desbloqueou no Steam, no Xbox, na Epic Games e na GOG, quando, e o que ainda falta.",
+            "hint": "Clique com o botão direito em um jogo de Meus jogos → “Conquistas”"
+          },
+          {
+            "title": "Entre uma vez só",
+            "text": "O PlayCounter guarda seus logins do Xbox, da Epic Games, da GOG e do Battle.net neste PC, criptografados pelo Windows, e mostra todos os seus launchers em uma só página.",
+            "hint": "Barra lateral → Sistema → Contas dos launchers"
+          },
+          {
+            "title": "Pare um jogo direto em Meus jogos",
+            "text": "Um jogo em execução mostra um “Parar” vermelho onde estava “Jogar”. “Forçar parada” encerra um jogo que não fecha.",
+            "hint": "No controle: X (Xbox) ou Quadrado (PlayStation)"
+          },
+          {
+            "title": "Um cronômetro no seu jogo",
+            "text": "Um pequeno cronômetro em um canto da janela do jogo mostra há quanto tempo você está jogando. Se quiser, um aviso aparece a cada 30 minutos a 4 horas de jogo.",
+            "hint": "Configurações → “Enquanto você joga”"
+          },
+          {
+            "title": "Uma importação para todos os launchers",
+            "text": "O Steam, o Xbox, a Epic Games, a GOG e o Battle.net agora importam do mesmo jeito. Seus jogos chegam organizados, e “Jogo errado?” corrige uma associação errada.",
+            "hint": "Clique com o botão direito em um launcher em Meus jogos → “Importar jogos”"
+          },
+          {
+            "title": "Importar da GOG",
+            "text": "Traga seus jogos da GOG com o tempo de jogo que a GOG registrou, inicie os instalados com “Jogar” e veja as conquistas deles."
+          },
+          {
+            "title": "Tela cheia para a sua TV",
+            "text": "Pressione F11, clique no novo botão da barra de título ou aperte Menu/Options no controle."
+          },
+          {
+            "title": "Menos CPU",
+            "text": "O PlayCounter usa cerca de um sexto da CPU de antes enquanto detecta jogos, e a análise da importação responde mais rápido."
+          },
+          {
+            "title": "Menos mensagens de uma vez",
+            "text": "No máximo duas mensagens se acumulam no canto, então elas não cobrem mais os botões em que você está clicando."
+          },
+          {
+            "title": "Correções",
+            "text": "Jogos com o próprio Java não contam mais como Minecraft, arquivos de jogo compartilhados por vários jogos são diferenciados pela pasta, e um jogo que o servidor não consegue consultar não trava mais uma importação."
+          }
+        ]
+      },
+      "ru": {
+        "headline": "Смотрите достижения, сохраняйте вход в лаунчеры и закрывайте игры прямо из PlayCounter.",
+        "highlights": [
+          {
+            "title": "Ваши достижения, игра за игрой",
+            "text": "Смотрите, что открыто в Steam, Xbox, Epic Games и GOG, когда и что ещё осталось.",
+            "hint": "Правый клик по игре в «Мои игры» → «Достижения»"
+          },
+          {
+            "title": "Вход всего один раз",
+            "text": "PlayCounter хранит входы в Xbox, Epic Games, GOG и Battle.net на этом ПК, зашифрованные Windows, и показывает все ваши лаунчеры на одной странице.",
+            "hint": "Боковая панель → «Система» → «Аккаунты лаунчеров»"
+          },
+          {
+            "title": "Остановка игры прямо в «Мои игры»",
+            "text": "Вместо «Играть» у запущенной игры появляется красная кнопка «Остановить». «Остановить принудительно» завершает игру, которая не закрывается.",
+            "hint": "На геймпаде: X (Xbox) или «Квадрат» (PlayStation)"
+          },
+          {
+            "title": "Таймер в игре",
+            "text": "Небольшой таймер в углу окна игры показывает, сколько вы уже играете. По желанию напоминание появляется через выбранный промежуток игры, от 30 минут до 4 часов.",
+            "hint": "«Настройки» → «Во время игры»"
+          },
+          {
+            "title": "Один импорт для всех лаунчеров",
+            "text": "Steam, Xbox, Epic Games, GOG и Battle.net теперь импортируются одинаково. Игры приходят уже разложенными, а «Не та игра?» исправляет неверную привязку.",
+            "hint": "Правый клик по лаунчеру под «Мои игры» → «Импортировать игры»"
+          },
+          {
+            "title": "Импорт из GOG",
+            "text": "Перенесите свои игры из GOG вместе со временем игры, которое учёл GOG, запускайте установленные кнопкой «Играть» и смотрите их достижения."
+          },
+          {
+            "title": "Полный экран для телевизора",
+            "text": "Нажмите F11, новую кнопку в заголовке окна или Menu/Options на геймпаде."
+          },
+          {
+            "title": "Меньше нагрузки на процессор",
+            "text": "PlayCounter тратит примерно в шесть раз меньше ресурсов процессора, пока следит за играми, а экран импорта реагирует быстрее."
+          },
+          {
+            "title": "Меньше сообщений сразу",
+            "text": "В углу собирается не больше двух сообщений, поэтому они больше не закрывают кнопки, на которые вы нажимаете."
+          },
+          {
+            "title": "Исправления",
+            "text": "Игры со своей Java больше не считаются Minecraft, игровые файлы, общие для нескольких игр, различаются по папке, а одна игра, которую сервер не может найти, больше не останавливает импорт."
+          }
+        ]
+      },
+      "zh-CN": {
+        "headline": "查看成就、保持启动器登录，并直接在 PlayCounter 中关闭游戏。",
+        "highlights": [
+          {
+            "title": "你的成就，一款一款看",
+            "text": "查看你在 Steam、Xbox、Epic Games 和 GOG 上解锁了哪些、何时解锁，以及还差哪些。",
+            "hint": "在“我的游戏”中右键点击游戏 → “成就”"
+          },
+          {
+            "title": "只需登录一次",
+            "text": "PlayCounter 会把 Xbox、Epic Games、GOG 和 Battle.net 的登录保存在这台电脑上，由 Windows 加密，并在一个页面上显示你的所有启动器。",
+            "hint": "侧边栏 → “系统” → “启动器账户”"
+          },
+          {
+            "title": "直接在“我的游戏”中停止游戏",
+            "text": "正在运行的游戏会在原来“开始游戏”的位置显示红色的“停止”。游戏不关闭时，“强制停止”会直接结束它。",
+            "hint": "使用手柄：X（Xbox）或方块（PlayStation）"
+          },
+          {
+            "title": "游戏上的计时器",
+            "text": "游戏窗口角落的小计时器显示你已经玩了多久。如果需要，每玩 30 分钟到 4 小时就会弹出提醒。",
+            "hint": "“设置” → “游戏时”"
+          },
+          {
+            "title": "所有启动器，一种导入",
+            "text": "Steam、Xbox、Epic Games、GOG 和 Battle.net 现在用同一种方式导入。游戏会自动分好类，“游戏不对？”可以修正错误的匹配。",
+            "hint": "在侧边栏“我的游戏”下右键点击启动器 → “导入游戏”"
+          },
+          {
+            "title": "从 GOG 导入",
+            "text": "导入你的 GOG 游戏及 GOG 记录的游玩时间，用“开始游戏”启动已安装的游戏，并查看它们的成就。"
+          },
+          {
+            "title": "电视全屏",
+            "text": "按 F11、点击标题栏中的新按钮，或按手柄上的 Menu/Options 键。"
+          },
+          {
+            "title": "更低的 CPU 占用",
+            "text": "PlayCounter 检测游戏时的 CPU 占用降到原来的约六分之一，导入审核界面的响应也更快。"
+          },
+          {
+            "title": "消息不再堆满",
+            "text": "角落里最多只叠放两条消息，不会再挡住你正在点击的按钮。"
+          },
+          {
+            "title": "修复",
+            "text": "自带 Java 的游戏不再被算作 Minecraft；多个游戏共用的游戏文件现在按文件夹区分；服务器无法查询的单个游戏不再导致整个导入停止。"
+          }
+        ]
+      }
+    }
+  },
+  {
     "version": "1.4.3",
     "headline": "Rate your games, fine-tune your history and count playtime beyond your PC.",
     "highlights": [

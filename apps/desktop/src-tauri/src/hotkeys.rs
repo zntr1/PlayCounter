@@ -25,7 +25,7 @@ pub fn set_global_hotkey(
     }
     if !matches!(
         action.as_str(),
-        "show-window" | "current-session" | "quick-note"
+        "show-window" | "current-session" | "quick-note" | "live-timer"
     ) {
         return Err("Unknown hotkey action".into());
     }
@@ -60,6 +60,9 @@ pub fn set_global_hotkey(
                         // gives focus back to it when it closes.
                         crate::quick_note::remember_foreground(app);
                         let _ = app.emit_to("main", "playcounter:quick-note-hotkey", ());
+                    }
+                    "live-timer" => {
+                        let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
                     }
                     _ => {
                         let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());

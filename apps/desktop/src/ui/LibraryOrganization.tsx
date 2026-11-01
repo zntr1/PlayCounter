@@ -560,7 +560,7 @@ export function LibraryOrganizationToolbar({
             <Pill
               selected={filters.installed === true}
               title={t(
-                "Games PlayCounter can start: an installed Steam, Xbox or Epic copy, or a known .exe or ROM on this PC",
+                "Games PlayCounter can start: an installed Steam, Xbox, Epic or GOG copy, or a known .exe or ROM on this PC",
               )}
               onClick={() =>
                 setFilter("installed", filters.installed ? undefined : true)

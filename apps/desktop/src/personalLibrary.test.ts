@@ -62,6 +62,44 @@ afterEach(async () => {
 });
 
 describe("personal game journals", () => {
+  it("finds a journal under the game's new identity once a link reveals it", () => {
+    const community = {
+      gameId: 7,
+      source: "community" as const,
+      gameName: "Seven",
+    };
+    const database = {
+      gameId: 100,
+      source: "igdb" as const,
+      igdbId: 100,
+      gameName: "Seven",
+    };
+    useAppStore.getState().updateGameJournal(community, { favorite: true });
+    expect(getGameJournal(useAppStore.getState(), database).favorite).toBe(
+      false,
+    );
+
+    useAppStore.setState({
+      exeCache: new Map([
+        [
+          "seven.exe",
+          {
+            exeName: "seven.exe",
+            state: "matched",
+            gameId: 7,
+            source: "community",
+            igdbId: 100,
+            gameName: "Seven",
+            lastCheckedAt: "2026-10-31T12:00:00.000Z",
+          },
+        ],
+      ]),
+    });
+    expect(getGameJournal(useAppStore.getState(), database).favorite).toBe(
+      true,
+    );
+  });
+
   it("keeps new and cleared playthrough notes empty while preserving the default note", () => {
     useAppStore
       .getState()

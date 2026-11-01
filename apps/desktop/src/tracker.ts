@@ -2,8 +2,21 @@ import { isLibraryProvider, validLibraryExternalId } from "@playcounter/shared";
 import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
+import {
+  disposePostGameAchievementRefresh,
+  schedulePostGameAchievementRefresh,
+} from "./achievements/backgroundRefresh";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
+import {
+  initializeLiveTimer,
+  disposeLiveTimer,
+  syncLiveTimer,
+} from "./liveTimer";
+import {
+  initializePlaytimeReminder,
+  disposePlaytimeReminder,
+} from "./playtimeReminder";
 import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
@@ -208,6 +221,7 @@ import {
 import { knownGameFiles } from "./library/knownGameFiles";
 import {
   gamesLinkedToExe,
+  gamesPlayedWithExe,
   genericExeFolder,
   genericFolderLink,
   isInFolder,
@@ -346,6 +360,7 @@ type PersistedState = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  battleNetPlaytimeNoticeSeen?: boolean;
   discordInviteSnoozedAt?: unknown;
   discordInviteDone?: boolean;
 };
@@ -448,6 +463,10 @@ const communitySuggestionCancelGuard = new Map<
 let lastEmulatorRunningKeys = new Set<string>();
 const launchInFlight = new Map<string, number>();
 const emulatorLaunchInFlight = new Map<string, number>();
+// Per running game (session key), its processes in the last scan. Close game
+// ends these. Sessions being closed end without the session popup.
+const runningGameProcesses = new Map<string, ProcessSnapshot[]>();
+const closingSessionIds = new Set<number>();
 // A file explicitly picked in Start game belongs to the process we spawned.
 // Keep it only until that process first identifies its content, not until a
 // database match arrives (the player may switch games while choosing a match).
@@ -509,6 +528,8 @@ export async function initializeTracker() {
   initializeDesktopOverlays();
   initializeHotkeys();
   initializeQuickNotes();
+  initializeLiveTimer(runningGamePids);
+  initializePlaytimeReminder();
   initializeControllerBridge();
   syncTrayNowPlaying();
   scheduleTraySync();
@@ -544,6 +565,7 @@ export async function initializeTracker() {
 }
 
 export async function stopTrackerForReset() {
+  disposePostGameAchievementRefresh();
   window.clearTimeout(startupTimer);
   window.clearTimeout(readyTimer);
   await Promise.allSettled([startupWork, readyWork]);
@@ -555,6 +577,8 @@ export async function stopTrackerForReset() {
   disposeDesktopOverlays();
   disposeHotkeys();
   disposeQuickNotes();
+  disposeLiveTimer();
+  disposePlaytimeReminder();
   disposeControllerBridge();
   await scanInFlight;
 }
@@ -597,6 +621,7 @@ async function finishTrackerStartup() {
 
   useAppStore.getState().setCleanup(() => {
     logRuntime("tracker cleanup running");
+    disposePostGameAchievementRefresh();
     stopFocusLaunchVerification?.();
     stopFocusLaunchVerification = undefined;
     stopWatchFolderLinks?.();
@@ -630,6 +655,8 @@ async function finishTrackerStartup() {
     disposeDesktopOverlays();
     disposeHotkeys();
     disposeQuickNotes();
+    disposeLiveTimer();
+    disposePlaytimeReminder();
     disposeAutomaticBackups();
     disposeControllerBridge();
     initialized = false;
@@ -1183,11 +1210,13 @@ export function hydrate() {
     libraryImports.values(),
     scopedExeLinks.values(),
   );
+  const hydratedActiveSessions = normalizePersistedActiveSessions(persisted);
   // Saves from before folder links hold Game.exe as a name link.
   const movedGenericNameLinks = moveGenericNameLinksToFolders(
     exeCacheMap,
     scopedExeLinks,
     launchTargets,
+    hydratedActiveSessions,
   );
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
@@ -1379,7 +1408,7 @@ export function hydrate() {
     personalShelves: persisted.personalShelves ?? [],
     archivedPlaythroughSeconds: hydratedArchive.archivedPlaythroughSeconds,
     journalTarget: null,
-    activeSessions: normalizePersistedActiveSessions(persisted),
+    activeSessions: hydratedActiveSessions,
     // Pickers saved before the cap held every database candidate.
     ambiguousMatches: (persisted.ambiguousMatches ?? []).map((match) =>
       Array.isArray(match.candidates) &&
@@ -1452,6 +1481,7 @@ export function hydrate() {
     // Only people who used PlayCounter before get told it changed language.
     languageNoticeSeen:
       persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
+    battleNetPlaytimeNoticeSeen: persisted.battleNetPlaytimeNoticeSeen === true,
     discordInviteSnoozedAt:
       typeof persisted.discordInviteSnoozedAt === "string" &&
       Number.isFinite(Date.parse(persisted.discordInviteSnoozedAt))
@@ -2301,6 +2331,12 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     }
   }
   const nextKeys = new Set(matchesByGame.keys());
+  runningGameProcesses.clear();
+  for (const [key, group] of matchesByGame) {
+    runningGameProcesses.set(key, group.processes);
+  }
+  // A game can open its window from a process that started after it did.
+  syncLiveTimer();
   // A Game.exe matched through its folder link is not the unknown Game.exe
   // that Discovered or the picker waits for; its time must not count there.
   const matchedProcesses = new Set(matches.map((match) => match.process));
@@ -2343,7 +2379,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
       recoveredSessionEndAt(current),
       current.recoveredFromCheckpoint
         ? "recovered-checkpoint"
-        : "process-ended",
+        : closingSessionIds.has(current.id)
+          ? "closed-in-app"
+          : "process-ended",
     );
   }
 
@@ -3333,14 +3371,9 @@ async function resolveProcesses(
     // A generic name in a new folder, with games already linked to it on
     // this PC: ask which one it is (or a new one) instead of guessing.
     if (asksForLinkedGames(process)) {
-      const current = useAppStore.getState();
       const candidates = new Map<string, Game>();
       for (const game of [
-        ...gamesLinkedToExe(
-          process.exeName,
-          current.exeCache,
-          current.scopedExeLinks,
-        ),
+        ...gamesKnownForExe(process.exeName),
         ...(result.ambiguousGames ?? (result.game ? [result.game] : [])),
       ]) {
         const id = `${game.source}:${game.id}`;
@@ -4338,7 +4371,16 @@ function hasLibraryGame(igdbId: number) {
 
 /** An unclear find waits in Discovered like an unknown running game. */
 export function noteFolderExecutable(exeName: string) {
-  if (useAppStore.getState().exeCache.has(exeName.toLowerCase())) return;
+  const state = useAppStore.getState();
+  const existing = state.exeCache.get(exeName.toLowerCase());
+  // A watched folder holds the file: an app from a backup is on this PC.
+  if (existing?.fromBackup) {
+    const { fromBackup: _fromBackup, ...rest } = existing;
+    state.setExeCacheEntry(rest);
+    persist();
+    return;
+  }
+  if (existing) return;
   cacheMatchResult(exeName, null);
   persist();
 }
@@ -4985,21 +5027,34 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
     runningSince:
       existing?.state === "unmatched" ? existing.runningSince : undefined,
     exePath: existing?.state === "unmatched" ? existing.exePath : undefined,
+    fromBackup:
+      existing?.state === "unmatched" ? existing.fromBackup : undefined,
   });
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
 
+/** The games this PC knows for a generic exe name: linked ones first, then
+ *  ones played with it whose link is gone. A file rejected for a game stays
+ *  off it. */
+function gamesKnownForExe(exeName: string) {
+  const state = useAppStore.getState();
+  return [
+    ...gamesLinkedToExe(exeName, state.exeCache, state.scopedExeLinks),
+    ...gamesPlayedWithExe(exeName, state.recentSessions).filter(
+      (game) => !isRejectedGameFile(state.rejectedGameFiles, exeName, game),
+    ),
+  ];
+}
+
 /** A copy of a generic exe outside every folder link, while that name already
- *  has games here: the picker asks which one it is. */
+ *  has games here (linked, or played with it before): the picker asks which
+ *  one it is. */
 function asksForLinkedGames(process: ProcessSnapshot) {
   if (!genericExeFolder(process)) return false;
   const state = useAppStore.getState();
   const cached = state.exeCache.get(processCacheKey(process));
   if (cached?.state === "tool" || cached?.state === "blacklisted") return false;
-  return (
-    gamesLinkedToExe(process.exeName, state.exeCache, state.scopedExeLinks)
-      .length > 0
-  );
+  return gamesKnownForExe(process.exeName).length > 0;
 }
 
 /** The first candidates a picker shows and saves; the rest are only counted. */
@@ -5594,6 +5649,11 @@ function accumulateUnmatchedRuntime(
       // product name after the app has stopped too.
       const exePath = runningPaths.get(key);
       if (exePath && entry.exePath !== exePath) next = { ...next, exePath };
+      // It runs here: an app from a backup belongs in Discovered now.
+      if (entry.fromBackup) {
+        const { fromBackup: _fromBackup, ...rest } = next;
+        next = rest;
+      }
       if (!entry.runningSince) {
         // Open a new running window; nothing folded yet.
         next = { ...next, runningSince: nowIso };
@@ -5851,6 +5911,8 @@ function cacheMatchResult(
       runningSince:
         existing?.state === "unmatched" ? existing.runningSince : undefined,
       exePath: existing?.state === "unmatched" ? existing.exePath : undefined,
+      fromBackup:
+        existing?.state === "unmatched" ? existing.fromBackup : undefined,
     });
     return;
   }
@@ -6699,7 +6761,8 @@ type SessionEndReason =
   | "recovered-checkpoint"
   | "settings-change"
   | "route-change"
-  | "timer-stopped";
+  | "timer-stopped"
+  | "closed-in-app";
 
 async function endSession(
   session: ActiveSession,
@@ -6744,6 +6807,16 @@ async function endSession(
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
+  // Every end of play: a game that exited, was closed from My Games or ended
+  // while PlayCounter was closed, and a timer for play on a console.
+  if (
+    reason === "process-ended" ||
+    reason === "closed-in-app" ||
+    reason === "recovered-checkpoint" ||
+    reason === "timer-stopped"
+  ) {
+    schedulePostGameAchievementRefresh(session);
+  }
   if (reason === "process-ended") {
     const top = pickTopMilestone(freshMilestones);
     emitOverlayEvent({
@@ -8382,6 +8455,65 @@ export async function stopGameTimer(sessionId: number) {
   persist();
 }
 
+export type CloseGameOutcome = "closed" | "stillRunning" | "blocked";
+
+/** Closes a running game from My Games: politely (its windows get the ✕),
+ *  or by force. Every process of the game goes, the ones the scan grouped
+ *  into its session. The session ends here, without the session popup. */
+export async function closeRunningGame(
+  sessionId: number,
+  force: boolean,
+): Promise<CloseGameOutcome> {
+  const findSession = () =>
+    useAppStore
+      .getState()
+      .activeSessions.find(
+        (active) => active.id === sessionId && !active.timer,
+      );
+  const session = findSession();
+  if (!session) return "closed";
+  closingSessionIds.add(sessionId);
+  try {
+    // A fresh scan, so a process the game started since the last one goes too.
+    await requestProcessScan("before closing a game");
+    const current = findSession();
+    if (!current) return "closed";
+    const targets = (
+      runningGameProcesses.get(sessionIdentityKey(current)) ?? []
+    ).flatMap((process) =>
+      process.pid !== undefined && process.startedAtUnix
+        ? [
+            {
+              pid: process.pid,
+              startedAtUnix: process.startedAtUnix,
+              exePath: process.exePath,
+            },
+          ]
+        : [],
+    );
+    if (targets.length === 0) {
+      logRuntime(`close game ${current.gameName}: no process to close`);
+      return "blocked";
+    }
+    const outcome = await invoke<CloseGameOutcome>("close_game_processes", {
+      targets,
+      force,
+    });
+    logRuntime(
+      `close game ${current.gameName} force=${force} processes=${targets.length} outcome=${outcome}`,
+    );
+    if (outcome === "closed") {
+      const ended = findSession();
+      if (ended) await endSession(ended, undefined, "closed-in-app");
+      persist();
+      void requestProcessScan("after closing a game");
+    }
+    return outcome;
+  } finally {
+    closingSessionIds.delete(sessionId);
+  }
+}
+
 export function setGamePlaytime(params: {
   gameId: number;
   igdbId?: number;
@@ -9236,6 +9368,14 @@ function sessionIdentityKey(
   session: Pick<ActiveSession, "gameId" | "source" | "igdbId">,
 ) {
   return activeSessionKey(session.gameId, session.source, session.igdbId);
+}
+
+/** A running game's processes in the last scan; the live timer sits in the
+ *  corner of their window. */
+function runningGamePids(session: ActiveSession) {
+  return (runningGameProcesses.get(sessionIdentityKey(session)) ?? [])
+    .flatMap((process) => (process.pid === undefined ? [] : [process.pid]))
+    .sort((left, right) => left - right);
 }
 
 function updateActiveSession(session: ActiveSession) {

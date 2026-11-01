@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { toggleFullscreen } from "./fullscreen";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 import {
@@ -320,6 +321,27 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
   focusOpenedDialogWhenReady();
 }
 
+/** For a dialog that swaps its buttons: selects the one it names, so A /
+ *  Cross never lands on a button the player did not pick. */
+export function selectControllerItem(item: HTMLElement | null | undefined) {
+  if (!item) return;
+  if (document.documentElement.getAttribute("data-controller-mode") === "true")
+    focusItem(item);
+  else item.focus();
+}
+
+// X / Square asks to close the game on the selected card. Only a running
+// card has a stop control; in a dialog the button does nothing.
+function stopSelectedGame() {
+  if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+  const stopControl = document.querySelector<HTMLButtonElement>(
+    '[data-controller-item="game-card"][data-controller-selected="true"] [data-controller-stop]',
+  );
+  if (!stopControl || stopControl.disabled) return;
+  stopControl.click();
+  focusOpenedDialogWhenReady();
+}
+
 function focusOpenedDialogWhenReady(attempt = 0) {
   if (!globalThis.requestAnimationFrame) return;
   globalThis.requestAnimationFrame(() => {
@@ -364,6 +386,12 @@ function handleControllerEvent(
     return;
   setControllerKind(event.kind ?? "xbox");
   emitControllerMode(true);
+  if (event.action === "toggleFullscreen") {
+    void toggleFullscreen().catch((error) =>
+      console.warn("fullscreen toggle failed", error),
+    );
+    return;
+  }
   if (useAppStore.getState().activeTour) return;
   if (event.action === "scrollUp" || event.action === "scrollDown") {
     scrollCurrentView(event.action);
@@ -380,6 +408,11 @@ function handleControllerEvent(
     if (useAppStore.getState().activeView === "games") {
       window.dispatchEvent(new CustomEvent(CONTROLLER_LIBRARY_VIEW_EVENT));
     }
+    return;
+  }
+
+  if (event.action === "stopGame") {
+    stopSelectedGame();
     return;
   }
 

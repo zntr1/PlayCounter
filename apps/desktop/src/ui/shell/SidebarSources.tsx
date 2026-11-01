@@ -1,9 +1,13 @@
 import clsx from "clsx";
+import { useState } from "react";
 import { useAppStore } from "../../store";
+import { useContextMenu } from "../ContextMenu";
 import { useLibrarySources } from "../librarySources";
 import { providerTabConfig } from "../libraryProviderTabs";
+import type { LibraryTabId } from "../libraryTabs";
 import { Layers } from "lucide-react";
 import { getT } from "../../i18n";
+import { SourceMenu } from "./SourceMenu";
 
 const t = getT("shell");
 
@@ -25,6 +29,9 @@ export function SidebarSources() {
   const onLibrary = useAppStore(
     (state) => state.activeView === "games" || state.activeView === "import",
   );
+  const sourceMenu = useContextMenu();
+  const [menuSourceId, setMenuSourceId] = useState<LibraryTabId | null>(null);
+  const menuSource = tabs.find((tab) => tab.id === menuSourceId);
 
   if (!visible || tabs.length === 0) return null;
 
@@ -57,6 +64,14 @@ export function SidebarSources() {
                 setLibraryTab(tab.id);
                 setActiveView("games");
               }}
+              onContextMenu={
+                tab.kind === "all"
+                  ? undefined
+                  : (event) => {
+                      setMenuSourceId(tab.id);
+                      sourceMenu.props.onContextMenu(event);
+                    }
+              }
               className={clsx(
                 "library-tab group flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[14px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                 selected
@@ -95,6 +110,15 @@ export function SidebarSources() {
           );
         })}
       </div>
+      {menuSource ? (
+        <SourceMenu
+          source={menuSource}
+          open={sourceMenu.open}
+          position={sourceMenu.position}
+          onClose={sourceMenu.close}
+          anchorRef={sourceMenu.anchorRef}
+        />
+      ) : null}
     </div>
   );
 }

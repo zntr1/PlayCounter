@@ -52,12 +52,18 @@ try {
 const releaseNote = Array.isArray(releaseNotes)
   ? releaseNotes.find((entry) => entry?.version === tauriConfig.version)
   : undefined;
+// A point is one line (older releases) or a title with its text.
+const filled = (value) => typeof value === "string" && value.trim() !== "";
+const usablePoint = (point) =>
+  filled(point) ||
+  (Boolean(point) &&
+    typeof point === "object" &&
+    filled(point.title) &&
+    filled(point.text));
 const usableHighlights =
   Array.isArray(releaseNote?.highlights) &&
   releaseNote.highlights.length > 0 &&
-  releaseNote.highlights.every(
-    (highlight) => typeof highlight === "string" && highlight.trim(),
-  );
+  releaseNote.highlights.every(usablePoint);
 if (
   !releaseNote ||
   typeof releaseNote.headline !== "string" ||

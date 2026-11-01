@@ -22,9 +22,16 @@ vi.mock("./automaticBackups", () => ({
   initializeAutomaticBackups: vi.fn(),
   disposeAutomaticBackups: vi.fn(),
 }));
+vi.mock("./achievements/backgroundRefresh", () => ({
+  schedulePostGameAchievementRefresh: vi.fn(),
+  disposePostGameAchievementRefresh: vi.fn(),
+}));
 
 import { useAppStore, type ActiveSession, type ProcessSnapshot } from "./store";
+import { emitOverlayEvent } from "./desktopOverlayBridge";
+import { schedulePostGameAchievementRefresh } from "./achievements/backgroundRefresh";
 import {
+  closeRunningGame,
   ignoreTrackedProcessLocally,
   initializeTracker,
   scanProcessesNow,
@@ -68,6 +75,7 @@ beforeEach(() => {
     backendHealth: { status: "offline", checkedAt: null, detail: "Offline" },
   });
   processes = [];
+  vi.mocked(schedulePostGameAchievementRefresh).mockClear();
   invokeMock.mockReset();
   invokeMock.mockImplementation(async (command: string) => {
     if (command === "scan_processes") return processes;
@@ -96,6 +104,8 @@ async function restart(at: string, overrides: Record<string, unknown> = {}) {
         pollingIntervalSeconds: 30,
       },
       activeSessions: [original],
+      // Generic names: their old name links stay on a start only while this
+      // game still runs from before it (moveGenericNameLinksToFolders).
       exeCache: ["Game.exe", "Client.exe"].map((exeName) => ({
         exeName,
         state: "matched",
@@ -213,6 +223,19 @@ describe("session recovery through startup and process scans", () => {
       endedAt: checkpointedAt,
       durationSeconds: 600,
     });
+  });
+
+  it("refreshes the game's Xbox achievements after a game that ended while PlayCounter was closed", async () => {
+    // The PC crashed during play: the first scan after the start ends it.
+    await restart("2026-09-06T20:10:00.000Z");
+    await scanProcessesNow();
+    expect(useAppStore.getState().recentSessions[0]).toMatchObject({
+      id: original.id,
+      endedAt: checkpointedAt,
+    });
+    expect(schedulePostGameAchievementRefresh).toHaveBeenCalledWith(
+      expect.objectContaining({ id: original.id }),
+    );
   });
 
   it("waits for a successful scan before deciding whether to resume", async () => {
@@ -395,6 +418,15 @@ describe("game timer", () => {
     );
   });
 
+  it("Stop refreshes the game's Xbox achievements: it may have been played on a console", async () => {
+    await restart("2026-09-06T20:10:00.000Z", { activeSessions: [timer] });
+    await scanProcessesNow();
+    await stopGameTimer(original.id);
+    expect(schedulePostGameAchievementRefresh).toHaveBeenCalledWith(
+      expect.objectContaining({ id: original.id }),
+    );
+  });
+
   it("lets the game's file join a running timer, and its exit or ignore leaves the timer", async () => {
     await restart("2026-09-06T12:00:00.000Z", { activeSessions: [timer] });
     processes = [runningProcess];
@@ -410,7 +442,18 @@ describe("game timer", () => {
   });
 
   it("starts one session per game, never next to a detected one", async () => {
-    await restart("2026-09-06T12:00:00.000Z", { activeSessions: [] });
+    await restart("2026-09-06T12:00:00.000Z", {
+      activeSessions: [],
+      // Nothing runs on this start: Game.exe's name link moves to the folder
+      // it last ran from.
+      launchTargets: [
+        {
+          exeName: original.exeName,
+          path: runningProcess.exePath,
+          owner: { gameId: original.gameId, source: original.source },
+        },
+      ],
+    });
     startGameTimer(game);
     startGameTimer(game);
     expect(useAppStore.getState().activeSessions).toMatchObject([
@@ -424,5 +467,125 @@ describe("game timer", () => {
     startGameTimer(game);
     expect(useAppStore.getState().activeSessions).toHaveLength(1);
     expect(useAppStore.getState().activeSessions[0].timer).toBeUndefined();
+  });
+});
+
+describe("close game", () => {
+  const client: ProcessSnapshot = {
+    exeName: "Client.exe",
+    exePath: "C:/Games/Client.exe",
+    pid: 456,
+    startedAtUnix: runningProcess.startedAtUnix,
+  };
+  const sessionEndedPopups = () =>
+    vi
+      .mocked(emitOverlayEvent)
+      .mock.calls.filter(([event]) => event.type === "session-ended");
+
+  function answerClose(answer: () => Promise<string> | string) {
+    const scan = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (command: string, args?: unknown) =>
+      command === "close_game_processes" ? answer() : scan(command, args),
+    );
+  }
+
+  beforeEach(() => vi.mocked(emitOverlayEvent).mockClear());
+
+  it("refreshes the game's Xbox achievements afterwards, as when it exits by itself", async () => {
+    processes = [runningProcess];
+    await restart("2026-09-06T12:00:00.000Z");
+    await scanProcessesNow();
+    answerClose(() => {
+      processes = [];
+      return "closed";
+    });
+
+    expect(await closeRunningGame(original.id, false)).toBe("closed");
+    expect(schedulePostGameAchievementRefresh).toHaveBeenCalledWith(
+      expect.objectContaining({ id: original.id }),
+    );
+  });
+
+  it("closes every process of the game and ends the session without the popup", async () => {
+    processes = [runningProcess, client];
+    await restart("2026-09-06T12:00:00.000Z");
+    await scanProcessesNow();
+    answerClose(() => {
+      processes = [];
+      return "closed";
+    });
+    vi.setSystemTime(new Date("2026-09-06T12:05:00.000Z"));
+
+    expect(await closeRunningGame(original.id, false)).toBe("closed");
+    const closeCall = invokeMock.mock.calls.find(
+      ([command]) => command === "close_game_processes",
+    );
+    expect(closeCall?.[1]).toEqual({
+      targets: [
+        {
+          pid: 456,
+          startedAtUnix: client.startedAtUnix,
+          exePath: client.exePath,
+        },
+        {
+          pid: 123,
+          startedAtUnix: runningProcess.startedAtUnix,
+          exePath: runningProcess.exePath,
+        },
+      ],
+      force: false,
+    });
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(useAppStore.getState().recentSessions[0]).toMatchObject({
+      id: original.id,
+      endedAt: "2026-09-06T12:05:00.000Z",
+    });
+    expect(sessionEndedPopups()).toEqual([]);
+  });
+
+  it("ends the session without the popup when a scan sees the game go while closing", async () => {
+    processes = [runningProcess];
+    await restart("2026-09-06T12:00:00.000Z");
+    await scanProcessesNow();
+    answerClose(async () => {
+      processes = [];
+      await scanProcessesNow();
+      return "closed";
+    });
+
+    expect(await closeRunningGame(original.id, true)).toBe("closed");
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(useAppStore.getState().recentSessions).toHaveLength(1);
+    expect(sessionEndedPopups()).toEqual([]);
+  });
+
+  it("keeps the session while the game still runs, and its later exit shows the popup", async () => {
+    processes = [runningProcess];
+    await restart("2026-09-06T12:00:00.000Z");
+    await scanProcessesNow();
+    answerClose(() => "stillRunning");
+
+    expect(await closeRunningGame(original.id, false)).toBe("stillRunning");
+    expect(useAppStore.getState().activeSessions).toMatchObject([
+      { id: original.id },
+    ]);
+
+    processes = [];
+    await scanProcessesNow();
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(sessionEndedPopups()).toHaveLength(1);
+  });
+
+  it("leaves a timer alone: nothing runs on this PC", async () => {
+    await restart("2026-09-06T12:00:00.000Z", {
+      activeSessions: [{ ...original, timer: true }],
+    });
+    expect(await closeRunningGame(original.id, true)).toBe("closed");
+    expect(
+      invokeMock.mock.calls.some(
+        ([command]) => command === "close_game_processes",
+      ),
+    ).toBe(false);
+    expect(useAppStore.getState().activeSessions).toHaveLength(1);
   });
 });

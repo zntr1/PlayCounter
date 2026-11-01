@@ -18,6 +18,7 @@ const GENERIC_BASENAMES = new Set([
   "start",
   "play",
   "game",
+  "games",
   "main",
   "run",
   "client",
@@ -40,6 +41,28 @@ const GENERIC_BASENAMES = new Set([
   "nw",
   "player",
   "love",
+  // A Java many games bring in their own folder (jre\bin\javaw.exe). A Java
+  // installed once for the whole PC runs every Java game from one folder;
+  // those cannot be told apart this way.
+  "java",
+  "javaw",
+  // Game files different games ship under one name, each in its own folder:
+  // visual novel engines (AdvHD.exe, SiglusEngine_Steam.exe, BGI.exe), Unreal
+  // sample projects built into games unrenamed (LyraGame.exe, ShooterGame.exe,
+  // VRExpPluginExample.exe), one file per series (fm.exe for Football Manager,
+  // CricketCaptain.exe, xrEngine.exe for S.T.A.L.K.E.R.) and unrenamed builds.
+  "advhd",
+  "siglusenginesteam",
+  "bgi",
+  "lyragame",
+  "shootergame",
+  "vrexppluginexample",
+  "vrexppluginexamplewin64shipping",
+  "fm",
+  "cricketcaptain",
+  "xrengine",
+  "windows",
+  "gameclient",
 ]);
 
 export function importExeCandidates(

@@ -1181,3 +1181,9 @@ pip.exe
 sort.exe
 timeout.exe
 visualcppredis*.exe
+
+# Starters that only launch a game, from "not a game" reports (playcounter_prod, 2026-10-30)
+bootstrapper.exe
+eaclauncher.exe
+eosbootstrapper.exe
+start_protected_game.exe

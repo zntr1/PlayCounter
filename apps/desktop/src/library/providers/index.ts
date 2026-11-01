@@ -9,6 +9,8 @@ export async function loadLibraryProvider(
       return (await import("./battlenet")).battleNetProvider;
     case "epic":
       return (await import("./epic")).epicProvider;
+    case "gog":
+      return (await import("./gog")).gogProvider;
     case "steam":
       return (await import("./steam")).steamProvider;
     case "xbox":

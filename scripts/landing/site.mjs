@@ -3,9 +3,9 @@
 export const site = {
   origin: "https://playcounter.app",
   name: "PlayCounter",
-  version: "1.2.0",
+  version: "1.5.0",
   reviewed: "2026-09-24",
-  // Set both after the 1.2.0 installer is published: the release date and the
+  // Set both after the 1.5.0 installer is published: the release date and the
   // byte size of PlayCounter-Setup.exe from the GitHub release. Until then the
   // download line omits the size and the structured data omits the date.
   releaseDate: null,
@@ -16,7 +16,7 @@ export const site = {
   repository: "https://github.com/zntr1/PlayCounter",
   discord: "https://discord.gg/t2nG3jaEEY",
   description:
-    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox and Epic hours and your Battle.net games.",
+    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic and GOG hours and your Battle.net games.",
   milestone: "+500 installations in the last 30 days.",
   // The milestone is the owner's install count for the last 30 days, September 2026.
   // It is not the presence endpoint's online installation count or a download count.
@@ -251,6 +251,18 @@ export const site = {
       guideLabel: "Import Epic playtime",
     },
     {
+      id: "gog",
+      name: "GOG",
+      logo: "/brands/gog.svg",
+      method: "With GOG sign-in",
+      brings: "Games + your GOG hours",
+      isNew: true,
+      detail:
+        "Sign in to bring in your GOG library with the playtime GOG recorded. Or just scan installed games without signing in; their earlier hours then stay unknown.",
+      guide: "/check-playtime-gog-galaxy/",
+      guideLabel: "Import GOG playtime",
+    },
+    {
       id: "battlenet",
       name: "Battle.net",
       logo: "/brands/battlenet.svg",
@@ -403,7 +415,7 @@ export const faq = [
   ],
   [
     "Can I bring in hours from before I installed it?",
-    'Yes. Steam, Xbox and Epic imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
+    'Yes. Steam, Xbox, Epic and GOG imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
   ],
   [
     "Which emulators are supported?",
@@ -415,7 +427,7 @@ export const faq = [
   ],
   [
     "What stays on my PC, and what goes online?",
-    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
+    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic, GOG and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
   ],
   [
     "Is PlayCounter coming to Steam?",

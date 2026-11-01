@@ -7,10 +7,12 @@ import {
   mergeBattleNetAccountLibrary,
   readBattleNetAccountLibrary,
   retainBattleNetProductIds,
+  signInBattleNetAccount,
   type BattleNetAccountLibrary,
 } from "./battlenetAccount";
 import { battleNetProvider } from "./providers/battlenet";
 import type { LibraryScanResult } from "./types";
+import { useKeptLogins } from "./keptLogins";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -148,6 +150,45 @@ describe("Battle.net account and installation merge", () => {
 });
 
 describe("Battle.net provider sign-in lifecycle", () => {
+  it("connects without scanning any games and refreshes saved status", async () => {
+    const saved = [{ service: "battlenet", name: null, savedAt: 1 }];
+    vi.mocked(invoke).mockImplementation(async (command) =>
+      command === "logins_list" ? saved : undefined,
+    );
+    await signInBattleNetAccount();
+    expect(vi.mocked(invoke).mock.calls.map(([command]) => command)).toEqual([
+      "library_battlenet_sign_in",
+      "logins_list",
+    ]);
+    expect(useKeptLogins.getState().logins).toEqual(saved);
+  });
+
+  it("updates the saved connection when native cleanup finishes after leaving the view", async () => {
+    let complete!: () => void;
+    const saved = [{ service: "battlenet", name: null, savedAt: 2 }];
+    useKeptLogins.setState({ logins: [] });
+    vi.mocked(invoke).mockImplementation((command) => {
+      if (command === "library_battlenet_sign_in")
+        return new Promise((resolve) => {
+          complete = () => resolve(undefined);
+        });
+      return Promise.resolve(command === "logins_list" ? saved : undefined);
+    });
+    const controller = new AbortController();
+    const result = signInBattleNetAccount(controller.signal);
+    const cancelled = expect(result).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    controller.abort();
+    await cancelled;
+    expect(useKeptLogins.getState().logins).toEqual([]);
+    complete();
+    await vi.waitFor(() =>
+      expect(useKeptLogins.getState().logins).toEqual(saved),
+    );
+    expect(invoke).not.toHaveBeenCalledWith("library_scan", expect.anything());
+  });
+
   it("never signs in for a local or background scan", async () => {
     vi.mocked(invoke).mockResolvedValue(empty);
     expect(await battleNetProvider.scan(0)).toEqual(empty);
@@ -160,10 +201,12 @@ describe("Battle.net provider sign-in lifecycle", () => {
   it("reads the account only when requested, then combines it with a fresh local scan", async () => {
     vi.mocked(invoke)
       .mockResolvedValueOnce(account)
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce(empty);
     const result = await battleNetProvider.scan(0, { battleNetAccount: true });
     expect(vi.mocked(invoke).mock.calls.map(([command]) => command)).toEqual([
       "library_battlenet_account_games",
+      "logins_list",
       "library_scan",
     ]);
     expect(result.games[0]).toMatchObject({
@@ -216,14 +259,23 @@ describe("Battle.net webview reader", () => {
     classic: unknown,
     statuses = [200, 200],
     pathname = "/overview",
+    authentication: { body: unknown; status: number } = {
+      body: { authenticated: true },
+      status: 200,
+    },
   ) {
     const window: Record<string, unknown> = {};
-    const fetch = vi.fn(async (path: string) => {
+    const fetch = vi.fn(async (path: string, _options?: RequestInit) => {
       const index = path.endsWith("classic-games") ? 1 : 0;
-      const response = new Response(JSON.stringify(index ? classic : modern), {
-        status: statuses[index],
-        headers: { "content-type": "application/json" },
-      });
+      const response = new Response(
+        JSON.stringify(
+          path === "/api/" ? authentication.body : index ? classic : modern,
+        ),
+        {
+          status: path === "/api/" ? authentication.status : statuses[index],
+          headers: { "content-type": "application/json" },
+        },
+      );
       Object.defineProperty(response, "url", {
         value: `https://account.battle.net${path}`,
       });
@@ -279,7 +331,12 @@ describe("Battle.net webview reader", () => {
     expect(JSON.stringify(result)).not.toMatch(
       /Private|PRIVATE|998877|titleHasGameTime|cdKeys/,
     );
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch.mock.calls.map(([path]) => path)).toEqual([
+      "/api/",
+      "/api/games-and-subs",
+      "/api/classic-games",
+    ]);
     expect(fetch).toHaveBeenCalledWith(
       "/api/games-and-subs",
       expect.objectContaining({
@@ -296,12 +353,159 @@ describe("Battle.net webview reader", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("reports an expired session instead of presenting an empty library", async () => {
-    const { evaluate } = harness({}, {}, [401, 401]);
+  it.each([200, 401, 403])(
+    "confirms an expired session from account status HTTP %s without fetching games",
+    async (status) => {
+      const { evaluate, fetch } = harness({}, {}, [200, 200], "/overview", {
+        body: { authenticated: false, accountName: "Private account" },
+        status,
+      });
+      evaluate();
+      await vi.waitFor(() =>
+        expect(evaluate()).toEqual({ status: "error", error: "expired" }),
+      );
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([401, 403])(
+    "requests renewal for a library HTTP %s without declaring the login expired",
+    async (status) => {
+      const { evaluate } = harness({}, {}, [status, status]);
+      evaluate();
+      await vi.waitFor(() =>
+        expect(evaluate()).toEqual({ status: "error", error: "renew" }),
+      );
+    },
+  );
+
+  it.each([{}, { authenticated: "true" }, null])(
+    "requires an explicit authenticated account status: %j",
+    async (body) => {
+      const { evaluate, fetch } = harness({}, {}, [200, 200], "/overview", {
+        body,
+        status: 200,
+      });
+      evaluate();
+      await vi.waitFor(() =>
+        expect(evaluate()).toEqual({ status: "error", error: "unavailable" }),
+      );
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("preserves the session on an account-status server failure", async () => {
+    const { evaluate, fetch } = harness({}, {}, [200, 200], "/overview", {
+      body: { authenticated: false },
+      status: 503,
+    });
     evaluate();
     await vi.waitFor(() =>
-      expect(evaluate()).toEqual({ status: "error", error: "expired" }),
+      expect(evaluate()).toEqual({ status: "error", error: "unavailable" }),
     );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("requests renewal for a forbidden HTML challenge without declaring the login expired", async () => {
+    const { evaluate, fetch } = harness({}, {});
+    fetch.mockImplementation(async () => {
+      const response = new Response("<html>Challenge</html>", {
+        status: 403,
+        headers: { "content-type": "text/html" },
+      });
+      Object.defineProperty(response, "url", {
+        value: "https://account.battle.net/api/",
+      });
+      return response;
+    });
+    evaluate();
+    await vi.waitFor(() =>
+      expect(evaluate()).toEqual({ status: "error", error: "renew" }),
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fetch games before the authentication response arrives", async () => {
+    const { evaluate, fetch } = harness({}, {});
+    let finish!: (response: Response) => void;
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    evaluate();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const response = Response.json({ authenticated: false });
+    Object.defineProperty(response, "url", {
+      value: "https://account.battle.net/api/",
+    });
+    finish(response);
+    await vi.waitFor(() => expect(evaluate()?.status).toBe("error"));
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an account-status network failure as unavailable", async () => {
+    const { evaluate, fetch } = harness({}, {});
+    fetch.mockRejectedValue(new Error("network unavailable"));
+    evaluate();
+    await vi.waitFor(() =>
+      expect(evaluate()).toEqual({ status: "error", error: "unavailable" }),
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [200, "{invalid", "unavailable"],
+    [401, "{invalid", "renew"],
+    [
+      200,
+      JSON.stringify({ authenticated: true, extra: "x".repeat(64_000) }),
+      "unavailable",
+    ],
+  ])(
+    "rejects malformed or oversized account status HTTP %s",
+    async (status, body, error) => {
+      const { evaluate, fetch } = harness({}, {});
+      fetch.mockImplementation(async () => {
+        const response = new Response(body as string, {
+          status: status as number,
+          headers: { "content-type": "application/json" },
+        });
+        Object.defineProperty(response, "url", {
+          value: "https://account.battle.net/api/",
+        });
+        return response;
+      });
+      evaluate();
+      await vi.waitFor(() =>
+        expect(evaluate()).toEqual({ status: "error", error }),
+      );
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("times out an unresponsive account check without fetching games", async () => {
+    vi.useFakeTimers();
+    try {
+      const { evaluate, fetch } = harness({}, {});
+      fetch.mockImplementation(
+        (_path, options) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Timed out", "AbortError")),
+              { once: true },
+            );
+          }),
+      );
+      evaluate();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(evaluate()).toEqual({ status: "error", error: "unavailable" });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rejects responses from an unexpected origin even if their shape looks valid", async () => {

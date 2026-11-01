@@ -1,3 +1,9 @@
+import type {
+  AchievementList,
+  XboxAchievementError,
+  XboxImportStartRequest,
+} from "./achievements.js";
+
 export type GameSource = "igdb" | "community" | "custom";
 
 /** What an entry is. Tools (Discord, Spotify, launchers) are recognized like
@@ -58,20 +64,27 @@ export interface EmulatorResolveResponse {
 }
 
 /** A locally installed or remotely linked game-library provider. */
-export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic";
+export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic" | "gog";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,
   isLibraryProvider,
   validLibraryExternalId,
 } from "./libraryProviders.js";
+export type {
+  AchievementList,
+  AchievementProvider,
+  GameAchievement,
+  XboxAchievementError,
+  XboxImportStartRequest,
+} from "./achievements.js";
 
 export interface LibraryResolveRequest {
   items: Array<{
     /** Client-generated correlation key; never treated as game identity. */
     key: string;
     provider: LibraryProviderId;
-    /** Provider-native id. Steam uses its decimal AppID. */
+    /** Provider-native id. Steam uses its decimal AppID, GOG its product id. */
     externalId: string;
     /** Store title. Only Epic sends it: IGDB does not index Epic app names,
      *  so the server matches the exact title among IGDB's Epic entries. */
@@ -114,8 +127,9 @@ export interface LibraryReverseResolveResponse {
 /**
  * Xbox playtime import: the local desktop client has no on-disk source for
  * Xbox/Game Pass playtime, so the whole OAuth + Xbox Live lookup + IGDB
- * matching flow runs server-side. The desktop client never receives a
- * Microsoft or Xbox Live token.
+ * matching flow runs server-side. The desktop's web UI never receives a
+ * Microsoft or Xbox Live token. Its Rust part keeps the Microsoft refresh
+ * token (encrypted), which only this server can redeem.
  */
 export interface XboxImportStartResponse {
   /** Opaque handle correlating the browser sign-in with later polling. */
@@ -154,11 +168,14 @@ export interface XboxImportGame {
    * one before importing; no Xbox-provided identifier proves an IGDB match.
    */
   candidates: Game[];
+  /** Only when the start request asked for achievements. */
+  achievements?: AchievementList;
+  achievementError?: XboxAchievementError;
 }
 
 export type XboxImportProgressStage = "authorization" | "history";
 
-export type XboxImportResultResponse =
+export type XboxImportResultResponse = { loginReady?: boolean } & (
   | { status: "pending"; stage?: XboxImportProgressStage }
   | { status: "done"; games: XboxImportGame[] }
   | {
@@ -168,11 +185,43 @@ export type XboxImportResultResponse =
       errorCode?: string;
       /** Display-only Microsoft account label; never use for authorization. */
       accountLabel?: string;
-    };
+    }
+);
 
 export interface XboxImportCancelRequest {
   attemptId: string;
 }
+
+/** Sent only by the desktop's Rust part, as soon as authentication finishes. */
+export interface XboxLoginClaimRequest {
+  attemptId: string;
+  /** The secret behind `keepLogin.claimHash`. */
+  claim: string;
+}
+
+export interface XboxKeptLogin {
+  refreshToken: string;
+  /** Display-only, for "Signed in as". */
+  gamertag?: string;
+}
+
+/** An import with a kept sign-in instead of the browser. */
+export interface XboxImportSyncRequest extends Omit<
+  XboxImportStartRequest,
+  "keepLogin"
+> {
+  refreshToken: string;
+}
+
+export type XboxImportSyncResponse = {
+  /** Poll /api/xbox/import/result with it, as after a browser sign-in. */
+  attemptId: string;
+  /** Microsoft renews the sign-in on every use: keep this one. */
+  refreshToken: string;
+};
+
+/** 401: sign in again. 502: Microsoft did not answer; keep the sign-in. */
+export type XboxImportSyncError = { error: "login_expired" | "unavailable" };
 
 export interface EmulatorContentSuggestionPayload extends EmulatorContentRef {
   /** Server-local igdb_games.id. Local custom games use negative ids. */
@@ -593,6 +642,7 @@ export type DesktopViewId =
   | EmulatorId
   | "games"
   | "import"
+  | "accounts"
   | "discovered"
   | "history"
   | "achievements"
@@ -600,11 +650,18 @@ export type DesktopViewId =
   | "settings"
   | "dev";
 
+export type LiveTimerCorner =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
 export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
   currentSessionHotkey?: string | null;
   quickNoteHotkey?: string | null;
+  liveTimerHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";
@@ -698,6 +755,13 @@ export interface Settings {
   overlayDiscoveries?: boolean;
   /** Show the time of day on the current-session hotkey popup. Absent = off. */
   overlayShowClock?: boolean;
+  /** Small session timer over the screen while a game runs. Absent = off. */
+  liveTimerEnabled?: boolean;
+  /** Screen corner of the live timer. Absent = top left. */
+  liveTimerCorner?: LiveTimerCorner;
+  /** Popup each time today's playtime passes another multiple of this many
+   *  minutes. Null or absent = off. */
+  playtimeReminderMinutes?: number | null;
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
@@ -707,6 +771,10 @@ export interface Settings {
   /** Add newly installed Steam and Battle.net games after the first import
    * from that launcher. Absent = enabled. */
   autoAddInstalledGames?: boolean;
+  /** Launchers (xbox, epic, battlenet, gog) whose sign-in running out adds no
+   * badge to Launcher accounts and shows no message. Absent = every launcher
+   * warns. */
+  loginWarningsOff?: string[];
   /** Offer Steam's installer for imported Steam games that are not installed.
    * Absent = disabled. */
   showInstallInSteam?: boolean;

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "live-timer",
+  "description": "Minimal permissions for the live timer window.",
+  "windows": ["live-timer-*"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

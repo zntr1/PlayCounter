@@ -33,6 +33,7 @@ import { sortMatchCandidates } from "../matchCheckModel";
 import { ambiguousMatchCopy, formatAgo } from "./ambiguousMatchCopy";
 import { useCommunityGameCorrection } from "../../useCommunityGameCorrection";
 import { isGenericExeName } from "../../../library/exeCandidates";
+import { gameFolderName } from "../../../library/genericExeLinks";
 import { notifyFolderIgnored } from "../folderIgnoredToast";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../../SoftwareDialog";
 import { ReportWrongMatchDialog } from "../../ReportWrongMatchDialog";
@@ -160,7 +161,7 @@ export function AmbiguousMatchCard({
 
   function openSearch() {
     // Game.exe says nothing; its folder is the best search term.
-    const folderName = folder?.split(/[\\/]/).filter(Boolean).at(-1);
+    const folderName = folder ? gameFolderName(folder) : undefined;
     if (folderName) correction.setSearch(folderName);
     setSuggestionOpen(true);
   }

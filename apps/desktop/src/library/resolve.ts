@@ -56,7 +56,9 @@ export async function resolveLibraryGames(
     // Older servers reject newer providers in their Steam-only schema.
     if (
       [404, 405, 501].includes(response.status) ||
-      ((provider === "battlenet" || provider === "epic") &&
+      ((provider === "battlenet" ||
+        provider === "epic" ||
+        provider === "gog") &&
         response.status === 400)
     ) {
       return { capability: "unsupported", games: [] };

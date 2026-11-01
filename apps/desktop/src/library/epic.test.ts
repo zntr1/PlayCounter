@@ -6,7 +6,7 @@ import {
   canImportScannedGame,
   importGroupForGame,
   startsUnchecked,
-} from "../ui/views/ImportLibraryView";
+} from "./importGroups";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -93,13 +93,11 @@ describe("Epic Games import", () => {
     expect(group("Sugar")).toBe("ready");
     expect(group("Hades")).toBe("ready");
     expect(group("Freebie")).toBe("ready");
-    // Epic accounts collect many never-played free games: importable, but
-    // only when the user picks them.
-    expect(startsUnchecked("epic", byId.get("Sugar")!)).toBe(false);
-    expect(startsUnchecked("epic", byId.get("Hades")!)).toBe(false);
-    expect(startsUnchecked("epic", byId.get("Freebie")!)).toBe(true);
-    // Battle.net keeps checking its account games.
-    expect(startsUnchecked("battlenet", byId.get("Freebie")!)).toBe(false);
+    // Account games you never played and have not installed start unchecked
+    // on every launcher: importable, but only when you pick them.
+    expect(startsUnchecked(byId.get("Sugar")!)).toBe(false);
+    expect(startsUnchecked(byId.get("Hades")!)).toBe(false);
+    expect(startsUnchecked(byId.get("Freebie")!)).toBe(true);
   });
 
   it("marks the result partial when Epic answered only in part", () => {

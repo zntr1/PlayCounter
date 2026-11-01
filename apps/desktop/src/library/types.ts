@@ -1,4 +1,5 @@
 import type {
+  AchievementList,
   ContributionStatus,
   Game,
   GameSource,
@@ -122,6 +123,9 @@ export type ScannedLibraryGame = {
   installed: boolean;
   installPath?: string;
   executables: ScannedExecutable[];
+  /** The launcher starts the game in an emulator it ships with the game
+   *  (GOG's DOSBox and ScummVM games): there is no game file to link. */
+  runsInEmulator?: boolean;
 };
 
 export type LibraryScanResult = {
@@ -129,6 +133,8 @@ export type LibraryScanResult = {
   warnings: string[];
   partial: boolean;
   resolvedGames?: ResolvedLibraryGame[];
+  /** Xbox: the achievements read during the same sign-in. */
+  achievementLists?: AchievementList[];
 };
 
 export type ResolvedLibraryGame = {

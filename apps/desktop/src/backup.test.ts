@@ -377,6 +377,14 @@ describe("backup import", () => {
       "settings.ignoredEmulatorIds[0]",
       { settings: { ignoredEmulatorIds: [null] } },
     ],
+    [
+      "settings.loginWarningsOff",
+      { settings: { loginWarningsOff: "battlenet" } },
+    ],
+    [
+      "settings.loginWarningsOff[0]",
+      { settings: { loginWarningsOff: [null] } },
+    ],
     ["settings.apiEndpoint", { settings: { apiEndpoint: 42 } }],
     [
       "settings.libraryShowShelves",
@@ -567,11 +575,14 @@ describe("backup import", () => {
               filters: { played: "played" },
             },
           ],
+          // A file that names its game: a backup brings no paths, so a
+          // Game.exe name link would be dropped on load.
           exeCache: new Map([
             [
-              "game.exe",
+              "celeste.exe",
               {
                 ...validEntry,
+                exeName: "celeste.exe",
                 state: "matched" as const,
                 source: "igdb" as const,
               },
@@ -613,7 +624,9 @@ describe("backup import", () => {
         overlayUpdateNote === true,
       );
       expect(useAppStore.getState().recentSessions).toEqual([validSession]);
-      expect(useAppStore.getState().exeCache.get("game.exe")?.gameId).toBe(42);
+      expect(useAppStore.getState().exeCache.get("celeste.exe")?.gameId).toBe(
+        42,
+      );
       expect(
         useAppStore.getState().emulatorMappings.get(validMapping.contentKey)
           ?.gameId,
@@ -787,6 +800,64 @@ describe("backup import", () => {
     useAppStore.setState(useAppStore.getInitialState(), true);
     hydrate();
     expect(useAppStore.getState().feedbackReplyCursor).toEqual(expected);
+  });
+
+  it("hides the other PC's Discovered apps until they run here", async () => {
+    const values = installLocalStorage(null);
+    values.set(
+      "playcounter.watchFolders",
+      JSON.stringify({
+        pending: {
+          "found.exe": {
+            exePath: "D:/Games/Found/Found.exe",
+            folderPath: "D:/Games/Found",
+            folderName: "Found",
+          },
+        },
+      }),
+    );
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file") {
+        return backup({
+          sessions: [],
+          exeCache: [
+            validEntry,
+            {
+              exeName: "Tool.exe",
+              state: "unmatched",
+              lastCheckedAt: "2026-08-19T00:00:00.000Z",
+              trackedSeconds: 360_000,
+            },
+            {
+              exeName: "Found.exe",
+              state: "unmatched",
+              lastCheckedAt: "2026-08-19T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      return undefined;
+    });
+
+    await expect(importLocalData()).resolves.toMatchObject({ imported: true });
+
+    const imported = JSON.parse(values.get(STORAGE_KEY) ?? "{}");
+    expect(imported.exeCache).toEqual([
+      validEntry,
+      {
+        exeName: "Tool.exe",
+        state: "unmatched",
+        lastCheckedAt: "2026-08-19T00:00:00.000Z",
+        trackedSeconds: 360_000,
+        fromBackup: true,
+      },
+      {
+        exeName: "Found.exe",
+        state: "unmatched",
+        lastCheckedAt: "2026-08-19T00:00:00.000Z",
+      },
+    ]);
   });
 
   it("still imports when the running version cannot be read", async () => {

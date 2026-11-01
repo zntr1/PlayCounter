@@ -19,6 +19,7 @@ export default defineConfig({
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         overlay: fileURLToPath(new URL("./overlay.html", import.meta.url)),
         quickNote: fileURLToPath(new URL("./quick-note.html", import.meta.url)),
+        liveTimer: fileURLToPath(new URL("./live-timer.html", import.meta.url)),
       },
     },
   },

@@ -16,9 +16,11 @@ import { getT } from "../../i18n";
 
 const t = getT("tour");
 
-const LibraryMatchControls = lazy(() =>
-  import("../views/ImportLibraryView").then((module) => ({
-    default: module.LibraryMatchControls,
+const importT = getT("import");
+
+const GameMatchPicker = lazy(() =>
+  import("../import/GameMatchPicker").then((module) => ({
+    default: module.GameMatchPicker,
   })),
 );
 
@@ -204,24 +206,28 @@ function DetectionPractice({ stepId }: { stepId: string }) {
   );
 }
 
+const IMPORT_SAMPLES: GameMetadata[] = [
+  {
+    id: -4,
+    igdbId: -4,
+    source: "igdb",
+    // i18n-exempt: sample game name.
+    name: "Diablo IV",
+    coverUrl: "/tour/diablo-iv-cover.webp",
+    releaseYear: 2023,
+  },
+];
+
 function ImportPractice() {
   const [provider, setProvider] = useState<BuiltinImportProviderId>("xbox");
   const [executable, setExecutable] = useState("Diablo IV.exe");
   const [result, setResult] = useState("");
-  const candidates: GameMetadata[] = [
-    {
-      id: -4,
-      igdbId: -4,
-      source: "igdb",
-      name: "Diablo IV",
-      coverUrl: "/tour/diablo-iv-cover.webp",
-      releaseYear: 2023,
-    },
-  ];
+  const [choices, setChoices] = useState<GameMetadata[]>(IMPORT_SAMPLES);
+  const [picked, setPicked] = useState<GameMetadata | null>(IMPORT_SAMPLES[0]);
   return (
     <div data-tour="demo-import" className="grid gap-4">
       <div data-tour="demo-import-providers" className="flex flex-wrap gap-2">
-        {(["steam", "xbox", "battlenet", "epic"] as const).map((id) => (
+        {(["steam", "xbox", "battlenet", "epic", "gog"] as const).map((id) => (
           <Pill
             key={id}
             selected={provider === id}
@@ -236,7 +242,9 @@ function ImportPractice() {
                 ? "Xbox"
                 : id === "epic"
                   ? "Epic Games"
-                  : "Steam"}
+                  : id === "gog"
+                    ? "GOG"
+                    : "Steam"}
           </Pill>
         ))}
       </div>
@@ -263,7 +271,7 @@ function ImportPractice() {
           "One eligible file is selected for you. This selection does not import anything.",
         )}
       </p>
-      <div data-tour="demo-import-match">
+      <div data-tour="demo-import-match" className="grid gap-3">
         <Suspense
           fallback={
             <p className="text-sm text-text-muted">
@@ -271,42 +279,53 @@ function ImportPractice() {
             </p>
           }
         >
-          <LibraryMatchControls
+          <GameMatchPicker
             practice
             key={provider}
-            provider={provider}
-            apiEndpoint=""
-            candidates={candidates}
             // i18n-exempt: sample game name.
             title="Diablo IV"
-            importing={false}
-            searchGames={async (query) =>
-              candidates.filter((game) =>
+            candidates={choices}
+            selectedId={picked?.igdbId ?? null}
+            onSelect={setPicked}
+            onResults={(games) => {
+              setChoices(games);
+              setPicked(games[0] ?? null);
+            }}
+            search={async (query) =>
+              IMPORT_SAMPLES.filter((game) =>
                 game.name.toLowerCase().includes(query.trim().toLowerCase()),
-              )
-            }
-            onConfirm={async (game) =>
-              setResult(
-                [
-                  t("Sample imported: {{game}} ({{file}}).", {
-                    game: game.name,
-                    file: executable,
-                  }),
-                  provider === "battlenet"
-                    ? t("Battle.net does not supply past playtime here.")
-                    : provider === "epic"
-                      ? t(
-                          "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.",
-                        )
-                      : t(
-                          "Imported launcher time is a total, not a list of PlayCounter sessions.",
-                        ),
-                  t("Future tracked sessions build your History."),
-                ].join(" "),
               )
             }
           />
         </Suspense>
+        <Button
+          variant="primary"
+          className="justify-self-start"
+          disabled={!picked}
+          onClick={() => {
+            if (!picked) return;
+            setResult(
+              [
+                t("Sample imported: {{game}} ({{file}}).", {
+                  game: picked.name,
+                  file: executable,
+                }),
+                provider === "battlenet"
+                  ? t("Battle.net does not supply past playtime here.")
+                  : provider === "epic"
+                    ? t(
+                        "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.",
+                      )
+                    : t(
+                        "Imported launcher time is a total, not a list of PlayCounter sessions.",
+                      ),
+                t("Future tracked sessions build your History."),
+              ].join(" "),
+            );
+          }}
+        >
+          {importT("Import")}
+        </Button>
       </div>
       {result ? <Result>{result}</Result> : null}
     </div>

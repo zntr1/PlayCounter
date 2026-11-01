@@ -17,7 +17,7 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 import { Trans } from "react-i18next";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
-import type { LibraryProviderId } from "@playcounter/shared";
+import type { LibraryProviderId, LiveTimerCorner } from "@playcounter/shared";
 import {
   chooseEmulatorBinary,
   forgetImportedLibraryData,
@@ -63,6 +63,7 @@ import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
 import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
+import { PLAYTIME_REMINDER_MINUTES } from "../../playtimeReminder";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
 import { resolveEmulatorBinary } from "../../emulatorLaunch";
@@ -95,9 +96,25 @@ function overlayPreviews(): ReadonlyArray<
     ["session-start", t("Game start")],
     ["session-summary", t("Session summary")],
     ["current-session", t("Current session")],
+    ["playtime-reminder", t("Playtime reminder")],
     ["milestone", t("Milestone")],
     ["discovery", t("Discovery")],
   ];
+}
+
+function liveTimerCorners(): ReadonlyArray<readonly [LiveTimerCorner, string]> {
+  return [
+    ["top-left", t("Top left")],
+    ["top-right", t("Top right")],
+    ["bottom-left", t("Bottom left")],
+    ["bottom-right", t("Bottom right")],
+  ];
+}
+
+function playtimeReminderLabel(minutes: number) {
+  return minutes % 60 === 0
+    ? t("Every {{count, number}} hours", { count: minutes / 60 })
+    : t("Every {{count, number}} minutes", { count: minutes });
 }
 
 export function SettingsView() {
@@ -146,6 +163,10 @@ export function SettingsView() {
   const setDesktopOverlaySetting = useAppStore(
     (state) => state.setDesktopOverlaySetting,
   );
+  const setLiveTimerCorner = useAppStore((state) => state.setLiveTimerCorner);
+  const setPlaytimeReminderMinutes = useAppStore(
+    (state) => state.setPlaytimeReminderMinutes,
+  );
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
   const forgetExecutableLaunchTargets = useAppStore(
     (state) => state.forgetExecutableLaunchTargets,
@@ -180,6 +201,12 @@ export function SettingsView() {
     (state) =>
       [...state.libraryImports.values()].filter(
         (entry) => entry.provider === "epic",
+      ).length,
+  );
+  const importedGogCount = useAppStore(
+    (state) =>
+      [...state.libraryImports.values()].filter(
+        (entry) => entry.provider === "gog",
       ).length,
   );
   const forgetLibraryLabel = confirmForgetLibrary
@@ -675,6 +702,22 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        <SettingsRow
+          title={t("Show or hide live timer")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Each press moves the live timer to the next corner: top left, top right, bottom right, bottom left, then off. The last choice stays for your next games.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="liveTimerHotkey"
+            label={t("Show or hide live timer")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
         {currentPlatform() !== "macos" ? (
           <SettingsRow
             title={t("Show clock in session popup")}
@@ -695,6 +738,77 @@ export function SettingsView() {
           </SettingsRow>
         ) : null}
       </SettingsPanel>
+
+      {currentPlatform() !== "macos" ? (
+        <SettingsPanel
+          description={t(
+            "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.",
+          )}
+          title={t("While you play")}
+        >
+          <SettingsRow
+            description={t(
+              "A small timer in a corner of your game's window that counts up while you play. It hides while another app is in front, and clicks pass through it. Timers you start by hand show on the display selected under Desktop popups.",
+            )}
+            title={t("Live timer")}
+          >
+            <Switch
+              aria-label={t("Live timer")}
+              checked={settings.liveTimerEnabled === true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "liveTimerEnabled",
+                  event.target.checked,
+                )
+              }
+            />
+          </SettingsRow>
+          <SettingsRow
+            description={t("Pick a corner your game's HUD leaves free.")}
+            title={t("Timer position")}
+          >
+            <Select
+              aria-label={t("Timer position")}
+              value={settings.liveTimerCorner ?? "top-left"}
+              disabled={settings.liveTimerEnabled !== true}
+              onChange={(event) =>
+                setLiveTimerCorner(event.target.value as LiveTimerCorner)
+              }
+            >
+              {liveTimerCorners().map(([corner, label]) => (
+                <option key={corner} value={corner}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </SettingsRow>
+          <SettingsRow
+            description={t(
+              "A popup every time today's playtime grows by this much. All games count together.",
+            )}
+            title={t("Playtime reminder")}
+          >
+            <Select
+              aria-label={t("Playtime reminder")}
+              value={String(settings.playtimeReminderMinutes ?? "off")}
+              onChange={(event) =>
+                setPlaytimeReminderMinutes(
+                  event.target.value === "off"
+                    ? null
+                    : Number(event.target.value),
+                )
+              }
+            >
+              <option value="off">{t("Off")}</option>
+              {PLAYTIME_REMINDER_MINUTES.map((minutes) => (
+                <option key={minutes} value={String(minutes)}>
+                  {playtimeReminderLabel(minutes)}
+                </option>
+              ))}
+            </Select>
+          </SettingsRow>
+        </SettingsPanel>
+      ) : null}
 
       {currentPlatform() !== "macos" ? (
         <SettingsPanel
@@ -1316,7 +1430,7 @@ export function SettingsView() {
       <SettingsPanel
         dataTour="settings-library-import"
         description={t(
-          "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, or Epic Games. Install paths and the game files linked to them always stay on this PC.",
+          "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games or GOG. Install paths and the game files linked to them always stay on this PC.",
         )}
         title={t("Library import")}
       >
@@ -1324,7 +1438,7 @@ export function SettingsView() {
           <SettingsRow
             dataTour="settings-auto-add"
             description={t(
-              "After your first import from Steam, Battle.net or Epic Games, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
+              "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
             )}
             title={t("Add new games automatically")}
           >
@@ -1343,6 +1457,18 @@ export function SettingsView() {
             <div role="separator" className="border-t border-border" />
           </>
         ) : null}
+        <SettingsRow
+          title={getT("accounts")("Launcher accounts")}
+          description={getT("accounts")(
+            "Manage your launcher connections in one place.",
+          )}
+        >
+          <Button
+            onClick={() => useAppStore.getState().setActiveView("accounts")}
+          >
+            {getT("accounts")("Manage accounts")}
+          </Button>
+        </SettingsRow>
         <SettingsRow
           description={t(
             "Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
@@ -1424,6 +1550,27 @@ export function SettingsView() {
           >
             {importedEpicCount
               ? t("Forget {{count}}", { count: importedEpicCount })
+              : t("Forget all")}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description={t(
+            "Removes the GOG mark, the imported GOG playtime, the game files GOG linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
+          )}
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="gog" variant="mark" />
+              {t("Forget imported GOG data")}
+            </span>
+          }
+        >
+          <Button
+            variant="danger"
+            disabled={importedGogCount === 0}
+            onClick={() => setConfirmForgetLibrary("gog")}
+          >
+            {importedGogCount
+              ? t("Forget {{count}}", { count: importedGogCount })
               : t("Forget all")}
           </Button>
         </SettingsRow>

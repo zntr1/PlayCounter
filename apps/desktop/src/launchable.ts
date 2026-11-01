@@ -16,9 +16,10 @@ import {
    a game with a Play button is always in Launchable and the other way round.
    Settings that hide Play (launching turned off, not Windows) stay with the
    callers: the filter still means "could launch". Battle.net installs only
-   open the launcher, so they do not count on their own. */
+   open the launcher, so they do not count on their own. A GOG install starts
+   its own start file. */
 
-const PLAY_PROVIDERS: readonly string[] = ["steam", "xbox", "epic"];
+const PLAY_PROVIDERS: readonly string[] = ["steam", "xbox", "epic", "gog"];
 
 export type LaunchableGame = {
   exeNames: readonly string[];

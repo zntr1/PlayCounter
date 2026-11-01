@@ -51,13 +51,50 @@ function resolverResponse(executable: {
   );
 }
 
+/** The server's files for the game saved in My Games. */
+async function savedGameResponse(executable: {
+  value: string;
+  verified: boolean;
+  ambiguous?: boolean;
+}) {
+  const response = await resolverResponse(executable).json();
+  return new Response(JSON.stringify(response.results[0]), { status: 200 });
+}
+
 describe("Steam import match recheck", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("checks the game saved in My Games, not the game the server has for the AppID", async () => {
+    const fetchMock = vi.fn(async () =>
+      savedGameResponse({ value: "cs2.exe", verified: true }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await checkLibraryImportForMatches({
+      apiEndpoint: "https://example.test",
+      entry,
+    });
+
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      "https://example.test/api/library/reverse-resolve",
+      expect.objectContaining({
+        body: JSON.stringify({ gameId: entry.gameId }),
+      }),
+    );
+    expect(result.kind).toBe("found");
+    if (result.kind !== "found") return;
+    expect(result.commit.entry).toMatchObject({
+      gameId: entry.gameId,
+      igdbId: entry.igdbId,
+    });
+  });
 
   it("creates a local match for a newly approved safe executable", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => resolverResponse({ value: "cs2.exe", verified: true })),
+      vi.fn(async () =>
+        savedGameResponse({ value: "cs2.exe", verified: true }),
+      ),
     );
 
     const result = await checkLibraryImportForMatches({
@@ -115,10 +152,12 @@ describe("Steam import match recheck", () => {
       };
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => new Response(
-          JSON.stringify(provider === "xbox" ? resolved : { results: [resolved] }),
-          { status: 200 },
-        )),
+        vi.fn(
+          async () =>
+            new Response(JSON.stringify(resolved), {
+              status: 200,
+            }),
+        ),
       );
 
       const result = await checkLibraryImportForMatches({
@@ -139,7 +178,9 @@ describe("Steam import match recheck", () => {
   it("keeps unknown provider playtime unknown after a metadata recheck", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => resolverResponse({ value: "cs2.exe", verified: true })),
+      vi.fn(async () =>
+        savedGameResponse({ value: "cs2.exe", verified: true }),
+      ),
     );
 
     const result = await checkLibraryImportForMatches({
@@ -156,7 +197,7 @@ describe("Steam import match recheck", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        resolverResponse({
+        savedGameResponse({
           value: "cs2.exe",
           verified: true,
           ambiguous: true,
@@ -183,7 +224,7 @@ describe("Steam import match recheck", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        resolverResponse({
+        savedGameResponse({
           value: "cs2.exe",
           verified: true,
           ambiguous: true,
@@ -215,7 +256,6 @@ describe("Steam import match recheck", () => {
   });
 });
 
-
 describe("Xbox import match recheck", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -223,51 +263,83 @@ describe("Xbox import match recheck", () => {
     { ambiguous: false, installed: false, expected: "found" },
     { ambiguous: true, installed: false, expected: "needs_install" },
     { ambiguous: true, installed: true, expected: "found" },
-  ])("handles ambiguous=$ambiguous, installed=$installed safely", async ({ ambiguous, installed, expected }) => {
-    const fetchMock = vi.fn(async () => {
-      const response = await resolverResponse({ value: "cs2.exe", verified: true, ambiguous }).json();
-      return new Response(JSON.stringify(response.results[0]), { status: 200 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const result = await checkLibraryImportForMatches({
-      apiEndpoint: "https://example.test",
-      entry: { ...entry, provider: "xbox", externalId: "1234", providerSeconds: null },
-      install: installed ? {
+  ])(
+    "handles ambiguous=$ambiguous, installed=$installed safely",
+    async ({ ambiguous, installed, expected }) => {
+      const fetchMock = vi.fn(async () => {
+        const response = await resolverResponse({
+          value: "cs2.exe",
+          verified: true,
+          ambiguous,
+        }).json();
+        return new Response(JSON.stringify(response.results[0]), {
+          status: 200,
+        });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const result = await checkLibraryImportForMatches({
+        apiEndpoint: "https://example.test",
+        entry: {
+          ...entry,
+          provider: "xbox",
+          externalId: "1234",
+          providerSeconds: null,
+        },
+        install: installed
+          ? {
+              provider: "xbox",
+              externalId: "1234",
+              installPath: String.raw`C:\XboxGames\Game`,
+              scannedAt: entry.lastReadAt,
+            }
+          : undefined,
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://example.test/api/library/reverse-resolve",
+        expect.objectContaining({
+          body: JSON.stringify({ gameId: entry.gameId }),
+        }),
+      );
+      expect(result.kind).toBe(expected);
+      if (result.kind !== "found") return;
+      expect(result.commit.entry).toMatchObject({
         provider: "xbox",
         externalId: "1234",
-        installPath: String.raw`C:\XboxGames\Game`,
-        scannedAt: entry.lastReadAt,
-      } : undefined,
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://example.test/api/library/reverse-resolve",
-      expect.objectContaining({ body: JSON.stringify({ gameId: entry.gameId }) }),
-    );
-    expect(result.kind).toBe(expected);
-    if (result.kind !== "found") return;
-    expect(result.commit.entry).toMatchObject({
-      provider: "xbox", externalId: "1234", providerSeconds: null,
-      linkedExeNames: ["cs2.exe"],
-    });
-    if (ambiguous) {
-      expect(result.commit.exeCacheEntries).toEqual([]);
-      expect(result.commit.scopedLinks[0]).toMatchObject({
-        provider: "xbox", externalId: "1234", gameId: entry.gameId,
-        pathPrefix: String.raw`c:\xboxgames\game`,
+        providerSeconds: null,
+        linkedExeNames: ["cs2.exe"],
       });
-    } else {
-      expect(result.commit.exeCacheEntries[0]).toMatchObject({
-        exeName: "cs2.exe", gameId: entry.gameId,
-      });
-    }
-  });
+      if (ambiguous) {
+        expect(result.commit.exeCacheEntries).toEqual([]);
+        expect(result.commit.scopedLinks[0]).toMatchObject({
+          provider: "xbox",
+          externalId: "1234",
+          gameId: entry.gameId,
+          pathPrefix: String.raw`c:\xboxgames\game`,
+        });
+      } else {
+        expect(result.commit.exeCacheEntries[0]).toMatchObject({
+          exeName: "cs2.exe",
+          gameId: entry.gameId,
+        });
+      }
+    },
+  );
 
   it("reports no match when the confirmed Xbox game still has no executables", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      const response = await resolverResponse({ value: "cs2.exe", verified: true }).json();
-      return new Response(JSON.stringify({ ...response.results[0], executables: [] }), { status: 200 });
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const response = await resolverResponse({
+          value: "cs2.exe",
+          verified: true,
+        }).json();
+        return new Response(
+          JSON.stringify({ ...response.results[0], executables: [] }),
+          { status: 200 },
+        );
+      }),
+    );
     const result = await checkLibraryImportForMatches({
       apiEndpoint: "https://example.test",
       entry: { ...entry, provider: "xbox" },

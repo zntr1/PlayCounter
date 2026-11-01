@@ -17,10 +17,12 @@ export const epicProvider: LocalLibraryProvider = {
   listAccounts: async () => [],
   scan: async (_accountId, options) => {
     options?.signal?.throwIfAborted();
+    if (options?.epicAccount) options.onStage?.("account");
     const account = options?.epicAccount
       ? await readEpicAccountLibrary(options.signal)
       : undefined;
     options?.signal?.throwIfAborted();
+    options?.onStage?.("installs");
     const result = await invoke<LibraryScanResult>("library_scan", {
       provider: "epic",
       accountId: 0,

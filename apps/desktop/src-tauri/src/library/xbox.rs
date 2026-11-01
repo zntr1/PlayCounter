@@ -109,7 +109,10 @@ fn scan_local_games_windows() -> XboxLocalScan {
         for entry in entries.flatten() {
             if Instant::now() >= deadline {
                 partial = true;
-                warnings.push("Executable scanning reached its 45 second budget.".to_string());
+                warnings.push(
+                    "Not every installed Xbox game could be checked in time, so some may show as not installed. Scan again to retry."
+                        .to_string(),
+                );
                 break 'roots;
             }
             let Ok(file_type) = entry.file_type() else {
@@ -155,13 +158,8 @@ fn scan_local_games_windows() -> XboxLocalScan {
                 .to_string(),
         );
     }
-    if executable_scan_capped {
-        partial = true;
-        warnings.push(
-            "Some executable folders reached their safe scan limit; found games remain usable."
-                .to_string(),
-        );
-    }
+    // A game whose file lies beyond the limit asks for it in the review.
+    partial |= executable_scan_capped;
     let mut seen_title_ids = BTreeSet::new();
     games.retain(|game| seen_title_ids.insert(game.external_id.clone()));
     games.sort_by(|left, right| left.name.cmp(&right.name));

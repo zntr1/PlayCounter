@@ -66,7 +66,7 @@ describe("isLaunchable", () => {
     expect(isLaunchable(game(), sources())).toBe(false);
   });
 
-  it.each(["steam", "xbox", "epic"])(
+  it.each(["steam", "xbox", "epic", "gog"])(
     "counts an installed %s copy, not an uninstalled one",
     (provider) => {
       const installed = { provider, installed: true };

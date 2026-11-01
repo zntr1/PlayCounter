@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
@@ -159,15 +159,34 @@ describe("language files", () => {
 /* Release notes ─────────────────────────────────────────────────────────── */
 
 type NoteText = { headline?: unknown; highlights?: unknown };
+// From 1.5.0 a point is a title with its text, a hint and maybe a picture;
+// older releases write it as one line.
+type NotePoint = {
+  title?: unknown;
+  text?: unknown;
+  hint?: unknown;
+  image?: unknown;
+};
+
+const filled = (value: unknown) =>
+  typeof value === "string" && value.trim() !== "";
+const asPoint = (value: unknown) =>
+  value !== null && typeof value === "object" ? (value as NotePoint) : null;
 
 describe("release notes", () => {
+  const notes = JSON.parse(
+    readFileSync(join(src, "releaseNotes.json"), "utf8"),
+  ) as Array<NoteText & { version: string; translations?: unknown }>;
+
   it("has every release in every language, point for point", () => {
-    const notes = JSON.parse(
-      readFileSync(join(src, "releaseNotes.json"), "utf8"),
-    ) as Array<NoteText & { version: string; translations?: unknown }>;
     const problems: string[] = [];
     for (const note of notes) {
       const english = Array.isArray(note.highlights) ? note.highlights : [];
+      english.forEach((point, index) => {
+        const own = asPoint(point);
+        if (own ? !filled(own.title) || !filled(own.text) : !filled(point))
+          problems.push(`${note.version}: English point ${index + 1} is empty`);
+      });
       const translations = (note.translations ?? {}) as Record<
         string,
         NoteText | undefined
@@ -177,20 +196,48 @@ describe("release notes", () => {
         const highlights = Array.isArray(text?.highlights)
           ? text.highlights
           : [];
-        if (typeof text?.headline !== "string" || !text.headline.trim()) {
+        if (!filled(text?.headline)) {
           problems.push(`${note.version}: no ${language} headline`);
         }
-        if (
-          highlights.length !== english.length ||
-          highlights.some((line) => typeof line !== "string" || !line.trim())
-        ) {
+        if (highlights.length !== english.length) {
           problems.push(
             `${note.version}: ${highlights.length} ${language} highlights, English has ${english.length}`,
           );
+          continue;
         }
+        english.forEach((point, index) => {
+          const source = asPoint(point);
+          const translated = asPoint(highlights[index]);
+          const matches = source
+            ? translated !== null &&
+              filled(translated.title) &&
+              filled(translated.text) &&
+              filled(translated.hint) === filled(source.hint)
+            : filled(highlights[index]);
+          if (!matches)
+            problems.push(
+              `${note.version}: ${language} point ${index + 1} doesn't match the English one (title, text and hint)`,
+            );
+        });
       }
     }
     expect(problems).toEqual([]);
+  });
+
+  it("has a picture for every point that names one", () => {
+    const missing = notes.flatMap((note) =>
+      (Array.isArray(note.highlights) ? note.highlights : [])
+        .map((point) => asPoint(point)?.image)
+        .filter((image): image is string => typeof image === "string")
+        .filter(
+          (image) =>
+            !existsSync(
+              join(src, "assets", "whats-new", note.version, `${image}.webp`),
+            ),
+        )
+        .map((image) => `assets/whats-new/${note.version}/${image}.webp`),
+    );
+    expect(missing).toEqual([]);
   });
 });
 
@@ -205,6 +252,7 @@ const BRANDS = new Set([
   "Xbox",
   "Battle.net",
   "Epic Games",
+  "GOG",
   "IGDB",
   "Discord",
   "Spotify",
@@ -548,6 +596,7 @@ describe("UI code", () => {
 const RUST_ENGLISH_ON_PURPOSE = new Set([
   "A PlayCounter data path points outside its app folder.",
   "Battle.net sign-in must be cancelled from PlayCounter.",
+  "Closing games is only supported on Windows.",
   "Could not close the idle emulator window: {error}",
   "Could not create the Xbox app activator: {error}",
   "Could not create the Xbox package family name ({result}).",
@@ -559,6 +608,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Epic Games sign-in must be cancelled from PlayCounter.",
   "Epic Games/Launcher/Portal/Binaries/{arch}/EpicGamesLauncher.exe",
   "Executable not found.",
+  "GOG sign-in must be cancelled from PlayCounter.",
   "Icon extraction failed: {error:?}",
   "Install UUID cache is unavailable.",
   "Invalid Battle.net database field.",
@@ -569,6 +619,9 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Invalid Epic Games app name.",
   "Invalid Epic Games launch mode.",
   "Invalid Epic Games sign-in request.",
+  "Invalid GOG game id.",
+  "Invalid GOG launch mode.",
+  "Invalid GOG sign-in request.",
   "Invalid Steam AppID.",
   "Invalid Steam launch mode.",
   "Invalid Xbox launch mode.",
@@ -577,6 +630,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Invalid field size.",
   "Invalid install UUID.",
   "Missing value for VDF key {key}.",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) EpicGamesLauncher",
   "No game active",
   "No monitor is available for the notification overlay.",
   "Open PlayCounter",
@@ -584,10 +638,13 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "PlayCounter cannot list games for this launcher.",
   "PlayCounter notification",
   "PlayCounter quick note",
+  "PlayCounter timer",
   "PlayCounter requires a full Windows path without traversal segments.",
   "Quit PlayCounter",
   "Reset is only available in the main PlayCounter window.",
   "Some executable folders",
+  "Sign-ins are kept only on Windows.",
+  "Sign-ins can only be removed in PlayCounter.",
   "Steam localconfig has no Software section.",
   "Steam localconfig has no Steam section.",
   "Steam localconfig has no Valve section.",
@@ -605,11 +662,13 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Unexpected character in VDF file at {cursor}.",
   "Unexpected closing brace in VDF file.",
   "Unknown hotkey action",
+  "Unknown sign-in.",
   "Unsupported Battle.net database field.",
   "Unsupported Microsoft sign-in URL.",
   "Unsupported external URL.",
   "User ignored processes folder is unavailable.",
   "VDF nesting exceeds the supported depth.",
+  "Windows could not encrypt the sign-in.",
 ]);
 
 const RUST_LOG =

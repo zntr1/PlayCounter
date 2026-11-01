@@ -360,6 +360,24 @@
   display: inline-flex;
 }
 
+/* A running card's Close button shows ■, or the X / Square glyph on the
+   selected card while a controller drives the app. */
+.close-key-hint {
+  display: none;
+}
+
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .close-key-hint {
+  display: inline-flex;
+}
+
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .close-key-icon {
+  display: none;
+}
+
 .controller-scroll-focus-indicator {
   opacity: 0;
   transform: translateY(-4px);
@@ -561,7 +579,10 @@ html[data-window="notification-overlay"] body,
 html[data-window="notification-overlay"] #overlay-root,
 html[data-window="quick-note"],
 html[data-window="quick-note"] body,
-html[data-window="quick-note"] #quick-note-root {
+html[data-window="quick-note"] #quick-note-root,
+html[data-window="live-timer"],
+html[data-window="live-timer"] body,
+html[data-window="live-timer"] #live-timer-root {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -832,6 +853,46 @@ html[data-window="quick-note"] #quick-note-root {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+
+/* Live timer: a dark glass pill that reads over any game, light or dark. The
+   window is a little larger than the pill so its shadow is not cut off. */
+.live-timer {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  padding: 8px;
+}
+
+.live-timer-right {
+  justify-content: flex-end;
+}
+
+.live-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 999px;
+  padding: 6px 15px 6px 9px;
+  background: rgb(12 12 14 / 0.72);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  color: rgb(255 255 255 / 0.94);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+  white-space: nowrap;
+}
+
+/* Nothing in the pill animates: it sits over a game for hours, and an endless
+   animation redraws it every frame instead of once a second. */
+.live-timer-pill img {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
 }
 
 .desktop-overlay-glints i {

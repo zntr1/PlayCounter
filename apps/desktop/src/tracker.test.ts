@@ -685,13 +685,13 @@ describe("persisted library imports", () => {
             importedAt: "2026-09-02T00:00:00.000Z",
             providerSeconds: 0,
             lastReadAt: "2026-09-02T00:00:00.000Z",
-            linkedExeNames: ["Game.exe"],
+            linkedExeNames: ["ExampleGame.exe"],
             linkedExeSources: ["custom"],
           },
         ],
         exeCache: [
           {
-            exeName: "Game.exe",
+            exeName: "ExampleGame.exe",
             state: "matched",
             gameId: 42,
             igdbId: 133430,
@@ -710,7 +710,7 @@ describe("persisted library imports", () => {
     hydrate();
 
     const state = useAppStore.getState();
-    expect(state.exeCache.get("game.exe")).toMatchObject({
+    expect(state.exeCache.get("examplegame.exe")).toMatchObject({
       source: "community",
       identifierSource: "community",
     });
@@ -5232,6 +5232,52 @@ describe("Discovered app paths", () => {
     expect(useAppStore.getState().exeCache.get("tool.exe")?.exePath).toBe(
       "C:/Apps/Tool.exe",
     );
+  });
+
+  it("keeps an app from a backup hidden through a re-check until it runs here", async () => {
+    useAppStore.getState().setExeCacheEntry({
+      exeName: "Tool.exe",
+      state: "unmatched",
+      lastCheckedAt: new Date().toISOString(),
+      trackedSeconds: 360_000,
+      fromBackup: true,
+    });
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "scan_processes" ? [] : undefined,
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ matches: [{ key: "tool.exe", game: null }] }),
+      ),
+    );
+    await recheckExecutable("Tool.exe");
+    expect(useAppStore.getState().exeCache.get("tool.exe")?.fromBackup).toBe(
+      true,
+    );
+
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "scan_processes"
+        ? [{ exeName: "Tool.exe", exePath: "C:/Apps/Tool.exe", pid: 7 }]
+        : undefined,
+    );
+    await scanProcessesNow();
+    const entry = useAppStore.getState().exeCache.get("tool.exe");
+    expect(entry?.fromBackup).toBeUndefined();
+    expect(entry?.trackedSeconds).toBe(360_000);
+  });
+
+  it("shows an app from a backup once a watched folder finds it here", () => {
+    useAppStore.getState().setExeCacheEntry({
+      exeName: "Tool.exe",
+      state: "unmatched",
+      lastCheckedAt: new Date().toISOString(),
+      fromBackup: true,
+    });
+    noteFolderExecutable("Tool.exe");
+    expect(
+      useAppStore.getState().exeCache.get("tool.exe")?.fromBackup,
+    ).toBeUndefined();
   });
 });
 

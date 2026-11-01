@@ -1,3 +1,9 @@
+// Each scan checks every process against the same ignore list (about 1,200
+// entries) several times, so the wildcard patterns of a set are compiled into
+// one regex the first time the set is used. Store sets are replaced on change,
+// never edited in place.
+const compiledWildcards = new WeakMap<ReadonlySet<string>, RegExp | null>();
+
 export function matchesProcessPatternSet(
   exeName: string,
   patterns: ReadonlySet<string>,
@@ -5,21 +11,26 @@ export function matchesProcessPatternSet(
   const key = exeName.toLowerCase();
   if (patterns.has(key)) return true;
 
-  for (const pattern of patterns) {
-    if (hasWildcard(pattern) && matchesWildcardPattern(key, pattern)) {
-      return true;
-    }
-  }
+  return wildcardRegex(patterns)?.test(key) ?? false;
+}
 
-  return false;
+function wildcardRegex(patterns: ReadonlySet<string>) {
+  let regex = compiledWildcards.get(patterns);
+  if (regex === undefined) {
+    const sources = [...patterns].filter(hasWildcard).map(wildcardSource);
+    regex =
+      sources.length > 0 ? new RegExp(`^(?:${sources.join("|")})$`) : null;
+    compiledWildcards.set(patterns, regex);
+  }
+  return regex;
 }
 
 function hasWildcard(pattern: string) {
   return pattern.includes("*") || pattern.includes("?");
 }
 
-function matchesWildcardPattern(value: string, pattern: string) {
-  let regex = "^";
+function wildcardSource(pattern: string) {
+  let regex = "";
   for (const char of pattern) {
     if (char === "*") {
       regex += ".*";
@@ -29,9 +40,7 @@ function matchesWildcardPattern(value: string, pattern: string) {
       regex += escapeRegexChar(char);
     }
   }
-  regex += "$";
-
-  return new RegExp(regex).test(value);
+  return regex;
 }
 
 function escapeRegexChar(char: string) {

@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryKnownExecutable } from "@playcounter/shared";
 import { useAppStore } from "../store";
-import {
-  importGroupForGame,
-  importShareDetail,
-} from "../ui/views/ImportLibraryView";
+import { importGroupForGame } from "./importGroups";
+import { importShareDetail } from "./importSession";
 import { resolveLibraryGames } from "./resolve";
 import { buildLibraryImportCommit } from "./importPlan";
 import { runLibraryImport } from "./importRun";

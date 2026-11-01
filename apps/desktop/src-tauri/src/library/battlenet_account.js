@@ -11,7 +11,7 @@
   if (window[key]) return window[key];
   window[key] = { status: "pending" };
 
-  async function read(path, field) {
+  async function request(path, limit, authentication = false) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
@@ -22,51 +22,32 @@
         signal: controller.signal,
         headers: { Accept: "application/json" },
       });
-      if (response.status === 401 || response.status === 403) {
-        return { error: "expired" };
-      }
-      if (!response.ok) return { error: "unavailable" };
+      const refused = response.status === 401 || response.status === 403;
+      if (!response.ok && !refused) return { error: "unavailable" };
       if (
         response.redirected ||
         response.url !== `https://account.battle.net/api/${path}` ||
         !response.headers.get("content-type")?.includes("application/json")
       )
-        return { error: "invalid" };
+        return { error: refused ? "renew" : "unavailable" };
       const body = await response.text();
-      if (body.length > 4_000_000) return { error: "invalid" };
-      const rows = JSON.parse(body)?.[field];
-      if (!Array.isArray(rows) || rows.length > 1_000) {
-        return { error: "invalid" };
+      if (body.length > limit) return { error: "unavailable" };
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        return { error: refused ? "renew" : "unavailable" };
       }
-      const games = [];
-      let skipped = false;
-      for (const row of rows) {
-        const titleId = field === "gameAccounts" ? Number(row?.titleId) : null;
-        const name =
-          typeof row?.localizedGameName === "string"
-            ? row.localizedGameName.trim().slice(0, 256)
-            : "";
-        const franchise =
-          typeof row?.regionalGameFranchiseIconFilename === "string"
-            ? row.regionalGameFranchiseIconFilename.slice(0, 256)
-            : null;
-        if (
-          (titleId !== null &&
-            (!Number.isSafeInteger(titleId) ||
-              titleId <= 0 ||
-              titleId > 4_294_967_295)) ||
-          (titleId === null && !name)
-        ) {
-          skipped = true;
-          continue;
-        }
-        games.push({
-          titleId,
-          name: name || `Battle.net title ${titleId}`,
-          franchise,
-        });
+      // A library denial or an HTML challenge does not prove that the saved
+      // login is gone. Only the account-status response can establish that.
+      if (authentication && data?.authenticated === false) {
+        return { error: "expired" };
       }
-      return { games, skipped };
+      if (refused) return { error: "renew" };
+      if (authentication && data?.authenticated !== true) {
+        return { error: "unavailable" };
+      }
+      return { data };
     } catch {
       return { error: "unavailable" };
     } finally {
@@ -74,27 +55,69 @@
     }
   }
 
-  void Promise.all([
-    read("games-and-subs", "gameAccounts"),
-    read("classic-games", "classicGames"),
-  ])
-    .then(([modern, classic]) => {
-      if (modern.error === "expired") {
-        window[key] = { status: "error", error: "expired" };
-      } else if (modern.error && classic.error) {
-        window[key] = { status: "error", error: "unavailable" };
-      } else {
-        window[key] = {
-          status: "complete",
-          games: [...(modern.games || []), ...(classic.games || [])],
-          incomplete: Boolean(
-            modern.error || classic.error || modern.skipped || classic.skipped,
-          ),
-        };
+  async function read(path, field) {
+    const result = await request(path, 4_000_000);
+    if (result.error) return result;
+    const rows = result.data?.[field];
+    if (!Array.isArray(rows) || rows.length > 1_000) {
+      return { error: "invalid" };
+    }
+    const games = [];
+    let skipped = false;
+    for (const row of rows) {
+      const titleId = field === "gameAccounts" ? Number(row?.titleId) : null;
+      const name =
+        typeof row?.localizedGameName === "string"
+          ? row.localizedGameName.trim().slice(0, 256)
+          : "";
+      const franchise =
+        typeof row?.regionalGameFranchiseIconFilename === "string"
+          ? row.regionalGameFranchiseIconFilename.slice(0, 256)
+          : null;
+      if (
+        (titleId !== null &&
+          (!Number.isSafeInteger(titleId) ||
+            titleId <= 0 ||
+            titleId > 4_294_967_295)) ||
+        (titleId === null && !name)
+      ) {
+        skipped = true;
+        continue;
       }
-    })
-    .catch(() => {
+      games.push({
+        titleId,
+        name: name || `Battle.net title ${titleId}`,
+        franchise,
+      });
+    }
+    return { games, skipped };
+  }
+
+  void (async () => {
+    const authentication = await request("", 64_000, true);
+    if (authentication.error) {
+      window[key] = { status: "error", error: authentication.error };
+      return;
+    }
+    const [modern, classic] = await Promise.all([
+      read("games-and-subs", "gameAccounts"),
+      read("classic-games", "classicGames"),
+    ]);
+    if (modern.error === "renew") {
+      window[key] = { status: "error", error: "renew" };
+    } else if (modern.error && classic.error) {
       window[key] = { status: "error", error: "unavailable" };
-    });
+    } else {
+      window[key] = {
+        status: "complete",
+        games: [...(modern.games || []), ...(classic.games || [])],
+        incomplete: Boolean(
+          modern.error || classic.error || modern.skipped || classic.skipped,
+        ),
+      };
+    }
+  })().catch(() => {
+    window[key] = { status: "error", error: "unavailable" };
+  });
   return window[key];
 })();
