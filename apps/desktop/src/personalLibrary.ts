@@ -68,6 +68,7 @@ export type LibraryFilters = {
     | "battlenet"
     | "epic"
     | "gog"
+    | "playstation"
     | "unimported";
   status?: GameStatus | "none";
   tier?: GameTier | "none";

@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter odczytuje konta Steam z tego komputera. Osobne logowanie nie jest potrzebne.",
   "Sign-in warnings": "Ostrzeżenia o logowaniu",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Ostrzeżenia o logowaniu włączone: odznaka i komunikat, gdy {{launcher}} wymaga ponownego zalogowania. Kliknij, aby je wyłączyć.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Ostrzeżenia o logowaniu wyłączone: bez odznaki i komunikatu, gdy {{launcher}} wymaga ponownego zalogowania. Kliknij, aby je włączyć."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Ostrzeżenia o logowaniu wyłączone: bez odznaki i komunikatu, gdy {{launcher}} wymaga ponownego zalogowania. Kliknij, aby je włączyć.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Twoje gry z PS5 i PS4, czas gry zapisany przez Sony i to, w co grasz teraz.",
+  "Live from PlayStation": "Na żywo z PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Pokazuje, w co grasz na PS5 lub PS4, gdy PlayCounter jest uruchomiony.",
+  "Sign in with a code": "Zaloguj się kodem",
+  "Sign in at playstation.com in your browser.": "Zaloguj się na playstation.com w przeglądarce.",
+  "Open playstation.com": "Otwórz playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "W tej samej przeglądarce otwórz stronę Sony z kodem logowania.",
+  "Open the code page": "Otwórz stronę z kodem",
+  "Copy everything on that page and paste it here.": "Skopiuj całą zawartość tej strony i wklej ją tutaj.",
+  "Sign-in code": "Kod logowania",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "Kod działa jak twoje hasło. PlayCounter przechowuje go zaszyfrowany na tym PC i wysyła go tylko do Sony."
 }

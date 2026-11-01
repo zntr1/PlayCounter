@@ -1,6 +1,7 @@
 import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import epicIconUrl from "../../../../assets/epic/epic.svg";
 import gogIconUrl from "../../../../assets/gog/gog.svg";
+import playStationIconUrl from "../../../../assets/playstation/playstation.svg";
 import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -378,6 +379,15 @@ function providerMeta(): Record<
       tone: "text-[#7ee787]",
       coinTone: "shadow-raised",
       chipTone: "border-[#107c10]/50 bg-[#0e2f16] text-[#7ee787]",
+      coinFill: true,
+    },
+    playstation: {
+      label: "PlayStation",
+      tip: t("Imported from your PlayStation account."),
+      iconUrl: playStationIconUrl,
+      tone: "text-[#5fb2ff]",
+      coinTone: "shadow-raised",
+      chipTone: "border-[#0070d1]/50 bg-[#06203d] text-[#8cc8ff]",
       coinFill: true,
     },
   };

@@ -221,5 +221,10 @@
   "{{count}} games still need you_other": "{{count}} games still need you",
   "Decide {{count}} games_one": "Decide {{count}} game",
   "Decide {{count}} games_other": "Decide {{count}} games",
-  "Change what to import": "Change what to import"
+  "Change what to import": "Change what to import",
+  "PlayStation returned only part of your library. Sign in again to retry.": "PlayStation returned only part of your library. Sign in again to retry.",
+  "PlayStation sign-in": "PlayStation sign-in",
+  "Sign in to PlayStation to read your games.": "Sign in to PlayStation to read your games.",
+  "Concept ID": "Concept ID",
+  "Preparing the PlayStation import…": "Preparing the PlayStation import…"
 }

@@ -198,6 +198,9 @@ export function buildLibraryImportCommit(input: {
     lastReadAt: now,
     linkedExeNames: [...linked],
     linkedExeSources: [...linkedExeSources],
+    ...(scanned.consoleTitleIds?.length
+      ? { consoleTitleIds: [...scanned.consoleTitleIds] }
+      : {}),
   };
   return {
     entry,

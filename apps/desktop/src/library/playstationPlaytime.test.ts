@@ -24,14 +24,14 @@ const H = 3600;
 const START = "2026-10-01T12:00:00.000Z";
 
 function read(
-  provider: LibraryProviderId | "playstation",
+  provider: LibraryProviderId,
   externalId: string,
   hours: number,
   readAt = START,
 ): LibraryImportCommit {
   return {
     entry: {
-      provider: provider as LibraryProviderId,
+      provider,
       externalId,
       gameId: 1,
       igdbId: 100,

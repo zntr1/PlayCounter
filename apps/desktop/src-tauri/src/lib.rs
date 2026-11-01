@@ -44,6 +44,8 @@ const WEBSITE_URL: &str = "https://playcounter.app/";
 const DISCORD_URL: &str = "https://discord.gg/t2nG3jaEEY";
 /// The Discord invite dialog's own invite, so Discord counts its joins.
 const DISCORD_INVITE_URL: &str = "https://discord.gg/FeW3jUhR4h";
+const PLAYSTATION_SIGN_IN_URL: &str = "https://www.playstation.com/";
+const PLAYSTATION_CODE_URL: &str = "https://ca.account.sony.com/api/v1/ssocookie";
 
 struct TrayState {
     icon: Mutex<Option<TrayIcon<Wry>>>,
@@ -280,6 +282,10 @@ fn open_external_url(url: String) -> Result<(), String> {
         WEBSITE_URL | "https://playcounter.app" => WEBSITE_URL,
         DISCORD_URL => DISCORD_URL,
         DISCORD_INVITE_URL => DISCORD_INVITE_URL,
+        // "Sign in with a code" for PlayStation: Sony's sign-in, then its
+        // page with the session code (copied by the player, never read here).
+        PLAYSTATION_SIGN_IN_URL => PLAYSTATION_SIGN_IN_URL,
+        PLAYSTATION_CODE_URL => PLAYSTATION_CODE_URL,
         // The game details view links out to IGDB. Unlike the fixed URLs
         // above this one is built at runtime, so it is validated rather than
         // compared.

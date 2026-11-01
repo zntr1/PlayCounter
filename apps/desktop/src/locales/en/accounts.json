@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.",
   "Sign-in warnings": "Sign-in warnings",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.",
+  "Live from PlayStation": "Live from PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Shows what you play on your PS5 or PS4 while PlayCounter runs.",
+  "Sign in with a code": "Sign in with a code",
+  "Sign in at playstation.com in your browser.": "Sign in at playstation.com in your browser.",
+  "Open playstation.com": "Open playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "In the same browser, open Sony's sign-in code page.",
+  "Open the code page": "Open the code page",
+  "Copy everything on that page and paste it here.": "Copy everything on that page and paste it here.",
+  "Sign-in code": "Sign-in code",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony."
 }

@@ -64,7 +64,13 @@ export interface EmulatorResolveResponse {
 }
 
 /** A locally installed or remotely linked game-library provider. */
-export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic" | "gog";
+export type LibraryProviderId =
+  | "steam"
+  | "xbox"
+  | "battlenet"
+  | "epic"
+  | "gog"
+  | "playstation";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,
@@ -84,7 +90,8 @@ export interface LibraryResolveRequest {
     /** Client-generated correlation key; never treated as game identity. */
     key: string;
     provider: LibraryProviderId;
-    /** Provider-native id. Steam uses its decimal AppID, GOG its product id. */
+    /** Provider-native id. Steam uses its decimal AppID, GOG its product id,
+     *  PlayStation its PlayStation Store concept id. */
     externalId: string;
     /** Store title. Only Epic sends it: IGDB does not index Epic app names,
      *  so the server matches the exact title among IGDB's Epic entries. */
@@ -779,6 +786,9 @@ export interface Settings {
    * badge to Launcher accounts and shows no message. Absent = every launcher
    * warns. */
   loginWarningsOff?: string[];
+  /** PlayStation's "Live from PlayStation" switch is off: no presence reads,
+   *  no live PS5/PS4 sessions. Absent = on. */
+  playstationLiveOff?: boolean;
   /** Offer Steam's installer for imported Steam games that are not installed.
    * Absent = disabled. */
   showInstallInSteam?: boolean;

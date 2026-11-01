@@ -716,6 +716,8 @@ export type AppState = {
   carryAutoDetectedGameKey: (from: string, to: string) => void;
   setEmulatorIgnoredSetting: (emulatorId: string, ignored: boolean) => void;
   setLoginWarning: (service: KeptLoginService, enabled: boolean) => void;
+  /** "Live from PlayStation" on or off. */
+  setPlayStationLive: (enabled: boolean) => void;
   setDevNumber: (
     key: "pollingIntervalSeconds" | "unmatchedRetryDays",
     value: number,
@@ -2137,6 +2139,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       else off.add(service);
       return {
         settings: { ...state.settings, loginWarningsOff: [...off].sort() },
+      };
+    });
+    persistSoon();
+  },
+  setPlayStationLive: (enabled) => {
+    set((state) => {
+      const { playstationLiveOff: _off, ...settings } = state.settings;
+      return {
+        settings: enabled ? settings : { ...settings, playstationLiveOff: true },
       };
     });
     persistSoon();

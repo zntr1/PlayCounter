@@ -85,6 +85,16 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
         commit.entry.providerSeconds,
       ),
       recordedSecondsAtRead: previous?.recordedSecondsAtRead,
+      ...(previous?.consoleTitleIds || commit.entry.consoleTitleIds
+        ? {
+            consoleTitleIds: [
+              ...new Set([
+                ...(previous?.consoleTitleIds ?? []),
+                ...(commit.entry.consoleTitleIds ?? []),
+              ]),
+            ],
+          }
+        : {}),
     });
     if (commit.entry.providerSeconds !== null)
       (CONSOLE_PROVIDERS.has(commit.entry.provider)

@@ -102,7 +102,14 @@ function dictionary(validate: Validator): Validator {
 }
 
 const source = oneOf("igdb", "community", "custom");
-const provider = oneOf("steam", "xbox", "battlenet", "epic", "gog");
+const provider = oneOf(
+  "steam",
+  "xbox",
+  "battlenet",
+  "epic",
+  "gog",
+  "playstation",
+);
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
@@ -196,6 +203,7 @@ const libraryImport = object(
     providerHasPlayedEvidence: boolean,
     recordedSecondsAtRead: nonnegative,
     linkedExeSources: array(source),
+    consoleTitleIds: array(nonempty),
   },
 );
 const emulatorMapping = object(
@@ -400,6 +408,7 @@ const settings = object({}, {
   hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
   loginWarningsOff: array(nonempty),
+  playstationLiveOff: boolean,
   showInstallInSteam: boolean,
   showAdultArt: boolean,
 } satisfies Record<keyof Settings, Validator>);
@@ -471,6 +480,7 @@ const validateBackupShape: Validator = object(
                 "battlenet",
                 "epic",
                 "gog",
+                "playstation",
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),

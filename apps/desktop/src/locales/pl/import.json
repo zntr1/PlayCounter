@@ -251,5 +251,10 @@
   "Decide {{count}} games_few": "Zdecyduj o {{count}} grach",
   "Decide {{count}} games_many": "Zdecyduj o {{count}} grach",
   "Decide {{count}} games_other": "Zdecyduj o {{count}} grach",
-  "Change what to import": "Zmień, co zaimportować"
+  "Change what to import": "Zmień, co zaimportować",
+  "PlayStation returned only part of your library. Sign in again to retry.": "PlayStation zwraca tylko część twojej biblioteki. Zaloguj się ponownie, aby spróbować jeszcze raz.",
+  "PlayStation sign-in": "Logowanie do PlayStation",
+  "Sign in to PlayStation to read your games.": "Zaloguj się do PlayStation, aby odczytać swoje gry.",
+  "Concept ID": "ID konceptu",
+  "Preparing the PlayStation import…": "Przygotowywanie importu z PlayStation…"
 }

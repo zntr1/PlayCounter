@@ -209,6 +209,12 @@ export function SettingsView() {
         (entry) => entry.provider === "gog",
       ).length,
   );
+  const importedPlayStationCount = useAppStore(
+    (state) =>
+      [...state.libraryImports.values()].filter(
+        (entry) => entry.provider === "playstation",
+      ).length,
+  );
   const forgetLibraryLabel = confirmForgetLibrary
     ? LIBRARY_PROVIDER_LABELS[confirmForgetLibrary]
     : "";
@@ -1430,7 +1436,7 @@ export function SettingsView() {
       <SettingsPanel
         dataTour="settings-library-import"
         description={t(
-          "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games or GOG. Install paths and the game files linked to them always stay on this PC.",
+          "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. Install paths and the game files linked to them always stay on this PC.",
         )}
         title={t("Library import")}
       >
@@ -1438,7 +1444,7 @@ export function SettingsView() {
           <SettingsRow
             dataTour="settings-auto-add"
             description={t(
-              "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
+              "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
             )}
             title={t("Add new games automatically")}
           >
@@ -1571,6 +1577,27 @@ export function SettingsView() {
           >
             {importedGogCount
               ? t("Forget {{count}}", { count: importedGogCount })
+              : t("Forget all")}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description={t(
+            "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.",
+          )}
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="playstation" variant="mark" />
+              {t("Forget imported PlayStation data")}
+            </span>
+          }
+        >
+          <Button
+            variant="danger"
+            disabled={importedPlayStationCount === 0}
+            onClick={() => setConfirmForgetLibrary("playstation")}
+          >
+            {importedPlayStationCount
+              ? t("Forget {{count}}", { count: importedPlayStationCount })
               : t("Forget all")}
           </Button>
         </SettingsRow>

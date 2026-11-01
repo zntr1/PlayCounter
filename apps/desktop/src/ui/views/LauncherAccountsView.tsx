@@ -4,14 +4,18 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type FormEvent,
 } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import clsx from "clsx";
 import {
   Bell,
   BellOff,
   Copy,
   Download,
+  ExternalLink,
   HardDrive,
+  KeyRound,
   Loader2,
   LockKeyhole,
   LogIn,
@@ -35,6 +39,10 @@ import { loadLibraryProvider } from "../../library/providers";
 import { signInBattleNetAccount } from "../../library/battlenetAccount";
 import { signInEpicAccount } from "../../library/epicAccount";
 import { signInGogAccount } from "../../library/gogAccount";
+import {
+  signInPlayStationAccount,
+  signInPlayStationWithCode,
+} from "../../library/playstationAccount";
 import { importProfile } from "../../library/importProfiles";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import { signInXboxAccount } from "../../library/providers/xbox";
@@ -54,12 +62,17 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   IconButton,
+  Switch,
   useAnchoredMenu,
 } from "../primitives";
 import { BattleNetPlaytimeNotice } from "../import/BattleNetPlaytimeNotice";
 
 const t = getT("accounts");
 const commonT = getT("common");
+
+// "Sign in with a code": Sony's sign-in, then its page with the session code.
+const PLAYSTATION_SIGN_IN_URL = "https://www.playstation.com/";
+const PLAYSTATION_CODE_URL = "https://ca.account.sony.com/api/v1/ssocookie";
 
 function Button(props: ComponentProps<typeof SharedButton>) {
   return <SharedButton data-controller-item="library-option" {...props} />;
@@ -79,6 +92,9 @@ export function LauncherAccountsView() {
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const loginWarningsOff = useAppStore(
     (state) => state.settings.loginWarningsOff,
+  );
+  const playStationLiveOff = useAppStore(
+    (state) => state.settings.playstationLiveOff === true,
   );
   const addToast = useAppStore((state) => state.addToast);
   const [steam, setSteam] = useState<SteamState>({
@@ -164,6 +180,8 @@ export function LauncherAccountsView() {
         await signInEpicAccount(controller.signal);
       } else if (service === "gog") {
         await signInGogAccount(controller.signal);
+      } else if (service === "playstation") {
+        await signInPlayStationAccount(controller.signal);
       } else {
         await signInXboxAccount({
           apiEndpoint,
@@ -534,9 +552,13 @@ export function LauncherAccountsView() {
                       ? t("Your Epic Games library, playtime and achievements.")
                       : id === "gog"
                         ? t("Your GOG library, playtime and achievements.")
-                        : t(
-                            "Your Battle.net library. PlayCounter tracks new sessions.",
-                          )}
+                        : id === "playstation"
+                          ? t(
+                              "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.",
+                            )
+                          : t(
+                              "Your Battle.net library. PlayCounter tracks new sessions.",
+                            )}
               </p>
               {error ? (
                 <p
@@ -550,6 +572,30 @@ export function LauncherAccountsView() {
                 <p role="status" className="mt-3 text-sm text-success">
                   {t("Connected. You can now choose games to import.")}
                 </p>
+              ) : null}
+              {id === "playstation" && connected ? (
+                <label className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-border bg-surface-hover/40 px-3 py-2.5 text-sm">
+                  <span className="min-w-0">
+                    <span className="block font-medium text-text">
+                      {t("Live from PlayStation")}
+                    </span>
+                    <span className="block text-text-muted">
+                      {t(
+                        "Shows what you play on your PS5 or PS4 while PlayCounter runs.",
+                      )}
+                    </span>
+                  </span>
+                  <Switch
+                    data-controller-item="library-option"
+                    aria-label={t("Live from PlayStation")}
+                    checked={!playStationLiveOff}
+                    onChange={(event) =>
+                      useAppStore
+                        .getState()
+                        .setPlayStationLive(event.target.checked)
+                    }
+                  />
+                </label>
               ) : null}
               {connecting ? (
                 <div
@@ -585,7 +631,30 @@ export function LauncherAccountsView() {
                   </div>
                 </div>
               ) : (
-                <div className="mt-4">{mainButton}</div>
+                <div className="mt-4">
+                  {mainButton}
+                  {id === "playstation" &&
+                  supported &&
+                  platform === "windows" &&
+                  (!login || needsSignIn) ? (
+                    <PlayStationCodeSignIn
+                      disabled={Boolean(activity)}
+                      onSignedIn={() => {
+                        setErrors((previous) => ({
+                          ...previous,
+                          [service!]: undefined,
+                        }));
+                        setNotice(service);
+                      }}
+                      onError={(message) =>
+                        setErrors((previous) => ({
+                          ...previous,
+                          [service!]: message,
+                        }))
+                      }
+                    />
+                  ) : null}
+                </div>
               )}
             </section>
           );
@@ -608,6 +677,129 @@ export function LauncherAccountsView() {
 
 function formatError(error: unknown) {
   return nativeText(error instanceof Error ? error.message : String(error));
+}
+
+/** The visible fallback when Sony's page doesn't work in the sign-in window:
+ *  the player copies Sony's session code from its own page. */
+function PlayStationCodeSignIn({
+  disabled,
+  onSignedIn,
+  onError,
+}: {
+  disabled: boolean;
+  onSignedIn: () => void;
+  onError: (message: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const openPage = (url: string) =>
+    void invoke("open_external_url", { url }).catch((error: unknown) =>
+      onError(formatError(error)),
+    );
+  if (!open)
+    return (
+      <button
+        type="button"
+        data-controller-item="library-option"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-md text-sm text-text-muted underline-offset-2 transition hover:text-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50"
+      >
+        <KeyRound size={14} aria-hidden="true" />
+        {t("Sign in with a code")}
+      </button>
+    );
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!code.trim() || busy) return;
+    setBusy(true);
+    beginLoginAccountChange("playstation");
+    try {
+      await signInPlayStationWithCode(code);
+      setCode("");
+      setOpen(false);
+      onSignedIn();
+    } catch (error) {
+      onError(formatError(error) || t("Could not connect. Please try again."));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const linkClass =
+    "inline-flex items-center gap-1 rounded text-accent-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
+  return (
+    <form
+      onSubmit={(event) => void submit(event)}
+      className="mt-3 space-y-3 rounded-lg border border-border bg-surface-hover/40 p-3 text-sm"
+    >
+      <ol className="list-decimal space-y-2 pl-5 text-text-muted">
+        <li>
+          {t("Sign in at playstation.com in your browser.")}{" "}
+          <button
+            type="button"
+            data-controller-item="library-option"
+            className={linkClass}
+            onClick={() => openPage(PLAYSTATION_SIGN_IN_URL)}
+          >
+            {t("Open playstation.com")}
+            <ExternalLink size={12} aria-hidden="true" />
+          </button>
+        </li>
+        <li>
+          {t("In the same browser, open Sony's sign-in code page.")}{" "}
+          <button
+            type="button"
+            data-controller-item="library-option"
+            className={linkClass}
+            onClick={() => openPage(PLAYSTATION_CODE_URL)}
+          >
+            {t("Open the code page")}
+            <ExternalLink size={12} aria-hidden="true" />
+          </button>
+        </li>
+        <li>{t("Copy everything on that page and paste it here.")}</li>
+      </ol>
+      <input
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        data-controller-item="library-option"
+        aria-label={t("Sign-in code")}
+        placeholder={t("Sign-in code")}
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-text placeholder:text-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      />
+      <p className="text-xs text-text-faint">
+        {t(
+          "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.",
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="submit"
+          variant="primary"
+          icon={LogIn}
+          loading={busy}
+          disabled={disabled || !code.trim()}
+        >
+          {t("Sign in")}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => {
+            setOpen(false);
+            setCode("");
+          }}
+        >
+          {t("Cancel")}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 type CardMenuAction = {

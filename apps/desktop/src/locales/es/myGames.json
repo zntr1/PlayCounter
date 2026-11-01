@@ -676,5 +676,11 @@
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "Puede que se ejecute como administrador o que lo proteja un antitrampas. Ciérralo desde el juego.",
   "OK": "Aceptar",
   "Achievements": "Logros",
-  "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.": "Inicia sesión con Microsoft en tu navegador y luego confirma los juegos que reconoció PlayCounter. La mayoría necesitan tu confirmación. PlayCounter nunca ve tu contraseña y mantiene tu sesión iniciada en este PC para la próxima importación."
+  "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.": "Inicia sesión con Microsoft en tu navegador y luego confirma los juegos que reconoció PlayCounter. La mayoría necesitan tu confirmación. PlayCounter nunca ve tu contraseña y mantiene tu sesión iniciada en este PC para la próxima importación.",
+  "PlayStation library": "Biblioteca de PlayStation",
+  "Games imported from your PlayStation account.": "Juegos importados desde tu cuenta de PlayStation.",
+  "Import more from PlayStation": "Importar más de PlayStation",
+  "No PlayStation games imported yet": "Aún no has importado juegos de PlayStation",
+  "Sign in to bring in your PS5 and PS4 games with the playtime Sony recorded. PlayCounter keeps it up to date and shows what you play on the console.": "Inicia sesión para traer tus juegos de PS5 y PS4 con el tiempo de juego que registró Sony. PlayCounter lo mantiene al día y muestra a qué juegas en la consola.",
+  "Import from PlayStation": "Importar de PlayStation"
 }

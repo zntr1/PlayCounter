@@ -6,7 +6,9 @@ import type { LibraryImportEntry } from "./types";
  * PlayCounter sees on this PC, so a game's total is this PC's side plus the
  * console side, each with its own snapshot (docs/psn-import-plan.md).
  */
-export const CONSOLE_PROVIDERS: ReadonlySet<string> = new Set(["playstation"]);
+export const CONSOLE_PROVIDERS: ReadonlySet<LibraryProviderId> = new Set([
+  "playstation",
+]);
 
 export type LauncherSide = {
   seconds: number;
