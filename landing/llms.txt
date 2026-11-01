@@ -2,7 +2,7 @@
 
 > Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox and Epic hours and your Battle.net games.
 
-- Public Windows release: 1.2.0. Coming soon to Steam.
+- Public Windows release: 1.5.0. Coming soon to Steam.
 - Free desktop app; no PlayCounter account required. Desktop source is MIT-licensed. The current production API is private.
 - Automatic tracking follows recognized running games, regardless of launcher. Unknown or ambiguous games can be reviewed locally in Discovered.
 - Imports: Steam (local account files, with playtime), Xbox (optional Microsoft sign-in; playtime availability varies by game), Epic Games (optional Epic sign-in with the playtime Epic recorded, or installed games without sign-in and without playtime) and Battle.net (optional: installed games or account sign-in, game list only, no historical playtime; Battle.net games are tracked without it).

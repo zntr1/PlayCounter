@@ -3,9 +3,9 @@
 export const site = {
   origin: "https://playcounter.app",
   name: "PlayCounter",
-  version: "1.2.0",
+  version: "1.5.0",
   reviewed: "2026-09-24",
-  // Set both after the 1.2.0 installer is published: the release date and the
+  // Set both after the 1.5.0 installer is published: the release date and the
   // byte size of PlayCounter-Setup.exe from the GitHub release. Until then the
   // download line omits the size and the structured data omits the date.
   releaseDate: null,
