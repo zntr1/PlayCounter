@@ -144,6 +144,11 @@
   "This game has no Epic achievements.": "这款游戏没有 Epic 成就。",
   "Epic Games didn't send the achievements. Try again later.": "Epic Games 未发送成就。请稍后重试。",
   "From Epic Games, updated {{date}}": "来自 Epic Games，更新于 {{date}}",
+  "Sign in to GOG to load your achievements.": "登录 GOG 以加载你的成就。",
+  "Sign in to GOG": "登录 GOG",
+  "This game has no GOG achievements.": "这款游戏没有 GOG 成就。",
+  "GOG didn't send the achievements. Try again later.": "GOG 未发送成就。请稍后重试。",
+  "From GOG, updated {{date}}": "来自 GOG，更新于 {{date}}",
   "{{earned}} of {{total}} XP": "{{earned}} / {{total}} XP",
   "{{xp}} XP": "{{xp}} XP"
 }

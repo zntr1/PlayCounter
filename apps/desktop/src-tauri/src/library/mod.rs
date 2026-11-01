@@ -8,6 +8,7 @@ pub mod epic_achievements;
 mod exe_scan;
 pub mod gog;
 pub mod gog_account;
+pub mod gog_achievements;
 pub mod kept_logins;
 pub(crate) mod login_status;
 pub mod steam;

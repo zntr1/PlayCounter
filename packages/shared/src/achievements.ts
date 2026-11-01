@@ -1,13 +1,13 @@
 /**
- * A game's own achievements from its store (Steam, Xbox, Epic Games), as the
- * developers made them. Not PlayCounter's milestones. Same file in the backend
- * repo.
+ * A game's own achievements from its store (Steam, Xbox, Epic Games, GOG), as
+ * the developers made them. Not PlayCounter's milestones. Same file in the
+ * backend repo.
  */
-export type AchievementProvider = "steam" | "xbox" | "epic";
+export type AchievementProvider = "steam" | "xbox" | "epic" | "gog";
 
 export interface GameAchievement {
   /** Stable within the game: Steam's API name, Xbox "serviceConfigId:id",
-   *  Epic's achievement name. */
+   *  Epic's achievement name, GOG's achievement key. */
   id: string;
   name: string;
   description: string;
@@ -30,7 +30,7 @@ export interface GameAchievement {
 
 export interface AchievementList {
   provider: AchievementProvider;
-  /** Steam app id, Xbox title id or Epic app name. */
+  /** Steam app id, Xbox title id, Epic app name or GOG product id. */
   externalId: string;
   /** When PlayCounter read it, unix ms. */
   fetchedAt: number;

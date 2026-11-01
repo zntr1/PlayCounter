@@ -74,8 +74,8 @@ pub struct AccountLibrary {
 }
 
 #[derive(Debug, Deserialize)]
-struct Token {
-    access_token: String,
+pub(super) struct Token {
+    pub(super) access_token: String,
     #[serde(default)]
     refresh_token: Option<String>,
     #[serde(default)]
@@ -84,7 +84,7 @@ struct Token {
 
 impl Token {
     /// GOG's numeric user id, which the playtime service is addressed by.
-    fn user(&self) -> Option<String> {
+    pub(super) fn user(&self) -> Option<String> {
         let id = match &self.user_id {
             Value::String(text) => text.trim().to_owned(),
             Value::Number(number) => number.to_string(),
@@ -97,7 +97,7 @@ impl Token {
 
 /// Why GOG gave no token.
 #[derive(Debug, PartialEq)]
-enum TokenFailure {
+pub(super) enum TokenFailure {
     /// GOG confirmed that this sign-in expired or was revoked.
     Refused(String),
     /// GOG did not answer properly. A kept sign-in stays.
@@ -136,7 +136,7 @@ struct UserData {
     username: Option<String>,
 }
 
-fn secure_https(url: &tauri::Url) -> bool {
+pub(super) fn secure_https(url: &tauri::Url) -> bool {
     url.scheme() == "https"
         && url.port_or_known_default() == Some(443)
         && url.username().is_empty()
@@ -269,14 +269,14 @@ fn keep(
 }
 
 /// Debug builds only: how a GOG service answered. Never a token, id or name.
-fn debug_answer(step: &str, detail: impl std::fmt::Display) {
+pub(super) fn debug_answer(step: &str, detail: impl std::fmt::Display) {
     #[cfg(debug_assertions)]
     eprintln!("[gog] {step}: {detail}");
     #[cfg(not(debug_assertions))]
     let _ = (step, detail.to_string());
 }
 
-fn http_client() -> Result<reqwest::Client, String> {
+pub(super) fn http_client() -> Result<reqwest::Client, String> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
@@ -343,7 +343,10 @@ async fn exchange_code(client: &reqwest::Client, code: &str) -> Result<Token, To
     .await
 }
 
-async fn renew(client: &reqwest::Client, refresh_token: &str) -> Result<Token, TokenFailure> {
+pub(super) async fn renew(
+    client: &reqwest::Client,
+    refresh_token: &str,
+) -> Result<Token, TokenFailure> {
     request_token(
         client,
         &[
@@ -375,7 +378,7 @@ async fn read_user_name(client: &reqwest::Client, token: &Token) -> Option<Strin
 
 /// Once a code exchange or renewal has started, finish it and save the token
 /// even if the caller leaves the view: GOG has already replaced the old one.
-async fn finish_authentication(
+pub(super) async fn finish_authentication(
     store: &Store,
     client: &reqwest::Client,
     previous: Option<&KeptLogin>,

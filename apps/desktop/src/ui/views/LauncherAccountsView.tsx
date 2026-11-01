@@ -533,7 +533,7 @@ export function LauncherAccountsView() {
                     : id === "epic"
                       ? t("Your Epic Games library, playtime and achievements.")
                       : id === "gog"
-                        ? t("Your GOG library and playtime.")
+                        ? t("Your GOG library, playtime and achievements.")
                         : t(
                             "Your Battle.net library. PlayCounter tracks new sessions.",
                           )}

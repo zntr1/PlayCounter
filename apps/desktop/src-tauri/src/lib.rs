@@ -570,6 +570,7 @@ pub fn run() {
             library::gog_account::library_gog_account_games,
             library::gog_account::library_gog_sign_in,
             library::gog_account::library_cancel_gog_account,
+            library::gog_achievements::gog_read_achievements,
             library::kept_logins::logins_list,
             library::kept_logins::logins_check,
             library::kept_logins::logins_sign_out,

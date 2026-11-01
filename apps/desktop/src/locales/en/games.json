@@ -145,6 +145,11 @@
   "This game has no Epic achievements.": "This game has no Epic achievements.",
   "Epic Games didn't send the achievements. Try again later.": "Epic Games didn't send the achievements. Try again later.",
   "From Epic Games, updated {{date}}": "From Epic Games, updated {{date}}",
+  "Sign in to GOG to load your achievements.": "Sign in to GOG to load your achievements.",
+  "Sign in to GOG": "Sign in to GOG",
+  "This game has no GOG achievements.": "This game has no GOG achievements.",
+  "GOG didn't send the achievements. Try again later.": "GOG didn't send the achievements. Try again later.",
+  "From GOG, updated {{date}}": "From GOG, updated {{date}}",
   "{{earned}} of {{total}} XP": "{{earned}} of {{total}} XP",
   "{{xp}} XP": "{{xp}} XP"
 }

@@ -146,6 +146,11 @@
   "This game has no Epic achievements.": "Ce jeu n'a pas de succès Epic.",
   "Epic Games didn't send the achievements. Try again later.": "Epic Games n'a pas envoyé les succès. Veuillez réessayer plus tard.",
   "From Epic Games, updated {{date}}": "Depuis Epic Games, mis à jour le {{date}}",
+  "Sign in to GOG to load your achievements.": "Connectez-vous à GOG pour charger vos succès.",
+  "Sign in to GOG": "Se connecter à GOG",
+  "This game has no GOG achievements.": "Ce jeu n'a pas de succès GOG.",
+  "GOG didn't send the achievements. Try again later.": "GOG n'a pas envoyé les succès. Veuillez réessayer plus tard.",
+  "From GOG, updated {{date}}": "Depuis GOG, mis à jour le {{date}}",
   "{{earned}} of {{total}} XP": "{{earned}} sur {{total}} XP",
   "{{xp}} XP": "{{xp}} XP"
 }

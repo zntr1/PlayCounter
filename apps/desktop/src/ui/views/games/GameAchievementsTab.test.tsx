@@ -76,6 +76,7 @@ beforeEach(() => {
   useAchievementLists.setState({ lists: new Map() });
   useKeptLogins.setState({ logins: [] });
   clearLoginHealth("epic");
+  clearLoginHealth("gog");
   platform.value = "windows";
   container = document.createElement("div");
   document.body.append(container);
@@ -141,6 +142,34 @@ describe("which games get the tab", () => {
     expect(
       achievementSources({
         libraryImports: [entry("epic", "Sugar"), entry("steam", "620")],
+      }),
+    ).toEqual([{ provider: "steam", externalId: "620" }]);
+  });
+
+  it("GOG games too, after Epic Games and before Xbox", () => {
+    expect(
+      achievementSources({
+        libraryImports: [
+          entry("xbox", "1234"),
+          entry("gog", "1213504814"),
+          entry("epic", "Sugar"),
+          entry("steam", "620"),
+          entry("gog", "1213504814"),
+        ],
+      }),
+    ).toEqual([
+      { provider: "steam", externalId: "620" },
+      { provider: "epic", externalId: "Sugar" },
+      { provider: "gog", externalId: "1213504814" },
+      { provider: "xbox", externalId: "1234" },
+    ]);
+  });
+
+  it("GOG only on Windows, where its sign-in exists", () => {
+    platform.value = "macos";
+    expect(
+      achievementSources({
+        libraryImports: [entry("gog", "1213504814"), entry("steam", "620")],
       }),
     ).toEqual([{ provider: "steam", externalId: "620" }]);
   });
@@ -689,5 +718,227 @@ describe("Epic Games", () => {
     await click("Refresh");
     expect(container.textContent).toContain("1 of 1 unlocked");
     expect(saveListsMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("GOG", () => {
+  // Middle-earth: Shadow of Mordor GOTY, by its GOG product id.
+  const mordor = [{ provider: "gog" as const, externalId: "1213504814" }];
+  const kept = [{ service: "gog" as const, name: "zesarex", savedAt: 1 }];
+  const buttons = () =>
+    [...container.querySelectorAll("button")].map((button) =>
+      button.textContent?.trim(),
+    );
+  const gogReads = () =>
+    invokeMock.mock.calls.filter(
+      ([command]) => command === "gog_read_achievements",
+    );
+
+  async function click(label: string) {
+    const button = [...container.querySelectorAll("button")].find(
+      (item) => item.textContent?.trim() === label,
+    );
+    expect(button, label).toBeDefined();
+    await act(async () => button!.click());
+    await act(async () => {});
+    await act(async () => {});
+  }
+
+  function nothingSaved() {
+    useAchievementLists.setState({ lists: new Map() });
+    loadListMock.mockImplementation(async (provider: string, id: string) => {
+      useAchievementLists.setState({
+        lists: new Map([[`${provider}:${id}`, null]]),
+      });
+      return null;
+    });
+  }
+
+  function saved(achievements: GameAchievement[]) {
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          "gog:1213504814",
+          {
+            provider: "gog",
+            externalId: "1213504814",
+            fetchedAt: Date.UTC(2026, 10, 1),
+            achievements,
+          },
+        ],
+      ]),
+    });
+  }
+
+  /** What the Rust part answers, with these kept sign-ins. */
+  function gog(answer: () => unknown, logins: typeof kept | [] = kept) {
+    useKeptLogins.setState({ logins });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "logins_list") return logins;
+      if (command === "gog_read_achievements") return answer();
+      throw new Error(`unexpected ${command}`);
+    });
+  }
+
+  afterEach(() => {
+    saveListsMock.mockClear();
+  });
+
+  it("opening the tab with a kept sign-in and nothing saved loads the list once, without a window", async () => {
+    nothingSaved();
+    gog(() => ({
+      status: "ok",
+      achievements: [
+        achievement("FIRST_STEP", { name: "First Step", globalPercent: 85 }),
+        achievement("WIN_10", { name: "Ten Wins", unlocked: true }),
+      ],
+    }));
+    await render(mordor);
+    expect(gogReads()).toEqual([
+      ["gog_read_achievements", { productId: "1213504814", language: "en-US" }],
+    ]);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "library_gog_sign_in",
+      expect.anything(),
+    );
+    expect(container.textContent).toContain("1 of 2 unlocked");
+    expect(rowNames()).toEqual(["Ten Wins", "First Step"]);
+    expect(saveListsMock).toHaveBeenCalledOnce();
+
+    // Saved now: opening the tab again reads nothing.
+    await act(async () => root.render(<></>));
+    await render(mordor);
+    expect(gogReads()).toHaveLength(1);
+  });
+
+  it("never loads without a kept sign-in, and offers the GOG sign-in", async () => {
+    nothingSaved();
+    gog(() => ({ status: "ok", achievements: [] }), []);
+    await render(mordor);
+    expect(gogReads()).toHaveLength(0);
+    expect(container.textContent).toContain(
+      "Sign in to GOG to load your achievements.",
+    );
+    expect(buttons()).toContain("Sign in to GOG");
+  });
+
+  it("signs in through the existing GOG window, then loads once", async () => {
+    nothingSaved();
+    let logins: typeof kept | [] = [];
+    useKeptLogins.setState({ logins });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "library_gog_sign_in") {
+        logins = kept;
+        return undefined;
+      }
+      if (command === "logins_list") return logins;
+      if (command === "gog_read_achievements")
+        return {
+          status: "ok",
+          achievements: [achievement("WIN_10", { unlocked: true })],
+        };
+      throw new Error(`unexpected ${command}`);
+    });
+    await render(mordor);
+    await click("Sign in to GOG");
+    await act(async () => {});
+    expect(invokeMock).toHaveBeenCalledWith(
+      "library_gog_sign_in",
+      expect.objectContaining({ requestId: expect.any(String) }),
+    );
+    expect(gogReads()).toHaveLength(1);
+    expect(container.textContent).toContain("1 of 1 unlocked");
+  });
+
+  it("shows where the list is from, without points", async () => {
+    saved([
+      achievement("WIN_10", { name: "Ten Wins", unlocked: true }),
+      achievement("FIRST_STEP", { name: "First Step", globalPercent: 85 }),
+    ]);
+    gog(() => ({ status: "unavailable" }));
+    await render(mordor);
+    expect(container.textContent).toContain(
+      `From GOG, updated ${new Date(Date.UTC(2026, 10, 1)).toLocaleDateString(appLocale())}`,
+    );
+    expect(container.textContent).not.toContain("XP");
+    expect(container.textContent).not.toContain("Gamerscore");
+    expect(buttons()).toContain("Refresh");
+    // A saved list doesn't reload by itself.
+    expect(gogReads()).toHaveLength(0);
+  });
+
+  it("has a text for every answer without a list", async () => {
+    for (const [status, text] of [
+      ["noAchievements", "This game has no GOG achievements."],
+      ["unavailable", "GOG didn't send the achievements. Try again later."],
+      ["noLogin", "Sign in to GOG to load your achievements."],
+      ["needsSignIn", "GOG needs you to sign in again."],
+    ] as const) {
+      nothingSaved();
+      clearLoginHealth("gog");
+      gog(() => ({ status }));
+      await act(async () => root.render(<></>));
+      await render(mordor);
+      expect(container.textContent, status).toContain(text);
+    }
+    expect(buttons()).toContain("Sign in again");
+  });
+
+  it("reads nothing with a sign-in that already needs renewing", async () => {
+    nothingSaved();
+    gog(() => ({ status: "ok", achievements: [] }));
+    recordLoginHealth("gog", "needsSignIn");
+    await render(mordor);
+    expect(gogReads()).toHaveLength(0);
+    expect(container.textContent).toContain("GOG needs you to sign in again.");
+    expect(buttons()).toContain("Sign in again");
+  });
+
+  it("a refresh that fails keeps the saved list on screen, with the line above it", async () => {
+    saved([achievement("WIN_10", { name: "Ten Wins", unlocked: true })]);
+    gog(() => ({ status: "unavailable" }));
+    await render(mordor);
+    await click("Refresh");
+    expect(gogReads()).toHaveLength(1);
+    expect(rowNames()).toEqual(["Ten Wins"]);
+    expect(container.textContent).toContain(
+      "GOG didn't send the achievements. Try again later.",
+    );
+    expect(saveListsMock).not.toHaveBeenCalled();
+  });
+
+  it("a refresh replaces the saved list with GOG's newer one", async () => {
+    saved([achievement("WIN_10", { name: "Ten Wins" })]);
+    gog(() => ({
+      status: "ok",
+      achievements: [
+        achievement("WIN_10", {
+          name: "Ten Wins",
+          unlocked: true,
+          unlockedAt: 1_793_471_047_000,
+        }),
+      ],
+    }));
+    await render(mordor);
+    expect(container.textContent).toContain("0 of 1 unlocked");
+    await click("Refresh");
+    expect(container.textContent).toContain("1 of 1 unlocked");
+    expect(saveListsMock).toHaveBeenCalledOnce();
+  });
+
+  it("names GOG in the pills", async () => {
+    // The Epic Games pill comes first, with nothing saved for it.
+    loadListMock.mockResolvedValue(null);
+    saved([achievement("WIN_10", { name: "Ten Wins", unlocked: true })]);
+    gog(() => ({ status: "unavailable" }));
+    await render([
+      { provider: "epic", externalId: "Sugar" },
+      ...mordor,
+      { provider: "xbox", externalId: "1234" },
+    ]);
+    const pills = [...container.querySelectorAll('[role="group"] button')].map(
+      (button) => button.textContent,
+    );
+    expect(pills).toEqual(["Epic Games", "GOG", "Xbox"]);
   });
 });

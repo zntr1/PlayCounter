@@ -147,6 +147,11 @@
   "This game has no Epic achievements.": "У этой игры нет достижений Epic.",
   "Epic Games didn't send the achievements. Try again later.": "Достижения от Epic Games не пришли. Попробуйте позже.",
   "From Epic Games, updated {{date}}": "Из Epic Games, обновлено {{date}}",
+  "Sign in to GOG to load your achievements.": "Войдите в GOG, чтобы загрузить ваши достижения.",
+  "Sign in to GOG": "Войти в GOG",
+  "This game has no GOG achievements.": "У этой игры нет достижений GOG.",
+  "GOG didn't send the achievements. Try again later.": "Достижения от GOG не пришли. Попробуйте позже.",
+  "From GOG, updated {{date}}": "Из GOG, обновлено {{date}}",
   "{{earned}} of {{total}} XP": "{{earned}} из {{total}} XP",
   "{{xp}} XP": "{{xp}} XP"
 }

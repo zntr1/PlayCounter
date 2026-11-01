@@ -38,6 +38,9 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # Claim secrets and their hashes for kept Xbox sign-ins. Already used by rustls.
 ring = "0.17"
+# Unpacks GOG's build files, which name a game's achievement id. Already in
+# Cargo.lock through Tauri's build step; pure Rust.
+miniz_oxide = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 # PlayStation pads are not XInput devices, so controller navigation reads them over HID.
