@@ -1478,7 +1478,11 @@ export function MyGamesView({
         (activeSecondsBySummary.get(existing) ?? 0) + activeSeconds,
       );
       // A timer only borrows the file name; the file is not running.
-      if (!activeSession.emulator && !activeSession.timer) {
+      if (
+        !activeSession.emulator &&
+        !activeSession.timer &&
+        !activeSession.console
+      ) {
         existing.exeRunningNow ??= [];
         existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
       }
@@ -3362,6 +3366,7 @@ export function GameLibraryCard({
       state.activeSessions.find(
         (session) =>
           !session.timer &&
+          !session.console &&
           game.aliases.some(
             (alias) =>
               session.gameId === alias.gameId &&
@@ -4556,6 +4561,7 @@ export function GameLibraryCard({
       .activeSessions.filter(
         (session) =>
           !session.timer &&
+          !session.console &&
           !game.aliases.some(
             (alias) =>
               session.gameId === alias.gameId &&

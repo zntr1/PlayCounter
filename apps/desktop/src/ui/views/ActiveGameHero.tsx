@@ -203,6 +203,7 @@ export function ActiveGameHero({
   const canReport =
     Boolean(onReport) &&
     !session.timer &&
+    !session.console &&
     (session.source === "igdb" ||
       session.source === "community" ||
       (!session.emulator && isGenericExeName(session.exeName)));
@@ -352,6 +353,10 @@ export function ActiveGameHero({
             {session.emulator ? (
               <span className="rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent-ink">
                 {session.emulator.label} · {session.emulator.display}
+              </span>
+            ) : session.console ? (
+              <span className="rounded-lg border border-[#0070d1]/50 bg-[#06203d] px-2.5 py-1 text-xs font-semibold text-[#8cc8ff]">
+                {t("Playing on {{console}}", { console: session.console })}
               </span>
             ) : session.timer ? null : (
               <span className="truncate rounded-lg border border-border/60 bg-bg/40 px-2.5 py-1 font-mono text-[12px] font-medium tracking-wide text-text-muted backdrop-blur">

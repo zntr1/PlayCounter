@@ -417,7 +417,8 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             {formatTimeRange(session.startedAt, session.endedAt)}
           </span>
           {/* A manual session of a game without a file has no name to show. */}
-          {session.emulator || session.exeName ? (
+          {session.emulator ||
+          (session.exeName && session.origin !== "playstation") ? (
             <>
               <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
               <span className="truncate text-text-faint">
@@ -433,6 +434,13 @@ export const HistorySessionRow = memo(function HistorySessionRow({
               className="rounded-full border border-border bg-surface-hover px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-text-muted"
             >
               {t("Manual")}
+            </span>
+          ) : session.origin === "playstation" ? (
+            <span
+              title={t("Seen live on your PlayStation")}
+              className="rounded-full border border-[#0070d1]/50 bg-[#06203d] px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-[#8cc8ff]"
+            >
+              {session.console ?? "PS5"}
             </span>
           ) : null}
         </div>

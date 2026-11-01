@@ -152,5 +152,6 @@
   "Stops here: a session needs at least one minute.": "Impossible d'aller plus loin : une session doit durer au moins une minute.",
   "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Impossible d'aller plus loin : votre session suivante de ce jeu commence à {{time}}. Fusionnez-les plutôt.",
   "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Impossible d'aller plus loin : votre session précédente de ce jeu se termine à {{time}}. Fusionnez-les plutôt.",
-  "Pick the two you know: click them or change them. The third one fills in.": "Choisissez les deux que vous connaissez : cliquez dessus ou modifiez-les. Le troisième se remplit tout seul."
+  "Pick the two you know: click them or change them. The third one fills in.": "Choisissez les deux que vous connaissez : cliquez dessus ou modifiez-les. Le troisième se remplit tout seul.",
+  "Seen live on your PlayStation": "Vu en direct sur votre PlayStation"
 }

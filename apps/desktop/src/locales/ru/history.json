@@ -158,5 +158,6 @@
   "Stops here: a session needs at least one minute.": "Дальше нельзя: сессия должна длиться не меньше минуты.",
   "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Дальше нельзя: ваша следующая сессия в этой игре начинается в {{time}}. Лучше объедините их.",
   "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Дальше нельзя: ваша предыдущая сессия в этой игре заканчивается в {{time}}. Лучше объедините их.",
-  "Pick the two you know: click them or change them. The third one fills in.": "Выберите два известных поля: нажмите на них или измените их. Третье заполнится само."
+  "Pick the two you know: click them or change them. The third one fills in.": "Выберите два известных поля: нажмите на них или измените их. Третье заполнится само.",
+  "Seen live on your PlayStation": "Учтено в реальном времени с вашей PlayStation"
 }
