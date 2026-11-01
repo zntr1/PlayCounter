@@ -19,6 +19,7 @@ export function GameMatchPicker({
   title,
   candidates,
   selectedId,
+  matchedId,
   onSelect,
   onResults,
   search,
@@ -29,6 +30,8 @@ export function GameMatchPicker({
   title: string;
   candidates: readonly GameMetadata[];
   selectedId: number | null;
+  /** The server's match, marked on its cover. */
+  matchedId?: number;
   onSelect: (game: GameMetadata) => void;
   onResults: (games: GameMetadata[]) => void;
   search: (query: string, signal: AbortSignal) => Promise<GameMetadata[]>;
@@ -74,8 +77,7 @@ export function GameMatchPicker({
 
   useEffect(() => {
     const autoQuery = librarySearchQuery(title);
-    if (searchOnOpen && candidates.length === 0 && autoQuery.length >= 2)
-      void runSearch(autoQuery);
+    if (searchOnOpen && autoQuery.length >= 2) void runSearch(autoQuery);
     // Once per opened game: the parent keys this picker by game.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -127,6 +129,11 @@ export function GameMatchPicker({
                 <span className="block text-[11px] text-text-muted">
                   {practice ? t("Sample") : (candidate.releaseYear ?? null)}
                 </span>
+                {matchedId !== undefined && candidate.igdbId === matchedId ? (
+                  <span className="mt-1 inline-block rounded-full bg-accent-tint px-1.5 text-[10px] font-bold text-accent-ink">
+                    {t("Matched")}
+                  </span>
+                ) : null}
               </button>
             );
           })}

@@ -36,6 +36,7 @@ import { getLoginHealth } from "./loginHealth";
 import { loadLibraryProvider } from "./providers";
 import { resolveLibraryGames } from "./resolve";
 import type {
+  LibraryImportCommit,
   LibraryScanResult,
   LocalLibraryAccount,
   ProviderStatus,
@@ -81,7 +82,10 @@ export type ImportSession = {
   /** What the shown scan read. */
   scannedScope: ImportScope | null;
   scan: LibraryScanResult | null;
+  /** The server's answers for the scanned games. */
   resolved: Map<string, ResolvedLibraryGame>;
+  /** The game saved in My Games, for scanned games that are there. */
+  saved: Map<string, ResolvedLibraryGame>;
   selected: Set<string>;
   /** Imported one by one during this review. */
   completed: Set<string>;
@@ -90,6 +94,8 @@ export type ImportSession = {
   browsedExecutables: Record<string, ScannedExecutable>;
   /** The game picked for a title the server could not match. */
   picks: Record<string, GameMetadata>;
+  /** "Wrong game?": the game picked instead of the server's match. */
+  replacements: Record<string, GameMetadata>;
   /** The latest suggestions or search results for such a title. */
   choices: Record<string, GameMetadata[]>;
   capability: "unknown" | "supported" | "unsupported";
@@ -121,12 +127,14 @@ export function createImportSession(
     scannedScope: null,
     scan: null,
     resolved: new Map(),
+    saved: new Map(),
     selected: new Set(),
     completed: new Set(),
     skipped: new Set(),
     manualExecutables: {},
     browsedExecutables: {},
     picks: {},
+    replacements: {},
     choices: {},
     capability: "unknown",
     error: null,
@@ -172,6 +180,23 @@ function isCurrent(signal: AbortSignal, providerId: BuiltinImportProviderId) {
     controller.signal === signal &&
     session().providerId === providerId &&
     useAppStore.getState().libraryImportProvider === providerId
+  );
+}
+
+/**
+ * The match a game's rules use: the game saved in My Games while the game is
+ * there, otherwise the server's answer. A game removed during the review goes
+ * back to the server's answer and the question it asks.
+ */
+export function rowMatch(
+  current: Pick<ImportSession, "providerId" | "resolved" | "saved">,
+  externalId: string,
+  inLibrary: boolean,
+) {
+  const key = libraryEntryKey(current.providerId, externalId);
+  return (
+    (inLibrary ? current.saved.get(key) : undefined) ??
+    current.resolved.get(key)
   );
 }
 
@@ -221,12 +246,14 @@ async function pickedGameForImport(gameId: number, signal: AbortSignal) {
 const clearedReview = {
   scan: null,
   resolved: new Map<string, ResolvedLibraryGame>(),
+  saved: new Map<string, ResolvedLibraryGame>(),
   selected: new Set<string>(),
   completed: new Set<string>(),
   skipped: new Set<string>(),
   manualExecutables: {},
   browsedExecutables: {},
   picks: {},
+  replacements: {},
   choices: {},
   capability: "unknown" as const,
   error: null,
@@ -442,39 +469,41 @@ export async function startImportScan(
       return;
     }
     const byKey = new Map(lookup.games.map((game) => [game.key, game]));
-    if (profile.matchedBy === "name") {
-      // A game the player confirmed before keeps that identity.
-      for (const game of result.games) {
-        const key = libraryEntryKey(providerId, game.externalId);
-        const existing = existingImports.get(key);
-        if (!existing) continue;
-        const previousMatch = byKey.get(key);
-        const existingExecutables = profile.accountAndInstalls
-          ? previousMatch?.game?.id === existing.gameId
-            ? previousMatch.executables
-            : (
+    // A game already in My Games keeps the game saved there, on every
+    // launcher: the player may have picked it instead of the server's match.
+    // The server's answer stays apart, for when the game is removed.
+    const saved = new Map<string, ResolvedLibraryGame>();
+    for (const game of result.games) {
+      const key = libraryEntryKey(providerId, game.externalId);
+      const existing = existingImports.get(key);
+      if (!existing) continue;
+      const serverMatch = byKey.get(key);
+      const existingExecutables =
+        serverMatch?.game?.id === existing.gameId
+          ? serverMatch.executables
+          : serverMatch?.game || profile.accountAndInstalls
+            ? (
                 await reverseResolveLibraryGame(
                   apiEndpoint,
                   existing.gameId,
                   signal,
                 )
               ).executables
-          : [];
-        if (!isCurrent(signal, providerId)) return;
-        byKey.set(key, {
-          key,
-          status: "resolved",
-          game: {
-            id: existing.gameId,
-            igdbId: existing.igdbId,
-            name: existing.name,
-            coverUrl: existing.coverUrl,
-            source: existing.source,
-          },
-          executables: existingExecutables,
-          candidates: byKey.get(key)?.candidates,
-        });
-      }
+            : [];
+      if (!isCurrent(signal, providerId)) return;
+      saved.set(key, {
+        key,
+        status: "resolved",
+        game: {
+          id: existing.gameId,
+          igdbId: existing.igdbId,
+          name: existing.name,
+          coverUrl: existing.coverUrl,
+          source: existing.source,
+        },
+        executables: existingExecutables,
+        candidates: serverMatch?.candidates,
+      });
     }
     if (profile.accountAndInstalls) {
       // Account products have no catalog identity. Titles are searched one
@@ -484,8 +513,9 @@ export async function startImportScan(
         const match = byKey.get(key);
         const query = librarySearchQuery(game.name ?? "");
         // Never-played account games can number in the hundreds: they are
-        // searched when the player opens one.
+        // searched when the player opens one. Games in My Games need none.
         if (
+          saved.has(key) ||
           match?.status === "resolved" ||
           match?.candidates?.length ||
           query.length < 2 ||
@@ -545,6 +575,7 @@ export async function startImportScan(
       manualExecutables,
       capability: "supported",
       resolved: byKey,
+      saved,
       selected,
       picks,
       group,
@@ -629,20 +660,22 @@ export function selectedExecutableFor(
 export function selectableGameIds(
   current: Pick<
     ImportSession,
-    "providerId" | "scan" | "resolved" | "completed"
+    "providerId" | "scan" | "resolved" | "saved" | "completed"
   >,
 ) {
   const { providerId } = current;
   const app = useAppStore.getState();
   const ids = new Set<string>();
   for (const game of current.scan?.games ?? []) {
-    const key = libraryEntryKey(providerId, game.externalId);
+    const inLibrary = app.libraryImports.has(
+      libraryEntryKey(providerId, game.externalId),
+    );
     if (
-      current.completed.has(game.externalId) ||
+      (inLibrary && current.completed.has(game.externalId)) ||
       !canImportScannedGame({
         game,
-        resolved: current.resolved.get(key),
-        alreadyImported: app.libraryImports.has(key),
+        resolved: rowMatch(current, game.externalId, inLibrary),
+        alreadyImported: inLibrary,
         ignoredProcesses: app.ignoredProcesses,
       })
     )
@@ -666,27 +699,48 @@ export async function importSelectedGames() {
     const selectable = selectableGameIds(start);
     const added: string[] = [];
     let updated = 0;
-    const commits = scan.games.flatMap((game) => {
+    const commits: LibraryImportCommit[] = [];
+    const imported = new Map<string, ResolvedLibraryGame>();
+    for (const game of scan.games) {
       if (
         !start.selected.has(game.externalId) ||
         !selectable.has(game.externalId)
       )
-        return [];
+        continue;
       const key = libraryEntryKey(providerId, game.externalId);
-      const match = start.resolved.get(key);
-      if (!match) return [];
+      const inLibrary = app.libraryImports.has(key);
+      let match = rowMatch(start, game.externalId, inLibrary);
+      const replacement = inLibrary
+        ? undefined
+        : start.replacements[game.externalId];
+      if (replacement) {
+        const picked = await pickedGameForImport(replacement.id, signal);
+        if (!isCurrent(signal, providerId)) return;
+        match = {
+          key,
+          status: "resolved",
+          game: picked.game,
+          executables: picked.executables,
+        };
+      }
+      if (!match) continue;
       const commit = buildLibraryImportCommit({
         provider: providerId,
         scanned: game,
         resolved: match,
-        selectedExecutable: selectedExecutableFor(start, game),
+        // A picked game gets only the files the server knows for it, so
+        // nothing goes to the community.
+        selectedExecutable: replacement
+          ? undefined
+          : selectedExecutableFor(start, game),
         ignoredProcesses: app.ignoredProcesses,
       });
-      if (!commit) return [];
-      if (app.libraryImports.has(key)) updated += 1;
+      if (!commit) continue;
+      if (inLibrary) updated += 1;
       else added.push(game.externalId);
-      return [commit];
-    });
+      commits.push(commit);
+      imported.set(key, match);
+    }
     if (commits.length === 0)
       throw new Error(t("Pick at least one game to import."));
     await backupOnce(signal);
@@ -701,6 +755,7 @@ export async function importSelectedGames() {
       commits.map((commit) => commit.entry.externalId),
     );
     update((current) => ({
+      saved: new Map([...current.saved, ...imported]),
       selected: new Set(
         [...current.selected].filter((id) => !importedIds.has(id)),
       ),
@@ -746,10 +801,18 @@ export async function importOneGame(externalId: string) {
   if (!isCurrent(signal, providerId)) return;
   update({ busy: externalId, error: null });
   try {
-    let resolvedGame = start.resolved.get(key);
-    if (needsGameChoice(providerId, scanned, resolvedGame)) {
-      const pick = start.picks[externalId];
-      if (!pick) return;
+    const inLibrary = app.libraryImports.has(key);
+    let resolvedGame = rowMatch(start, externalId, inLibrary);
+    // A title the server could not match needs the player's pick; a match
+    // can be replaced by one ("Wrong game?").
+    const needsGame = needsGameChoice(providerId, scanned, resolvedGame);
+    const pick = needsGame
+      ? start.picks[externalId]
+      : inLibrary
+        ? undefined
+        : start.replacements[externalId];
+    if (needsGame && !pick) return;
+    if (pick) {
       const reverse = await pickedGameForImport(pick.id, signal);
       if (!isCurrent(signal, providerId)) return;
       resolvedGame = {
@@ -792,7 +855,7 @@ export async function importOneGame(externalId: string) {
       const selected = new Set(current.selected);
       selected.delete(externalId);
       return {
-        resolved: new Map(current.resolved).set(key, done),
+        saved: new Map(current.saved).set(key, done),
         completed: new Set(current.completed).add(externalId),
         selected,
         current: null,
@@ -921,6 +984,30 @@ export function pickGameFile(externalId: string, relativePath: string) {
 
 export function pickImportGame(externalId: string, game: GameMetadata) {
   update((current) => ({ picks: { ...current.picks, [externalId]: game } }));
+}
+
+/** "Wrong game?": import `game` instead of the server's match. Picking the
+ *  matched game takes the pick back. */
+export function replaceImportMatch(externalId: string, game: GameMetadata) {
+  update((current) => {
+    const matched = current.resolved.get(
+      libraryEntryKey(current.providerId, externalId),
+    )?.game;
+    const replacements = { ...current.replacements };
+    if (game.igdbId === matched?.igdbId) delete replacements[externalId];
+    else replacements[externalId] = game;
+    return { replacements };
+  });
+}
+
+/** Search results for "Wrong game?": they leave the pick as it is. */
+export function setReplacementChoices(
+  externalId: string,
+  games: GameMetadata[],
+) {
+  update((current) => ({
+    choices: { ...current.choices, [externalId]: games },
+  }));
 }
 
 export function setImportChoices(externalId: string, games: GameMetadata[]) {

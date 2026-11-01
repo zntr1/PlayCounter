@@ -1,5 +1,5 @@
 import { Download, Gamepad2 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getT } from "../../i18n";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { searchLibraryGames } from "../../library/gameLookup";
@@ -14,7 +14,9 @@ import {
   lookUpPickedGame,
   pickGameFile,
   pickImportGame,
+  replaceImportMatch,
   setImportChoices,
+  setReplacementChoices,
   skipImportGame,
   unskipImportGame,
   type ImportSession,
@@ -32,7 +34,7 @@ import {
   unavailableReason,
   type ImportRow,
 } from "./importRows";
-import { launcherIdLabel } from "./importTexts";
+import { launcherIdLabel, launcherName } from "./importTexts";
 
 const t = getT("import");
 
@@ -53,6 +55,13 @@ export function ImportGameDetail({
   const files =
     row.resolved?.status === "resolved" ? row.resolved.executables : [];
   const skipped = session.skipped.has(id);
+  const matched = row.resolved?.game;
+  // "Wrong game?" opens the picker; it stays open while a pick is in place.
+  const [doubted, setDoubted] = useState(false);
+  const offersWrongGame =
+    row.canReplaceMatch && !(row.group === "attention" && skipped);
+  const replacing =
+    offersWrongGame && (doubted || row.replacement !== undefined);
   return (
     <section
       aria-label={row.title}
@@ -74,6 +83,14 @@ export function ImportGameDetail({
           <h3 className="text-xl font-bold tracking-tight text-text">
             {row.title}
           </h3>
+          {row.replacement && matched ? (
+            <p className="mt-1 text-sm text-text-muted">
+              {t("Your pick. {{launcher}} matched {{name}}.", {
+                launcher: launcherName(session.providerId),
+                name: matched.name,
+              })}
+            </p>
+          ) : null}
           <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-1.5 text-sm">
             <Fact label={t("Playtime")}>
               {row.group === "imported" && playtimeGrowth(row)
@@ -93,7 +110,7 @@ export function ImportGameDetail({
             <Fact label={launcherIdLabel(session.providerId)}>
               {game.externalId}
             </Fact>
-            {row.resolved?.status === "resolved" ? (
+            {row.resolved?.status === "resolved" && !row.replacement ? (
               <Fact label={t("Game files")}>
                 {files.length
                   ? t("{{count}} known game files", { count: files.length })
@@ -101,6 +118,15 @@ export function ImportGameDetail({
               </Fact>
             ) : null}
           </dl>
+          {offersWrongGame && !replacing ? (
+            <button
+              type="button"
+              onClick={() => setDoubted(true)}
+              className="mt-3 rounded text-sm font-semibold text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              {t("Wrong game?")}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -122,6 +148,7 @@ export function ImportGameDetail({
           <ImportDecision
             session={session}
             row={row}
+            replacing={replacing}
             onSkip={() => skipImportGame(id, nextToDecide)}
           />
         )
@@ -134,6 +161,15 @@ export function ImportGameDetail({
         </>
       ) : row.group === "unavailable" ? (
         <p className="text-sm text-text-muted">{unavailableReason(game)}</p>
+      ) : replacing ? (
+        <div className="grid gap-4 rounded-xl border border-accent/30 bg-surface-hover/40 p-4">
+          <MatchReplacement session={session} row={row} />
+          <p className="text-xs leading-5 text-text-faint">
+            {t(
+              "Your pick is imported instead of the matched game. Nothing is sent.",
+            )}
+          </p>
+        </div>
       ) : null}
     </section>
   );
@@ -152,10 +188,13 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 function ImportDecision({
   session,
   row,
+  replacing,
   onSkip,
 }: {
   session: ImportSession;
   row: ImportRow;
+  /** "Wrong game?" is open on a matched game. */
+  replacing: boolean;
   onSkip: () => void;
 }) {
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
@@ -179,6 +218,7 @@ function ImportDecision({
     (!row.needsGame || Boolean(pick)) &&
     (!requiresFile || Boolean(session.manualExecutables[id]));
   const launcherTitle = game.name ?? row.title;
+  const candidates = session.choices[id] ?? row.resolved?.candidates ?? [];
   return (
     <div className="grid gap-5 rounded-xl border border-accent/30 bg-surface-hover/40 p-4">
       {row.needsGame ? (
@@ -189,7 +229,7 @@ function ImportDecision({
           <GameMatchPicker
             key={id}
             title={launcherTitle}
-            candidates={session.choices[id] ?? row.resolved?.candidates ?? []}
+            candidates={candidates}
             selectedId={pick?.igdbId ?? null}
             onSelect={(choice) => pickImportGame(id, choice)}
             onResults={(games) => setImportChoices(id, games)}
@@ -202,10 +242,13 @@ function ImportDecision({
             searchOnOpen={
               startsUnchecked(game) &&
               Boolean(game.name) &&
-              !row.resolved?.candidates?.length
+              !row.resolved?.candidates?.length &&
+              candidates.length === 0
             }
           />
         </section>
+      ) : replacing ? (
+        <MatchReplacement session={session} row={row} />
       ) : null}
       {row.showsFile ? <FileQuestion session={session} row={row} /> : null}
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -236,6 +279,54 @@ function ImportDecision({
         </Button>
       </div>
     </div>
+  );
+}
+
+/** "Wrong game?": the server's match first, then a search for the launcher's
+ *  name for the game. Picking the match again takes the pick back. */
+function MatchReplacement({
+  session,
+  row,
+}: {
+  session: ImportSession;
+  row: ImportRow;
+}) {
+  const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  const profile = importProfile(session.providerId);
+  const id = row.game.externalId;
+  const pickedId = row.replacement?.id;
+  // Asked as soon as it is picked, so Import does not wait for the server.
+  useEffect(() => {
+    if (pickedId !== undefined) void lookUpPickedGame(pickedId);
+  }, [pickedId]);
+  const matched = row.resolved?.game;
+  if (!matched) return null;
+  const launcherTitle = row.game.name ?? matched.name;
+  const results = session.choices[id];
+  return (
+    <section>
+      <h4 className="mb-2.5 text-sm font-semibold text-text">
+        {t("Which game is “{{title}}”?", { title: launcherTitle })}
+      </h4>
+      <GameMatchPicker
+        title={launcherTitle}
+        candidates={[
+          matched,
+          ...(results ?? []).filter((game) => game.igdbId !== matched.igdbId),
+        ]}
+        matchedId={matched.igdbId}
+        selectedId={row.replacement?.igdbId ?? matched.igdbId ?? null}
+        onSelect={(choice) => replaceImportMatch(id, choice)}
+        onResults={(games) => setReplacementChoices(id, games)}
+        search={(query, signal) =>
+          searchLibraryGames(apiEndpoint, query, {
+            signal,
+            mainGamesAndRemastersOnly: profile.mainGamesOnlySearch,
+          })
+        }
+        searchOnOpen={results === undefined}
+      />
+    </section>
   );
 }
 

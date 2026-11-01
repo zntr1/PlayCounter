@@ -249,7 +249,21 @@ beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   mocks.localAccounts = 1;
   mocks.search.mockResolvedValue([]);
-  mocks.run.mockResolvedValue({ shareOutcomes: [] });
+  // Importing puts the games in My Games, as the real import does.
+  mocks.run.mockImplementation(
+    async (commits: { entry: LibraryImportEntry }[]) => {
+      store.setState((state) => ({
+        libraryImports: new Map([
+          ...state.libraryImports,
+          ...commits.map(
+            ({ entry }) =>
+              [`${entry.provider}:${entry.externalId}`, entry] as const,
+          ),
+        ]),
+      }));
+      return { shareOutcomes: [] };
+    },
+  );
   // A shown game is looked up at once; tests that import one set the answer.
   mocks.reverse.mockReturnValue(new Promise(() => {}));
   ({ useAppStore: store } = await import("../../store"));
@@ -803,4 +817,300 @@ describe("the bar above the shelves", () => {
       expect(Boolean(findButton("Change what to import"))).toBe(offered);
     },
   );
+});
+
+// The case from 2026-11-01: Xbox's "The High lifE" was imported as the wrong
+// game. Ids are the server's, so a mix-up of id and IGDB id shows.
+const highOnLife = metadata(158_057, "High on Life", {
+  igdbId: 204_618,
+  releaseYear: 2022,
+});
+const theHighLife = metadata(164_870, "The High Life", {
+  igdbId: 374_657,
+  releaseYear: 2016,
+});
+const anno = metadata(346_930, "Anno 1800: The High Life", {
+  igdbId: 165_588,
+  releaseYear: 2021,
+});
+
+function knownFile(value: string): LibraryKnownExecutable {
+  return { platform: "windows", kind: "exe", value, provenance: "igdb", verified: true };
+}
+
+/** The covers of "Which game is …?" for the launcher's title. */
+function tiles(title: string) {
+  return [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      `[role="group"][aria-label="Game match for ${title}"] button`,
+    ),
+  ];
+}
+
+function tile(title: string, name: string) {
+  const found = tiles(title).find(
+    (item) => item.querySelector(".font-semibold")?.textContent === name,
+  );
+  expect(found, name).toBeDefined();
+  return found!;
+}
+
+function detailTitle() {
+  return container.querySelector("section[aria-label] h3")?.textContent;
+}
+
+describe("a game removed from My Games while the review is open", () => {
+  it("Xbox: goes back to Needs you with the suggestions, not to Ready to import", async () => {
+    await scan(
+      "xbox",
+      {
+        games: [game("1810393564", "The High lifE")],
+        resolvedGames: [
+          unmatched("xbox:1810393564", [theHighLife, highOnLife]),
+        ],
+      },
+      [inMyGames("xbox", "1810393564", highOnLife)],
+    );
+    expect(shelf("imported").open).toBe(true);
+    expect(listed()).toEqual(["High on Life"]);
+    // Already in My Games is fixed in My Games, not here.
+    expect(findButton("Wrong game?")).toBeUndefined();
+
+    await act(() =>
+      store.getState().removeLibraryImport("xbox", "1810393564"),
+    );
+    expect(counts()).toMatchObject({ ready: 0, attention: 1, imported: 0 });
+    await act(() => shelf("attention").tab.click());
+    expect(listed()).toEqual(["The High lifE"]);
+    expect(container.textContent).toContain("Which game is “The High lifE”?");
+  });
+
+  it("Steam: goes back to Ready to import with the server's game, where you can say it's the wrong one", async () => {
+    await scan(
+      "steam",
+      {
+        games: [game("1234560", "The High lifE")],
+        resolvedGames: [matched("steam:1234560", highOnLife)],
+      },
+      [inMyGames("steam", "1234560", highOnLife)],
+    );
+    await act(() => store.getState().removeLibraryImport("steam", "1234560"));
+    expect(counts()).toMatchObject({ ready: 1, imported: 0 });
+    await act(() => shelf("ready").tab.click());
+    expect(listed()).toEqual(["High on Life"]);
+    expect(findButton("Wrong game?")).toBeDefined();
+  });
+
+  it("no longer says Imported just now for a game imported in this review", async () => {
+    mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
+    await scan("xbox", {
+      games: [game("1810393564", "The High lifE")],
+      resolvedGames: [unmatched("xbox:1810393564", [theHighLife, highOnLife])],
+    });
+    await click("Import");
+    await act(() => shelf("imported").tab.click());
+    expect(listed()).toEqual(["The High Life"]);
+    expect(container.textContent).toContain("Imported just now");
+
+    await act(() =>
+      store.getState().removeLibraryImport("xbox", "1810393564"),
+    );
+    expect(counts()).toMatchObject({ attention: 1, imported: 0 });
+    expect(container.textContent).not.toContain("Imported just now");
+  });
+});
+
+describe("Wrong game?", () => {
+  const epicTitle = "The High lifE";
+  const epicLibrary = {
+    games: [game("b7e2c41f09d84a6e", epicTitle)],
+    resolvedGames: [matched("epic:b7e2c41f09d84a6e", highOnLife)],
+  };
+
+  it("sits under the facts of a matched game and opens the picker: the match first, then the search for the launcher's title", async () => {
+    mocks.search.mockResolvedValue([anno, theHighLife, highOnLife]);
+    await scan("epic", epicLibrary);
+    expect(shelf("ready").open).toBe(true);
+    expect(container.textContent).not.toContain("Which game is");
+    expect(findButton("Wrong game?")?.previousElementSibling?.tagName).toBe(
+      "DL",
+    );
+
+    await click("Wrong game?");
+    expect(container.textContent).toContain(`Which game is “${epicTitle}”?`);
+    expect(mocks.search).toHaveBeenCalledExactlyOnceWith(
+      store.getState().settings.apiEndpoint,
+      epicTitle,
+      expect.objectContaining({ mainGamesAndRemastersOnly: false }),
+    );
+    expect(
+      tiles(epicTitle).map(
+        (item) => item.querySelector(".font-semibold")?.textContent,
+      ),
+    ).toEqual(["High on Life", "Anno 1800: The High Life", "The High Life"]);
+    const match = tile(epicTitle, "High on Life");
+    expect(match.getAttribute("aria-pressed")).toBe("true");
+    expect(match.textContent).toContain("Matched");
+    expect(tile(epicTitle, "The High Life").textContent).not.toContain(
+      "Matched",
+    );
+    expect(findButton("Wrong game?")).toBeUndefined();
+    expect(mocks.run).not.toHaveBeenCalled();
+  });
+
+  it("shows the game you pick and imports it with its known files", async () => {
+    mocks.search.mockResolvedValue([anno, theHighLife]);
+    mocks.reverse.mockImplementation(async (_endpoint: string, id: number) =>
+      id === theHighLife.id
+        ? { game: theHighLife, executables: [knownFile("TheHighLife.exe")] }
+        : { game: highOnLife, executables: [] },
+    );
+    await scan("epic", epicLibrary);
+    await click("Wrong game?");
+    await act(() => tile(epicTitle, "The High Life").click());
+
+    expect(detailTitle()).toBe("The High Life");
+    expect(listed()).toEqual(["The High Life"]);
+    expect(container.textContent).toContain(
+      "Your pick. Epic Games matched High on Life.",
+    );
+    // Asked as soon as it is picked, so Import does not wait for the server.
+    expect(mocks.reverse).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      theHighLife.id,
+      expect.any(AbortSignal),
+    );
+
+    await click("Import 1 game");
+    expect(mocks.run).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          entry: expect.objectContaining({
+            provider: "epic",
+            externalId: "b7e2c41f09d84a6e",
+            gameId: theHighLife.id,
+            igdbId: theHighLife.igdbId,
+            name: "The High Life",
+            linkedExeNames: ["TheHighLife.exe"],
+          }),
+          exeCacheEntries: [
+            expect.objectContaining({
+              exeName: "TheHighLife.exe",
+              gameId: theHighLife.id,
+              source: "igdb",
+            }),
+          ],
+        }),
+      ],
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("sends nothing: a file on this PC that only the matched game knows is not handed to your pick", async () => {
+    mocks.search.mockResolvedValue([theHighLife]);
+    mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
+    await scan("epic", {
+      games: [
+        game("b7e2c41f09d84a6e", epicTitle, {
+          installed: true,
+          installPath: String.raw`C:\Program Files\Epic Games\TheHighLife`,
+          executables: [exe("HighOnLife.exe")],
+        }),
+      ],
+      resolvedGames: [
+        matched("epic:b7e2c41f09d84a6e", highOnLife, [
+          knownFile("HighOnLife.exe"),
+        ]),
+      ],
+    });
+    expect(shelf("ready").open).toBe(true);
+    await click("Wrong game?");
+    await act(() => tile(epicTitle, "The High Life").click());
+    expect(container.textContent).toContain(
+      "Your pick is imported instead of the matched game. Nothing is sent.",
+    );
+
+    await click("Import 1 game");
+    const [commit] = mocks.run.mock.calls[0][0];
+    expect(commit.entry).toMatchObject({
+      igdbId: theHighLife.igdbId,
+      linkedExeNames: [],
+    });
+    expect(commit.exeCacheEntries).toEqual([]);
+    expect(commit.scopedLinks).toEqual([]);
+  });
+
+  it("takes your pick back when you click the matched game again", async () => {
+    mocks.search.mockResolvedValue([theHighLife]);
+    mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
+    await scan("epic", epicLibrary);
+    await click("Wrong game?");
+    await act(() => tile(epicTitle, "The High Life").click());
+    await act(() => tile(epicTitle, "High on Life").click());
+
+    expect(detailTitle()).toBe("High on Life");
+    expect(container.textContent).not.toContain("Your pick.");
+    await click("Import 1 game");
+    expect(mocks.run.mock.calls[0][0][0].entry).toMatchObject({
+      gameId: highOnLife.id,
+      igdbId: highOnLife.igdbId,
+    });
+  });
+
+  it("is offered on a matched game that only asks for its file, and Import takes your pick with that file", async () => {
+    mocks.search.mockResolvedValue([theHighLife]);
+    mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
+    await scan("steam", {
+      games: [
+        game("1234560", "The High lifE", {
+          installed: true,
+          installPath: String.raw`C:\Steam\steamapps\common\TheHighLife`,
+          executables: [exe("TheHighLife.exe")],
+        }),
+      ],
+      resolvedGames: [matched("steam:1234560", highOnLife)],
+    });
+    expect(shelf("attention").open).toBe(true);
+    expect(container.textContent).toContain("Which file starts the game?");
+    expect(container.textContent).not.toContain("Which game is");
+
+    await click("Wrong game?");
+    await act(() => tile("The High lifE", "The High Life").click());
+    expect(detailTitle()).toBe("The High Life");
+    await click("Import");
+    expect(mocks.run.mock.calls[0][0][0].entry).toMatchObject({
+      gameId: theHighLife.id,
+      igdbId: theHighLife.igdbId,
+      linkedExeNames: ["TheHighLife.exe"],
+    });
+  });
+});
+
+describe("a game already in My Games", () => {
+  it("keeps the game saved there on Steam too, also when it is imported again", async () => {
+    mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
+    await scan(
+      "steam",
+      {
+        games: [game("1234560", "The High lifE")],
+        resolvedGames: [
+          matched("steam:1234560", highOnLife, [knownFile("HighOnLife.exe")]),
+        ],
+      },
+      [inMyGames("steam", "1234560", theHighLife)],
+    );
+    expect(shelf("imported").open).toBe(true);
+    expect(listed()).toEqual(["The High Life"]);
+
+    await act(() => checkbox("The High Life")!.click());
+    await click("Import 1 game");
+    const [commit] = mocks.run.mock.calls[0][0];
+    expect(commit.entry).toMatchObject({
+      gameId: theHighLife.id,
+      igdbId: theHighLife.igdbId,
+      name: "The High Life",
+    });
+    // The matched game's file is not linked to the saved one.
+    expect(commit.exeCacheEntries).toEqual([]);
+  });
 });

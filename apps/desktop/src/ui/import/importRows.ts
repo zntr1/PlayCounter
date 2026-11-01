@@ -6,13 +6,14 @@ import {
   showsFileChoice,
   type ImportGroupKey,
 } from "../../library/importGroups";
-import type { ImportSession } from "../../library/importSession";
+import { rowMatch, type ImportSession } from "../../library/importSession";
 import type {
   LibraryImportEntry,
   ResolvedLibraryGame,
   ScannedLibraryGame,
 } from "../../library/types";
 import { libraryEntryKey } from "../../library/types";
+import type { GameMetadata } from "../../store";
 import { formatDuration } from "../components";
 import { launcherName } from "./importTexts";
 
@@ -24,7 +25,13 @@ export type ImportRow = {
   key: string;
   title: string;
   coverUrl?: string;
+  /** What the shelf rules use: the game saved in My Games while the game is
+   *  there, otherwise the server's answer. */
   resolved?: ResolvedLibraryGame;
+  /** "Wrong game?": the game picked instead of the server's match. */
+  replacement?: GameMetadata;
+  /** The server matched it, so the player can say it's the wrong game. */
+  canReplaceMatch: boolean;
   group: ImportGroupKey;
   existing?: LibraryImportEntry;
   completed: boolean;
@@ -36,7 +43,7 @@ export type ImportRow = {
 /** The parts of the import its rows are made from. */
 export type ImportRowSource = Pick<
   ImportSession,
-  "providerId" | "scan" | "resolved" | "completed"
+  "providerId" | "scan" | "resolved" | "saved" | "replacements" | "completed"
 >;
 
 // A game whose row did not change keeps the same row object, so the list only
@@ -52,29 +59,41 @@ export function importRows(
   const { providerId } = session;
   return (session.scan?.games ?? []).map((game) => {
     const key = libraryEntryKey(providerId, game.externalId);
-    const resolved = session.resolved.get(key);
     const existing = libraryImports.get(key);
-    const completed = session.completed.has(game.externalId);
+    const inLibrary = existing !== undefined;
+    const resolved = rowMatch(session, game.externalId, inLibrary);
+    // Imported in this review, and still in My Games.
+    const completed = inLibrary && session.completed.has(game.externalId);
+    const replacement = inLibrary
+      ? undefined
+      : session.replacements[game.externalId];
+    const group = importGroupForGame({
+      game,
+      provider: providerId,
+      resolved,
+      alreadyImported: inLibrary,
+      completed,
+      ignoredProcesses,
+    });
+    const shown = replacement ?? resolved?.game;
     return unchangedRow({
       game,
       key,
       title:
-        resolved?.game?.name ??
+        shown?.name ??
         game.name ??
         t("{{provider}} game {{id}}", {
           provider: launcherName(providerId),
           id: game.externalId,
         }),
-      coverUrl: resolved?.game?.coverUrl || undefined,
+      coverUrl: shown?.coverUrl || undefined,
       resolved,
-      group: importGroupForGame({
-        game,
-        provider: providerId,
-        resolved,
-        alreadyImported: Boolean(existing),
-        completed,
-        ignoredProcesses,
-      }),
+      replacement,
+      canReplaceMatch:
+        !inLibrary &&
+        resolved?.status === "resolved" &&
+        (group === "ready" || group === "attention"),
+      group,
       existing,
       completed,
       selectable: selectable.has(game.externalId),

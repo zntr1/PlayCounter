@@ -1,7 +1,6 @@
 import type { LibraryKnownExecutable } from "@playcounter/shared";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
 import { buildLibraryImportCommit } from "./importPlan";
-import { resolveLibraryGames } from "./resolve";
 import {
   libraryEntryKey,
   type LibraryImportCommit,
@@ -55,37 +54,18 @@ export async function checkLibraryImportForMatches(input: {
         input.entry.providerHasPlayedEvidence || found.hasPlayedEvidence,
     };
   }
-  let resolved: ResolvedLibraryGame | undefined;
-  if (input.entry.provider !== "steam") {
-    // Keep the confirmed identity for providers that support a manual choice.
-    const { reverseResolveLibraryGame } = await import("./gameLookup");
-    const result = await reverseResolveLibraryGame(
+  // The game saved in My Games stays, on every launcher: the player may have
+  // picked it instead of the server's match.
+  const { reverseResolveLibraryGame } = await import("./gameLookup");
+  const resolved: ResolvedLibraryGame = {
+    key: libraryEntryKey(input.entry.provider, input.entry.externalId),
+    status: "resolved",
+    ...(await reverseResolveLibraryGame(
       input.apiEndpoint,
       input.entry.gameId,
       input.signal,
-    );
-    resolved = {
-      key: libraryEntryKey(input.entry.provider, input.entry.externalId),
-      status: "resolved",
-      ...result,
-    };
-  } else {
-    const lookup = await resolveLibraryGames(
-      input.apiEndpoint,
-      input.entry.provider,
-      [scanned],
-      input.signal,
-    );
-    if (lookup.capability === "unsupported") return { kind: "unsupported" };
-    resolved = lookup.games.find(
-      (game) =>
-        game.key ===
-        libraryEntryKey(input.entry.provider, input.entry.externalId),
-    );
-  }
-  if (!resolved?.game || resolved.status !== "resolved") {
-    return { kind: "not_found" };
-  }
+    )),
+  };
 
   const commit = buildLibraryImportCommit({
     provider: input.entry.provider,

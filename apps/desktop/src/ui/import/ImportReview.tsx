@@ -36,9 +36,17 @@ const t = getT("import");
 export function useImportGroups(session: ImportSession) {
   const libraryImports = useAppStore((state) => state.libraryImports);
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
-  const { providerId, scan, resolved, completed } = session;
+  const { providerId, scan, resolved, saved, replacements, completed } =
+    session;
   return useMemo(() => {
-    const source = { providerId, scan, resolved, completed };
+    const source = {
+      providerId,
+      scan,
+      resolved,
+      saved,
+      replacements,
+      completed,
+    };
     const selectable = selectableGameIds(source);
     const rows = importRows(
       source,
@@ -53,7 +61,16 @@ export function useImportGroups(session: ImportSession) {
       ]),
     ) as Record<ImportGroupKey, ImportRow[]>;
     return { rows, groups, selectable };
-  }, [providerId, scan, resolved, completed, libraryImports, ignoredProcesses]);
+  }, [
+    providerId,
+    scan,
+    resolved,
+    saved,
+    replacements,
+    completed,
+    libraryImports,
+    ignoredProcesses,
+  ]);
 }
 
 /** The launcher, who is read, and the buttons to change or repeat the scan. */
