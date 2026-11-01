@@ -107,7 +107,11 @@ export type ImportSession = {
   busy: string | null;
   browsing: string | null;
   /** `notImported`: picked games the server could not be asked about. */
-  lastImport: { added: string[]; updated: number; notImported: string[] } | null;
+  lastImport: {
+    added: string[];
+    updated: number;
+    notImported: string[];
+  } | null;
 };
 
 let sessionCount = 0;
@@ -420,6 +424,7 @@ export async function startImportScan(
       ...(profile.accountAndInstalls
         ? {
             epicAccount: includeAccount,
+            gogAccount: includeAccount,
             battleNetAccount: includeAccount,
             battleNetProductIds: [...existingImports.values()]
               .filter((entry) => entry.provider === providerId)

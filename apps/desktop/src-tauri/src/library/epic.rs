@@ -279,6 +279,7 @@ fn scan_manifests(dir: Option<&Path>, with_executables: bool) -> ScanResult {
             installed: true,
             install_path: Some(exe_scan::path_string(&root)),
             executables,
+            runs_in_emulator: false,
         });
     }
     games.sort_by(|left, right| left.name.cmp(&right.name));

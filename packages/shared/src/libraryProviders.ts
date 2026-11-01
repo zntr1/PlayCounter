@@ -9,6 +9,7 @@ export const LIBRARY_PROVIDER_LABELS: Record<LibraryProviderId, string> = {
   xbox: "Xbox",
   battlenet: "Battle.net",
   epic: "Epic Games",
+  gog: "GOG",
 };
 
 export function isLibraryProvider(value: unknown): value is LibraryProviderId {
@@ -16,7 +17,8 @@ export function isLibraryProvider(value: unknown): value is LibraryProviderId {
     value === "steam" ||
     value === "xbox" ||
     value === "battlenet" ||
-    value === "epic"
+    value === "epic" ||
+    value === "gog"
   );
 }
 
@@ -30,6 +32,6 @@ export function validLibraryExternalId(
     return /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
   return provider === "battlenet"
     ? /^[a-z][a-z0-9_]{0,63}$/.test(value)
-    : (provider === "steam" || provider === "xbox") &&
+    : (provider === "steam" || provider === "xbox" || provider === "gog") &&
         /^[1-9][0-9]{0,9}$/.test(value);
 }

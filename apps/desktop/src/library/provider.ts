@@ -24,6 +24,8 @@ export type LibraryScanOptions = {
   battleNetProductIds?: readonly string[];
   /** Explicit user action only; background scans must never open sign-in. */
   epicAccount?: boolean;
+  /** Explicit user action only; background scans must never open sign-in. */
+  gogAccount?: boolean;
 };
 
 export type LocalLibraryProvider = {

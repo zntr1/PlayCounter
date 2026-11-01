@@ -203,6 +203,12 @@ export function SettingsView() {
         (entry) => entry.provider === "epic",
       ).length,
   );
+  const importedGogCount = useAppStore(
+    (state) =>
+      [...state.libraryImports.values()].filter(
+        (entry) => entry.provider === "gog",
+      ).length,
+  );
   const forgetLibraryLabel = confirmForgetLibrary
     ? LIBRARY_PROVIDER_LABELS[confirmForgetLibrary]
     : "";
@@ -1424,7 +1430,7 @@ export function SettingsView() {
       <SettingsPanel
         dataTour="settings-library-import"
         description={t(
-          "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, or Epic Games. Install paths and the game files linked to them always stay on this PC.",
+          "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games or GOG. Install paths and the game files linked to them always stay on this PC.",
         )}
         title={t("Library import")}
       >
@@ -1432,7 +1438,7 @@ export function SettingsView() {
           <SettingsRow
             dataTour="settings-auto-add"
             description={t(
-              "After your first import from Steam, Battle.net or Epic Games, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
+              "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
             )}
             title={t("Add new games automatically")}
           >
@@ -1544,6 +1550,27 @@ export function SettingsView() {
           >
             {importedEpicCount
               ? t("Forget {{count}}", { count: importedEpicCount })
+              : t("Forget all")}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description={t(
+            "Removes the GOG mark, the imported GOG playtime, the game files GOG linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
+          )}
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="gog" variant="mark" />
+              {t("Forget imported GOG data")}
+            </span>
+          }
+        >
+          <Button
+            variant="danger"
+            disabled={importedGogCount === 0}
+            onClick={() => setConfirmForgetLibrary("gog")}
+          >
+            {importedGogCount
+              ? t("Forget {{count}}", { count: importedGogCount })
               : t("Forget all")}
           </Button>
         </SettingsRow>

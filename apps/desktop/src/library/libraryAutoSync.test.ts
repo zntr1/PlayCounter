@@ -233,6 +233,41 @@ describe("adding newly installed games automatically", () => {
     );
   });
 
+  it("adds new GOG games after a GOG import", async () => {
+    useAppStore.setState({
+      libraryImports: new Map([imported("gog", "1")]),
+    });
+    mockLaunchers(
+      {
+        gog: [
+          { externalId: "1", installPath: gamePath("Fallout") },
+          {
+            externalId: "2147483111",
+            installPath: gamePath("The Riftbreaker"),
+          },
+        ],
+      },
+      {
+        gog: [
+          scanned("1", "Fallout"),
+          scanned("2147483111", "The Riftbreaker"),
+        ],
+      },
+    );
+    vi.mocked(resolveLibraryGames).mockResolvedValue({
+      capability: "supported",
+      games: [resolvedGame("gog", "2147483111", 115991)],
+    });
+
+    await expect(syncLibraryInstalls("test")).resolves.toBe(1);
+    expect(importedIds()).toEqual(["gog:1", "gog:2147483111"]);
+    expect(resolveLibraryGames).toHaveBeenCalledWith(
+      expect.any(String),
+      "gog",
+      [scanned("2147483111", "The Riftbreaker")],
+    );
+  });
+
   it("restores reinstalled Xbox games but never adds unknown Xbox installs", async () => {
     useAppStore.setState({
       libraryImports: new Map([imported("xbox", "1234")]),

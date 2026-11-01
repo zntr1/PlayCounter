@@ -2168,6 +2168,7 @@ export function MyGamesView({
             <ProviderBadge provider="xbox" />
             <ProviderBadge provider="battlenet" />
             <ProviderBadge provider="epic" />
+            <ProviderBadge provider="gog" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-text-muted">{t("Emulator")}</span>
@@ -2515,7 +2516,7 @@ export function MyGamesView({
                         id="library-show-provider-tabs"
                         label={t("Launcher groups")}
                         help={t(
-                          "Steam, Xbox, Battle.net and Epic Games as their own entries under My Games.",
+                          "Steam, Xbox, Battle.net, Epic Games and GOG as their own entries under My Games.",
                         )}
                         checked={showProviderTabs}
                         onChange={setMyGamesShowProviderTabs}
@@ -3481,6 +3482,12 @@ export function GameLibraryCard({
   const epicLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "epic" && entry.installed,
   );
+  const gogImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "gog",
+  );
+  const gogLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "gog" && entry.installed,
+  );
   const importedProviders = libraryProviders(game.libraryImports);
   const unknownDurationProviders = importedProviders.filter((provider) =>
     hasUnknownProviderPlaytime(game.libraryImports, provider),
@@ -3770,7 +3777,8 @@ export function GameLibraryCard({
     steamImportEntry ??
     xboxImportEntry ??
     battleNetImportEntry ??
-    epicImportEntry;
+    epicImportEntry ??
+    gogImportEntry;
   const libraryMatchOffer =
     !demo && trackingUnavailable && offeredImport
       ? libraryMatchOffers.get(
@@ -4718,7 +4726,7 @@ export function GameLibraryCard({
 
   /** Starts an installed game through the launcher it was imported from. */
   async function handleLauncherLaunch(
-    providerId: "steam" | "xbox" | "epic",
+    providerId: "steam" | "xbox" | "epic" | "gog",
     entry: { externalId: string } | undefined,
     alongsideOthers = false,
   ) {
@@ -4786,6 +4794,8 @@ export function GameLibraryCard({
     handleLauncherLaunch("steam", steamLaunchEntry);
   const handleXboxLaunch = () => handleLauncherLaunch("xbox", xboxLaunchEntry);
   const handleEpicLaunch = () => handleLauncherLaunch("epic", epicLaunchEntry);
+  // GOG games start their own start file; GOG GALAXY is not involved.
+  const handleGogLaunch = () => handleLauncherLaunch("gog", gogLaunchEntry);
 
   async function handleInstallInSteam() {
     if (!steamImportEntry) return;
@@ -4949,6 +4959,8 @@ export function GameLibraryCard({
       void handleSteamLaunch();
     } else if (epicLaunchEntry) {
       void handleEpicLaunch();
+    } else if (gogLaunchEntry) {
+      void handleGogLaunch();
     } else {
       void handleLaunch();
     }
@@ -7859,10 +7871,15 @@ function LibraryImportMatchCheckDialog({
                     provider: providerLabel,
                     id: entry.externalId,
                   })
-                : t("{{provider}} Title ID {{id}}", {
-                    provider: providerLabel,
-                    id: entry.externalId,
-                  })
+                : entry.provider === "gog"
+                  ? t("{{provider}} ID {{id}}", {
+                      provider: providerLabel,
+                      id: entry.externalId,
+                    })
+                  : t("{{provider}} Title ID {{id}}", {
+                      provider: providerLabel,
+                      id: entry.externalId,
+                    })
       }
       icon={Search}
       onClose={onCancel}

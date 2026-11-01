@@ -21,16 +21,23 @@ pub(crate) enum Service {
     Xbox,
     Epic,
     BattleNet,
+    Gog,
 }
 
 impl Service {
-    pub(crate) const ALL: [Service; 3] = [Service::Xbox, Service::Epic, Service::BattleNet];
+    pub(crate) const ALL: [Service; 4] = [
+        Service::Xbox,
+        Service::Epic,
+        Service::BattleNet,
+        Service::Gog,
+    ];
 
     pub(crate) fn id(self) -> &'static str {
         match self {
             Service::Xbox => "xbox",
             Service::Epic => "epic",
             Service::BattleNet => "battlenet",
+            Service::Gog => "gog",
         }
     }
 
@@ -43,6 +50,7 @@ impl Service {
             Service::Xbox => 0,
             Service::Epic => 1,
             Service::BattleNet => 2,
+            Service::Gog => 3,
         }
     }
 }
@@ -54,7 +62,8 @@ pub(crate) struct KeptLogin {
     /// Battle.net records have an empty marker and rely on the browser profile.
     #[serde(default)]
     pub secret: String,
-    /// "Signed in as …": the Xbox gamertag or the Epic display name.
+    /// "Signed in as …": the Xbox gamertag, the Epic display name or the GOG
+    /// user name.
     #[serde(default)]
     pub name: Option<String>,
     /// Xbox only: the PlayCounter server that can redeem the token.
@@ -92,13 +101,13 @@ pub struct KeptLoginSummary {
 
 pub(crate) struct Store {
     dir: PathBuf,
-    generations: [u64; 3],
+    generations: [u64; Service::ALL.len()],
 }
 
 // A sign-out invalidates every operation already using that service. Hold
 // this lock through the file mutation so a late network response cannot
 // recreate a credential after sign-out (or delete a newer account's login).
-static GENERATIONS: LazyLock<Mutex<HashMap<PathBuf, [u64; 3]>>> =
+static GENERATIONS: LazyLock<Mutex<HashMap<PathBuf, [u64; Service::ALL.len()]>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 impl Store {
@@ -339,6 +348,8 @@ pub(crate) async fn sign_out(app: &AppHandle, service: Service) -> Result<(), St
             super::battlenet_account::cancel_active(app);
             super::battlenet_account::forget_profile(app);
         }
+        // GOG has no call to end it from here, as far as known.
+        Service::Gog => super::gog_account::cancel_active(app),
         // Microsoft has no call to end it from here. Unused, it ends by itself.
         Service::Xbox => {}
     }
@@ -377,6 +388,7 @@ pub async fn logins_check(
         Some(Service::Xbox) => super::xbox_login::check_saved_login(&app, &api_endpoint).await,
         Some(Service::Epic) => super::epic_account::check_saved_login(&app).await,
         Some(Service::BattleNet) => super::battlenet_account::check_saved_login(&app).await,
+        Some(Service::Gog) => super::gog_account::check_saved_login(&app).await,
         None => LoginStatus::Unavailable,
     }
 }

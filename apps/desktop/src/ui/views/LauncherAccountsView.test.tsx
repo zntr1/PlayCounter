@@ -24,6 +24,9 @@ vi.mock("../../library/importRequest", () => ({
 vi.mock("../../library/epicAccount", () => ({
   signInEpicAccount: (signal: AbortSignal) => mocks.connect("epic", { signal }),
 }));
+vi.mock("../../library/gogAccount", () => ({
+  signInGogAccount: (signal: AbortSignal) => mocks.connect("gog", { signal }),
+}));
 vi.mock("../../library/providers/xbox", () => ({
   signInXboxAccount: (options: LibraryScanOptions) =>
     mocks.connect("xbox", options),
@@ -163,15 +166,38 @@ it("shows all launchers with saved connection status and a local Steam account",
   mocks.logins = [
     { service: "epic", name: "Epic Player", savedAt: 1 },
     { service: "battlenet", name: null, savedAt: 2 },
+    { service: "gog", name: "zesarex", savedAt: 3 },
   ];
   await render();
-  expect(container.querySelectorAll("section")).toHaveLength(4);
+  expect(container.querySelectorAll("section")).toHaveLength(5);
   expect(card("epic").textContent).toContain("Signed in as Epic Player");
   expect(card("battlenet").textContent).toContain("Signed in");
+  expect(card("gog").textContent).toContain("Signed in as zesarex");
   expect(card("xbox").textContent).toContain("Not signed in");
   expect(card("steam").textContent).toContain("Steam account: Local Player");
   expect(card("steam").textContent).not.toContain("Sign out");
   expect(mocks.scan).not.toHaveBeenCalled();
+});
+
+it("signs in to GOG with GOG's own sign-in, never another launcher's", async () => {
+  mocks.connect.mockImplementation(async (service: string) => {
+    mocks.logins = [{ service, name: "zesarex", savedAt: 1 }];
+  });
+  await render();
+  expect(card("gog").textContent).toContain("Not signed in");
+  await act(() => button(card("gog"), "Sign in").click());
+  expect(mocks.connect).toHaveBeenCalledTimes(1);
+  expect(mocks.connect).toHaveBeenCalledWith(
+    "gog",
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
+  expect(card("gog").textContent).toContain("Signed in as zesarex");
+  await openMore("gog");
+  expect(menuItems().map((item) => item.textContent)).toContain(
+    "Find installed games",
+  );
+  await act(() => menuItem("Find installed games").click());
+  expect(mocks.openImport).toHaveBeenCalledWith("gog", "installed");
 });
 
 it("shows one button per card, amber only where something needs you", async () => {

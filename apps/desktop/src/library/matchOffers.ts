@@ -59,7 +59,8 @@ export function untrackableLibraryImports() {
       (entry.provider === "steam" ||
         entry.provider === "xbox" ||
         entry.provider === "battlenet" ||
-        entry.provider === "epic") &&
+        entry.provider === "epic" ||
+        entry.provider === "gog") &&
       !tracked.has(entry.igdbId),
   );
 }

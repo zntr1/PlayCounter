@@ -117,6 +117,10 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
   const epicLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "epic" && entry.installed,
   );
+  // GOG games start their own start file, so Play reads as a direct start.
+  const gogLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "gog" && entry.installed,
+  );
   const emulatorMapping = useMemo(() => {
     const mappings = launchableEmulatorMappings(
       game.emulatorContentKeys,
@@ -234,13 +238,23 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
           });
           return;
         }
-      } else if (xboxLaunchEntry || steamLaunchEntry || epicLaunchEntry) {
+      } else if (
+        xboxLaunchEntry ||
+        steamLaunchEntry ||
+        epicLaunchEntry ||
+        gogLaunchEntry
+      ) {
         const provider = xboxLaunchEntry
           ? "xbox"
           : steamLaunchEntry
             ? "steam"
-            : "epic";
-        const entry = (xboxLaunchEntry ?? steamLaunchEntry ?? epicLaunchEntry)!;
+            : epicLaunchEntry
+              ? "epic"
+              : "gog";
+        const entry = (xboxLaunchEntry ??
+          steamLaunchEntry ??
+          epicLaunchEntry ??
+          gogLaunchEntry)!;
         try {
           const module = await import("../../../library/providers");
           const library = await module.loadLibraryProvider(provider);

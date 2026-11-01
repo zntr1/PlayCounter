@@ -27,7 +27,7 @@ let stop: (() => void) | undefined;
 
 beforeEach(() => {
   invokeMock.mockReset();
-  for (const service of ["xbox", "epic", "battlenet"] as const)
+  for (const service of ["xbox", "epic", "battlenet", "gog"] as const)
     clearLoginHealth(service);
   useLoginHealth.setState({ checks: {} });
   useAppStore.setState((state) => ({
@@ -63,6 +63,20 @@ describe("silent launcher account checks", () => {
     ).toBe(true);
     expect(getLoginHealth("xbox")?.status).toBe("valid");
     expect(getLoginHealth("epic")).toBeUndefined();
+  });
+
+  it("checks a kept GOG sign-in in the background like the others", async () => {
+    saved = [{ service: "gog", name: "zesarex", savedAt: 1 }];
+    useKeptLogins.setState({ logins: saved });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "logins_list") return saved;
+      if (command === "logins_check") return "needsSignIn";
+    });
+    await checkLauncherLogins(endpoint, 0);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "logins_check"),
+    ).toEqual([["logins_check", { service: "gog", apiEndpoint: endpoint }]]);
+    expect(getLoginHealth("gog")?.status).toBe("needsSignIn");
   });
 
   it("keeps credentials on temporary failures and retries without a sign-in warning", async () => {

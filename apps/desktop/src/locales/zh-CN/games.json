@@ -24,6 +24,7 @@
   "Xbox title ID": "Xbox 游戏 ID",
   "Battle.net product": "Battle.net 产品",
   "Epic app name": "Epic 应用名称",
+  "GOG ID": "GOG ID",
   "{{exeName}} removed": "{{exeName}} 已移除",
   "It no longer counts for {{name}} on this PC. If it runs again, it shows up in Discovered.": "它在这台电脑上不再计入 {{name}}。如果再次运行，会显示在“已发现”中。",
   "{{exeName}} not removed": "{{exeName}} 未移除",

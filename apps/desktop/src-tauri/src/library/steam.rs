@@ -141,6 +141,7 @@ fn scan_root(
             install_path: Some(path_string(&manifest.install_path)),
             executables: Vec::new(),
             external_id: app_id,
+            runs_in_emulator: false,
         });
     }
     for (app_id, playtime) in playtimes {
@@ -156,6 +157,7 @@ fn scan_root(
             installed,
             install_path: install_path.as_ref().map(|value| path_string(value)),
             executables: Vec::new(),
+            runs_in_emulator: false,
         });
     }
     games.sort_by_key(|game| std::cmp::Reverse(game.playtime_seconds));

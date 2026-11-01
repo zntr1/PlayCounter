@@ -61,7 +61,13 @@ describe("which shelf a game lands on", () => {
     };
     const resolved = matched("xbox:1234", "Yakuza 0", 133_430);
 
-    for (const provider of ["steam", "xbox", "epic", "battlenet"] as const) {
+    for (const provider of [
+      "steam",
+      "xbox",
+      "epic",
+      "battlenet",
+      "gog",
+    ] as const) {
       expect(
         importGroupForGame({ game, provider, resolved, alreadyImported: true }),
       ).toBe("imported");
@@ -127,7 +133,7 @@ describe("which shelf a game lands on", () => {
         alreadyImported: false,
       }),
     ).toBe("unavailable");
-    for (const provider of ["xbox", "epic", "battlenet"] as const) {
+    for (const provider of ["xbox", "epic", "battlenet", "gog"] as const) {
       expect(
         importGroupForGame({
           game,

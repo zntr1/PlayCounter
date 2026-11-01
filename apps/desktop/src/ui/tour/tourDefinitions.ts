@@ -187,7 +187,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-import"),
           title: t("Imports are optional"),
           body: t(
-            "PlayCounter detects games automatically, regardless of launcher. Steam, Xbox, Battle.net, and Epic Games imports can help bring an existing library across. In your library, right-click My Games in the sidebar to open any importer. This practice does not scan your PC, sign in, or contact a provider.",
+            "PlayCounter detects games automatically, regardless of launcher. Steam, Xbox, Battle.net, Epic Games, and GOG imports can help bring an existing library across. In your library, right-click My Games in the sidebar to open any importer. This practice does not scan your PC, sign in, or contact a provider.",
           ),
         },
         {
@@ -223,7 +223,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-import"),
           title: t("Imported time and tracked sessions"),
           body: t(
-            "Steam and Xbox can supply launcher playtime totals, and so can Epic Games when you sign in. Those totals do not create a made-up session history. Battle.net does not provide past playtime here. Future sessions tracked by PlayCounter build History. A provider badge describes where a game came from; a file-match badge explains recognition.",
+            "Steam and Xbox can supply launcher playtime totals, and so can Epic Games and GOG when you sign in. Those totals do not create a made-up session history. Battle.net does not provide past playtime here. Future sessions tracked by PlayCounter build History. A provider badge describes where a game came from; a file-match badge explains recognition.",
           ),
         },
         {
@@ -232,7 +232,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-import"),
           title: t("New installs join by themselves"),
           body: t(
-            "After your first import from Steam, Battle.net, or Epic Games, games you install there later show up in My Games on their own. Games you removed from PlayCounter are not added again. Xbox games need another Xbox import. You can turn this off in Settings under Library import.",
+            "After your first import from Steam, Battle.net, Epic Games, or GOG, games you install there later show up in My Games on their own. Games you removed from PlayCounter are not added again. Xbox games need another Xbox import. You can turn this off in Settings under Library import.",
           ),
         },
       ],
@@ -310,7 +310,7 @@ export function tours(): TourDefinition[] {
           scrollIntoView: true,
           title: t("Launcher games join on their own"),
           body: t(
-            "Add new games automatically does the same for launchers. After your first import from Steam, Battle.net, or Epic Games, games you install there show up in My Games by themselves. Games you removed from PlayCounter are not added again. Xbox games still need an Xbox import.",
+            "Add new games automatically does the same for launchers. After your first import from Steam, Battle.net, Epic Games, or GOG, games you install there show up in My Games by themselves. Games you removed from PlayCounter are not added again. Xbox games still need an Xbox import.",
           ),
         },
       ],
@@ -1645,7 +1645,7 @@ export function tours(): TourDefinition[] {
           scrollIntoView: true,
           title: t("Keep your library up to date"),
           body: t(
-            "Add new games automatically brings in games you install in Steam, Battle.net, or Epic Games after your first import from there. Watched folders find games that no launcher knows about. Below them, you can forget everything a launcher import added.\n\nThe Watch folders for new games guide explains both.",
+            "Add new games automatically brings in games you install in Steam, Battle.net, Epic Games, or GOG after your first import from there. Watched folders find games that no launcher knows about. Below them, you can forget everything a launcher import added.\n\nThe Watch folders for new games guide explains both.",
           ),
         },
         {
@@ -1963,7 +1963,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-origin-examples"),
           title: t("Where it came from, and how it was recognized"),
           body: t(
-            "Steam, Xbox, Battle.net, and Epic Games badges describe a library's launcher origin. Dolphin and other emulator badges describe how the game ran. Community, IGDB, and Custom describe the file match. A game can have both kinds of badge. These examples do not claim that any launcher or game is installed.",
+            "Steam, Xbox, Battle.net, Epic Games, and GOG badges describe a library's launcher origin. Dolphin and other emulator badges describe how the game ran. Community, IGDB, and Custom describe the file match. A game can have both kinds of badge. These examples do not claim that any launcher or game is installed.",
           ),
         },
         {

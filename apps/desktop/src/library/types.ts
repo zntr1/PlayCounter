@@ -123,6 +123,9 @@ export type ScannedLibraryGame = {
   installed: boolean;
   installPath?: string;
   executables: ScannedExecutable[];
+  /** The launcher starts the game in an emulator it ships with the game
+   *  (GOG's DOSBox and ScummVM games): there is no game file to link. */
+  runsInEmulator?: boolean;
 };
 
 export type LibraryScanResult = {

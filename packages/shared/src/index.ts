@@ -64,7 +64,7 @@ export interface EmulatorResolveResponse {
 }
 
 /** A locally installed or remotely linked game-library provider. */
-export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic";
+export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic" | "gog";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,
@@ -84,7 +84,7 @@ export interface LibraryResolveRequest {
     /** Client-generated correlation key; never treated as game identity. */
     key: string;
     provider: LibraryProviderId;
-    /** Provider-native id. Steam uses its decimal AppID. */
+    /** Provider-native id. Steam uses its decimal AppID, GOG its product id. */
     externalId: string;
     /** Store title. Only Epic sends it: IGDB does not index Epic app names,
      *  so the server matches the exact title among IGDB's Epic entries. */
@@ -771,8 +771,9 @@ export interface Settings {
   /** Add newly installed Steam and Battle.net games after the first import
    * from that launcher. Absent = enabled. */
   autoAddInstalledGames?: boolean;
-  /** Launchers (xbox, epic, battlenet) whose sign-in running out adds no badge
-   * to Launcher accounts and shows no message. Absent = every launcher warns. */
+  /** Launchers (xbox, epic, battlenet, gog) whose sign-in running out adds no
+   * badge to Launcher accounts and shows no message. Absent = every launcher
+   * warns. */
   loginWarningsOff?: string[];
   /** Offer Steam's installer for imported Steam games that are not installed.
    * Absent = disabled. */

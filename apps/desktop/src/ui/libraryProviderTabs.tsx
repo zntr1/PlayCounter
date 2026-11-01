@@ -1,6 +1,7 @@
 import type { LibraryProviderId, Platform } from "@playcounter/shared";
 import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import epicIconUrl from "../../../../assets/epic/epic.svg";
+import gogIconUrl from "../../../../assets/gog/gog.svg";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
@@ -97,6 +98,20 @@ export function providerTabConfigs(): readonly ProviderTabConfig[] {
         "Sign in to bring in your Epic Games library with its playtime, or scan installed games without signing in. PlayCounter tracks your future sessions.",
       ),
       firstImportCtaLabel: t("Import from Epic Games"),
+      import: { kind: "builtin", platforms: ["windows"] },
+    },
+    {
+      id: "gog",
+      label: "GOG",
+      iconUrl: gogIconUrl,
+      headline: t("GOG library"),
+      subtitle: t("Games imported from your GOG account and this PC."),
+      importCtaLabel: t("Import more from GOG"),
+      emptyTitle: t("No GOG games imported yet"),
+      emptyBody: t(
+        "Sign in to bring in your GOG library with its playtime, or scan installed games without signing in. PlayCounter tracks your future sessions.",
+      ),
+      firstImportCtaLabel: t("Import from GOG"),
       import: { kind: "builtin", platforms: ["windows"] },
     },
   ];
