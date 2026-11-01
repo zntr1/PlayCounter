@@ -42,7 +42,8 @@ before the deployment action runs.
   the next one adds the Epic Games import and mGBA; the one after adds Cemu,
   RPCS3, PPSSPP, DuckStation, Ryujinx and Eden; the next adds Azahar, melonDS
   (which also reads its recent-games list from `melonDS.toml`) and Xenia; the
-  next adds the GOG import.
+  next adds the GOG import; the next adds the PlayStation import, its live
+  console status and the PS5 playtime guide.
 
 `site.reviewed` is the explicit date of the full September 2026 content review;
 it is not the build date. Do not bump it on every build or ordinary release.

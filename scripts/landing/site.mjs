@@ -435,6 +435,6 @@ export const faq = [
   ],
   [
     "Does it work on macOS, Linux or consoles?",
-    "The public installer is for Windows. PlayCounter records games running on that PC. Xbox import can include account playtime reported for other devices; it does not add live console tracking.",
+    "The public installer is for Windows. PlayCounter records games running on that PC. Xbox import can include account playtime reported for other devices. The PlayStation import adds your PS5 and PS4 playtime and, while PlayCounter runs, sees what you play on the console.",
   ],
 ];
