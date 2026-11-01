@@ -86,10 +86,10 @@ export function CloseGameDialog({
         : t("{{count}} games are running", { count: sessions.length });
     body = [
       sessions.length === 1
-        ? t("Close it first, or start {{nextGameName}} alongside it.", {
+        ? t("Stop it first, or start {{nextGameName}} alongside it.", {
             nextGameName,
           })
-        : t("Close them first, or start {{nextGameName}} alongside them.", {
+        : t("Stop them first, or start {{nextGameName}} alongside them.", {
             nextGameName,
           }),
     ];
@@ -101,11 +101,11 @@ export function CloseGameDialog({
           onClick={() => void closeFrom(0, false)}
         >
           {sessions.length === 1
-            ? t("Close {{gameName}} and start {{nextGameName}}", {
+            ? t("Stop {{gameName}} and start {{nextGameName}}", {
                 gameName,
                 nextGameName,
               })
-            : t("Close {{count}} games and start {{nextGameName}}", {
+            : t("Stop {{count}} games and start {{nextGameName}}", {
                 count: sessions.length,
                 nextGameName,
               })}
@@ -131,7 +131,7 @@ export function CloseGameDialog({
       </>
     );
   } else if (step.kind === "confirm") {
-    title = t("Close {{gameName}}?", { gameName });
+    title = t("Stop {{gameName}}?", { gameName });
     body = [
       t(
         "PlayCounter asks the game to close, like clicking its ✕. Save first if the game doesn't save when it closes.",
@@ -149,7 +149,7 @@ export function CloseGameDialog({
           variant="danger"
           onClick={() => void closeFrom(0, false)}
         >
-          {t("Close game")}
+          {t("Stop game")}
         </Button>
         <Button
           {...dialogButton}
@@ -162,7 +162,7 @@ export function CloseGameDialog({
       </>
     );
   } else if (step.kind === "closing") {
-    title = t("Closing {{gameName}}…", { gameName });
+    title = t("Stopping {{gameName}}…", { gameName });
     body = [t("Waiting for the game to close.")];
     buttons = (
       <Button
@@ -176,7 +176,7 @@ export function CloseGameDialog({
     );
   } else if (step.kind === "stillRunning") {
     title = t("{{gameName}} is still running", { gameName });
-    body = [t("Force close ends it right away. Unsaved progress is lost.")];
+    body = [t("Force stop ends it right away. Unsaved progress is lost.")];
     buttons = (
       <>
         <Button
@@ -184,7 +184,7 @@ export function CloseGameDialog({
           variant="danger"
           onClick={() => void closeFrom(step.index, true)}
         >
-          {t("Force close")}
+          {t("Force stop")}
         </Button>
         <Button
           {...dialogButton}
@@ -197,7 +197,7 @@ export function CloseGameDialog({
       </>
     );
   } else {
-    title = t("PlayCounter can't close {{gameName}}", { gameName });
+    title = t("PlayCounter can't stop {{gameName}}", { gameName });
     body = [
       t(
         "It may run as administrator or be protected by anti-cheat. Close it in the game.",

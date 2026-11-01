@@ -5847,7 +5847,7 @@ export function GameLibraryCard({
             ? launching
               ? t("{{game}}, starting", { game: game.name })
               : canCloseGame
-                ? t("{{game}}, running, press {{button}} to close", {
+                ? t("{{game}}, running, press {{button}} to stop", {
                     game: game.name,
                     button: controllerButtonName(controllerKind, "X"),
                   })
@@ -6209,13 +6209,13 @@ export function GameLibraryCard({
             <button
               type="button"
               data-controller-stop
-              aria-label={t("Close {{name}}", { name: game.name })}
-              title={t("Close game")}
+              aria-label={t("Stop {{name}}", { name: game.name })}
+              title={t("Stop game")}
               onClick={handleCloseGame}
-              className="flex shrink-0 items-center gap-1.5 border-l border-success-border px-3 text-danger transition hover:bg-danger-solid hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger/60"
+              className="flex shrink-0 items-center gap-1.5 border-l border-success-border bg-danger-solid px-3 text-white transition hover:bg-danger-solid-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger/60"
             >
               <CloseKeyHint size={isLarge ? 12 : 11} />
-              {t("Close")}
+              {t("Stop")}
             </button>
           </div>
         ) : showLaunchFooter ? (
@@ -6597,7 +6597,7 @@ export function GameLibraryCard({
           ? launching
             ? t("{{game}}, starting", { game: game.name })
             : canCloseGame
-              ? t("{{game}}, running, press {{button}} to close", {
+              ? t("{{game}}, running, press {{button}} to stop", {
                   game: game.name,
                   button: controllerButtonName(controllerKind, "X"),
                 })
@@ -6873,8 +6873,8 @@ export function GameLibraryCard({
           {canCloseGame ? (
             <IconButton
               data-controller-stop
-              aria-label={t("Close {{name}}", { name: game.name })}
-              title={t("Close game")}
+              aria-label={t("Stop {{name}}", { name: game.name })}
+              title={t("Stop game")}
               onClick={handleCloseGame}
               className="border-danger/50 bg-danger/10 text-danger hover:border-danger-solid hover:bg-danger-solid hover:text-white"
             >

@@ -83,9 +83,9 @@ function card(name: string) {
   )!;
 }
 
-function closeButton(name: string) {
+function stopButton(name: string) {
   return card(name).querySelector<HTMLButtonElement>(
-    `[aria-label="Close ${name}"]`,
+    `[aria-label="Stop ${name}"]`,
   );
 }
 
@@ -95,29 +95,49 @@ function button(text: string) {
   );
 }
 
-it("offers Close on a running game's card, behind a confirmation", async () => {
+it("offers a red Stop on a running game's card, behind a confirmation", async () => {
   vi.mocked(closeRunningGame).mockResolvedValue("closed");
   useAppStore.setState({ activeSessions: [running()] });
   await act(() => root.render(<LibraryTestShell />));
 
   expect(card("Hades").textContent).toContain("Running");
-  expect(closeButton("Hades")?.hasAttribute("data-controller-stop")).toBe(true);
-  expect(closeButton("Celeste")).toBeNull();
+  const stop = stopButton("Hades")!;
+  expect(stop.textContent).toContain("Stop");
+  expect(stop.title).toBe("Stop game");
+  expect(stop.hasAttribute("data-controller-stop")).toBe(true);
+  // Red as it is on hover, also before any hover.
+  expect(stop.classList.contains("bg-danger-solid")).toBe(true);
+  expect(stop.classList.contains("text-white")).toBe(true);
+  expect(stopButton("Celeste")).toBeNull();
 
-  await act(async () => closeButton("Hades")!.click());
-  expect(document.body.textContent).toContain("Close Hades?");
+  await act(async () => stop.click());
+  expect(document.body.textContent).toContain("Stop Hades?");
   expect(closeRunningGame).not.toHaveBeenCalled();
-  await act(async () => button("Close game")!.click());
+  await act(async () => button("Stop game")!.click());
   expect(closeRunningGame).toHaveBeenCalledWith(7, false);
 });
 
-it("offers no Close for a timer: nothing runs on this PC", async () => {
-  useAppStore.setState({ activeSessions: [running({ timer: true })] });
+it("says Stop in the list view too", async () => {
+  useAppStore.setState({ activeSessions: [running()] });
   await act(() => root.render(<LibraryTestShell />));
-  expect(closeButton("Hades")).toBeNull();
+  await act(async () =>
+    container
+      .querySelector<HTMLButtonElement>('[aria-label="List view"]')!
+      .click(),
+  );
+  const stop = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Stop Hades"]',
+  );
+  expect(stop?.title).toBe("Stop game");
 });
 
-it("asks to close the running game before Play starts another one", async () => {
+it("offers no Stop for a timer: nothing runs on this PC", async () => {
+  useAppStore.setState({ activeSessions: [running({ timer: true })] });
+  await act(() => root.render(<LibraryTestShell />));
+  expect(stopButton("Hades")).toBeNull();
+});
+
+it("asks to stop the running game before Play starts another one", async () => {
   vi.mocked(launchGame).mockResolvedValue("launched");
   useAppStore.setState({ activeSessions: [running()] });
   await act(() => root.render(<LibraryTestShell />));
