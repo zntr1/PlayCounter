@@ -5381,7 +5381,8 @@ export async function markExecutableAsSoftware(
   });
   persist();
   void requestProcessScan("after marking software");
-  if (!input.share) return { kind: "local" };
+  // Game.exe names no app for anyone else: it is never shared.
+  if (!input.share || isGenericExeName(exeName)) return { kind: "local" };
 
   const state = useAppStore.getState();
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions`;
@@ -7947,7 +7948,9 @@ export async function submitLocalLinkToCommunity(
   if (
     link?.source !== "custom" ||
     link.communitySuggestionId !== undefined ||
-    !link.gameName
+    !link.gameName ||
+    // Game.exe names no game for anyone else: it is never shared.
+    isGenericExeName(link.exeName)
   ) {
     return { kind: "not-applicable" };
   }

@@ -11,6 +11,7 @@ import {
   mergeCommunityMetadataCandidates,
   type CommunityMetadataSearchOptions,
 } from "../communityMetadataSearch";
+import { isGenericExeName } from "../library/exeCandidates";
 import { requestJson } from "../requestJson";
 import { useAppStore, useIsOffline } from "../store";
 import { linkServerKnownFiles } from "../tracker";
@@ -205,6 +206,8 @@ export function useCommunityGameCorrection({
     if (
       !selection?.coverUrl ||
       !exeName ||
+      // Game.exe names no game for anyone else: it is never shared.
+      isGenericExeName(exeName) ||
       isOffline ||
       request.current?.kind === "submit"
     )
