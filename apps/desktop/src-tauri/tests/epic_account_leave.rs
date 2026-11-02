@@ -16,6 +16,9 @@ mod kept_logins;
 #[allow(dead_code)]
 #[path = "../src/library/login_status.rs"]
 mod login_status;
+#[allow(dead_code)]
+#[path = "../src/library/scan_account.rs"]
+mod scan_account;
 #[path = "../src/webview_args.rs"]
 mod webview_args;
 

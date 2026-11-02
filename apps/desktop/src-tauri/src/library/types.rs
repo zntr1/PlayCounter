@@ -1,4 +1,5 @@
 use super::exe_scan::ScannedExecutable;
+use super::scan_account::ScanAccount;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -48,6 +49,9 @@ pub struct ScanResult {
     pub games: Vec<ScannedGame>,
     pub warnings: Vec<String>,
     pub partial: bool,
+    /// The account read. None for a scan of this PC only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<ScanAccount>,
 }
 
 /// A game a launcher has installed on this PC, listed without the slower

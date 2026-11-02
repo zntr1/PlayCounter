@@ -1,6 +1,7 @@
 use super::types::{InstalledGame, LocalAccount, ProviderStatus, ScanResult, ScannedGame};
 use super::{
     exe_scan::{path_string, scan_executables, EXE_WALK_BUDGET},
+    scan_account::ScanAccount,
     vdf,
 };
 use crate::launch::{volume_is_present, LaunchError, LaunchErrorKind};
@@ -188,10 +189,20 @@ fn scan_root(
         // so the limit needs no warning of its own.
         partial |= capped;
     }
+    let name = read_login_users(root).ok().and_then(|users| {
+        users
+            .get(&account_id)
+            .and_then(|user| user.persona_name.clone())
+    });
     Ok(ScanResult {
         games,
         partial,
         warnings,
+        account: Some(ScanAccount::new(
+            "steam",
+            &account_id.to_string(),
+            name.as_deref(),
+        )),
     })
 }
 
@@ -659,6 +670,33 @@ mod tests {
             ),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn the_scan_names_the_account_it_read_by_a_key_never_by_its_id() {
+        let root = steam_root_with_manifest("730", "4", true);
+        add_playtime(&root, 12345, "440", 10);
+        let config = root.join("config");
+        fs::create_dir_all(&config).unwrap();
+        // SteamID64 76561197960278073 is account 12345.
+        fs::write(
+            config.join("loginusers.vdf"),
+            "\"users\"\n{\n\"76561197960278073\"\n{\n\"AccountName\"\t\"login\"\n\"PersonaName\"\t\"zesarex\"\n\"MostRecent\"\t\"1\"\n}\n}\n",
+        )
+        .unwrap();
+
+        let result = scan_root(&root, 12345, None).unwrap();
+        assert_eq!(
+            serde_json::to_value(&result).unwrap()["account"],
+            serde_json::json!({ "key": "a08abd5b779f542093ed25f6a2859de2", "name": "zesarex" })
+        );
+        // Another account on this PC is another key; without a login entry it
+        // has no name.
+        add_playtime(&root, 777, "440", 5);
+        let other = scan_root(&root, 777, None).unwrap().account.unwrap();
+        assert_ne!(other.key, result.account.unwrap().key);
+        assert_eq!(other.name, None);
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

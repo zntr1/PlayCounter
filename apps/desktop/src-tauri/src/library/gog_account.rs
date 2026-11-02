@@ -14,6 +14,7 @@ use super::battlenet_account::{
 };
 use super::kept_logins::{KeptLogin, Service, Store};
 use super::login_status::LoginStatus;
+use super::scan_account::ScanAccount;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -71,6 +72,9 @@ pub struct AccountGame {
 pub struct AccountLibrary {
     games: Vec<AccountGame>,
     incomplete: bool,
+    /// The account read, by its key: the id never leaves Rust.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account: Option<ScanAccount>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -245,6 +249,7 @@ fn build_library(
     AccountLibrary {
         games: games.into_values().take(MAX_GAMES).collect(),
         incomplete,
+        account: None,
     }
 }
 
@@ -551,7 +556,10 @@ async fn read_account(client: &reqwest::Client, token: &Token) -> Result<Account
     let (products, truncated) = read_products(client, token).await?;
     let ids: BTreeSet<String> = products.iter().filter_map(product_id).collect();
     let minutes = read_playtime(client, token, &user, ids.into_iter().collect()).await;
-    Ok(build_library(&products, &minutes, truncated))
+    let mut library = build_library(&products, &minutes, truncated);
+    // The user name comes with the sign-in, not with this read.
+    library.account = Some(ScanAccount::new("gog", &user, None));
+    Ok(library)
 }
 
 /// The sign-in is already saved. Only the game read can be cancelled, and

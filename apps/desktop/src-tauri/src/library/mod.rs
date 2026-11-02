@@ -13,6 +13,7 @@ pub mod kept_logins;
 pub(crate) mod login_status;
 pub mod playstation_account;
 pub mod playstation_trophies;
+mod scan_account;
 pub mod steam;
 mod types;
 mod vdf;

@@ -11,13 +11,15 @@
 //! token ends a fixed ~10 days after it was made and renewing it doesn't
 //! extend that (Home Assistant, Oct 2026), so the session cookie is kept too
 //! and makes a new one 3 days before. Both are kept encrypted on this PC (see
-//! `kept_logins`). Only concept ids, titles, playtime, the running game and
-//! the online id for "Signed in as" reach the frontend.
+//! `kept_logins`). Only concept ids, titles, playtime, the running game, the
+//! online id for "Signed in as" and a key made from the account id (to keep
+//! each account's hours apart) reach the frontend.
 use super::battlenet_account::{
     clear_profile_data, secure_window, ExpectedProfile, Sessions, CANCELLED as SESSION_CANCELLED,
 };
 use super::kept_logins::{KeptLogin, Service, Store};
 use super::login_status::LoginStatus;
+use super::scan_account::ScanAccount;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -115,6 +117,16 @@ pub struct AccountGame {
 pub struct AccountLibrary {
     games: Vec<AccountGame>,
     incomplete: bool,
+    /// The account read, by its key: the id never leaves Rust.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account: Option<ScanAccount>,
+}
+
+/// The library as one account read it. The online id comes with the sign-in,
+/// not with this read.
+fn of_account(mut library: AccountLibrary, account_id: &str) -> AccountLibrary {
+    library.account = Some(ScanAccount::new("playstation", account_id, None));
+    library
 }
 
 /// A background read with the kept sign-in only. Never opens a window.
@@ -560,6 +572,7 @@ fn build_library(titles: &[PlayedTitle], truncated: bool) -> AccountLibrary {
             })
             .collect(),
         incomplete,
+        account: None,
     }
 }
 
@@ -1241,10 +1254,11 @@ pub async fn library_playstation_saved_games(
     if window.label() != "main" {
         return Err("PlayStation games are read from PlayCounter.".into());
     }
-    Ok(saved_read(&app, |client, token, _| async move {
+    Ok(saved_read(&app, |client, token, account_id| async move {
         tokio::time::timeout(Duration::from_secs(300), read_played(&client, &token))
             .await
             .unwrap_or(Err(0))
+            .map(|library| of_account(library, &account_id))
     })
     .await)
 }
@@ -1326,6 +1340,7 @@ pub async fn library_playstation_sign_in_with_code(
 async fn finish_account(
     client: &reqwest::Client,
     access_token: &str,
+    account_id: &str,
     cancelled: &mut oneshot::Receiver<()>,
     was_cancelled: bool,
     read_games: bool,
@@ -1341,7 +1356,7 @@ async fn finish_account(
                 return Ok(None);
             }
             match tokio::time::timeout(Duration::from_secs(300), read_played(client, access_token)).await {
-                Ok(Ok(library)) => Ok(Some(library)),
+                Ok(Ok(library)) => Ok(Some(of_account(library, account_id))),
                 Ok(Err(429)) => Err("PlayStation is busy. Please try again in a few minutes.".to_string()),
                 Ok(Err(_)) => Err(UNAVAILABLE.to_string()),
                 Err(_) => Err("PlayStation took too long to answer. Please try again.".to_string()),
@@ -1389,8 +1404,16 @@ async fn run_account_session(
         }
     };
     match kept_access(&store, &client, &state, false).await {
-        Ok((token, _)) => {
-            let result = finish_account(&client, &token, &mut cancelled, false, read_games).await;
+        Ok((token, account_id)) => {
+            let result = finish_account(
+                &client,
+                &token,
+                &account_id,
+                &mut cancelled,
+                false,
+                read_games,
+            )
+            .await;
             finish(&state);
             return result;
         }
@@ -1556,8 +1579,16 @@ async fn run_account_session(
     };
     let result = match authentication {
         Err(error) => Err(error),
-        Ok((token, _)) => {
-            finish_account(&client, &token, &mut cancelled, was_cancelled, read_games).await
+        Ok((token, account_id)) => {
+            finish_account(
+                &client,
+                &token,
+                &account_id,
+                &mut cancelled,
+                was_cancelled,
+                read_games,
+            )
+            .await
         }
     };
     finish(&state);
@@ -2061,6 +2092,17 @@ mod tests {
         let sent = serde_json::to_value(&library).unwrap();
         assert_eq!(sent["games"][0]["consoleUnknown"], true);
         assert!(sent["games"][3].get("consoleUnknown").is_none());
+    }
+
+    #[test]
+    fn a_library_names_its_account_by_a_key_never_by_the_id() {
+        let library = of_account(build_library(&[], false), "1234567890123456789");
+        let sent = serde_json::to_value(&library).unwrap();
+        assert_eq!(
+            sent["account"],
+            serde_json::json!({ "key": "0bc74aa0caac03076d0e63f9dcb3a9b1", "name": null })
+        );
+        assert!(!sent.to_string().contains("1234567890123456789"));
     }
 
     #[test]

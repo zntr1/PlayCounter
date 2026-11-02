@@ -496,6 +496,7 @@ fn scan_installs(
         games,
         partial: !warnings.is_empty(),
         warnings,
+        account: None,
     })
 }
 

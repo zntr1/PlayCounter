@@ -289,6 +289,7 @@ fn scan_manifests(dir: Option<&Path>, with_executables: bool) -> ScanResult {
         games,
         partial: !warnings.is_empty(),
         warnings,
+        account: None,
     }
 }
 

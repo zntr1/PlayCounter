@@ -13,6 +13,7 @@ use super::battlenet_account::{
 };
 use super::kept_logins::{KeptLogin, Service, Store};
 use super::login_status::LoginStatus;
+use super::scan_account::ScanAccount;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -87,6 +88,9 @@ pub struct AccountGame {
 pub struct AccountLibrary {
     games: Vec<AccountGame>,
     incomplete: bool,
+    /// The account read, by its key: the id never leaves Rust.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account: Option<ScanAccount>,
 }
 
 #[derive(Deserialize)]
@@ -318,6 +322,7 @@ fn build_library(
     AccountLibrary {
         games: games.into_values().take(MAX_GAMES).collect(),
         incomplete: incomplete || playtime.is_none(),
+        account: None,
     }
 }
 
@@ -649,12 +654,13 @@ async fn read_account(client: &reqwest::Client, token: &Token) -> Result<Account
         .await
         .ok();
     let catalog = read_catalog(client, token, &records).await;
-    Ok(build_library(
-        &records,
-        &catalog,
-        playtime.as_deref(),
-        truncated,
-    ))
+    let mut library = build_library(&records, &catalog, playtime.as_deref(), truncated);
+    library.account = Some(ScanAccount::new(
+        "epic",
+        &token.account_id,
+        token.display_name.as_deref(),
+    ));
+    Ok(library)
 }
 
 /// Once a code exchange or refresh has started, finish it and save the token
