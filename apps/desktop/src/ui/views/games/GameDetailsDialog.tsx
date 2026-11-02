@@ -58,6 +58,7 @@ import {
 import {
   libraryProviders,
   hasUnknownProviderPlaytime,
+  isConsoleOnlyGame,
 } from "../../providerLibrary";
 import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
@@ -883,175 +884,184 @@ export function GameDetailsDialog({
     </div>
   );
 
+  // A game that only comes from PlayStation plays on the console: it has no
+  // file names to show or look for.
   const filesTab = (
     <div className="grid gap-4">
-      <Panel title={t("Known file matches")} icon={FolderOpen}>
-        {game.exeNames.length === 0 && game.emulatorLabels.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            {t(
-              "No file names or emulator matches are saved for this game yet. PlayCounter can look for a match when you run the game.",
-            )}
-          </p>
-        ) : (
-          <div className="grid gap-2">
+      {isConsoleOnlyGame(game) ? null : (
+        <Panel title={t("Known file matches")} icon={FolderOpen}>
+          {game.exeNames.length === 0 && game.emulatorLabels.length === 0 ? (
             <p className="text-sm text-text-muted">
               {t(
-                "These matches help PlayCounter recognize the game when it runs. They do not confirm that it is currently installed.",
+                "No file names or emulator matches are saved for this game yet. PlayCounter can look for a match when you run the game.",
               )}
             </p>
-            {game.exeNames.map((exeName) => {
-              const scoped = scopedByExe.get(exeName.toLowerCase()) ?? [];
-              const target = launcher.launchTargets.find(
-                (entry) =>
-                  entry.exeName.toLowerCase() === exeName.toLowerCase(),
-              );
-              const cached = exeCache.get(exeName.toLowerCase());
-              const facts = gameFiles.find((file) => file.exeName === exeName);
-              const nameLink =
-                cached?.state === "matched" && ownsLink(cached)
-                  ? cached
-                  : undefined;
-              // Who matched the file: IGDB, the community, or the user.
-              const fileSource = fileMatchSource(nameLink ?? scoped[0] ?? {});
-              // Only the user's own file can be removed, and not while a
-              // suggestion for it waits for review.
-              const removable = (
-                link: Parameters<typeof canCancelCommunitySuggestion>[0],
-              ) =>
-                !demo &&
-                link.source === "custom" &&
-                !canCancelCommunitySuggestion(link);
-              const removeButton = (ref: LocalLinkRef) => (
-                <Button
-                  variant="ghost"
-                  icon={Trash2}
-                  disabled={launcher.hasActiveSession}
-                  title={
-                    launcher.hasActiveSession
-                      ? t("Close the game first")
-                      : t("Stop counting {{exeName}} for {{name}}", {
-                          exeName,
-                          name: game.name,
-                        })
-                  }
-                  onClick={() => removeFile(ref, exeName)}
-                  className="shrink-0 px-2 py-1 text-xs"
-                >
-                  {t("Remove")}
-                </Button>
-              );
-              return (
+          ) : (
+            <div className="grid gap-2">
+              <p className="text-sm text-text-muted">
+                {t(
+                  "These matches help PlayCounter recognize the game when it runs. They do not confirm that it is currently installed.",
+                )}
+              </p>
+              {game.exeNames.map((exeName) => {
+                const scoped = scopedByExe.get(exeName.toLowerCase()) ?? [];
+                const target = launcher.launchTargets.find(
+                  (entry) =>
+                    entry.exeName.toLowerCase() === exeName.toLowerCase(),
+                );
+                const cached = exeCache.get(exeName.toLowerCase());
+                const facts = gameFiles.find(
+                  (file) => file.exeName === exeName,
+                );
+                const nameLink =
+                  cached?.state === "matched" && ownsLink(cached)
+                    ? cached
+                    : undefined;
+                // Who matched the file: IGDB, the community, or the user.
+                const fileSource = fileMatchSource(nameLink ?? scoped[0] ?? {});
+                // Only the user's own file can be removed, and not while a
+                // suggestion for it waits for review.
+                const removable = (
+                  link: Parameters<typeof canCancelCommunitySuggestion>[0],
+                ) =>
+                  !demo &&
+                  link.source === "custom" &&
+                  !canCancelCommunitySuggestion(link);
+                const removeButton = (ref: LocalLinkRef) => (
+                  <Button
+                    variant="ghost"
+                    icon={Trash2}
+                    disabled={launcher.hasActiveSession}
+                    title={
+                      launcher.hasActiveSession
+                        ? t("Close the game first")
+                        : t("Stop counting {{exeName}} for {{name}}", {
+                            exeName,
+                            name: game.name,
+                          })
+                    }
+                    onClick={() => removeFile(ref, exeName)}
+                    className="shrink-0 px-2 py-1 text-xs"
+                  >
+                    {t("Remove")}
+                  </Button>
+                );
+                return (
+                  <div
+                    key={exeName}
+                    className="rounded-lg border border-border bg-surface px-3 py-2.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ExeIcon
+                        exePath={target?.path ?? null}
+                        className="h-4 w-4 shrink-0"
+                        fallback={
+                          <Gamepad2
+                            size={15}
+                            className="shrink-0 text-text-faint"
+                          />
+                        }
+                      />
+                      <span className="min-w-0 truncate font-mono text-sm text-text">
+                        {exeName}
+                      </span>
+                      <span className="ml-auto flex shrink-0 items-center gap-3">
+                        <SourceBadge source={fileSource} variant="text" />
+                        <span className="text-[11px] uppercase tracking-wider text-text-faint">
+                          {scoped.length > 0
+                            ? t("Matches in folder")
+                            : t("Matches by name")}
+                        </span>
+                        {nameLink && removable(nameLink)
+                          ? removeButton({
+                              kind: "exe",
+                              key: exeName.toLowerCase(),
+                            })
+                          : null}
+                        {onReportFile && facts && canReportFile(facts) ? (
+                          <Button
+                            variant="ghost"
+                            icon={Flag}
+                            title={t(
+                              "Report {{exeName}} as a wrong match for {{name}}",
+                              { exeName, name: game.name },
+                            )}
+                            onClick={() => onReportFile(exeName)}
+                            className="shrink-0 px-2 py-1 text-xs"
+                          >
+                            {t("Report")}
+                          </Button>
+                        ) : null}
+                      </span>
+                    </div>
+                    {facts && !demo ? (
+                      <div className="mt-1 text-xs text-text-muted">
+                        {fileRunStatus(facts)}
+                      </div>
+                    ) : null}
+                    {scoped.map((link) => {
+                      const key = scopedExeLinkKey(
+                        link.exeName,
+                        link.pathPrefix,
+                      );
+                      return (
+                        <div
+                          key={link.pathPrefix}
+                          className="mt-1.5 flex items-center gap-2"
+                        >
+                          <span className="min-w-0 flex-1 break-all text-xs text-text-faint">
+                            {t("Tracking folder: {{pathPrefix}}", {
+                              pathPrefix: link.pathPrefix,
+                            })}
+                          </span>
+                          {key && removable(link)
+                            ? removeButton({ kind: "scoped", key })
+                            : null}
+                        </div>
+                      );
+                    })}
+                    {target ? (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="min-w-0 flex-1 break-all text-xs text-text-muted">
+                          {t("Saved launch path: {{path}}", {
+                            path: target.path,
+                          })}
+                        </span>
+                        <Button
+                          icon={FolderOpen}
+                          className="shrink-0 px-2 py-1 text-xs"
+                          onClick={() => void revealPath(target.path)}
+                        >
+                          {t("Show")}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {game.emulatorLabels.map((label, index) => (
                 <div
-                  key={exeName}
+                  key={`${label}-${index}`}
                   className="rounded-lg border border-border bg-surface px-3 py-2.5"
                 >
                   <div className="flex items-center gap-2">
-                    <ExeIcon
-                      exePath={target?.path ?? null}
-                      className="h-4 w-4 shrink-0"
-                      fallback={
-                        <Gamepad2
-                          size={15}
-                          className="shrink-0 text-text-faint"
-                        />
-                      }
-                    />
-                    <span className="min-w-0 truncate font-mono text-sm text-text">
-                      {exeName}
-                    </span>
-                    <span className="ml-auto flex shrink-0 items-center gap-3">
-                      <SourceBadge source={fileSource} variant="text" />
-                      <span className="text-[11px] uppercase tracking-wider text-text-faint">
-                        {scoped.length > 0
-                          ? t("Matches in folder")
-                          : t("Matches by name")}
-                      </span>
-                      {nameLink && removable(nameLink)
-                        ? removeButton({
-                            kind: "exe",
-                            key: exeName.toLowerCase(),
-                          })
-                        : null}
-                      {onReportFile && facts && canReportFile(facts) ? (
-                        <Button
-                          variant="ghost"
-                          icon={Flag}
-                          title={t(
-                            "Report {{exeName}} as a wrong match for {{name}}",
-                            { exeName, name: game.name },
-                          )}
-                          onClick={() => onReportFile(exeName)}
-                          className="shrink-0 px-2 py-1 text-xs"
-                        >
-                          {t("Report")}
-                        </Button>
-                      ) : null}
+                    <Gamepad2 size={15} className="shrink-0 text-text-faint" />
+                    <span className="text-sm text-text">{label}</span>
+                    <span className="ml-auto text-[11px] uppercase tracking-wider text-text-faint">
+                      {t("Emulator")}
                     </span>
                   </div>
-                  {facts && !demo ? (
-                    <div className="mt-1 text-xs text-text-muted">
-                      {fileRunStatus(facts)}
-                    </div>
-                  ) : null}
-                  {scoped.map((link) => {
-                    const key = scopedExeLinkKey(link.exeName, link.pathPrefix);
-                    return (
-                      <div
-                        key={link.pathPrefix}
-                        className="mt-1.5 flex items-center gap-2"
-                      >
-                        <span className="min-w-0 flex-1 break-all text-xs text-text-faint">
-                          {t("Tracking folder: {{pathPrefix}}", {
-                            pathPrefix: link.pathPrefix,
-                          })}
-                        </span>
-                        {key && removable(link)
-                          ? removeButton({ kind: "scoped", key })
-                          : null}
-                      </div>
-                    );
-                  })}
-                  {target ? (
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="min-w-0 flex-1 break-all text-xs text-text-muted">
-                        {t("Saved launch path: {{path}}", {
-                          path: target.path,
-                        })}
-                      </span>
-                      <Button
-                        icon={FolderOpen}
-                        className="shrink-0 px-2 py-1 text-xs"
-                        onClick={() => void revealPath(target.path)}
-                      >
-                        {t("Show")}
-                      </Button>
+                  {game.emulatorContentKeys[index] ? (
+                    <div className="mt-1.5 break-all font-mono text-xs text-text-faint">
+                      {game.emulatorContentKeys[index]}
                     </div>
                   ) : null}
                 </div>
-              );
-            })}
-            {game.emulatorLabels.map((label, index) => (
-              <div
-                key={`${label}-${index}`}
-                className="rounded-lg border border-border bg-surface px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <Gamepad2 size={15} className="shrink-0 text-text-faint" />
-                  <span className="text-sm text-text">{label}</span>
-                  <span className="ml-auto text-[11px] uppercase tracking-wider text-text-faint">
-                    {t("Emulator")}
-                  </span>
-                </div>
-                {game.emulatorContentKeys[index] ? (
-                  <div className="mt-1.5 break-all font-mono text-xs text-text-faint">
-                    {game.emulatorContentKeys[index]}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+              ))}
+            </div>
+          )}
+        </Panel>
+      )}
 
       {game.libraryImports.length > 0 ? (
         <Panel
@@ -1102,10 +1112,13 @@ export function GameDetailsDialog({
                     label={t("Imported")}
                     value={formatDate(entry.entry.importedAt) ?? "Unknown"}
                   />
-                  <Row
-                    label={t("Installed here")}
-                    value={entry.installed ? "Yes" : "No"}
-                  />
+                  {/* A PlayStation copy is never installed on this PC. */}
+                  {entry.provider === "playstation" ? null : (
+                    <Row
+                      label={t("Installed here")}
+                      value={entry.installed ? "Yes" : "No"}
+                    />
+                  )}
                   {entry.install?.installPath ? (
                     <Row
                       label={t("Install folder")}

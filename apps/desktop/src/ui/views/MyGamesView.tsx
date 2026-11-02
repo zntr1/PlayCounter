@@ -319,6 +319,7 @@ import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 import {
   hasUnknownProviderPlaytime,
+  isConsoleOnlyGame,
   libraryProviders,
   trackingUnavailableMessage,
 } from "../providerLibrary";
@@ -1244,6 +1245,9 @@ export function MyGamesView({
 
     for (const session of sessions) {
       if (isIgnored(session.exeName)) continue;
+      // Sony's id of the copy (PPSA04609_00) stands where the file would: a
+      // console session adds no file name and no file badge.
+      const consoleSession = session.origin === "playstation";
 
       const hydratedMeta =
         session.source === "igdb" || session.source === "community"
@@ -1297,7 +1301,7 @@ export function MyGamesView({
             "",
           source: resolvedSource,
           lastPlayedAt: endedOrStartedAt,
-          exeName: session.exeName,
+          exeName: consoleSession ? "" : session.exeName,
           historyGameKey: summaryKey,
         });
         summaries.set(summaryKey, existing);
@@ -1306,14 +1310,14 @@ export function MyGamesView({
         existing,
         session.gameId,
         session.source,
-        session.emulator ? null : undefined,
+        session.emulator || consoleSession ? null : undefined,
       );
       if (session.source !== resolvedSource) {
         addAlias(
           existing,
           session.gameId,
           resolvedSource,
-          session.emulator ? null : undefined,
+          session.emulator || consoleSession ? null : undefined,
         );
       }
       for (const entry of gameEntries) mergeEntry(existing, entry);
@@ -1364,7 +1368,7 @@ export function MyGamesView({
         existing.lastPlayedAt = endedOrStartedAt;
       }
       summariesWithPlayEvidence.add(summaryKey);
-      if (!hasExeName(existing.exeNames, session.exeName)) {
+      if (!consoleSession && !hasExeName(existing.exeNames, session.exeName)) {
         existing.exeNames.push(session.exeName);
       }
       if (session.emulator) {
@@ -1447,22 +1451,23 @@ export function MyGamesView({
             promoteForRecentSort || previousLibraryTimestamp === null
               ? activeSession.checkpointedAt
               : previousLibraryTimestamp,
-          exeName: activeSession.exeName,
+          exeName: activeSession.console ? "" : activeSession.exeName,
         });
         summaries.set(summaryKey, existing);
       }
+      // As for saved sessions: Sony's copy id is no file of the game.
       addAlias(
         existing,
         activeSession.gameId,
         activeSession.source,
-        activeSession.emulator ? null : undefined,
+        activeSession.emulator || activeSession.console ? null : undefined,
       );
       if (activeSession.source !== resolvedSource) {
         addAlias(
           existing,
           activeSession.gameId,
           resolvedSource,
-          activeSession.emulator ? null : undefined,
+          activeSession.emulator || activeSession.console ? null : undefined,
         );
       }
       for (const entry of gameEntries) {
@@ -1507,7 +1512,10 @@ export function MyGamesView({
       if (canSwitchApprovedSuggestionToCommunity(activeSession)) {
         existing.communitySuggestionExeName ??= activeSession.exeName;
       }
-      if (!hasExeName(existing.exeNames, activeSession.exeName)) {
+      if (
+        !activeSession.console &&
+        !hasExeName(existing.exeNames, activeSession.exeName)
+      ) {
         existing.exeNames.push(activeSession.exeName);
       }
       if (activeSession.emulator) {
@@ -3577,6 +3585,9 @@ export function GameLibraryCard({
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
   const showLaunchNote = !showLaunchFooter && !demo && canLaunchExecutables;
+  // A game that only comes from PlayStation plays on the console: no file to
+  // pick, look for or warn about on this PC.
+  const consoleOnly = isConsoleOnlyGame(game);
   // No known .exe: an Xbox game opens in Xbox; any other database game gets
   // its .exe picked here and checked like in Add game.
   const showOpenInXbox = showLaunchNote && xboxActions.showOpenInLauncher;
@@ -3591,7 +3602,10 @@ export function GameLibraryCard({
         }
       : null;
   const showPickLaunchFile =
-    showLaunchNote && !showOpenInXbox && launchFileGame !== null;
+    showLaunchNote &&
+    !showOpenInXbox &&
+    !consoleOnly &&
+    launchFileGame !== null;
   const launchFileDialog =
     settingLaunchFile && launchFileGame ? (
       <AddGameDialog
@@ -3798,7 +3812,7 @@ export function GameLibraryCard({
       : undefined;
   // A PlayCounter game without a file checks like a launcher game.
   const playcounterMatchEntry =
-    trackingUnavailable && !matchCheckImportEntry
+    trackingUnavailable && !matchCheckImportEntry && !consoleOnly
       ? playcounterEntry
       : undefined;
   const playcounterMatchOffer =
@@ -3832,7 +3846,7 @@ export function GameLibraryCard({
     checksLibraryGame,
   );
   const trackingWarningVisible =
-    showTrackingWarning && trackingUnavailable && !matchOffer;
+    showTrackingWarning && trackingUnavailable && !matchOffer && !consoleOnly;
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
     canCheckMatches,
