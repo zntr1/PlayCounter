@@ -60,7 +60,7 @@
 <body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><div class="nav-wrap"><a class="brand" href="/" aria-label="PlayCounter home"><img class="brand-mark" src="/brands/playcounter-mark.svg" width="34" height="34" alt="" /><img class="brand-wordmark" src="/brands/playcounter-wordmark-on-dark.svg" width="1087" height="208" alt="PlayCounter" /></a><nav class="desktop-nav" aria-label="Main"><a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a></nav><a class="nav-download" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download <span aria-hidden="true">↓</span></a><details class="mobile-menu"><summary>Menu</summary><nav aria-label="Mobile"><a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a><a href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download for Windows</a></nav></details></div></header><main id="main" class="article-wrap legal article-body"><p class="lede">Datenschutz</p>
 <h1>Datenschutzerklärung</h1>
 <p class="lang-jump"><a href="#en">English version below ↓</a></p>
-<p class="updated">Stand: 1. November 2026</p>
+<p class="updated">Stand: 2. November 2026</p>
 
 <p>
   Diese Datenschutzerklärung gilt für die Website
@@ -356,7 +356,9 @@
   des Spiels und deinen Fortschritt ab und speichert sie nur auf deinem PC. Aus
   deinen Kontodaten übernimmt die App nur deine Online-ID, um anzuzeigen, mit
   welchem Konto du angemeldet bist. Deine Konto-ID speichert sie zusammen mit
-  der Anmeldung und verwendet sie nur für diese Abfragen bei Sony. Damit der
+  der Anmeldung und verwendet sie nur für diese Abfragen bei Sony und, als
+  Hashwert, um die Spielzeiten deiner Konten auseinanderzuhalten (siehe
+  „Konten bei Launcher-Importen“). Damit der
   nächste Import und die Live-Anzeige ohne neue Anmeldung auskommen,
   speichert die App das Sitzungs-Cookie und das Aktualisierungstoken von Sony
   auf deinem PC, verschlüsselt mit dem Windows-Datenschutz (DPAPI), sodass
@@ -369,6 +371,20 @@
   Anmeldefensters werden nach der Anmeldung gelöscht. Rechtsgrundlage ist
   deine Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO; du kannst den Vorgang
   jederzeit abbrechen und dich jederzeit abmelden.
+</p>
+<h3>Konten bei Launcher-Importen</h3>
+<p>
+  Bei Steam-, Xbox-, Epic-Games-, GOG- und PlayStation-Importen merkt sich
+  PlayCounter, von welchem Konto die Spielzeit eines Spiels stammt, damit die
+  Spielzeiten mehrerer Konten desselben Launchers zusammengezählt werden. Dafür
+  speichert die App auf deinem PC zu jedem importierten Spiel den Kontonamen
+  (Steam-Profilname, Gamertag, Epic-Anzeigename, GOG-Benutzername oder
+  PSN-Online-ID), die Spielzeit dieses Kontos und eine Kennung des Kontos. Die
+  Kennung ist ein Hashwert (SHA-256) der Konto-ID des Launchers, nicht die
+  Konto-ID selbst. Die App bildet ihn auf deinem PC; für Xbox bildet ihn unsere
+  API während des Imports aus der Xbox-Benutzerkennung und verwendet ihn nur
+  für diesen Import. Kontonamen und Kennungen werden nicht an unsere API
+  übermittelt; sie sind in Sicherungen deiner PlayCounter-Daten enthalten.
 </p>
 <h3>Community-Spiele-Vorschläge</h3>
 <p>
@@ -551,7 +567,7 @@
 <section lang="en" aria-labelledby="privacy-policy-title">
   <p class="lede" id="en">Privacy</p>
   <h2 id="privacy-policy-title">Privacy Policy</h2>
-  <p class="updated">Last updated: 1 November 2026</p>
+  <p class="updated">Last updated: 2 November 2026</p>
 
   <p>
     This privacy policy covers the
@@ -810,7 +826,9 @@
     trophies and your progress from Sony and keeps them only on your PC. Of
     your account details, the app keeps only your online ID, to
     show which account is signed in. It stores your account ID with the
-    sign-in and uses it only for these requests to Sony. So that the next
+    sign-in and uses it only for these requests to Sony and, as a hash, to
+    keep the playtime of your accounts apart (see “Accounts in launcher
+    imports”). So that the next
     import and the live view need no new sign-in, the app stores Sony’s
     session cookie and refresh token on your PC, encrypted with Windows data
     protection (DPAPI) so that only your Windows account can read them; they
@@ -822,6 +840,20 @@
     browsing data are deleted after sign-in. The legal basis is your consent
     under Art. 6(1)(a) GDPR; you can cancel the process and sign out at any
     time.
+  </p>
+  <h3>Accounts in launcher imports</h3>
+  <p>
+    With Steam, Xbox, Epic Games, GOG and PlayStation imports, PlayCounter
+    remembers which account a game's playtime came from, so that the playtime
+    of several accounts of the same launcher is added up. For this, the app
+    stores on your PC, for each imported game, the account name (Steam profile
+    name, gamertag, Epic display name, GOG user name or PSN online ID), that
+    account's playtime and an identifier of the account. The identifier is a
+    hash (SHA-256) of the launcher's account ID, not the account ID itself. The
+    app makes it on your PC; for Xbox, our API makes it from the Xbox user ID
+    during the import and uses it only for that import. Account names and
+    identifiers are not sent to our API; they are part of backups of your
+    PlayCounter data.
   </p>
   <h3>Community game suggestions</h3>
   <p>
