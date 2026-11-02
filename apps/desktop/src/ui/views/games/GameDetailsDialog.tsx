@@ -797,7 +797,8 @@ export function GameDetailsDialog({
             icon={CalendarDays}
             label={t("Last played")}
             value={
-              formatDate(lastPlayedAt) ?? (hasPlayed ? "Unknown" : "Never")
+              formatDate(lastPlayedAt) ??
+              (hasPlayed ? t("Unknown") : t("Never"))
             }
           />
         </div>
@@ -1103,20 +1104,20 @@ export function GameDetailsDialog({
                     value={
                       entry.entry.providerSeconds === null
                         ? entry.provider === "battlenet"
-                          ? "Not available"
-                          : "Not reported"
+                          ? t("Not available")
+                          : t("Not reported")
                         : duration(entry.entry.providerSeconds)
                     }
                   />
                   <Row
                     label={t("Imported")}
-                    value={formatDate(entry.entry.importedAt) ?? "Unknown"}
+                    value={formatDate(entry.entry.importedAt) ?? t("Unknown")}
                   />
                   {/* A PlayStation copy is never installed on this PC. */}
                   {entry.provider === "playstation" ? null : (
                     <Row
                       label={t("Installed here")}
-                      value={entry.installed ? "Yes" : "No"}
+                      value={entry.installed ? t("Yes") : t("No")}
                     />
                   )}
                   {entry.install?.installPath ? (

@@ -309,6 +309,25 @@ const UI_ATTRIBUTES = new Set([
   "unit",
 ]);
 
+// A form control's value is data. Anywhere else (Row, Figure, …) `value` is
+// what the user reads.
+const FORM_CONTROLS = new Set([
+  "option",
+  "select",
+  "Select",
+  "input",
+  "Input",
+  "textarea",
+  "NumberInput",
+]);
+
+function showsValue(attribute: ts.JsxAttribute) {
+  return (
+    attribute.name.getText() === "value" &&
+    !FORM_CONTROLS.has(attribute.parent.parent.tagName.getText())
+  );
+}
+
 const UI_PROPERTIES = new Set([
   "title",
   "label",
@@ -533,7 +552,7 @@ describe("UI code", () => {
           shown(node.expression);
         } else if (
           ts.isJsxAttribute(node) &&
-          UI_ATTRIBUTES.has(node.name.getText())
+          (UI_ATTRIBUTES.has(node.name.getText()) || showsValue(node))
         ) {
           const value = node.initializer;
           if (value && ts.isStringLiteral(value)) {
