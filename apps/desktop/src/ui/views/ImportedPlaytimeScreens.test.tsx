@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { commitLibraryImports } from "../../library/commit";
 import { providerFloors } from "../../library/playtimeFloor";
+import type { LibraryAccount } from "../../library/types";
 import { milestoneMetrics } from "../../milestones";
 import {
   createGameIdentityResolver,
@@ -60,7 +61,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-function importSteam(hours: number) {
+function importSteam(hours: number, account?: LibraryAccount) {
   commitLibraryImports([
     {
       entry: {
@@ -76,6 +77,13 @@ function importSteam(hours: number) {
         providerSeconds: hours * H,
         linkedExeNames: [],
         linkedExeSources: [],
+        ...(account
+          ? {
+              accounts: [
+                { ...account, seconds: hours * H, readAt: IMPORTED_AT },
+              ],
+            }
+          : {}),
       },
       metadata: {
         id: 1,
@@ -168,4 +176,54 @@ it("shows the same growing total in My Games, Now Playing and Achievements", asy
     ),
   );
   expect(container.textContent).toContain("43h 0m");
+});
+
+// docs/import-accounts-plan.md, "What the player sees".
+it("Details names each account with its hours under the launcher's total, and Earlier import for hours from before", async () => {
+  importSteam(120);
+  importSteam(100, { key: "b".repeat(32), name: "Kid" });
+  await act(() => root.render(<MyGamesView />));
+  expect(cardTime()).toBe("220h 0m");
+
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Open details for ${NAME}"]`,
+      )!
+      .click(),
+  );
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>("#game-details-tab-files")!
+      .click(),
+  );
+  const details = () => document.querySelector('[role="dialog"]')!.textContent;
+  expect(details()).toMatch(
+    /Steam playtime220h 0mEarlier import120h 0mKid100h 0m/,
+  );
+
+  // Phil's account has the 120h from before: it takes them over.
+  await act(() => importSteam(120, { key: "a".repeat(32), name: "zesarex" }));
+  expect(details()).toMatch(/Steam playtime220h 0mzesarex120h 0mKid100h 0m/);
+  expect(details()).not.toContain("Earlier import");
+});
+
+it("Details shows a game from before accounts as it always did", async () => {
+  importSteam(40);
+  await act(() => root.render(<MyGamesView />));
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Open details for ${NAME}"]`,
+      )!
+      .click(),
+  );
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>("#game-details-tab-files")!
+      .click(),
+  );
+  expect(document.querySelector('[role="dialog"]')!.textContent).toMatch(
+    /Steam playtime40h 0mImported/,
+  );
 });

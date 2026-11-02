@@ -28,6 +28,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
 import { useCoverUrl } from "../../../pickedCovers";
 import { playsOnConsole } from "../../../library/importProfiles";
+import { EARLIER_IMPORT } from "../../../library/accountReadings";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
 import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
@@ -161,10 +162,25 @@ function Figure({
   );
 }
 
-function Row({ label, value }: { label: string; value: ReactNode }) {
+function Row({
+  label,
+  value,
+  nested = false,
+}: {
+  label: string;
+  value: ReactNode;
+  /** A part of the row above it, such as one account's hours. */
+  nested?: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5">
-      <span className="text-xs uppercase tracking-wider text-text-faint">
+      <span
+        className={
+          nested
+            ? "min-w-0 break-all pl-3 text-xs text-text-faint"
+            : "text-xs uppercase tracking-wider text-text-faint"
+        }
+      >
         {label}
       </span>
       <span className="min-w-0 break-all text-right text-sm text-text">
@@ -1110,6 +1126,24 @@ export function GameDetailsDialog({
                         : duration(entry.entry.providerSeconds)
                     }
                   />
+                  {/* The total above is the sum of its accounts' hours. */}
+                  {entry.entry.accounts?.map((reading) => (
+                    <Row
+                      key={reading.key}
+                      nested
+                      label={
+                        reading.name ??
+                        (reading.key === EARLIER_IMPORT
+                          ? t("Earlier import")
+                          : t("Unnamed account"))
+                      }
+                      value={
+                        reading.seconds === null
+                          ? t("Not reported")
+                          : duration(reading.seconds)
+                      }
+                    />
+                  ))}
                   <Row
                     label={t("Imported")}
                     value={formatDate(entry.entry.importedAt) ?? t("Unknown")}
