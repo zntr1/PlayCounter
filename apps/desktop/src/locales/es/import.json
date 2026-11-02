@@ -42,7 +42,7 @@
   "Sign in and find games": "Iniciar sesión y buscar juegos",
   "Scan again": "Escanear de nuevo",
   "Find games": "Buscar juegos",
-  "The Xbox import could not be prepared. Please try again later.": "No se pudo preparar la importación de Xbox. Vuelve a intentarlo más tarde.",
+  "The {{providerName}} import could not be prepared. Please try again later.": "No se pudo preparar la importación de {{providerName}}. Vuelve a intentarlo más tarde.",
   "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here.": "Steam está instalado, pero PlayCounter no pudo leer ningún dato de cuenta. Abre Steam, inicia sesión una vez y vuelve aquí.",
   "Import readiness": "Estado de la importación",
   "Import {{name}}": "Importar {{name}}",

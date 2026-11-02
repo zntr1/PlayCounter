@@ -6,15 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   available: true,
+  steamAccounts: 1,
 }));
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mocks.invoke,
   convertFileSrc: (v: string) => v,
 }));
+// As the real providers: the account launchers list no local accounts.
 vi.mock("../../library/providers", () => ({
   loadLibraryProvider: async (provider: string) => ({
     accountMode:
-      provider === "epic" || provider === "battlenet" ? "none" : undefined,
+      provider === "steam" || provider === "xbox" ? undefined : "none",
     detect: async () => ({
       provider,
       available: mocks.available,
@@ -22,14 +24,12 @@ vi.mock("../../library/providers", () => ({
     }),
     listAccounts: async () =>
       provider === "steam"
-        ? [
-            {
-              accountId: 7,
-              personaName: "Phil",
-              mostRecent: true,
-              gamesWithPlaytime: 142,
-            },
-          ]
+        ? Array.from({ length: mocks.steamAccounts }, () => ({
+            accountId: 7,
+            personaName: "Phil",
+            mostRecent: true,
+            gamesWithPlaytime: 142,
+          }))
         : provider === "xbox"
           ? [{ accountId: 0, mostRecent: true, gamesWithPlaytime: 0 }]
           : [],
@@ -37,7 +37,15 @@ vi.mock("../../library/providers", () => ({
   }),
 }));
 
-type Launcher = "steam" | "xbox" | "epic" | "battlenet";
+type Launcher = "steam" | "xbox" | "epic" | "battlenet" | "gog" | "playstation";
+const LAUNCHER_NAMES = [
+  "Steam",
+  "Xbox",
+  "Epic Games",
+  "Battle.net",
+  "GOG",
+  "PlayStation",
+];
 
 let root: Root;
 let container: HTMLDivElement;
@@ -101,6 +109,7 @@ beforeEach(async () => {
     platform: "Win32",
   });
   mocks.available = true;
+  mocks.steamAccounts = 1;
   mocks.invoke.mockImplementation(async (command: string) =>
     command === "logins_list" ? [] : undefined,
   );
@@ -151,6 +160,22 @@ describe("the launcher card", () => {
       note: "Sign-in opens in a separate Battle.net window.",
       button: "Sign in and find games",
     },
+    {
+      provider: "gog",
+      name: "GOG",
+      account: "Not signed in",
+      choices: ["Your GOG account", "Only installed games"],
+      note: "Sign-in opens in a separate GOG window.",
+      button: "Sign in and find games",
+    },
+    {
+      provider: "playstation",
+      name: "PlayStation",
+      account: "Not signed in",
+      choices: ["Your PlayStation account"],
+      note: "Sign-in opens in a separate PlayStation window.",
+      button: "Sign in and find games",
+    },
   ] as const)(
     "has the same parts on $name: account line, what to import, one note, one button",
     async (launcher) => {
@@ -161,9 +186,12 @@ describe("the launcher card", () => {
       expect(choices()).toEqual(launcher.choices);
       expect(text()).toContain(launcher.note);
       expect(mainButtons()).toEqual([launcher.button]);
-      // One launcher per visit: no buttons for the others.
-      for (const other of ["Steam", "Xbox", "Epic Games", "Battle.net"]) {
+      expect(findButton(launcher.button)?.disabled).toBe(false);
+      // One launcher per visit: no buttons for the others, and no text that
+      // names another one.
+      for (const other of LAUNCHER_NAMES) {
         expect(buttons()).not.toContain(other);
+        if (other !== launcher.name) expect(text()).not.toContain(other);
       }
     },
   );
@@ -200,4 +228,36 @@ describe("the launcher card", () => {
     expect(findButton("Find games")?.disabled ?? true).toBe(true);
     expect(findButton("Sign in and find games")?.disabled ?? true).toBe(true);
   });
+
+  it("says when Steam is here without an account, and offers no scan", async () => {
+    mocks.steamAccounts = 0;
+    await open("steam");
+
+    expect(text()).toContain(
+      "Steam is installed, but PlayCounter could not read any account data.",
+    );
+    expect(findButton("Find games")?.disabled).toBe(true);
+  });
+
+  // The warning for a launcher without an account names that launcher.
+  it.each([
+    "steam",
+    "xbox",
+    "epic",
+    "battlenet",
+    "gog",
+    "playstation",
+  ] as const)(
+    "names %s in its no-account text, and no other launcher",
+    async (provider) => {
+      const { launcherName, launcherNoAccountsText } =
+        await import("./importTexts");
+      const message = launcherNoAccountsText(provider);
+      expect(message).toContain(launcherName(provider));
+      for (const other of LAUNCHER_NAMES) {
+        if (other !== launcherName(provider))
+          expect(message).not.toContain(other);
+      }
+    },
+  );
 });

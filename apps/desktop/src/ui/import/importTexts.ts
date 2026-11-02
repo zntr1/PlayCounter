@@ -93,13 +93,16 @@ export function launcherMissingText(id: BuiltinImportProviderId) {
   }
 }
 
-/** Said when a launcher that lists accounts lists none. */
+/** Said when the launcher is here but has no account to import from. */
 export function launcherNoAccountsText(id: BuiltinImportProviderId) {
   return id === "steam"
     ? t(
         "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here.",
       )
-    : t("The Xbox import could not be prepared. Please try again later.");
+    : t(
+        "The {{providerName}} import could not be prepared. Please try again later.",
+        { providerName: launcherName(id) },
+      );
 }
 
 /** The loader's text: the step the player waits on. */

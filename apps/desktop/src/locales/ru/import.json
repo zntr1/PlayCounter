@@ -42,7 +42,7 @@
   "Sign in and find games": "Войти и найти игры",
   "Scan again": "Сканировать снова",
   "Find games": "Найти игры",
-  "The Xbox import could not be prepared. Please try again later.": "Не удалось подготовить импорт из Xbox. Попробуйте позже.",
+  "The {{providerName}} import could not be prepared. Please try again later.": "Не удалось подготовить импорт из {{providerName}}. Попробуйте позже.",
   "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here.": "Steam установлен, но PlayCounter не смог прочитать данные аккаунта. Запустите Steam, войдите один раз и вернитесь сюда.",
   "Import readiness": "Готовность к импорту",
   "Import {{name}}": "Импортировать {{name}}",
