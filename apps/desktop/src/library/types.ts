@@ -131,6 +131,10 @@ export type ScannedLibraryGame = {
   runsInEmulator?: boolean;
   /** PlayStation: Sony's ids of the game's copies (PPSA01521_00). */
   consoleTitleIds?: string[];
+  /** PlayStation: Sony names no console for any copy (its "unknown"
+   *  category), seen for games other people played on the account. Starts
+   *  unchecked and is never added in the background. */
+  consoleUnknown?: boolean;
 };
 
 export type LibraryScanResult = {

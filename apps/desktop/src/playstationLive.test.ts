@@ -14,6 +14,8 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (command === "library_playstation_presence")
       return mocks.presence.shift() ?? { status: "valid", value: { online: true, game: null } };
     if (command === "library_playstation_saved_games") return mocks.saved;
+    if (command === "playstation_read_trophies")
+      return { status: "valid", value: [] };
     return undefined;
   }),
   convertFileSrc: (value: string) => value,
@@ -323,6 +325,45 @@ describe("Sony's totals refresh by themselves", () => {
     expect(useAppStore.getState().libraryImports.has("playstation:10002684")).toBe(false);
   });
 
+  it("never adds a game Sony names no console for: the player picks those in the importer", async () => {
+    mocks.saved = {
+      status: "valid",
+      value: {
+        games: [
+          sonyGame("10002684", "Astro Bot", 6),
+          // GTA V on Phil's account: Sony's "unknown" category.
+          {
+            ...sonyGame("201930", "Grand Theft Auto V (PlayStation®5)", 810),
+            titleIds: ["CUSA00411_00"],
+            consoleUnknown: true,
+          },
+        ],
+        incomplete: false,
+      },
+    };
+    mocks.resolve.mockResolvedValue({
+      capability: "supported",
+      games: [
+        {
+          key: "playstation:10002684",
+          status: "resolved",
+          game: { id: 8, igdbId: 303811, name: "Astro Bot", coverUrl: "", source: "igdb" },
+          executables: [],
+        },
+        {
+          key: "playstation:201930",
+          status: "resolved",
+          game: { id: 9, igdbId: 1020, name: "Grand Theft Auto V", coverUrl: "", source: "igdb" },
+          executables: [],
+        },
+      ],
+    });
+    expect(await live.refreshPlayStationGames("test")).toBe(1);
+    const imports = useAppStore.getState().libraryImports;
+    expect(imports.has("playstation:10002684")).toBe(true);
+    expect(imports.has("playstation:201930")).toBe(false);
+  });
+
   it("adds the new game with its title ids, so it plays live next time", async () => {
     mocks.saved = {
       status: "valid",
@@ -345,5 +386,25 @@ describe("Sony's totals refresh by themselves", () => {
     ).toMatchObject({ providerSeconds: 6 * 3600, consoleTitleIds: ["PPSA11110_00"] });
     await pollAt(300, playing("PPSA11110_00"));
     expect(consoleSessions()).toMatchObject([{ gameId: 8 }]);
+  });
+});
+
+describe("trophies after a console session", () => {
+  const commands = () =>
+    vi.mocked(invoke).mock.calls.map(([command]) => command);
+
+  it("are read again with the kept sign-in a little after the session ends, never with a window", async () => {
+    await pollAt(0, playing());
+    await pollAt(60, playing());
+    await pollAt(120, nothing);
+    expect(savedSessions()).toHaveLength(1);
+    expect(commands()).not.toContain("playstation_read_trophies");
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(invoke).toHaveBeenCalledWith("playstation_read_trophies", {
+      titleIds: ["PPSA04609_00", "CUSA18638_00"],
+      language: "en-US",
+    });
+    expect(commands()).not.toContain("library_playstation_sign_in");
+    expect(commands()).not.toContain("library_playstation_account_games");
   });
 });

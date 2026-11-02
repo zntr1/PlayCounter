@@ -22,6 +22,8 @@ export type PlayStationAccountGame = {
   platforms: ("PS5" | "PS4")[];
   /** Sony's ids of its copies (PPSA01521_00), to recognise it running. */
   titleIds: string[];
+  /** Sony names no console for any of its copies ("unknown"). */
+  consoleUnknown?: boolean;
 };
 
 export type PlayStationAccountLibrary = {
@@ -65,6 +67,7 @@ export function playStationScanResult(
       installed: false,
       executables: [],
       consoleTitleIds: game.titleIds,
+      ...(game.consoleUnknown ? { consoleUnknown: true } : {}),
     }),
   );
   return {

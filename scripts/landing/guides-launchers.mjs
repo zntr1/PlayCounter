@@ -270,6 +270,7 @@ export const launcherGuides = [
       ["Find hours on the PS5", "#console"],
       ["Import into PlayCounter", "#import"],
       ["See PS5 sessions live", "#live"],
+      ["See your trophies", "#trophies"],
     ],
     sections: [
       {
@@ -296,7 +297,7 @@ export const launcherGuides = [
             html: "<p>Recognized games wait in <strong>Ready to import</strong>. Games under <strong>Needs you</strong> ask you to pick the right game first. Then select <strong>Import</strong>.</p>",
           },
         ],
-        html: '<p>You sign in directly with Sony; PlayCounter does not see your password. The app keeps the sign-in on your PC, encrypted for your Windows account; <strong>Sign out</strong> on the <strong>Launcher accounts</strong> page deletes it. Sony asks for a new sign-in about every two months. Only your game list, Sony’s playtime, the game running on the console and your online ID reach the app, and the PlayCounter API only receives PlayStation Store concept IDs, plus the titles of games it does not recognize, to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+        html: '<p>You sign in directly with Sony; PlayCounter does not see your password. The app keeps the sign-in on your PC, encrypted for your Windows account; <strong>Sign out</strong> on the <strong>Launcher accounts</strong> page deletes it. Sony asks for a new sign-in about every two months. Only your game list, Sony’s playtime, your trophies, the game running on the console and your online ID reach the app, and the PlayCounter API only receives PlayStation Store concept IDs, plus the titles of games it does not recognize, to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
       },
       {
         id: "live",
@@ -307,6 +308,11 @@ export const launcherGuides = [
         id: "history",
         title: "How PS5 hours add up",
         html: '<p>Sony’s total is console play, so it never overlaps the sessions PlayCounter records on your PC: it is added to your PC time instead of compared with it. 10 hours on PS5 and 2 hours PlayCounter tracked on your PC show 12 hours. PlayCounter reads Sony’s list again by itself at start, every hour and a few minutes after a console session, and new games you play on PlayStation show up in My Games on their own. <a href="/total-playtime-across-all-launchers/#totals">How launcher totals combine</a>.</p>',
+      },
+      {
+        id: "trophies",
+        title: "See your PS5 and PS4 trophies on your PC",
+        html: "<ol><li>In <strong>My Games</strong>, right-click a PlayStation game and select <strong>Achievements</strong>.</li><li>Each trophy shows its cup, when you earned it and how many players have it. Above the list you see your platinum, gold, silver and bronze trophies.</li><li>Hidden trophies stay hidden until you earn them or select <strong>Show</strong>.</li></ol><p>A game with a PS5 and a PS4 trophy list gets a <strong>PS5</strong> and a <strong>PS4</strong> button. PlayCounter reads your trophies with the same PlayStation sign-in, each time you open them and a little after a console session ends. They are kept only on your PC.</p>",
       },
     ],
     sources: [

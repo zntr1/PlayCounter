@@ -392,3 +392,121 @@ describe("GOG lists", () => {
     }
   });
 });
+
+describe("PlayStation lists", () => {
+  // A written example in the shape playstation_trophies.rs sends: no real
+  // Sony answer has been seen yet. The id is the PlayStation Store concept
+  // PlayCounter imports (Elden Ring), not a copy's title id or a list id.
+  const playStationList = (
+    externalId: string,
+    fields: Record<string, unknown> = {},
+  ) => ({
+    provider: "playstation",
+    externalId,
+    fetchedAt: 1_793_395_400_000,
+    achievements: [
+      {
+        id: "NPWR22810_00:2",
+        name: "Shardbearer Godrick",
+        description: "About Shardbearer Godrick",
+        hidden: false,
+        unlocked: true,
+        unlockedAt: 1_793_395_328_000,
+        iconUrl:
+          "https://image.api.playstation.com/trophy/np/NPWR22810_00_00/2.PNG",
+        globalPercent: 58.1,
+        progress: { current: 37, target: 50 },
+        trophyType: "bronze",
+        platform: "PS5",
+        ...fields,
+      },
+    ],
+  });
+
+  it("parse with the concept id as id, the cup, the console and Sony's icons", () => {
+    expect(parseAchievementList(playStationList("10000333"))).toEqual(
+      playStationList("10000333"),
+    );
+    // Sony's other image host.
+    const net =
+      "https://psnobj.prod.dl.playstation.net/psnobj/NPWR22810_00/2.png";
+    expect(
+      parseAchievementList(playStationList("10000333", { iconUrl: net }))!
+        .achievements[0].iconUrl,
+    ).toBe(net);
+    // The PS4 list of a game with both.
+    expect(
+      parseAchievementList(playStationList("10000333", { platform: "PS4" }))!
+        .achievements[0].platform,
+    ).toBe("PS4");
+  });
+
+  it("are dropped when the id is not a concept id", () => {
+    for (const id of [
+      "",
+      "0",
+      "01",
+      "12345678901",
+      "10000333a",
+      // A copy's title id and a trophy list id of the same game.
+      "PPSA04609_00",
+      "NPWR22810_00",
+    ])
+      expect(parseAchievementList(playStationList(id)), id).toBeNull();
+  });
+
+  it("drop a cup, a console or an icon they can't trust", () => {
+    for (const fields of [
+      { trophyType: "diamond" },
+      { trophyType: "Gold" },
+      { trophyType: 3 },
+      { platform: "PS3" },
+      { platform: "ps5" },
+      { platform: true },
+      { iconUrl: "https://playstation.com.evil.test/2.png" },
+      { iconUrl: "https://notplaystation.net/2.png" },
+      { iconUrl: "http://image.api.playstation.com/2.png" },
+    ]) {
+      const [parsed] = parseAchievementList(
+        playStationList("10000333", fields),
+      )!.achievements;
+      const [field] = Object.keys(fields) as (keyof GameAchievement)[];
+      expect(parsed[field], JSON.stringify(fields)).toBeUndefined();
+      // The rest of the trophy stays.
+      expect(parsed.name).toBe("Shardbearer Godrick");
+    }
+  });
+
+  it("count the trophies of each cup, earned of all", () => {
+    expect(
+      achievementSummary([
+        achievement("p", { trophyType: "platinum" }),
+        achievement("g1", { trophyType: "gold", unlocked: true }),
+        achievement("g2", { trophyType: "gold" }),
+        achievement("b1", { trophyType: "bronze", unlocked: true }),
+        achievement("b2", { trophyType: "bronze", unlocked: true }),
+        // A trophy without a cup counts in the total only.
+        achievement("x", { unlocked: true }),
+      ]),
+    ).toEqual({
+      total: 6,
+      unlocked: 4,
+      percent: 66,
+      trophies: {
+        platinum: { earned: 0, total: 1 },
+        gold: { earned: 1, total: 2 },
+        silver: { earned: 0, total: 0 },
+        bronze: { earned: 2, total: 2 },
+      },
+    });
+  });
+
+  it("only lists with cups get counts per cup", () => {
+    expect(
+      achievementSummary([
+        achievement("a", { unlocked: true, gamerscore: 30 }),
+        achievement("b"),
+      ]),
+    ).not.toHaveProperty("trophies");
+  });
+});

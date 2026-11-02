@@ -2,15 +2,16 @@ import { create } from "zustand";
 import type { AchievementList } from "@playcounter/shared";
 import { parseAchievementList } from "./model";
 
-/* Xbox, Epic Games and GOG lists stay on this PC: refreshing them needs a
-   launcher sign-in, so they are kept between starts. IndexedDB, because 500 titles of
-   lists would crowd localStorage. Not in backups (an import or a refresh
+/* Xbox, Epic Games, GOG and PlayStation lists stay on this PC: refreshing
+   them needs a launcher sign-in, so they are kept between starts. IndexedDB,
+   because 500 titles of lists would crowd localStorage. Not in backups (an import or a refresh
    fetches them again); "Reset local data" clears all webview storage, this
    database included. */
 const DATABASE = "playcounter-achievements";
-/** Version 1 held Xbox only; version 2 adds Epic Games, version 3 GOG. */
-const VERSION = 3;
-const STORES = ["xbox", "epic", "gog"] as const;
+/** Version 1 held Xbox only; version 2 adds Epic Games, version 3 GOG,
+ *  version 4 PlayStation (by concept id). */
+const VERSION = 4;
+const STORES = ["xbox", "epic", "gog", "playstation"] as const;
 
 export type SavedAchievementProvider = (typeof STORES)[number];
 
@@ -65,7 +66,8 @@ function remember(key: string, list: AchievementList | null) {
   }));
 }
 
-/** The saved list of one Xbox title, Epic game or GOG game, or null. */
+/** The saved list of one Xbox title, Epic game, GOG game or PlayStation
+ *  game, or null. */
 export async function loadAchievementList(
   provider: SavedAchievementProvider,
   externalId: string,

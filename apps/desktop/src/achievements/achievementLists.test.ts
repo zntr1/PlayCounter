@@ -231,3 +231,61 @@ describe("the update that adds Epic Games", () => {
     expect(rows("xbox").get("1234")).toEqual(xboxList("1234"));
   });
 });
+
+function playStationList(externalId: string): AchievementList {
+  return {
+    provider: "playstation",
+    externalId,
+    fetchedAt: 4,
+    achievements: [
+      {
+        id: "NPWR22810_00:2",
+        name: "Shardbearer Godrick",
+        description: "",
+        hidden: false,
+        unlocked: true,
+        trophyType: "bronze",
+      },
+    ],
+  };
+}
+
+describe("PlayStation trophies", () => {
+  it("are saved under the game's concept and are back after a restart", async () => {
+    await saveAchievementLists([playStationList("10000333")], { show: true });
+    expect(
+      useAchievementLists
+        .getState()
+        .lists.get(achievementListKey("playstation", "10000333")),
+    ).toEqual(playStationList("10000333"));
+    expect([...rows("playstation").keys()]).toEqual(["10000333"]);
+    // A fresh start of the app.
+    vi.resetModules();
+    const lists = await import("./achievementLists");
+    expect(await lists.loadAchievementList("playstation", "10000333")).toEqual(
+      playStationList("10000333"),
+    );
+  });
+});
+
+describe("the update that adds PlayStation", () => {
+  it("keeps the Xbox, Epic Games and GOG lists version 3 saved", async () => {
+    storage.seed(3, {
+      xbox: { "1234": xboxList("1234") },
+      epic: { Sugar: epicList("Sugar") },
+      gog: { "1213504814": gogList("1213504814") },
+    });
+    vi.resetModules();
+    const lists = await import("./achievementLists");
+    expect(await lists.loadAchievementList("gog", "1213504814")).toEqual(
+      gogList("1213504814"),
+    );
+    await lists.saveAchievementLists([playStationList("10000333")]);
+    expect(rows("playstation").get("10000333")).toEqual(
+      playStationList("10000333"),
+    );
+    expect(rows("xbox").get("1234")).toEqual(xboxList("1234"));
+    expect(rows("epic").get("Sugar")).toEqual(epicList("Sugar"));
+    expect(rows("gog").get("1213504814")).toEqual(gogList("1213504814"));
+  });
+});

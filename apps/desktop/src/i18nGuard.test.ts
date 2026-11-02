@@ -616,6 +616,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "PlayStation sign-in must be cancelled from PlayCounter.",
   "PlayStation games are read from PlayCounter.",
   "PlayStation status is read from PlayCounter.",
+  "PlayStation trophies are read from PlayCounter.",
   // The PlayStation App's public client id, as psn-api sends it.
   "Basic MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A=",
   "Icon extraction failed: {error:?}",

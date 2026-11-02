@@ -585,6 +585,7 @@ pub fn run() {
             library::playstation_account::library_cancel_playstation_account,
             library::playstation_account::library_playstation_saved_games,
             library::playstation_account::library_playstation_presence,
+            library::playstation_trophies::playstation_read_trophies,
             library::kept_logins::logins_list,
             library::kept_logins::logins_check,
             library::kept_logins::logins_sign_out,
