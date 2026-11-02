@@ -168,6 +168,10 @@ export type LibraryScanResult = {
   achievementLists?: AchievementList[];
   /** The account it read. Absent for scans of this PC only. */
   account?: LibraryAccount;
+  /** Some totals may be short: Sony's list ended early, so a game's copies
+   *  may not all be added up. Such a read decides no account's earlier
+   *  hours (docs/import-accounts-plan.md, D1). */
+  totalsCutShort?: boolean;
 };
 
 export type ResolvedLibraryGame = {

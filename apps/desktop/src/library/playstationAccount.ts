@@ -1,7 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { LibraryScanResult, ScannedLibraryGame } from "./types";
+import type {
+  LibraryAccount,
+  LibraryScanResult,
+  ScannedLibraryGame,
+} from "./types";
 import { getT } from "../i18n";
-import { refreshKeptLogins, useKeptLogins } from "./keptLogins";
+import { namedAccount, refreshKeptLogins, useKeptLogins } from "./keptLogins";
 import {
   getLoginOperationRevision,
   recordLoginHealth,
@@ -29,6 +33,9 @@ export type PlayStationAccountGame = {
 export type PlayStationAccountLibrary = {
   games: PlayStationAccountGame[];
   incomplete: boolean;
+  /** The account read, by a key made in Rust from its id. The online id
+   *  comes with the sign-in, not with this read. */
+  account?: LibraryAccount;
 };
 
 /** What runs on the console now, as Sony's presence names it. */
@@ -82,6 +89,11 @@ export function playStationScanResult(
         ]
       : [],
     partial: account.incomplete,
+    // A game's total adds up its copies: one past the end is missing.
+    ...(account.incomplete ? { totalsCutShort: true } : {}),
+    ...(account.account
+      ? { account: namedAccount("playstation", account.account) }
+      : {}),
   };
 }
 

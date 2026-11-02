@@ -1006,6 +1006,48 @@ describe("Kept Xbox sign-in", () => {
     );
   });
 
+  it("names the account the server read by its code, with the gamertag of the sign-in when the server sends none", async () => {
+    const key = "e9862bda2c3b1ffda98b77d4e53a26a0";
+    useKeptLogins.setState({
+      logins: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+    });
+    answer({
+      xbox_login_sync_start: { status: "started", attemptId: firstAttemptId },
+      library_scan_xbox_local: localScan,
+    });
+    const read = async (account?: unknown) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValueOnce(
+          jsonResponse({
+            status: "done",
+            games: [
+              {
+                externalId: "1234",
+                name: "Forza Horizon 5",
+                providerSeconds: 60,
+                candidates: [],
+              },
+            ],
+            ...(account === undefined ? {} : { account }),
+          }),
+        ),
+      );
+      const result = await scanXboxLibrary({ apiEndpoint: endpoint });
+      expect(result.games.map((game) => game.externalId)).toEqual(["1234"]);
+      return result.account;
+    };
+
+    await expect(read({ key, name: "Master Chief" })).resolves.toEqual({
+      key,
+      name: "Master Chief",
+    });
+    await expect(read({ key })).resolves.toEqual({ key, name: "Chief" });
+    // An older server sends none; a broken one is left out, the games stay.
+    await expect(read()).resolves.toBeUndefined();
+    await expect(read({ key: "123", name: "Chief" })).resolves.toBeUndefined();
+  });
+
   it("signs in in the browser when nothing is kept, and keeps that sign-in", async () => {
     answer({
       xbox_login_sync_start: { status: "signedOut" },

@@ -7,9 +7,17 @@ import { createPersistedPayload, persistAppState } from "../persistence";
 import { createGameIdentityResolver, useAppStore } from "../store";
 import { hydrate, normalizePersistedLibraryImport } from "../tracker";
 import { commitLibraryImports } from "./commit";
+import { mergeEpicAccountLibrary } from "./epicAccount";
+import { mergeGogAccountLibrary } from "./gogAccount";
 import { buildLibraryImportCommit } from "./importPlan";
+import { useKeptLogins } from "./keptLogins";
+import { playStationScanResult } from "./playstationAccount";
 import { providerFloors } from "./playtimeFloor";
-import type { LibraryAccount, LibraryImportEntry } from "./types";
+import type {
+  LibraryAccount,
+  LibraryImportEntry,
+  LibraryScanResult,
+} from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -284,5 +292,69 @@ describe("saved data", () => {
     expect(restored.accounts?.map((reading) => reading.name)).toEqual([
       "zesarex",
     ]);
+  });
+});
+
+describe("each launcher's read names its account", () => {
+  const local: LibraryScanResult = { games: [], warnings: [], partial: false };
+
+  it("Epic, GOG and PlayStation hand it on, named as Signed in as shows it when the read has no name", () => {
+    useKeptLogins.setState({
+      logins: [
+        { service: "gog", name: "zesarex", savedAt: 1 },
+        { service: "playstation", name: "zesarex_ps", savedAt: 1 },
+      ],
+    });
+    expect(
+      mergeEpicAccountLibrary(
+        {
+          games: [],
+          incomplete: false,
+          account: { key: PHIL.key, name: "Player One" },
+        },
+        local,
+      ).account,
+    ).toEqual({ key: PHIL.key, name: "Player One" });
+    expect(
+      mergeGogAccountLibrary(
+        {
+          games: [],
+          incomplete: false,
+          account: { key: PHIL.key, name: null },
+        },
+        local,
+      ).account,
+    ).toEqual({ key: PHIL.key, name: "zesarex" });
+    expect(
+      playStationScanResult({
+        games: [],
+        incomplete: false,
+        account: { key: KID.key, name: null },
+      }).account,
+    ).toEqual({ key: KID.key, name: "zesarex_ps" });
+    // A read of this PC only names none.
+    expect(
+      mergeEpicAccountLibrary({ games: [], incomplete: false }, local).account,
+    ).toBeUndefined();
+    useKeptLogins.setState({ logins: [] });
+  });
+
+  it("only Sony's list, when it ends early, may hold short totals", () => {
+    // Sony adds up a game's PS4 and PS5 copies: a copy past the end is
+    // missing. Epic and GOG name a missing total as unknown instead.
+    expect(
+      playStationScanResult({ games: [], incomplete: true }).totalsCutShort,
+    ).toBe(true);
+    expect(
+      playStationScanResult({ games: [], incomplete: false }).totalsCutShort,
+    ).toBeFalsy();
+    expect(
+      mergeEpicAccountLibrary({ games: [], incomplete: true }, local)
+        .totalsCutShort,
+    ).toBeFalsy();
+    expect(
+      mergeGogAccountLibrary({ games: [], incomplete: true }, local)
+        .totalsCutShort,
+    ).toBeFalsy();
   });
 });

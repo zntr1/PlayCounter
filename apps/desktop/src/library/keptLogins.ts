@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect } from "react";
 import { create } from "zustand";
+import type { LibraryAccount } from "./types";
 
 /* Launcher sign-ins PlayCounter keeps on this PC. The Rust part holds them,
    encrypted with Windows' own data protection. This side only ever learns
@@ -58,6 +59,19 @@ export async function refreshKeptLogins() {
   }
   useKeptLogins.setState({ logins });
   return logins;
+}
+
+/** A read's account, named as "Signed in as" shows it when the read had no
+ *  name (GOG and PlayStation send theirs only with the sign-in). */
+export function namedAccount(
+  service: KeptLoginService,
+  account: LibraryAccount | undefined,
+): LibraryAccount | undefined {
+  if (!account || account.name) return account;
+  const name =
+    useKeptLogins.getState().logins.find((login) => login.service === service)
+      ?.name ?? null;
+  return { ...account, name };
 }
 
 /** Deletes the kept sign-in. Epic's session also ends at Epic. */

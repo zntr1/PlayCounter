@@ -1,7 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { LibraryScanResult, ScannedLibraryGame } from "./types";
+import type {
+  LibraryAccount,
+  LibraryScanResult,
+  ScannedLibraryGame,
+} from "./types";
 import { getT } from "../i18n";
-import { refreshKeptLogins, useKeptLogins } from "./keptLogins";
+import { namedAccount, refreshKeptLogins, useKeptLogins } from "./keptLogins";
 import {
   getLoginOperationRevision,
   recordLoginHealth,
@@ -14,6 +18,8 @@ const t = getT("import");
 export type EpicAccountLibrary = {
   games: { appName: string; title: string; playtimeSeconds: number | null }[];
   incomplete: boolean;
+  /** The account read, by a key made in Rust from its id. */
+  account?: LibraryAccount;
 };
 
 /**
@@ -65,6 +71,9 @@ export function mergeEpicAccountLibrary(
         : []),
     ],
     partial: local.partial || account.incomplete,
+    ...(account.account
+      ? { account: namedAccount("epic", account.account) }
+      : {}),
   };
 }
 
