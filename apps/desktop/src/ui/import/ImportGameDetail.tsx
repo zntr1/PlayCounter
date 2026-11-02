@@ -62,6 +62,8 @@ export function ImportGameDetail({
     row.canReplaceMatch && !(row.group === "attention" && skipped);
   const replacing =
     offersWrongGame && (doubted || row.replacement !== undefined);
+  // A console game has no install or file on this PC to tell about.
+  const consoleOnly = importProfile(session.providerId).consoleOnly;
   return (
     <section
       aria-label={row.title}
@@ -100,17 +102,21 @@ export function ImportGameDetail({
             {lastPlayed ? (
               <Fact label={t("Last played")}>{lastPlayed}</Fact>
             ) : null}
-            <Fact label={t("On this PC")}>
-              {game.installed
-                ? (game.installPath ?? t("Installed"))
-                : game.installationStatusUnknown
-                  ? t("Installation not checked")
-                  : t("Not installed")}
-            </Fact>
+            {consoleOnly ? null : (
+              <Fact label={t("On this PC")}>
+                {game.installed
+                  ? (game.installPath ?? t("Installed"))
+                  : game.installationStatusUnknown
+                    ? t("Installation not checked")
+                    : t("Not installed")}
+              </Fact>
+            )}
             <Fact label={launcherIdLabel(session.providerId)}>
               {game.externalId}
             </Fact>
-            {row.resolved?.status === "resolved" && !row.replacement ? (
+            {row.resolved?.status === "resolved" &&
+            !row.replacement &&
+            !consoleOnly ? (
               <Fact label={t("Game files")}>
                 {files.length
                   ? t("{{count}} known game files", { count: files.length })

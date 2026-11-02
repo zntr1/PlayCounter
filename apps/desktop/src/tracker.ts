@@ -242,6 +242,7 @@ import type {
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
+import { playsOnConsole } from "./library/importProfiles";
 import { forgetLauncherAutoAdd } from "./library/libraryAutoAddState";
 import {
   syncLibraryInstalls,
@@ -828,6 +829,8 @@ export function backfillLibraryExecutableCache(
     // A Battle.net product/variant is identified by its folder. Backups may
     // omit local paths; never reconstruct a basename-only match from them.
     if (entry.provider === "battlenet") continue;
+    // A console copy has no PC file to rebuild.
+    if (playsOnConsole(entry.provider)) continue;
     const identifierSource = entry.linkedExeSources.includes("igdb")
       ? "igdb"
       : entry.linkedExeSources.includes("community")
@@ -857,6 +860,43 @@ export function backfillLibraryExecutableCache(
       });
       changed = true;
     }
+  }
+  return changed;
+}
+
+/**
+ * PlayStation imports before 2026-11-02 linked the PC version's files from
+ * the database. A console copy has none: those links go. A file that ran
+ * here stays, PlayCounter linked it itself. Returns whether anything changed.
+ */
+export function unlinkConsoleImportFiles(
+  exeCache: Map<string, ExeCacheEntry>,
+  libraryImports: Map<string, LibraryImportEntry>,
+) {
+  let changed = false;
+  for (const [key, entry] of exeCache) {
+    if (entry.libraryProvider && playsOnConsole(entry.libraryProvider)) {
+      exeCache.delete(key);
+      changed = true;
+    }
+  }
+  for (const [key, imported] of libraryImports) {
+    if (!playsOnConsole(imported.provider)) continue;
+    const kept = imported.linkedExeNames.filter(
+      (exeName) => exeCache.get(exeName.toLowerCase())?.state === "matched",
+    );
+    if (kept.length === imported.linkedExeNames.length) continue;
+    const sources = new Set<GameSource>();
+    for (const exeName of kept) {
+      const source = fileMatchSource(exeCache.get(exeName.toLowerCase())!);
+      if (source) sources.add(source);
+    }
+    libraryImports.set(key, {
+      ...imported,
+      linkedExeNames: kept,
+      linkedExeSources: [...sources],
+    });
+    changed = true;
   }
   return changed;
 }
@@ -1217,6 +1257,10 @@ export function hydrate() {
   ) {
     shouldPersistAchievementMigration = true;
   }
+  const unlinkedConsoleImportFiles = unlinkConsoleImportFiles(
+    exeCacheMap,
+    libraryImports,
+  );
   const backfilledLibraryExecutableCache = backfillLibraryExecutableCache(
     exeCacheMap,
     libraryImports.values(),
@@ -1511,6 +1555,7 @@ export function hydrate() {
     shouldPersistAchievementMigration ||
     shouldPersistLaunchPathOptOut ||
     backfilledLibraryExecutableCache ||
+    unlinkedConsoleImportFiles ||
     movedGenericNameLinks
   ) {
     persist();

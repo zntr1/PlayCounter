@@ -456,6 +456,60 @@ it("playstation: a game Sony names no console for starts unchecked, and its deta
   expect(container.textContent).not.toContain(why);
 });
 
+it("playstation: a game's details name no PC install and no PC game files", async () => {
+  // The database knows the PC version's .exe; the PlayStation copy has none.
+  const horizon = game("200937", "Horizon Zero Dawn", {
+    playtimeSeconds: 22_576,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    consoleTitleIds: ["CUSA01967_00"],
+  });
+  await scan("playstation", {
+    games: [horizon],
+    resolvedGames: [
+      matched("playstation:200937", metadata(21, "Horizon Zero Dawn"), [
+        knownFile("HorizonZeroDawn.exe"),
+      ]),
+    ],
+  });
+  await act(() => row("Horizon Zero Dawn").click());
+  const details =
+    container.querySelector('section[aria-label="Horizon Zero Dawn"]')
+      ?.textContent ?? "";
+  expect(details).toContain("Concept ID");
+  expect(details).not.toContain("On this PC");
+  expect(details).not.toContain("Game files");
+});
+
+it("playstation: importing a game you confirmed names no PC game files", async () => {
+  // Sony's title isn't matched, so the player confirms the game; the
+  // database knows the PC version's .exe.
+  const ghost = metadata(22, "Ghost of Tsushima");
+  mocks.reverse.mockResolvedValue({
+    game: ghost,
+    executables: [knownFile("GhostOfTsushima.exe")],
+  });
+  await scan("playstation", {
+    games: [
+      game("10000886", "Ghost of Tsushima", {
+        playtimeSeconds: 180_000,
+        hasPlayedEvidence: true,
+        inAccountLibrary: true,
+        consoleTitleIds: ["CUSA13323_00"],
+      }),
+    ],
+    resolvedGames: [unmatched("playstation:10000886", [ghost])],
+  });
+  expect(detailTitle()).toBe("Ghost of Tsushima");
+
+  await click("Import");
+  expect(mocks.run).toHaveBeenCalledTimes(1);
+  expect(mocks.run.mock.calls[0][0][0].exeCacheEntries).toEqual([]);
+  const [toast] = store.getState().toasts;
+  expect(toast?.title).toBe("Ghost of Tsushima imported");
+  expect(toast?.detail ?? "").not.toMatch(/game file/i);
+});
+
 describe("Needs you", () => {
   const forza5 = metadata(42, "Forza Horizon 5", { releaseYear: 2021 });
   const forza4 = metadata(41, "Forza Horizon 4", { releaseYear: 2018 });

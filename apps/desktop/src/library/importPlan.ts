@@ -4,6 +4,7 @@ import { normalizeWindowsDir } from "./scopedLinks";
 import { isGenericExeName, manualExecutableNeedsScope } from "./exeCandidates";
 import { customLocalGameId, scopedLocalGameId } from "./localGameIds";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
+import { playsOnConsole } from "./importProfiles";
 import type {
   LibraryImportCommit,
   LibraryImportEntry,
@@ -34,13 +35,17 @@ export function buildLibraryImportCommit(input: {
   const localByName = new Map(
     scanned.executables.map((exe) => [exe.fileName.toLowerCase(), exe]),
   );
-  const knownWindows = resolved.executables.filter(
-    (item) =>
-      item.platform === "windows" &&
-      item.kind === "exe" &&
-      (provider !== "battlenet" ||
-        localByName.has(item.value.trim().toLowerCase())),
-  );
+  // A console copy has no PC file. The PC version's .exe is linked when it
+  // runs here, like any game's.
+  const knownWindows = playsOnConsole(provider)
+    ? []
+    : resolved.executables.filter(
+        (item) =>
+          item.platform === "windows" &&
+          item.kind === "exe" &&
+          (provider !== "battlenet" ||
+            localByName.has(item.value.trim().toLowerCase())),
+      );
   const exeCacheEntries: ExeCacheEntry[] = [];
   const scopedLinks: ScopedExeLink[] = [];
   const linked = new Set<string>();

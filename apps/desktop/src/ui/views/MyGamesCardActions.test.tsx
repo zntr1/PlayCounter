@@ -6,7 +6,7 @@ import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { addGameWithoutFile } from "../../library/manualAdd";
 import { useAppStore } from "../../store";
-import type { Session } from "@playcounter/shared";
+import type { LibraryKnownExecutable, Session } from "@playcounter/shared";
 import {
   applyKnownGameMatch,
   changeCustomGameLocally,
@@ -865,6 +865,7 @@ function importFrom(
   externalId: string,
   game: typeof ELDEN_RING,
   consoleTitleIds?: string[],
+  executables: LibraryKnownExecutable[] = [],
 ) {
   commitLibraryImports([
     buildLibraryImportCommit({
@@ -883,7 +884,7 @@ function importFrom(
         key: `${provider}:${externalId}`,
         status: "resolved",
         game,
-        executables: [],
+        executables,
       },
     })!,
   ]);
@@ -924,6 +925,32 @@ it("plays a PlayStation-only game on the console: no warning sign, and the card 
   expect(trackingWarning()).toBeNull();
   expect(cardButton("Set launch file")).toBeUndefined();
   expect(card().textContent).toContain("Not launchable");
+});
+
+it("says Not launchable also when the database knows the PC version's .exe", async () => {
+  // Horizon Zero Dawn in the PlayStation library (2026-11-02): the import
+  // linked HorizonZeroDawn.exe, so the card offered Set launch file.
+  importFrom(
+    "playstation",
+    "200937",
+    { ...ELDEN_RING, id: 21, igdbId: 11156, name: "Horizon Zero Dawn" },
+    ["CUSA01967_00"],
+    [
+      {
+        platform: "windows",
+        kind: "exe",
+        value: "HorizonZeroDawn.exe",
+        provenance: "igdb",
+        verified: true,
+      },
+    ],
+  );
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(card().textContent).toContain("Not launchable");
+  expect(cardButton("Set launch file")).toBeUndefined();
+  expect(card().innerHTML).not.toContain("has this file name on record");
+  expect(trackingWarning()).toBeNull();
 });
 
 it("counts no Sony game id as a file, while the game runs on the PS5 or after", async () => {

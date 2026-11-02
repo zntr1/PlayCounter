@@ -906,22 +906,25 @@ export async function importOneGame(externalId: string) {
           ? importShareDetail(
               result.shareOutcomes.map(({ outcome }) => outcome.kind),
             )
-          : profile.linksFilesPerInstall
-            ? scanned.installed
-              ? t(
-                  "The game file is linked to this installation for future tracking.",
-                )
-              : t(
-                  "Added to My Games. After installing it, scan again to link its game file.",
-                )
-            : linkedCount > 0
-              ? t(
-                  "{{count}} known game files were linked, so PlayCounter tracks this game once it is installed.",
-                  { count: linkedCount },
-                )
-              : t(
-                  "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
-                ),
+          : profile.consoleOnly
+            ? // A console game has no file on this PC to tell about.
+              undefined
+            : profile.linksFilesPerInstall
+              ? scanned.installed
+                ? t(
+                    "The game file is linked to this installation for future tracking.",
+                  )
+                : t(
+                    "Added to My Games. After installing it, scan again to link its game file.",
+                  )
+              : linkedCount > 0
+                ? t(
+                    "{{count}} known game files were linked, so PlayCounter tracks this game once it is installed.",
+                    { count: linkedCount },
+                  )
+                : t(
+                    "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
+                  ),
     });
   } catch (cause) {
     if (!isCurrent(signal, providerId)) return;

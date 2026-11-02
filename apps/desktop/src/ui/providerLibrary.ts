@@ -1,5 +1,6 @@
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
+import { playsOnConsole } from "../library/importProfiles";
 import { providerFloorKey } from "../library/playtimeFloor";
 import { getT } from "../i18n";
 
@@ -42,7 +43,7 @@ export function isConsoleOnlyGame(game: {
 }) {
   return (
     game.libraryImports.length > 0 &&
-    game.libraryImports.every((entry) => entry.provider === "playstation") &&
+    game.libraryImports.every((entry) => playsOnConsole(entry.provider)) &&
     // A manual session without a file leaves an empty name.
     !game.exeNames.some(Boolean) &&
     game.emulatorContentKeys.length === 0

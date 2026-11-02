@@ -27,6 +27,7 @@ import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
 import { useCoverUrl } from "../../../pickedCovers";
+import { playsOnConsole } from "../../../library/importProfiles";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
 import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
@@ -1114,7 +1115,7 @@ export function GameDetailsDialog({
                     value={formatDate(entry.entry.importedAt) ?? t("Unknown")}
                   />
                   {/* A PlayStation copy is never installed on this PC. */}
-                  {entry.provider === "playstation" ? null : (
+                  {playsOnConsole(entry.provider) ? null : (
                     <Row
                       label={t("Installed here")}
                       value={entry.installed ? t("Yes") : t("No")}

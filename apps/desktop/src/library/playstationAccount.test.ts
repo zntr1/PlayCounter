@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { LibraryKnownExecutable } from "@playcounter/shared";
+import { persistAppState } from "../persistence";
 import { useAppStore } from "../store";
+import { backfillLibraryExecutableCache, hydrate } from "../tracker";
 import { commitLibraryImports } from "./commit";
 import { importProfile } from "./importProfiles";
 import { startsUnchecked } from "./importGroups";
 import { buildLibraryImportCommit } from "./importPlan";
 import { playStationScanResult } from "./playstationAccount";
-import type { ResolvedLibraryGame } from "./types";
+import type { ResolvedLibraryGame, ScannedLibraryGame } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -78,7 +81,9 @@ describe("PlayStation import", () => {
         playtimeSeconds: 45_000,
         hasPlayedEvidence: true,
         inAccountLibrary: true,
-        lastPlayedUnix: Math.floor(Date.parse("2026-10-30T21:25:28.987Z") / 1000),
+        lastPlayedUnix: Math.floor(
+          Date.parse("2026-10-30T21:25:28.987Z") / 1000,
+        ),
         installed: false,
         executables: [],
         consoleTitleIds: ["CUSA18638_00", "PPSA04609_00"],
@@ -158,5 +163,173 @@ describe("PlayStation import", () => {
       useAppStore.getState().libraryImports.get("playstation:10000333")
         ?.consoleTitleIds,
     ).toEqual(["PPSA04609_00", "CUSA18638_00"]);
+  });
+});
+
+/* A PlayStation copy runs on the console: its import links no PC file, even
+   when the database knows the PC version's .exe. That file is linked when it
+   runs here, like any game's. */
+describe("PlayStation and PC files", () => {
+  const HORIZON = {
+    id: 21,
+    igdbId: 11156,
+    name: "Horizon Zero Dawn",
+    coverUrl: "",
+    source: "igdb" as const,
+  };
+  const PC_FILE: LibraryKnownExecutable = {
+    platform: "windows",
+    kind: "exe",
+    value: "HorizonZeroDawn.exe",
+    provenance: "igdb",
+    verified: true,
+  };
+  const played: ScannedLibraryGame = {
+    externalId: "200937",
+    name: "Horizon Zero Dawn",
+    playtimeSeconds: 22_576,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    installed: false,
+    executables: [],
+    consoleTitleIds: ["CUSA01967_00"],
+  };
+  const resolved = (key: string): ResolvedLibraryGame => ({
+    key,
+    status: "resolved",
+    game: HORIZON,
+    executables: [PC_FILE],
+  });
+
+  it("links none of the PC game's files, even one the database knows", () => {
+    const fromSony = buildLibraryImportCommit({
+      provider: "playstation",
+      scanned: played,
+      resolved: resolved("playstation:200937"),
+    })!;
+    expect(fromSony.exeCacheEntries).toEqual([]);
+    expect(fromSony.scopedLinks).toEqual([]);
+    expect(fromSony.entry).toMatchObject({
+      linkedExeNames: [],
+      linkedExeSources: [],
+    });
+
+    // The same game from Steam links its file as before.
+    const fromSteam = buildLibraryImportCommit({
+      provider: "steam",
+      scanned: { ...played, externalId: "1151640", consoleTitleIds: [] },
+      resolved: resolved("steam:1151640"),
+    })!;
+    expect(fromSteam.entry.linkedExeNames).toEqual(["HorizonZeroDawn.exe"]);
+  });
+
+  it("drops the PC files an earlier PlayStation import linked, and keeps a file that ran here", async () => {
+    // Saved by the version before: the import linked Horizon's PC file.
+    commitLibraryImports([
+      {
+        entry: {
+          provider: "playstation",
+          externalId: "200937",
+          igdbId: HORIZON.igdbId,
+          gameId: HORIZON.id,
+          source: "igdb",
+          name: HORIZON.name,
+          coverUrl: "",
+          importedAt: "2026-11-01T20:00:00.000Z",
+          lastReadAt: "2026-11-01T20:00:00.000Z",
+          providerSeconds: 22_576,
+          linkedExeNames: ["HorizonZeroDawn.exe"],
+          linkedExeSources: ["igdb"],
+          consoleTitleIds: ["CUSA01967_00"],
+        },
+        metadata: HORIZON,
+        exeCacheEntries: [
+          {
+            exeName: "HorizonZeroDawn.exe",
+            state: "matched",
+            gameId: HORIZON.id,
+            igdbId: HORIZON.igdbId,
+            gameName: HORIZON.name,
+            coverUrl: "",
+            source: "igdb",
+            identifierSource: "igdb",
+            libraryProvider: "playstation",
+            libraryExternalId: "200937",
+            lastCheckedAt: "2026-11-01T20:00:00.000Z",
+          },
+        ],
+        scopedLinks: [],
+      },
+    ]);
+    // Elden Ring from PlayStation, and its PC version ran here: PlayCounter
+    // linked eldenring.exe itself.
+    const [eldenRing] = playStationScanResult({
+      games: [library.games[0]],
+      incomplete: false,
+    }).games;
+    commitLibraryImports([
+      buildLibraryImportCommit({
+        provider: "playstation",
+        scanned: eldenRing,
+        resolved: {
+          key: "playstation:10000333",
+          status: "resolved",
+          game: {
+            id: 7,
+            igdbId: 119133,
+            name: "Elden Ring",
+            coverUrl: "",
+            source: "igdb",
+          },
+          executables: [],
+        },
+      })!,
+    ]);
+    useAppStore.getState().setExeCacheEntry({
+      exeName: "eldenring.exe",
+      state: "matched",
+      gameId: 7,
+      igdbId: 119133,
+      gameName: "Elden Ring",
+      coverUrl: "",
+      source: "igdb",
+      lastCheckedAt: "2026-11-01T21:00:00.000Z",
+    });
+
+    persistAppState(useAppStore.getState());
+    useAppStore.setState(useAppStore.getInitialState(), true);
+    await hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.exeCache.has("horizonzerodawn.exe")).toBe(false);
+    expect(state.libraryImports.get("playstation:200937")).toMatchObject({
+      linkedExeNames: [],
+      linkedExeSources: [],
+      consoleTitleIds: ["CUSA01967_00"],
+      providerSeconds: 22_576,
+    });
+    expect(state.exeCache.get("eldenring.exe")?.state).toBe("matched");
+    expect(
+      state.libraryImports.get("playstation:10000333")?.linkedExeNames,
+    ).toEqual(["eldenring.exe"]);
+  });
+
+  it("never rebuilds a PC file from a PlayStation import", () => {
+    const cache = new Map();
+    const entry = buildLibraryImportCommit({
+      provider: "playstation",
+      scanned: played,
+      resolved: { ...resolved("playstation:200937"), executables: [] },
+    })!.entry;
+    expect(
+      backfillLibraryExecutableCache(cache, [
+        {
+          ...entry,
+          linkedExeNames: ["horizonzerodawn.exe"],
+          linkedExeSources: ["igdb"],
+        },
+      ]),
+    ).toBe(false);
+    expect(cache.size).toBe(0);
   });
 });

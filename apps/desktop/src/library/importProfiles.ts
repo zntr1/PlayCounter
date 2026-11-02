@@ -1,4 +1,8 @@
-import type { BuiltinImportProviderId } from "./importProviders";
+import type { LibraryProviderId } from "@playcounter/shared";
+import {
+  isBuiltinImportProvider,
+  type BuiltinImportProviderId,
+} from "./importProviders";
 import type { KeptLoginService } from "./keptLogins";
 
 /** What a scan reads: the launcher account, or only the games on this PC. */
@@ -43,6 +47,12 @@ export type ImportProfile = {
   mainGamesOnlySearch: boolean;
   /** Its missing playtime is explained once before the first scan. */
   playtimeNotice: boolean;
+  /**
+   * Its games run on a console (PlayStation): the import links no PC file
+   * and installs nothing on this PC. A PC version's file is linked when it
+   * runs here, like any game's.
+   */
+  consoleOnly: boolean;
 };
 
 const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
@@ -57,6 +67,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     copySignInLink: false,
     mainGamesOnlySearch: false,
     playtimeNotice: false,
+    consoleOnly: false,
   },
   xbox: {
     id: "xbox",
@@ -69,6 +80,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     copySignInLink: true,
     mainGamesOnlySearch: true,
     playtimeNotice: false,
+    consoleOnly: false,
   },
   battlenet: {
     id: "battlenet",
@@ -81,6 +93,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     copySignInLink: false,
     mainGamesOnlySearch: false,
     playtimeNotice: true,
+    consoleOnly: false,
   },
   epic: {
     id: "epic",
@@ -93,6 +106,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     copySignInLink: false,
     mainGamesOnlySearch: false,
     playtimeNotice: false,
+    consoleOnly: false,
   },
   // GOG ids name the game, like Steam AppIDs, but GOG also gives the title,
   // so an id the server doesn't know can still be found by name.
@@ -107,6 +121,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     copySignInLink: false,
     mainGamesOnlySearch: false,
     playtimeNotice: false,
+    consoleOnly: false,
   },
   // Sony's concept ids name the game; Sony also gives the title, so an id the
   // server doesn't know can still be found by name. Nothing is installed on
@@ -122,9 +137,15 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     copySignInLink: false,
     mainGamesOnlySearch: false,
     playtimeNotice: false,
+    consoleOnly: true,
   },
 };
 
 export function importProfile(id: BuiltinImportProviderId): ImportProfile {
   return PROFILES[id];
+}
+
+/** A launcher whose games run on a console: no PC file comes from it. */
+export function playsOnConsole(provider: LibraryProviderId) {
+  return isBuiltinImportProvider(provider) && PROFILES[provider].consoleOnly;
 }
