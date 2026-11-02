@@ -9,6 +9,7 @@ import {
 import { scopedExeLinkKey } from "./scopedLinks";
 import { scopedLocalGameId } from "./localGameIds";
 import { libraryEntryKey, type LibraryImportCommit } from "./types";
+import { mergeProviderSeconds, mergeReading } from "./accountReadings";
 import { undismissLauncherGames } from "./libraryAutoAddState";
 import {
   evaluateMilestones,
@@ -54,22 +55,17 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     const commit = withoutRejectedFiles(original, state.rejectedGameFiles);
     const key = libraryEntryKey(commit.entry.provider, commit.entry.externalId);
     const previous = libraryImports.get(key);
+    // Each account keeps its own hours; the entry's total is their sum.
+    const { accounts, ...hours } = mergeReading(
+      previous,
+      commit.entry,
+      commit.partialRead,
+    );
+    const { accounts: _reading, ...read } = commit.entry;
     libraryImports.set(key, {
-      ...commit.entry,
+      ...read,
       importedAt: previous?.importedAt ?? commit.entry.importedAt,
-      providerLastPlayedAt: [
-        previous?.providerLastPlayedAt,
-        commit.entry.providerLastPlayedAt,
-      ]
-        .filter(
-          (date): date is string =>
-            Boolean(date) && Number.isFinite(Date.parse(date!)),
-        )
-        .sort((a, b) => Date.parse(b) - Date.parse(a))[0],
-      providerHasPlayedEvidence:
-        previous?.providerHasPlayedEvidence === true
-          ? true
-          : commit.entry.providerHasPlayedEvidence,
+      ...hours,
       linkedExeNames: uniqueExeNames([
         ...(previous?.linkedExeNames ?? []),
         ...commit.entry.linkedExeNames,
@@ -80,10 +76,6 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
           ...commit.entry.linkedExeSources,
         ]),
       ],
-      providerSeconds: mergeProviderSeconds(
-        previous?.providerSeconds,
-        commit.entry.providerSeconds,
-      ),
       recordedSecondsAtRead: previous?.recordedSecondsAtRead,
       ...(previous?.consoleTitleIds || commit.entry.consoleTitleIds
         ? {
@@ -95,6 +87,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
             ],
           }
         : {}),
+      ...(accounts ? { accounts } : {}),
     });
     if (commit.entry.providerSeconds !== null)
       (CONSOLE_PROVIDERS.has(commit.entry.provider)
@@ -305,14 +298,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   return result;
 }
 
-export function mergeProviderSeconds(
-  previous: number | null | undefined,
-  incoming: number | null,
-) {
-  if (incoming === null) return previous ?? null;
-  if (previous === null || previous === undefined) return incoming;
-  return Math.max(previous, incoming);
-}
+export { mergeProviderSeconds };
 
 /**
  * PlayCounter's time that the combined launcher total already holds. On a

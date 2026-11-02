@@ -183,9 +183,18 @@ export interface XboxImportGame {
 
 export type XboxImportProgressStage = "authorization" | "history";
 
+/** The Xbox account an import read. `key` is made from its Xbox user id
+ *  (SHA-256 of "xbox:<id>", 32 hex characters), never the id itself; the
+ *  desktop makes its other launchers' keys the same way. */
+export interface XboxImportAccount {
+  key: string;
+  /** The gamertag, for display. */
+  name?: string;
+}
+
 export type XboxImportResultResponse = { loginReady?: boolean } & (
   | { status: "pending"; stage?: XboxImportProgressStage }
-  | { status: "done"; games: XboxImportGame[] }
+  | { status: "done"; games: XboxImportGame[]; account?: XboxImportAccount }
   | {
       status: "failed";
       reason: XboxImportFailureReason;

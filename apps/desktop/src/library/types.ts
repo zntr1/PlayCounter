@@ -34,6 +34,28 @@ export type LibraryImportEntry = {
   /** PlayStation: Sony's ids of the game's copies, so a game running on the
    *  console is recognised (playstationLive.ts). */
   consoleTitleIds?: string[];
+  /** Each launcher account's own reading of this game; `providerSeconds` is
+   *  their sum. Absent on entries saved before accounts were known, until an
+   *  account reads the game again (docs/import-accounts-plan.md). */
+  accounts?: AccountReading[];
+};
+
+/** The launcher account a scan read. */
+export type LibraryAccount = {
+  /** SHA-256 of "<launcher>:<account id>", 32 hex characters. Made in Rust,
+   *  or by our server for Xbox: the account id never reaches this side. */
+  key: string;
+  /** Steam persona, Xbox gamertag, Epic display name, GOG user name or PSN
+   *  online id. Null when the launcher gives none. */
+  name: string | null;
+};
+
+/** One account's reading of a game. */
+export type AccountReading = LibraryAccount & {
+  seconds: number | null;
+  lastPlayedAt?: string;
+  hasPlayedEvidence?: boolean;
+  readAt: string;
 };
 
 export type LibraryInstallEntry = {
@@ -144,6 +166,8 @@ export type LibraryScanResult = {
   resolvedGames?: ResolvedLibraryGame[];
   /** Xbox: the achievements read during the same sign-in. */
   achievementLists?: AchievementList[];
+  /** The account it read. Absent for scans of this PC only. */
+  account?: LibraryAccount;
 };
 
 export type ResolvedLibraryGame = {
@@ -161,6 +185,8 @@ export type LibraryImportCommit = {
   preserveInstall?: boolean;
   exeCacheEntries: ExeCacheEntry[];
   scopedLinks: ScopedExeLink[];
+  /** The read stopped early: it never splits earlier hours (D1). */
+  partialRead?: boolean;
 };
 
 export function libraryEntryKey(

@@ -4,8 +4,10 @@ import { normalizeWindowsDir } from "./scopedLinks";
 import { isGenericExeName, manualExecutableNeedsScope } from "./exeCandidates";
 import { customLocalGameId, scopedLocalGameId } from "./localGameIds";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
+import { readingOf } from "./accountReadings";
 import { playsOnConsole } from "./importProfiles";
 import type {
+  LibraryAccount,
   LibraryImportCommit,
   LibraryImportEntry,
   ResolvedLibraryGame,
@@ -21,6 +23,10 @@ export function buildLibraryImportCommit(input: {
   selectedExecutable?: ScannedExecutable;
   ignoredProcesses?: ReadonlySet<string>;
   now?: string;
+  /** The account the scan read: its hours are kept apart and added up. */
+  account?: LibraryAccount;
+  /** The scan stopped early. */
+  partialRead?: boolean;
 }): LibraryImportCommit | null {
   const { scanned, resolved } = input;
   if (resolved.status !== "resolved" || !resolved.game) return null;
@@ -207,6 +213,7 @@ export function buildLibraryImportCommit(input: {
       ? { consoleTitleIds: [...scanned.consoleTitleIds] }
       : {}),
   };
+  if (input.account) entry.accounts = [readingOf(input.account, entry)];
   return {
     entry,
     metadata: game,
@@ -222,6 +229,7 @@ export function buildLibraryImportCommit(input: {
         : undefined,
     exeCacheEntries,
     scopedLinks,
+    ...(input.partialRead ? { partialRead: true } : {}),
   };
 }
 

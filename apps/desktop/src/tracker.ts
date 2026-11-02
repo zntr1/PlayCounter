@@ -235,6 +235,7 @@ import {
   moveGenericNameLinksToFolders,
 } from "./library/genericExeLinks";
 import type {
+  AccountReading,
   IgnoredExeFolder,
   LibraryImportEntry,
   LibraryInstallEntry,
@@ -768,8 +769,15 @@ export function normalizePersistedLibraryImport(
   if (linkedExeNames.length > 0 && linkedExeSources.length === 0) {
     linkedExeSources.push(entry.source);
   }
+  const { accounts: savedAccounts, ...saved } = entry;
+  const accounts = Array.isArray(savedAccounts)
+    ? savedAccounts.flatMap((item) => {
+        const reading = normalizeAccountReading(item);
+        return reading ? [reading] : [];
+      })
+    : [];
   return {
-    ...entry,
+    ...saved,
     providerSeconds:
       entry.providerSeconds === null
         ? null
@@ -782,7 +790,46 @@ export function normalizePersistedLibraryImport(
         : undefined,
     linkedExeNames,
     linkedExeSources: [...new Set(linkedExeSources)],
+    // A broken reading is dropped; the game and its total stay.
+    ...(accounts.length > 0 ? { accounts } : {}),
   } as LibraryImportEntry;
+}
+
+/** One saved account reading, or null when it isn't one. */
+function normalizeAccountReading(value: unknown): AccountReading | null {
+  if (!value || typeof value !== "object") return null;
+  const reading = value as Partial<Record<keyof AccountReading, unknown>>;
+  const validDate = (date: unknown): date is string =>
+    typeof date === "string" && Number.isFinite(Date.parse(date));
+  if (
+    typeof reading.key !== "string" ||
+    reading.key.length === 0 ||
+    reading.key.length > 64 ||
+    (reading.name !== undefined &&
+      reading.name !== null &&
+      typeof reading.name !== "string") ||
+    (reading.seconds !== null &&
+      (typeof reading.seconds !== "number" ||
+        !Number.isFinite(reading.seconds) ||
+        reading.seconds < 0)) ||
+    !validDate(reading.readAt)
+  ) {
+    return null;
+  }
+  const name =
+    typeof reading.name === "string" ? reading.name.trim().slice(0, 64) : "";
+  return {
+    key: reading.key,
+    name: name || null,
+    seconds: reading.seconds === null ? null : Math.round(reading.seconds),
+    ...(validDate(reading.lastPlayedAt)
+      ? { lastPlayedAt: reading.lastPlayedAt }
+      : {}),
+    ...(typeof reading.hasPlayedEvidence === "boolean"
+      ? { hasPlayedEvidence: reading.hasPlayedEvidence }
+      : {}),
+    readAt: reading.readAt,
+  };
 }
 
 /**

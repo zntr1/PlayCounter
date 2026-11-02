@@ -204,6 +204,16 @@ const libraryImport = object(
     recordedSecondsAtRead: nonnegative,
     linkedExeSources: array(source),
     consoleTitleIds: array(nonempty),
+    accounts: array(
+      object(
+        { key: nonempty, seconds: nullable(nonnegative), readAt: date },
+        {
+          name: nullable(string),
+          lastPlayedAt: date,
+          hasPlayedEvidence: boolean,
+        },
+      ),
+    ),
   },
 );
 const emulatorMapping = object(
