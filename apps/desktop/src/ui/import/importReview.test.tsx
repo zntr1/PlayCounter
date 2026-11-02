@@ -144,7 +144,9 @@ async function click(label: string) {
 /** Opens the launcher with these games already in My Games, and scans. */
 async function scan(
   provider: BuiltinImportProviderId,
-  result: Omit<LibraryScanResult, "warnings" | "partial">,
+  result: Omit<LibraryScanResult, "warnings" | "partial"> & {
+    partial?: boolean;
+  },
   imports: LibraryImportEntry[] = [],
 ) {
   await act(() =>
@@ -1277,5 +1279,161 @@ describe("a game already in My Games", () => {
     expect(listed()).toEqual(["Portal 2"]);
     await act(() => shelf("imported").tab.click());
     expect(listed()).toEqual(["The High Life"]);
+  });
+});
+
+// docs/import-accounts-plan.md: each account keeps its own hours of a game,
+// the launcher's total is their sum, and D3 for games already in My Games.
+describe("launcher accounts", () => {
+  const H = 3_600;
+  const eldenRing = metadata(119_133, "Elden Ring");
+  const PHIL = { key: "a".repeat(32), name: "zesarex" };
+  const KID = { key: "b".repeat(32), name: "Kid" };
+  const reading = (account: typeof PHIL, hours: number) => ({
+    ...account,
+    seconds: hours * H,
+    readAt: "2026-10-01T12:00:00.000Z",
+  });
+  const steamEldenRing = (hours: number) =>
+    game("1245620", "ELDEN RING", { playtimeSeconds: hours * H });
+  const psEldenRing = (hours: number) =>
+    game("10000333", "ELDEN RING", {
+      playtimeSeconds: hours * H,
+      hasPlayedEvidence: true,
+      inAccountLibrary: true,
+      consoleTitleIds: ["PPSA04609_00"],
+    });
+  const firstCommit = () => mocks.run.mock.calls[0][0][0];
+
+  it("an import keeps the account the scan read, and whole totals when only the file search ran out of time", async () => {
+    await scan("steam", {
+      games: [steamEldenRing(100)],
+      resolvedGames: [matched("steam:1245620", eldenRing)],
+      account: PHIL,
+      partial: true,
+    });
+    await click("Import 1 game");
+    expect(firstCommit().entry.accounts).toMatchObject([
+      { ...PHIL, seconds: 100 * H },
+    ]);
+    expect(firstCommit().partialRead).toBeFalsy();
+  });
+
+  it("playstation: a list Sony cut short imports as a partial read", async () => {
+    await scan("playstation", {
+      games: [psEldenRing(12)],
+      resolvedGames: [matched("playstation:10000333", eldenRing)],
+      account: KID,
+      totalsCutShort: true,
+    });
+    await click("Import 1 game");
+    expect(firstCommit()).toMatchObject({
+      partialRead: true,
+      entry: { accounts: [{ ...KID, seconds: 12 * H }] },
+    });
+  });
+
+  it("playstation: a game imported on its own keeps the account and the partial read too", async () => {
+    const ghost = metadata(22, "Ghost of Tsushima");
+    mocks.reverse.mockResolvedValue({ game: ghost, executables: [] });
+    await scan("playstation", {
+      games: [
+        game("10000886", "Ghost of Tsushima", {
+          playtimeSeconds: 50 * H,
+          hasPlayedEvidence: true,
+          inAccountLibrary: true,
+        }),
+      ],
+      resolvedGames: [unmatched("playstation:10000886", [ghost])],
+      account: KID,
+      totalsCutShort: true,
+    });
+    await click("Import");
+    expect(firstCommit()).toMatchObject({
+      partialRead: true,
+      entry: { accounts: [{ ...KID, seconds: 50 * H }] },
+    });
+  });
+
+  it.each([
+    {
+      when: "another account",
+      saved: { providerSeconds: 100 * H, accounts: [reading(PHIL, 100)] },
+      growth: "100h 0m → 120h 0m",
+    },
+    {
+      // D1: an account with fewer hours than the import from before is
+      // another account.
+      when: "an import from before accounts",
+      saved: { providerSeconds: 120 * H },
+      growth: "120h 0m → 220h 0m",
+    },
+  ])(
+    "D3: a game in My Games starts checked when an account brings hours it doesn't hold yet ($when), and shows the total before → after",
+    async ({ saved, growth }) => {
+      const hours = saved.accounts ? 20 : 100;
+      await scan(
+        "steam",
+        {
+          games: [steamEldenRing(hours)],
+          resolvedGames: [matched("steam:1245620", eldenRing)],
+          account: KID,
+        },
+        [inMyGames("steam", "1245620", eldenRing, saved)],
+      );
+      expect(shelf("imported").open).toBe(true);
+      expect(checkbox("Elden Ring")?.checked).toBe(true);
+      expect(container.textContent).toContain(growth);
+
+      await click("Import 1 game");
+      expect(firstCommit().entry.accounts).toMatchObject([
+        { ...KID, seconds: hours * H },
+      ]);
+    },
+  );
+
+  it.each([
+    {
+      when: "its own hours",
+      saved: { providerSeconds: 100 * H, accounts: [reading(PHIL, 100)] },
+    },
+    {
+      // D1: at least as many hours as the import from before: they were its.
+      when: "an import from before accounts",
+      saved: { providerSeconds: 100 * H },
+    },
+  ])(
+    "D3: the same account read again leaves the game unchecked, as before ($when)",
+    async ({ saved }) => {
+      await scan(
+        "steam",
+        {
+          games: [steamEldenRing(105)],
+          resolvedGames: [matched("steam:1245620", eldenRing)],
+          account: PHIL,
+        },
+        [inMyGames("steam", "1245620", eldenRing, saved)],
+      );
+      expect(checkbox("Elden Ring")?.checked).toBe(false);
+      expect(container.textContent).toContain("100h 0m → 105h 0m");
+    },
+  );
+
+  it("a read without an account shows no growth for a game with accounts", async () => {
+    await scan(
+      "steam",
+      {
+        games: [steamEldenRing(130)],
+        resolvedGames: [matched("steam:1245620", eldenRing)],
+      },
+      [
+        inMyGames("steam", "1245620", eldenRing, {
+          providerSeconds: 120 * H,
+          accounts: [reading(PHIL, 100), reading(KID, 20)],
+        }),
+      ],
+    );
+    expect(checkbox("Elden Ring")?.checked).toBe(false);
+    expect(container.textContent).not.toContain("→");
   });
 });

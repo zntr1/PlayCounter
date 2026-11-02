@@ -16,6 +16,7 @@ import {
 import { resolveLibraryGames } from "./resolve";
 import {
   libraryEntryKey,
+  type LibraryAccount,
   type LibraryImportEntry,
   type ResolvedLibraryGame,
   type ScannedLibraryGame,
@@ -92,6 +93,7 @@ type Installed = Partial<
 function mockLaunchers(
   installed: Installed,
   scans: Partial<Record<LibraryProviderId, ScannedLibraryGame[]>>,
+  account?: LibraryAccount,
 ) {
   vi.mocked(invoke).mockImplementation(async (command, args) => {
     const provider = (args as { provider?: LibraryProviderId })?.provider;
@@ -107,6 +109,7 @@ function mockLaunchers(
         ),
         warnings: [],
         partial: false,
+        ...(account ? { account } : {}),
       };
     }
     return undefined;
@@ -170,6 +173,26 @@ describe("adding newly installed games automatically", () => {
     vi.mocked(resolveLibraryGames).mockClear();
     await expect(syncLibraryInstalls("again")).resolves.toBe(0);
     expect(resolveLibraryGames).not.toHaveBeenCalled();
+  });
+
+  // docs/import-accounts-plan.md: a background read keeps the account it read.
+  it("adds a new Steam game under the account Steam's scan read", async () => {
+    rememberSteamImportAccount(7);
+    const account = { key: "a".repeat(32), name: "zesarex" };
+    mockLaunchers(
+      { steam: [{ externalId: "698780", installPath: gamePath("DDLC") }] },
+      { steam: [{ ...scanned("698780", "DDLC"), playtimeSeconds: 7_200 }] },
+      account,
+    );
+    vi.mocked(resolveLibraryGames).mockResolvedValue({
+      capability: "supported",
+      games: [resolvedGame("steam", "698780", 698780)],
+    });
+
+    await expect(syncLibraryInstalls("test")).resolves.toBe(1);
+    expect(
+      useAppStore.getState().libraryImports.get("steam:698780")?.accounts,
+    ).toMatchObject([{ ...account, seconds: 7_200 }]);
   });
 
   it("adds new Battle.net games after a Battle.net import", async () => {

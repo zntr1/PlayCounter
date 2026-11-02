@@ -3,6 +3,7 @@ import { getT } from "./i18n";
 import { currentPlatform } from "./platform";
 import { gameMetadataKey, useAppStore, type ActiveSession } from "./store";
 import { commitLibraryImports } from "./library/commit";
+import { mergeReading, readingOf } from "./library/accountReadings";
 import { buildLibraryImportCommit } from "./library/importPlan";
 import { useKeptLogins } from "./library/keptLogins";
 import {
@@ -21,6 +22,7 @@ import {
   libraryEntryKey,
   type LibraryImportCommit,
   type LibraryImportEntry,
+  type LibraryScanResult,
   type ScannedLibraryGame,
 } from "./library/types";
 
@@ -293,11 +295,11 @@ async function runRefresh(reason: string) {
     );
     if (!existing) fresh.push(game);
     else {
-      const commit = updatedCommit(existing, game, now);
+      const commit = updatedCommit(existing, game, scan, now);
       if (commit) commits.push(commit);
     }
   }
-  const added = await newGameCommits(fresh);
+  const added = await newGameCommits(fresh, scan);
   commits.push(...added);
   if (commits.length > 0) commitLibraryImports(commits);
   log(
@@ -315,10 +317,13 @@ async function runRefresh(reason: string) {
   return added.length;
 }
 
-/** Only what Sony changed: a higher total, a new copy, a later play. */
+/** Only what Sony changed: a higher total, a new copy, a later play, or an
+ *  account the game didn't know. The read updates only the account it read
+ *  (docs/import-accounts-plan.md). */
 function updatedCommit(
   existing: LibraryImportEntry,
   game: ScannedLibraryGame,
+  scan: LibraryScanResult,
   now: string,
 ): LibraryImportCommit | null {
   const seconds =
@@ -334,15 +339,32 @@ function updatedCommit(
   const lastPlayedAt = game.lastPlayedUnix
     ? new Date(game.lastPlayedUnix * 1000).toISOString()
     : undefined;
+  const { accounts: _saved, ...saved } = existing;
+  const read: LibraryImportEntry = {
+    ...saved,
+    providerSeconds: seconds,
+    providerHasPlayedEvidence: true,
+    providerLastPlayedAt: lastPlayedAt ?? existing.providerLastPlayedAt,
+    lastReadAt: now,
+    consoleTitleIds: titleIds,
+  };
+  if (scan.account)
+    read.accounts = [
+      readingOf(scan.account, { ...read, providerLastPlayedAt: lastPlayedAt }),
+    ];
+  const merged = mergeReading(existing, read, scan.totalsCutShort);
   const grew =
-    seconds !== null &&
-    (existing.providerSeconds === null || seconds > existing.providerSeconds);
+    merged.providerSeconds !== null &&
+    (existing.providerSeconds === null ||
+      merged.providerSeconds > existing.providerSeconds);
   const newCopy = titleIds.length > (existing.consoleTitleIds?.length ?? 0);
   const playedLater =
     lastPlayedAt !== undefined &&
     (!existing.providerLastPlayedAt ||
       Date.parse(lastPlayedAt) > Date.parse(existing.providerLastPlayedAt));
-  if (!grew && !newCopy && !playedLater) return null;
+  const accountsChanged =
+    accountNames(merged.accounts) !== accountNames(existing.accounts);
+  if (!grew && !newCopy && !playedLater && !accountsChanged) return null;
   const state = useAppStore.getState();
   const metadata = state.gameMetadata.get(
     gameMetadataKey({ id: existing.gameId, source: existing.source }),
@@ -355,23 +377,29 @@ function updatedCommit(
   };
   return {
     entry: {
-      ...existing,
+      ...read,
       // A total that didn't grow is not a new read: the console sessions
       // PlayCounter saw since the last one still count on top of it.
       providerSeconds: grew ? seconds : null,
-      providerHasPlayedEvidence: true,
-      providerLastPlayedAt: lastPlayedAt ?? existing.providerLastPlayedAt,
       lastReadAt: grew ? now : existing.lastReadAt,
-      consoleTitleIds: titleIds,
     },
     metadata,
     preserveInstall: true,
     exeCacheEntries: [],
     scopedLinks: [],
+    ...(scan.totalsCutShort ? { partialRead: true } : {}),
   };
 }
 
-async function newGameCommits(fresh: ScannedLibraryGame[]) {
+/** Which accounts a game has, under which names. */
+function accountNames(accounts: LibraryImportEntry["accounts"]) {
+  return JSON.stringify(accounts?.map(({ key, name }) => [key, name]) ?? null);
+}
+
+async function newGameCommits(
+  fresh: ScannedLibraryGame[],
+  scan: LibraryScanResult,
+) {
   const state = useAppStore.getState();
   if (fresh.length === 0 || state.settings.autoAddInstalledGames === false)
     return [];
@@ -407,6 +435,8 @@ async function newGameCommits(fresh: ScannedLibraryGame[]) {
       scanned: game,
       resolved: match,
       ignoredProcesses: useAppStore.getState().ignoredProcesses,
+      account: scan.account,
+      partialRead: scan.totalsCutShort,
     });
     if (!commit) continue;
     commits.push(commit);

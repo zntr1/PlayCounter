@@ -387,6 +387,123 @@ describe("Sony's totals refresh by themselves", () => {
     await pollAt(300, playing("PPSA11110_00"));
     expect(consoleSessions()).toMatchObject([{ gameId: 8 }]);
   });
+
+  // docs/import-accounts-plan.md: a background read updates only the account
+  // it read; the game's total is the sum of its accounts.
+  it("another signed-in account adds its hours, and each account's read changes only its own", async () => {
+    const phil = { key: "a".repeat(32), name: "zesarex_ps" };
+    // Sony's list names no account: the name comes from the sign-in.
+    const kid = { key: "b".repeat(32), name: null };
+    const read = async (
+      account: { key: string; name: string | null },
+      hours: number,
+      second: number,
+    ) => {
+      mocks.saved = {
+        status: "valid",
+        value: {
+          games: [sonyGame("10000333", "ELDEN RING", hours)],
+          incomplete: false,
+          account,
+        },
+      };
+      vi.setSystemTime(at(second));
+      await live.refreshPlayStationGames("test");
+      const entry = useAppStore
+        .getState()
+        .libraryImports.get("playstation:10000333")!;
+      return {
+        hours: entry.providerSeconds! / 3600,
+        accounts: entry.accounts?.map((item) => [
+          item.name,
+          item.seconds! / 3600,
+        ]),
+        lastReadAt: entry.lastReadAt,
+      };
+    };
+
+    // The 10h from before were Phil's: his 13h take them over.
+    expect(await read(phil, 13, 100)).toMatchObject({
+      hours: 13,
+      accounts: [["zesarex_ps", 13]],
+    });
+    // The same total again is no new read.
+    expect((await read(phil, 13, 200)).lastReadAt).toBe(iso(100));
+
+    useKeptLogins.setState({
+      logins: [{ service: "playstation", name: "kid_ps", savedAt: 2 }],
+    });
+    expect(await read(kid, 4, 300)).toMatchObject({
+      hours: 17,
+      accounts: [
+        ["zesarex_ps", 13],
+        ["kid_ps", 4],
+      ],
+    });
+    expect(await read(kid, 5, 400)).toMatchObject({
+      hours: 18,
+      accounts: [
+        ["zesarex_ps", 13],
+        ["kid_ps", 5],
+      ],
+    });
+
+    // It still plays live as one game.
+    await pollAt(500, playing());
+    expect(consoleSessions()).toMatchObject([{ gameId: 7, console: "PS5" }]);
+  });
+
+  it("a list Sony cut short never splits the hours from before", async () => {
+    mocks.saved = {
+      status: "valid",
+      value: {
+        games: [sonyGame("10000333", "ELDEN RING", 4)],
+        incomplete: true,
+        account: { key: "b".repeat(32), name: "kid_ps" },
+      },
+    };
+    await live.refreshPlayStationGames("test");
+    const entry = useAppStore
+      .getState()
+      .libraryImports.get("playstation:10000333")!;
+    expect(entry.providerSeconds).toBe(10 * 3600);
+    expect(entry.accounts).toBeUndefined();
+  });
+
+  it("adds a new game under the account that read it", async () => {
+    mocks.saved = {
+      status: "valid",
+      value: {
+        games: [sonyGame("10002684", "Astro Bot", 6)],
+        incomplete: false,
+        account: { key: "b".repeat(32), name: "kid_ps" },
+      },
+    };
+    mocks.resolve.mockResolvedValue({
+      capability: "supported",
+      games: [
+        {
+          key: "playstation:10002684",
+          status: "resolved",
+          game: {
+            id: 8,
+            igdbId: 303811,
+            name: "Astro Bot",
+            coverUrl: "",
+            source: "igdb",
+          },
+          executables: [],
+        },
+      ],
+    });
+    await expect(live.refreshPlayStationGames("new")).resolves.toBe(1);
+    expect(
+      useAppStore.getState().libraryImports.get("playstation:10002684")
+        ?.accounts,
+    ).toMatchObject([
+      { key: "b".repeat(32), name: "kid_ps", seconds: 6 * 3600 },
+    ]);
+  });
 });
 
 describe("trophies after a console session", () => {

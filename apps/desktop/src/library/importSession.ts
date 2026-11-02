@@ -9,6 +9,7 @@ import { nativeText } from "../nativeText";
 import { STORAGE_KEY } from "../persistence";
 import { useAppStore, type GameMetadata } from "../store";
 import { importExeCandidates } from "./exeCandidates";
+import { readAgain } from "./accountReadings";
 import {
   librarySearchQuery,
   reverseResolveLibraryGame,
@@ -567,12 +568,24 @@ export async function startImportScan(
       result.games
         .filter((game) => {
           const key = libraryEntryKey(providerId, game.externalId);
+          const existing = existingImports.get(key);
+          // D3 (docs/import-accounts-plan.md): a game in My Games starts
+          // checked when this account brings hours it doesn't hold yet.
+          if (existing)
+            return (
+              canImportScannedGame({
+                game,
+                resolved: saved.get(key),
+                alreadyImported: true,
+                ignoredProcesses,
+              }) && readAgain(existing, game, result).bringsAccount
+            );
           return (
             importGroupForGame({
               game,
               provider: providerId,
               resolved: byKey.get(key),
-              alreadyImported: existingImports.has(key),
+              alreadyImported: false,
               ignoredProcesses,
             }) === "ready" && !startsUnchecked(game)
           );
@@ -763,6 +776,8 @@ export async function importSelectedGames() {
           ? undefined
           : selectedExecutableFor(start, game),
         ignoredProcesses: app.ignoredProcesses,
+        account: scan.account,
+        partialRead: scan.totalsCutShort,
       });
       if (!commit) continue;
       if (inLibrary) updated += 1;
@@ -863,6 +878,8 @@ export async function importOneGame(externalId: string) {
       resolved: resolvedGame,
       selectedExecutable: selectedExecutableFor(start, scanned),
       ignoredProcesses: app.ignoredProcesses,
+      account: start.scan?.account,
+      partialRead: start.scan?.totalsCutShort,
     });
     if (!commit)
       throw new Error(

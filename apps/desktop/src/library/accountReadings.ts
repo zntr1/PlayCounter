@@ -2,6 +2,8 @@ import type {
   AccountReading,
   LibraryAccount,
   LibraryImportEntry,
+  LibraryScanResult,
+  ScannedLibraryGame,
 } from "./types";
 
 /* A launcher account's hours of a game, kept apart from its other accounts'.
@@ -156,6 +158,36 @@ export function mergeReading(
     providerHasPlayedEvidence: readings.some((item) => item.hasPlayedEvidence)
       ? true
       : providerHasPlayedEvidence,
+  };
+}
+
+/**
+ * What reading a game in My Games again would make of its launcher total:
+ * the total after the read, and whether the read brings another account's
+ * hours that the total doesn't hold yet (the importer checks such a game,
+ * D3). A read of the same account, or one taking over earlier hours, brings
+ * none.
+ */
+export function readAgain(
+  existing: LibraryImportEntry,
+  game: Pick<ScannedLibraryGame, "playtimeSeconds">,
+  scan?: Pick<LibraryScanResult, "account" | "totalsCutShort">,
+) {
+  const { accounts: _saved, ...entry } = existing;
+  const incoming: LibraryImportEntry = {
+    ...entry,
+    providerSeconds:
+      game.playtimeSeconds === null
+        ? null
+        : Math.max(0, Math.floor(game.playtimeSeconds)),
+  };
+  if (scan?.account) incoming.accounts = [readingOf(scan.account, incoming)];
+  const merged = mergeReading(existing, incoming, scan?.totalsCutShort);
+  return {
+    seconds: merged.providerSeconds,
+    bringsAccount:
+      (merged.accounts?.length ?? 0) > accountReadings(existing).length &&
+      (merged.providerSeconds ?? 0) > (existing.providerSeconds ?? 0),
   };
 }
 

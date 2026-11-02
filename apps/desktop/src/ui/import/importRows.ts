@@ -1,4 +1,5 @@
 import { getT, appLocale } from "../../i18n";
+import { readAgain } from "../../library/accountReadings";
 import {
   hasImportableActivity,
   importGroupForGame,
@@ -34,6 +35,8 @@ export type ImportRow = {
   canReplaceMatch: boolean;
   group: ImportGroupKey;
   existing?: LibraryImportEntry;
+  /** A game in My Games: its launcher total after importing it again. */
+  totalAfterImport?: number | null;
   completed: boolean;
   selectable: boolean;
   needsGame: boolean;
@@ -95,6 +98,9 @@ export function importRows(
         (group === "ready" || group === "attention"),
       group,
       existing,
+      totalAfterImport: existing
+        ? readAgain(existing, game, session.scan ?? undefined).seconds
+        : undefined,
       completed,
       selectable: selectable.has(game.externalId),
       needsGame: needsGameChoice(providerId, game, resolved),
@@ -144,10 +150,11 @@ export function unavailableReason(game: ScannedLibraryGame) {
     : t("Game details unavailable");
 }
 
-/** The playtime an import again would bring, when it grew. */
+/** The launcher total an import again would bring, when it grew: another
+ *  account's hours add to it. */
 export function playtimeGrowth(row: ImportRow) {
   const before = row.existing?.providerSeconds;
-  const after = row.game.playtimeSeconds;
+  const after = row.totalAfterImport;
   if (before == null || after == null || after <= before) return null;
   return t("{{before}} → {{after}}", {
     before: formatDuration(before, false),
