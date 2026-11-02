@@ -877,26 +877,130 @@ it("counts what the import brought and what still needs you", async () => {
     },
     [inMyGames("steam", "2280", metadata(312, "DOOM II"))],
   );
-  await act(() => shelf("imported").tab.click());
-  await act(() => checkbox("DOOM II")!.click());
-  expect(container.textContent).toContain("3 games selected");
+  expect(shelf("ready").open).toBe(true);
+  expect(container.textContent).toContain("2 games selected");
   expect(container.textContent).toContain("2 new");
-  expect(container.textContent).toContain("1 update");
 
-  await click("Import 3 games");
+  await click("Import 2 games");
   expect(container.querySelector("h2")?.textContent).toBe(
     "2 games imported from Steam",
   );
-  expect(container.textContent).toContain("1 game in My Games updated");
   expect(container.textContent).toContain("1 game still needs you");
   expect(findButton("Open My Games")).toBeDefined();
   // "Back to the games" read like My Games.
   expect(findButton("Back to the importer")).toBeDefined();
   expect(findButton("Back to the games")).toBeUndefined();
 
-  await click("Decide 1 game");
+  // Phil, 2026-11-02: "Decide 1 game" became "Review 1 game".
+  await click("Review 1 game");
   expect(shelf("attention").open).toBe(true);
   expect(listed()).toEqual(["Ultimate Doom"]);
+
+  // An update of a game in My Games is an import of its own tab.
+  await act(() => shelf("imported").tab.click());
+  await act(() => checkbox("DOOM II")!.click());
+  expect(container.textContent).toContain("1 game selected");
+  expect(container.textContent).toContain("1 update");
+  await click("Import 1 game");
+  expect(container.querySelector("h2")?.textContent).toBe(
+    "1 game in My Games updated",
+  );
+});
+
+// Phil, 2026-11-02: "Needs you" games are imported one by one, so the bar
+// with "Import N games" was confusing there; and it imports the open tab only.
+describe("the bar at the bottom", () => {
+  /** The bar's "Import N games" button. */
+  function bulkImport() {
+    return [...document.body.querySelectorAll("button")].find((item) =>
+      /^Import \d+ games?$/.test(item.textContent?.trim() ?? ""),
+    );
+  }
+
+  it("shows only on a tab whose games can be checked", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("620", "Portal 2"),
+          game("2300", "Ultimate Doom", {
+            installed: true,
+            installPath: String.raw`C:\Steam\steamapps\common\Ultimate Doom`,
+            executables: [exe("dosbox.exe"), exe("gzdoom.exe")],
+          }),
+          game("1145360", "Hades"),
+          // Never played: nothing to import.
+          game("480", "Spacewar", { playtimeSeconds: 0 }),
+        ],
+        resolvedGames: [
+          matched("steam:620", metadata(72, "Portal 2")),
+          matched("steam:2300", metadata(1_456, "Ultimate Doom")),
+          matched("steam:1145360", metadata(113_112, "Hades")),
+          matched("steam:480", metadata(1_234, "Spacewar")),
+        ],
+      },
+      [inMyGames("steam", "1145360", metadata(113_112, "Hades"))],
+    );
+    expect(counts()).toEqual({
+      ready: 1,
+      attention: 1,
+      imported: 1,
+      unavailable: 1,
+    });
+    for (const [group, shown] of [
+      ["ready", true],
+      ["attention", false],
+      ["imported", true],
+      ["unavailable", false],
+    ] as const) {
+      await act(() => shelf(group).tab.click());
+      expect(Boolean(bulkImport()), group).toBe(shown);
+    }
+  });
+
+  it("imports the open tab's checked games only, and each tab keeps its checks", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("620", "Portal 2"),
+          game("400", "Portal"),
+          game("1145360", "Hades"),
+        ],
+        resolvedGames: [
+          matched("steam:620", metadata(72, "Portal 2")),
+          matched("steam:400", metadata(71, "Portal")),
+          matched("steam:1145360", metadata(113_112, "Hades")),
+        ],
+      },
+      [inMyGames("steam", "1145360", metadata(113_112, "Hades"))],
+    );
+    await act(() => shelf("imported").tab.click());
+    await act(() => checkbox("Hades")!.click());
+    expect(container.textContent).toContain("1 game selected");
+
+    await act(() => shelf("ready").tab.click());
+    expect(container.textContent).toContain("2 games selected");
+    await act(() => checkbox("Portal")!.click());
+    // A look at another tab undoes nothing.
+    await act(() => shelf("imported").tab.click());
+    await act(() => shelf("ready").tab.click());
+    expect(checkbox("Portal")?.checked).toBe(false);
+    expect(checkbox("Portal 2")?.checked).toBe(true);
+
+    await click("Import 1 game");
+    const imported = (call: number) =>
+      mocks.run.mock.calls[call][0].map(
+        ({ entry }: { entry: LibraryImportEntry }) => entry.name,
+      );
+    expect(imported(0)).toEqual(["Portal 2"]);
+
+    await click("Back to the importer");
+    await act(() => shelf("imported").tab.click());
+    expect(checkbox("Hades")?.checked).toBe(true);
+    await click("Import 1 game");
+    expect(imported(1)).toEqual(["Hades"]);
+  });
 });
 
 it("shows suggestions as covers to click, with the year", async () => {

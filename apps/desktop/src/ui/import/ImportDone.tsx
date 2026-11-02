@@ -127,7 +127,7 @@ export function ImportDone({ session }: { session: ImportSession }) {
               onClick={reviewRemainingGames}
               className="px-5 py-2.5 text-[15px]"
             >
-              {t("Decide {{count}} games", { count: remaining })}
+              {t("Review {{count}} games", { count: remaining })}
             </Button>
           ) : null}
           <Button variant="ghost" onClick={showImportList}>

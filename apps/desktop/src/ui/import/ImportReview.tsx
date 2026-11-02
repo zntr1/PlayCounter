@@ -155,9 +155,12 @@ export function ImportReview({
   onSignOut: () => void;
 }) {
   const libraryImports = useAppStore((state) => state.libraryImports);
-  const { groups, selectable } = useImportGroups(session);
+  const { groups } = useImportGroups(session);
   const group = session.group;
   const shelf = groups[group];
+  // The bar belongs to tabs with checkboxes, and imports the open tab only.
+  // "Needs you" imports game by game; every tab keeps its own checks.
+  const checkable = shelf.some((row) => row.selectable);
   const current =
     shelf.find((row) => row.game.externalId === session.current) ?? shelf[0];
   const toDecide = groups.attention.filter(
@@ -168,7 +171,11 @@ export function ImportReview({
     toDecide[index + 1] ??
     toDecide.find((row) => row.key !== current?.key) ??
     null;
-  const chosen = [...session.selected].filter((id) => selectable.has(id));
+  const chosen = shelf
+    .filter(
+      (row) => row.selectable && session.selected.has(row.game.externalId),
+    )
+    .map((row) => row.game.externalId);
   const updates = chosen.filter((id) =>
     libraryImports.has(`${session.providerId}:${id}`),
   ).length;
@@ -233,35 +240,37 @@ export function ImportReview({
           />
         ) : null}
       </div>
-      <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-surface/95 px-4 py-3 shadow-raised backdrop-blur">
-        <div className="min-w-0">
-          <div className="font-semibold text-text">
-            {t("{{count}} games selected", { count: chosen.length })}
+      {checkable ? (
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-surface/95 px-4 py-3 shadow-raised backdrop-blur">
+          <div className="min-w-0">
+            <div className="font-semibold text-text">
+              {t("{{count}} games selected", { count: chosen.length })}
+            </div>
+            <div className="flex flex-wrap gap-x-3 text-xs text-text-muted">
+              {chosen.length === 0 ? (
+                <span>{t("Check the games you want to import.")}</span>
+              ) : null}
+              {added > 0 ? (
+                <span>{t("{{count}} new", { count: added })}</span>
+              ) : null}
+              {updates > 0 ? (
+                <span>{t("{{count}} updates", { count: updates })}</span>
+              ) : null}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-x-3 text-xs text-text-muted">
-            {chosen.length === 0 ? (
-              <span>{t("Check the games you want to import.")}</span>
-            ) : null}
-            {added > 0 ? (
-              <span>{t("{{count}} new", { count: added })}</span>
-            ) : null}
-            {updates > 0 ? (
-              <span>{t("{{count}} updates", { count: updates })}</span>
-            ) : null}
-          </div>
+          <div className="flex-1" />
+          <Button
+            variant="primary"
+            icon={Download}
+            loading={session.phase === "importing"}
+            disabled={chosen.length === 0 || session.capability !== "supported"}
+            onClick={() => void importSelectedGames(chosen)}
+            className="px-5 py-2.5 text-[15px]"
+          >
+            {t("Import {{count}} games", { count: chosen.length })}
+          </Button>
         </div>
-        <div className="flex-1" />
-        <Button
-          variant="primary"
-          icon={Download}
-          loading={session.phase === "importing"}
-          disabled={chosen.length === 0 || session.capability !== "supported"}
-          onClick={() => void importSelectedGames()}
-          className="px-5 py-2.5 text-[15px]"
-        >
-          {t("Import {{count}} games", { count: chosen.length })}
-        </Button>
-      </div>
+      ) : null}
     </div>
   );
 }

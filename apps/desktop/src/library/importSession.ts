@@ -722,10 +722,12 @@ export function notImportedText(name: string) {
   return t("{{name}} could not be imported. Please try again.", { name });
 }
 
-export async function importSelectedGames() {
+/** Imports the checked games the bar counts: the open tab's. */
+export async function importSelectedGames(externalIds: readonly string[]) {
   const start = session();
   const { providerId, scan } = start;
   if (!scan) return;
+  const chosen = new Set(externalIds);
   const profile = importProfile(providerId);
   const providerName = LIBRARY_PROVIDER_LABELS[providerId];
   const app = useAppStore.getState();
@@ -740,10 +742,7 @@ export async function importSelectedGames() {
     const imported = new Map<string, ResolvedLibraryGame>();
     const notImported: string[] = [];
     for (const game of scan.games) {
-      if (
-        !start.selected.has(game.externalId) ||
-        !selectable.has(game.externalId)
-      )
+      if (!chosen.has(game.externalId) || !selectable.has(game.externalId))
         continue;
       const key = libraryEntryKey(providerId, game.externalId);
       const inLibrary = app.libraryImports.has(key);
