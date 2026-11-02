@@ -9,6 +9,7 @@ export function useLibrarySessionState() {
       recentSessions: initial.recentSessions,
       activeSessions: initial.activeSessions,
       archivedGameSeconds: initial.archivedGameSeconds,
+      archivedConsoleSeconds: initial.archivedConsoleSeconds,
     };
     return (state: AppState) => {
       // The library stays mounted to retain its filters and scroll position.
@@ -18,12 +19,14 @@ export function useLibrarySessionState() {
           state.settings.viewShowHero?.[state.activeView] === true) &&
         (state.recentSessions !== snapshot.recentSessions ||
           state.activeSessions !== snapshot.activeSessions ||
-          state.archivedGameSeconds !== snapshot.archivedGameSeconds)
+          state.archivedGameSeconds !== snapshot.archivedGameSeconds ||
+          state.archivedConsoleSeconds !== snapshot.archivedConsoleSeconds)
       ) {
         snapshot = {
           recentSessions: state.recentSessions,
           activeSessions: state.activeSessions,
           archivedGameSeconds: state.archivedGameSeconds,
+          archivedConsoleSeconds: state.archivedConsoleSeconds,
         };
       }
       return snapshot;

@@ -206,5 +206,11 @@
   "{{count}} games in My Games updated_other": "已更新“我的游戏”中的 {{count}} 个游戏",
   "{{count}} games still need you_other": "还有 {{count}} 个游戏需要你确认",
   "Decide {{count}} games_other": "决定 {{count}} 个游戏",
-  "Change what to import": "更改要导入的内容"
+  "Change what to import": "更改要导入的内容",
+  "PlayStation returned only part of your library. Sign in again to retry.": "PlayStation 只返回了你的部分游戏库。请重新登录后重试。",
+  "PlayStation sign-in": "PlayStation 登录",
+  "Sign in to PlayStation to read your games.": "请登录 PlayStation 以读取你的游戏。",
+  "Concept ID": "概念 ID",
+  "Preparing the PlayStation import…": "正在准备 PlayStation 导入…",
+  "New games you play on PlayStation now show up in My Games on their own. You can turn this off in Settings under Library import.": "你在 PlayStation 上玩的新游戏现在会自动出现在“我的游戏”中。你可以在设置的“导入游戏库”中关闭此功能。"
 }

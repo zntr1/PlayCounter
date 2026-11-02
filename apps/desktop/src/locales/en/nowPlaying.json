@@ -97,5 +97,6 @@
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own. It still matches {{count}} games.": "Other players reported this file as not a game, so PlayCounter no longer matches it on its own. It still matches {{count}} games.",
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.": "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.",
   "{{hours}}h {{minutes}}m ago": "{{hours}}h {{minutes}}m ago",
-  "{{minutes}}m ago": "{{minutes}}m ago"
+  "{{minutes}}m ago": "{{minutes}}m ago",
+  "Playing on {{console}}": "Playing on {{console}}"
 }

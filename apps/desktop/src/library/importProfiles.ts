@@ -108,6 +108,21 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: false,
   },
+  // Sony's concept ids name the game; Sony also gives the title, so an id the
+  // server doesn't know can still be found by name. Nothing is installed on
+  // this PC: the account is all there is.
+  playstation: {
+    id: "playstation",
+    login: "playstation",
+    choice: "account",
+    matchedBy: "name",
+    hasPlaytime: true,
+    accountAndInstalls: false,
+    linksFilesPerInstall: false,
+    copySignInLink: false,
+    mainGamesOnlySearch: false,
+    playtimeNotice: false,
+  },
 };
 
 export function importProfile(id: BuiltinImportProviderId): ImportProfile {

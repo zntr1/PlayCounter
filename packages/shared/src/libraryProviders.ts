@@ -10,6 +10,7 @@ export const LIBRARY_PROVIDER_LABELS: Record<LibraryProviderId, string> = {
   battlenet: "Battle.net",
   epic: "Epic Games",
   gog: "GOG",
+  playstation: "PlayStation",
 };
 
 export function isLibraryProvider(value: unknown): value is LibraryProviderId {
@@ -18,7 +19,8 @@ export function isLibraryProvider(value: unknown): value is LibraryProviderId {
     value === "xbox" ||
     value === "battlenet" ||
     value === "epic" ||
-    value === "gog"
+    value === "gog" ||
+    value === "playstation"
   );
 }
 
@@ -32,6 +34,10 @@ export function validLibraryExternalId(
     return /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
   return provider === "battlenet"
     ? /^[a-z][a-z0-9_]{0,63}$/.test(value)
-    : (provider === "steam" || provider === "xbox" || provider === "gog") &&
+    : (provider === "steam" ||
+        provider === "xbox" ||
+        provider === "gog" ||
+        // PlayStation Store concept ids, never title ids like PPSA01521_00.
+        provider === "playstation") &&
         /^[1-9][0-9]{0,9}$/.test(value);
 }

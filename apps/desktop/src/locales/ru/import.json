@@ -251,5 +251,11 @@
   "Decide {{count}} games_few": "Решить по {{count}} играм",
   "Decide {{count}} games_many": "Решить по {{count}} играм",
   "Decide {{count}} games_other": "Решить по {{count}} играм",
-  "Change what to import": "Изменить, что импортировать"
+  "Change what to import": "Изменить, что импортировать",
+  "PlayStation returned only part of your library. Sign in again to retry.": "От PlayStation пришла только часть вашей библиотеки. Войдите снова, чтобы повторить попытку.",
+  "PlayStation sign-in": "Вход в PlayStation",
+  "Sign in to PlayStation to read your games.": "Войдите в PlayStation, чтобы прочитать ваши игры.",
+  "Concept ID": "ID концепта",
+  "Preparing the PlayStation import…": "Подготовка импорта из PlayStation…",
+  "New games you play on PlayStation now show up in My Games on their own. You can turn this off in Settings under Library import.": "Новые игры, в которые вы играете на PlayStation, теперь сами появляются в «Моих играх». Это можно выключить в настройках в разделе «Импорт библиотеки»."
 }

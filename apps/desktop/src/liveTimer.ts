@@ -25,7 +25,9 @@ export function liveTimerPayload(
   gamePids: GamePids,
 ): LiveTimerPayload | null {
   if (settings.liveTimerEnabled !== true) return null;
-  const session = newestSession(activeSessions);
+  const session = newestSession(
+    activeSessions.filter((active) => !active.console),
+  );
   const startedAtMs = session ? Date.parse(session.startedAt) : Number.NaN;
   if (!session || !Number.isFinite(startedAtMs)) return null;
   return {

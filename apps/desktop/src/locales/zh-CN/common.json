@@ -75,5 +75,6 @@
   "{{minutes}}m {{seconds}}s": "{{minutes}}分钟 {{seconds}}秒",
   "Starting PlayCounter…": "正在启动 PlayCounter…",
   "Other": "其他",
-  "sessions_other": "次游玩"
+  "sessions_other": "次游玩",
+  "Imported from your PlayStation account.": "从你的 PlayStation 账户导入。"
 }

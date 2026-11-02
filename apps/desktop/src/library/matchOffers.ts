@@ -60,6 +60,7 @@ export function untrackableLibraryImports() {
         entry.provider === "xbox" ||
         entry.provider === "battlenet" ||
         entry.provider === "epic" ||
+        // PlayStation games are tracked through Sony, never by a PC file.
         entry.provider === "gog") &&
       !tracked.has(entry.igdbId),
   );

@@ -187,7 +187,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-import"),
           title: t("Imports are optional"),
           body: t(
-            "PlayCounter detects games automatically, regardless of launcher. Steam, Xbox, Battle.net, Epic Games, and GOG imports can help bring an existing library across. In your library, right-click My Games in the sidebar to open any importer. This practice does not scan your PC, sign in, or contact a provider.",
+            "PlayCounter detects games automatically, regardless of launcher. Steam, Xbox, Battle.net, Epic Games, GOG, and PlayStation imports can help bring an existing library across. In your library, right-click My Games in the sidebar to open any importer. This practice does not scan your PC, sign in, or contact a provider.",
           ),
         },
         {
@@ -223,7 +223,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-import"),
           title: t("Imported time and tracked sessions"),
           body: t(
-            "Steam and Xbox can supply launcher playtime totals, and so can Epic Games and GOG when you sign in. Those totals do not create a made-up session history. Battle.net does not provide past playtime here. Future sessions tracked by PlayCounter build History. A provider badge describes where a game came from; a file-match badge explains recognition.",
+            "Steam and Xbox can supply launcher playtime totals, and so can Epic Games, GOG, and PlayStation when you sign in. Those totals do not create a made-up session history. Battle.net does not provide past playtime here. Future sessions tracked by PlayCounter build History. A provider badge describes where a game came from; a file-match badge explains recognition.",
           ),
         },
         {
@@ -1963,7 +1963,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-origin-examples"),
           title: t("Where it came from, and how it was recognized"),
           body: t(
-            "Steam, Xbox, Battle.net, Epic Games, and GOG badges describe a library's launcher origin. Dolphin and other emulator badges describe how the game ran. Community, IGDB, and Custom describe the file match. A game can have both kinds of badge. These examples do not claim that any launcher or game is installed.",
+            "Steam, Xbox, Battle.net, Epic Games, GOG, and PlayStation badges describe a library's launcher origin. Dolphin and other emulator badges describe how the game ran. Community, IGDB, and Custom describe the file match. A game can have both kinds of badge. These examples do not claim that any launcher or game is installed.",
           ),
         },
         {

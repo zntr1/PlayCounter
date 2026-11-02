@@ -796,6 +796,7 @@ export function MyGamesView({
     recentSessions: sessions,
     activeSessions,
     archivedGameSeconds,
+    archivedConsoleSeconds,
   } = useLibrarySessionState();
   const libraryTab = useAppStore((state) => state.libraryTab);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
@@ -984,9 +985,10 @@ export function MyGamesView({
       recordedSecondsByGame({
         sessions,
         archivedGameSeconds,
+        archivedConsoleSeconds,
         resolveIgdbId,
       }),
-    [archivedGameSeconds, resolveIgdbId, sessions],
+    [archivedConsoleSeconds, archivedGameSeconds, resolveIgdbId, sessions],
   );
   const localLinks = useMemo(
     () => listLocalLinks(exeCache, scopedExeLinks),
@@ -1320,7 +1322,11 @@ export function MyGamesView({
       existing.sessionCount += 1;
       // Proof a file ran here. A manual session only borrows a file name, and
       // an emulator session names the emulator, not a file of this game.
-      if (session.origin !== "manual" && !session.emulator) {
+      if (
+        session.origin !== "manual" &&
+        session.origin !== "playstation" &&
+        !session.emulator
+      ) {
         const exeKey = session.exeName.toLowerCase();
         existing.exeLastRanAt ??= {};
         const previous = existing.exeLastRanAt[exeKey];
@@ -1472,7 +1478,11 @@ export function MyGamesView({
         (activeSecondsBySummary.get(existing) ?? 0) + activeSeconds,
       );
       // A timer only borrows the file name; the file is not running.
-      if (!activeSession.emulator && !activeSession.timer) {
+      if (
+        !activeSession.emulator &&
+        !activeSession.timer &&
+        !activeSession.console
+      ) {
         existing.exeRunningNow ??= [];
         existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
       }
@@ -3356,6 +3366,7 @@ export function GameLibraryCard({
       state.activeSessions.find(
         (session) =>
           !session.timer &&
+          !session.console &&
           game.aliases.some(
             (alias) =>
               session.gameId === alias.gameId &&
@@ -4550,6 +4561,7 @@ export function GameLibraryCard({
       .activeSessions.filter(
         (session) =>
           !session.timer &&
+          !session.console &&
           !game.aliases.some(
             (alias) =>
               session.gameId === alias.gameId &&

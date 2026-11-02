@@ -87,6 +87,7 @@ const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   battlenet: "Battle.net",
   epic: "Epic Games",
   gog: "GOG",
+  playstation: "PlayStation",
 };
 
 function providerIdLabels(): Record<LibraryProviderId, string> {
@@ -96,6 +97,7 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
     battlenet: t("Battle.net product"),
     epic: t("Epic app name"),
     gog: t("GOG ID"),
+    playstation: t("PlayStation concept"),
   };
 }
 

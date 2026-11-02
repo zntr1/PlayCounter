@@ -58,6 +58,8 @@ type ActiveGameHeroProps = {
   exeCache: ReadonlyMap<string, ExeCacheEntry>;
   resolveIgdbId: GameIdentityResolver;
   archivedGameSeconds: Record<string, number>;
+  /** The console part of archivedGameSeconds; none on tour cards. */
+  archivedConsoleSeconds?: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   providerFloor?: ProviderFloor;
   /** "Now playing" or "Now emulating", already translated. */
@@ -74,6 +76,8 @@ type ActiveGameHeroProps = {
    palette. The session timer is the only big number; lifetime totals sit
    beside it in a smaller voice. */
 
+const NO_CONSOLE_SECONDS: Record<string, number> = {};
+
 export function ActiveGameHero({
   session,
   elapsedSeconds,
@@ -82,6 +86,7 @@ export function ActiveGameHero({
   exeCache,
   resolveIgdbId,
   archivedGameSeconds,
+  archivedConsoleSeconds = NO_CONSOLE_SECONDS,
   playtimeAdjustments,
   providerFloor,
   statusLabel,
@@ -118,9 +123,10 @@ export function ActiveGameHero({
       recordedSecondsByGame({
         sessions: recentSessions,
         archivedGameSeconds,
+        archivedConsoleSeconds,
         resolveIgdbId,
       }),
-    [archivedGameSeconds, recentSessions, resolveIgdbId],
+    [archivedConsoleSeconds, archivedGameSeconds, recentSessions, resolveIgdbId],
   );
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
@@ -197,6 +203,7 @@ export function ActiveGameHero({
   const canReport =
     Boolean(onReport) &&
     !session.timer &&
+    !session.console &&
     (session.source === "igdb" ||
       session.source === "community" ||
       (!session.emulator && isGenericExeName(session.exeName)));
@@ -346,6 +353,10 @@ export function ActiveGameHero({
             {session.emulator ? (
               <span className="rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent-ink">
                 {session.emulator.label} · {session.emulator.display}
+              </span>
+            ) : session.console ? (
+              <span className="rounded-lg border border-[#0070d1]/50 bg-[#06203d] px-2.5 py-1 text-xs font-semibold text-[#8cc8ff]">
+                {t("Playing on {{console}}", { console: session.console })}
               </span>
             ) : session.timer ? null : (
               <span className="truncate rounded-lg border border-border/60 bg-bg/40 px-2.5 py-1 font-mono text-[12px] font-medium tracking-wide text-text-muted backdrop-blur">

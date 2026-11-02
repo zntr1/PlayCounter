@@ -173,6 +173,9 @@ export function HistoryView() {
   const archivedGameSeconds = usePersonalLibraryState(
     (state) => state.archivedGameSeconds,
   );
+  const archivedConsoleSeconds = usePersonalLibraryState(
+    (state) => state.archivedConsoleSeconds,
+  );
   const playtimeAdjustments = usePersonalLibraryState(
     (state) => state.playtimeAdjustments,
   );
@@ -378,12 +381,14 @@ export function HistoryView() {
         ? gameLifetimeTotals({
             sessions,
             archivedGameSeconds,
+            archivedConsoleSeconds,
             playtimeAdjustments,
             providerFloors: providerFloors(libraryImports.values()),
             resolveIgdbId,
           })
         : null,
     [
+      archivedConsoleSeconds,
       archivedGameSeconds,
       filter,
       libraryImports,

@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "O PlayCounter lê as contas do Steam deste PC. Não é necessário fazer login separadamente.",
   "Sign-in warnings": "Alertas de login",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Alertas de login ativados: um selo e uma mensagem quando você precisar entrar novamente no {{launcher}}. Clique para desativá-los.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Alertas de login desativados: sem selo nem mensagem quando você precisar entrar novamente no {{launcher}}. Clique para ativá-los."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Alertas de login desativados: sem selo nem mensagem quando você precisar entrar novamente no {{launcher}}. Clique para ativá-los.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Seus jogos de PS5 e PS4, o tempo de jogo que a Sony registrou e o que você está jogando agora.",
+  "Live from PlayStation": "Ao vivo do PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Mostra o que você joga no PS5 ou PS4 enquanto o PlayCounter está aberto.",
+  "Sign in with a code": "Fazer login com um código",
+  "Sign in at playstation.com in your browser.": "Faça login em playstation.com no seu navegador.",
+  "Open playstation.com": "Abrir playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "No mesmo navegador, abra a página da Sony com o código de login.",
+  "Open the code page": "Abrir a página do código",
+  "Copy everything on that page and paste it here.": "Copie tudo o que aparece nessa página e cole aqui.",
+  "Sign-in code": "Código de login",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "O código funciona como a sua senha. O PlayCounter o guarda criptografado neste PC e só o envia para a Sony."
 }

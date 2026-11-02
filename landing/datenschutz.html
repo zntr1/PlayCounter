@@ -338,6 +338,35 @@
   Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO; du
   kannst den Vorgang jederzeit abbrechen.
 </p>
+<h3>Optionaler PlayStation-Import</h3>
+<p>
+  Wenn du den PlayStation-Import startest, öffnet PlayCounter die
+  Anmeldeseite von Sony in einem privaten Fenster. Die Anmeldung erfolgt
+  direkt bei Sony; PlayCounter sieht dein Passwort nicht. Aus dem Fenster
+  übernimmt die App nur einen einmaligen Autorisierungscode und das
+  Sitzungs-Cookie von Sony (npsso). Alternativ kannst du dieses
+  Sitzungs-Cookie selbst von der Sony-Seite kopieren und in der App einfügen.
+  Damit ruft die App direkt von deinem PC aus bei Sony die Liste deiner
+  gespielten PS5- und PS4-Spiele mit der von Sony erfassten Spielzeit ab und,
+  solange „Live von PlayStation“ eingeschaltet ist und PlayCounter läuft,
+  etwa einmal pro Minute, welches Spiel gerade auf deiner Konsole läuft;
+  daraus entstehen Sitzungen, die nur auf deinem PC gespeichert werden. Aus
+  deinen Kontodaten übernimmt die App nur deine Online-ID, um anzuzeigen, mit
+  welchem Konto du angemeldet bist. Deine Konto-ID speichert sie zusammen mit
+  der Anmeldung und verwendet sie nur für diese Abfragen bei Sony. Damit der
+  nächste Import und die Live-Anzeige ohne neue Anmeldung auskommen,
+  speichert die App das Sitzungs-Cookie und das Aktualisierungstoken von Sony
+  auf deinem PC, verschlüsselt mit dem Windows-Datenschutz (DPAPI), sodass
+  nur dein Windows-Konto sie lesen kann; sie werden nicht an unsere API
+  übermittelt. Mit „Abmelden“ unter „Launcher-Konten“ löscht die App beides.
+  An unsere API werden nur PlayStation-Store-Kennungen (Concept-IDs) und, für
+  nicht erkannte Spiele, Spieltitel als Suchanfrage übermittelt, um
+  Spielnamen und Cover-Bilder aufzulösen; Spielzeiten, die laufenden Spiele
+  und deine Kontodaten bleiben auf deinem Gerät. Cookies und Browserdaten des
+  Anmeldefensters werden nach der Anmeldung gelöscht. Rechtsgrundlage ist
+  deine Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO; du kannst den Vorgang
+  jederzeit abbrechen und dich jederzeit abmelden.
+</p>
 <h3>Community-Spiele-Vorschläge</h3>
 <p>
   Wenn du ein noch nicht erkanntes Spiel zur Community-Datenbank vorschlägst,
@@ -761,6 +790,32 @@
     the playtime stays on your device. The window’s cookies and browsing data
     are deleted after sign-in. The legal basis is your consent under Art.
     6(1)(a) GDPR; you can cancel the process at any time.
+  </p>
+  <h3>Optional PlayStation import</h3>
+  <p>
+    When you start a PlayStation import, PlayCounter opens Sony’s sign-in page
+    in a private window. You sign in directly with Sony; PlayCounter does not
+    see your password. The app takes only a one-time authorization code and
+    Sony’s session cookie (npsso) from that window. Instead, you can copy that
+    session cookie from Sony’s page yourself and paste it into the app. With
+    it, the app retrieves the list of PS5 and PS4 games you played, with the
+    playtime Sony recorded, directly from Sony, from your PC, and, while “Live
+    from PlayStation” is on and PlayCounter runs, about once a minute which
+    game is running on your console; the sessions this creates are stored only
+    on your PC. Of your account details, the app keeps only your online ID, to
+    show which account is signed in. It stores your account ID with the
+    sign-in and uses it only for these requests to Sony. So that the next
+    import and the live view need no new sign-in, the app stores Sony’s
+    session cookie and refresh token on your PC, encrypted with Windows data
+    protection (DPAPI) so that only your Windows account can read them; they
+    are not sent to our API. “Sign out” under “Launcher accounts” deletes
+    both. Only PlayStation Store identifiers (concept IDs) and, for games the
+    API does not recognise, game titles as search queries are sent to our API,
+    to resolve game names and cover artwork; playtime, the running games and
+    your account details stay on your device. The sign-in window’s cookies and
+    browsing data are deleted after sign-in. The legal basis is your consent
+    under Art. 6(1)(a) GDPR; you can cancel the process and sign out at any
+    time.
   </p>
   <h3>Community game suggestions</h3>
   <p>

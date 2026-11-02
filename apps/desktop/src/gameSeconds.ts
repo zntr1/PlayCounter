@@ -1,4 +1,13 @@
-import type { GameSource } from "@playcounter/shared";
+import type { GameSource, Session } from "@playcounter/shared";
+
+/**
+ * Play away from this PC: a PS5 or PS4 session PlayCounter saw live, or one
+ * timed or logged by hand. On a game with PlayStation data it is compared
+ * with Sony's total instead of added (docs/psn-import-plan.md).
+ */
+export function isConsoleSession(session: Pick<Session, "origin">) {
+  return session.origin === "playstation" || session.origin === "manual";
+}
 
 const VALID_SOURCES = new Set(["igdb", "community", "custom", "unknown"]);
 

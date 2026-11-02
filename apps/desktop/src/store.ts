@@ -16,7 +16,11 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
-import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
+import {
+  gameSecondsKey,
+  gameSecondsRefFromKey,
+  isConsoleSession,
+} from "./gameSeconds";
 import {
   DEFAULT_CONTENT_SCALE,
   DEFAULT_MENU_SCALE,
@@ -141,6 +145,10 @@ export type ActiveSession = {
   /** Started by hand for play away from this PC (a console). No process
    *  starts or ends it, only Stop; it is saved as a manual session. */
   timer?: true;
+  /** Seen running on a PlayStation console through Sony's presence. No
+   *  process starts or ends it; its checkpoint is the last sighting, and it is
+   *  saved as a "playstation" session (playstationLive.ts). */
+  console?: "PS5" | "PS4";
 };
 
 export type AmbiguousProcessMatch = {
@@ -515,6 +523,10 @@ export type AppState = {
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  /** The part of archivedGameSeconds from console sessions (PS5 seen live,
+   *  timed or logged by hand), so a game's PlayStation side keeps it after
+   *  its sessions are archived (docs/psn-import-plan.md). */
+  archivedConsoleSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   /** Banner art picked by hand, keyed by customHeroArtKey. */
   customHeroArt: Record<string, string>;
@@ -708,6 +720,8 @@ export type AppState = {
   carryAutoDetectedGameKey: (from: string, to: string) => void;
   setEmulatorIgnoredSetting: (emulatorId: string, ignored: boolean) => void;
   setLoginWarning: (service: KeptLoginService, enabled: boolean) => void;
+  /** "Live from PlayStation" on or off. */
+  setPlayStationLive: (enabled: boolean) => void;
   setDevNumber: (
     key: "pollingIntervalSeconds" | "unmatchedRetryDays",
     value: number,
@@ -804,13 +818,17 @@ function addSessionsToArchive(
   currentGameSeconds: Record<string, number>,
   sessions: Session[],
   currentPlaythroughSeconds: Record<string, number> = {},
+  currentConsoleSeconds: Record<string, number> = {},
 ) {
   const archivedGameSeconds = { ...currentGameSeconds };
+  const archivedConsoleSeconds = { ...currentConsoleSeconds };
   for (const session of sessions) {
     const seconds = Math.max(0, session.durationSeconds ?? 0);
     archivedSeconds += seconds;
     const key = gameSecondsKey(session);
     archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
+    if (seconds > 0 && isConsoleSession(session))
+      archivedConsoleSeconds[key] = (archivedConsoleSeconds[key] ?? 0) + seconds;
   }
   return {
     archivedSeconds,
@@ -819,6 +837,7 @@ function addSessionsToArchive(
       currentPlaythroughSeconds,
       sessions,
     ),
+    archivedConsoleSeconds,
   };
 }
 
@@ -827,12 +846,14 @@ export function foldSessionsIntoArchive(
   archivedGameSeconds: Record<string, number>,
   sessions: Session[],
   archivedPlaythroughSeconds: Record<string, number> = {},
+  archivedConsoleSeconds: Record<string, number> = {},
 ) {
   return addSessionsToArchive(
     archivedSeconds,
     archivedGameSeconds,
     sessions,
     archivedPlaythroughSeconds,
+    archivedConsoleSeconds,
   );
 }
 
@@ -848,6 +869,7 @@ function persistSoon() {
         archivedSeconds: result.archivedSeconds,
         archivedGameSeconds: result.archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
+        archivedConsoleSeconds: result.archivedConsoleSeconds,
       });
     }
     if (result.status === "trimmed") {
@@ -945,6 +967,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   milestonesInitializedAt: null,
   archivedSeconds: 0,
   archivedGameSeconds: {},
+  archivedConsoleSeconds: {},
   playtimeAdjustments: {},
   customHeroArt: {},
   customCoverArt: {},
@@ -1217,6 +1240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         state.archivedGameSeconds,
         removed,
         state.archivedPlaythroughSeconds,
+        state.archivedConsoleSeconds,
       );
       return { recentSessions: kept, ...archive };
     }),
@@ -1707,6 +1731,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       if (from === to) return {};
       const archivedGameSeconds = { ...state.archivedGameSeconds };
+      const archivedConsoleSeconds = { ...state.archivedConsoleSeconds };
       const playtimeAdjustments = { ...state.playtimeAdjustments };
       const move = (record: Record<string, number>) => {
         const seconds = record[from];
@@ -1717,9 +1742,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         delete record[from];
       };
       move(archivedGameSeconds);
+      move(archivedConsoleSeconds);
       move(playtimeAdjustments);
       return {
         archivedGameSeconds,
+        archivedConsoleSeconds,
         playtimeAdjustments,
         gameJournals: rekeyJournal(state.gameJournals, from, to),
       };
@@ -1737,6 +1764,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearGameSeconds: (keys) =>
     set((state) => {
       const archivedGameSeconds = { ...state.archivedGameSeconds };
+      const archivedConsoleSeconds = { ...state.archivedConsoleSeconds };
       const playtimeAdjustments = { ...state.playtimeAdjustments };
       const archivedPlaythroughSeconds = {
         ...state.archivedPlaythroughSeconds,
@@ -1757,6 +1785,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       for (const key of new Set(keys)) {
         removedArchivedSeconds += Math.max(0, archivedGameSeconds[key] ?? 0);
         delete archivedGameSeconds[key];
+        delete archivedConsoleSeconds[key];
         delete playtimeAdjustments[key];
       }
       return {
@@ -1765,6 +1794,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           state.archivedSeconds - removedArchivedSeconds,
         ),
         archivedGameSeconds,
+        archivedConsoleSeconds,
         playtimeAdjustments,
         archivedPlaythroughSeconds,
       };
@@ -2113,6 +2143,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       else off.add(service);
       return {
         settings: { ...state.settings, loginWarningsOff: [...off].sort() },
+      };
+    });
+    persistSoon();
+  },
+  setPlayStationLive: (enabled) => {
+    set((state) => {
+      const { playstationLiveOff: _off, ...settings } = state.settings;
+      return {
+        settings: enabled ? settings : { ...settings, playstationLiveOff: true },
       };
     });
     persistSoon();

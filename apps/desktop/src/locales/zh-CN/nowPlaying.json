@@ -96,5 +96,6 @@
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own. It still matches {{count}} games.": "其他玩家报告此文件不是游戏，因此 PlayCounter 不会再自动匹配它。它仍匹配 {{count}} 个游戏。",
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.": "其他玩家报告此文件不是游戏，因此 PlayCounter 不会再自动匹配它。",
   "{{hours}}h {{minutes}}m ago": "{{hours}}小时 {{minutes}}分钟前",
-  "{{minutes}}m ago": "{{minutes}}分钟前"
+  "{{minutes}}m ago": "{{minutes}}分钟前",
+  "Playing on {{console}}": "正在 {{console}} 上玩"
 }

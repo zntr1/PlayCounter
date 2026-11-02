@@ -31,6 +31,9 @@ export type LibraryImportEntry = {
   lastReadAt: string;
   linkedExeNames: string[];
   linkedExeSources: GameSource[];
+  /** PlayStation: Sony's ids of the game's copies, so a game running on the
+   *  console is recognised (playstationLive.ts). */
+  consoleTitleIds?: string[];
 };
 
 export type LibraryInstallEntry = {
@@ -126,6 +129,8 @@ export type ScannedLibraryGame = {
   /** The launcher starts the game in an emulator it ships with the game
    *  (GOG's DOSBox and ScummVM games): there is no game file to link. */
   runsInEmulator?: boolean;
+  /** PlayStation: Sony's ids of the game's copies (PPSA01521_00). */
+  consoleTitleIds?: string[];
 };
 
 export type LibraryScanResult = {

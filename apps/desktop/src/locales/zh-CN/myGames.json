@@ -636,5 +636,11 @@
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "它可能以管理员身份运行，或受反作弊保护。请在游戏内关闭它。",
   "OK": "确定",
   "Achievements": "成就",
-  "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.": "在浏览器中登录 Microsoft，然后确认 PlayCounter 识别出的游戏。其中大多数需要你确认。PlayCounter 永远看不到你的密码，并会在这台电脑上保持你的登录，供下次导入使用。"
+  "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.": "在浏览器中登录 Microsoft，然后确认 PlayCounter 识别出的游戏。其中大多数需要你确认。PlayCounter 永远看不到你的密码，并会在这台电脑上保持你的登录，供下次导入使用。",
+  "PlayStation library": "PlayStation 游戏库",
+  "Games imported from your PlayStation account.": "从你的 PlayStation 账户导入的游戏。",
+  "Import more from PlayStation": "从 PlayStation 导入更多",
+  "No PlayStation games imported yet": "尚未导入 PlayStation 游戏",
+  "Sign in to bring in your PS5 and PS4 games with the playtime Sony recorded. PlayCounter keeps it up to date and shows what you play on the console.": "登录后即可导入你的 PS5 和 PS4 游戏，以及 Sony 记录的游戏时长。PlayCounter 会保持数据最新，并显示你正在主机上玩什么。",
+  "Import from PlayStation": "从 PlayStation 导入"
 }

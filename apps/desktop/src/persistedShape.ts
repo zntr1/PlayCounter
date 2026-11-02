@@ -44,6 +44,7 @@ const OBJECTS = [
   "gameJournals",
   "archivedPlaythroughSeconds",
   "archivedGameSeconds",
+  "archivedConsoleSeconds",
   "playtimeAdjustments",
   "seenContributionStatus",
   "contributionCounts",

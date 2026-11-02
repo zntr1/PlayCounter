@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter lit les comptes Steam présents sur ce PC. Aucune connexion supplémentaire n’est nécessaire.",
   "Sign-in warnings": "Avertissements de connexion",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Avertissements de connexion activés : un badge et un message quand {{launcher}} nécessite une nouvelle connexion. Cliquez pour les désactiver.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Avertissements de connexion désactivés : ni badge ni message quand {{launcher}} nécessite une nouvelle connexion. Cliquez pour les activer."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Avertissements de connexion désactivés : ni badge ni message quand {{launcher}} nécessite une nouvelle connexion. Cliquez pour les activer.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Vos jeux PS5 et PS4, le temps de jeu enregistré par Sony et ce à quoi vous jouez en ce moment.",
+  "Live from PlayStation": "En direct de PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Montre à quoi vous jouez sur votre PS5 ou PS4 tant que PlayCounter tourne.",
+  "Sign in with a code": "Se connecter avec un code",
+  "Sign in at playstation.com in your browser.": "Connectez-vous sur playstation.com dans votre navigateur.",
+  "Open playstation.com": "Ouvrir playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "Dans le même navigateur, ouvrez la page de Sony avec le code de connexion.",
+  "Open the code page": "Ouvrir la page du code",
+  "Copy everything on that page and paste it here.": "Copiez tout le contenu de cette page et collez-le ici.",
+  "Sign-in code": "Code de connexion",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "Le code a la même valeur que votre mot de passe. PlayCounter le garde chiffré sur ce PC et ne l'envoie qu'à Sony."
 }

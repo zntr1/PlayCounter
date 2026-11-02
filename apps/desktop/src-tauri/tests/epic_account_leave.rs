@@ -39,6 +39,17 @@ mod gog_account {
     }
 }
 
+#[allow(dead_code)]
+mod playstation_account {
+    pub async fn check_saved_login(_: &tauri::AppHandle) -> super::login_status::LoginStatus {
+        panic!("Epic fixtures must never validate PlayStation accounts");
+    }
+
+    pub fn cancel_active(_: &tauri::AppHandle) {
+        panic!("Epic fixtures must never cancel PlayStation sessions");
+    }
+}
+
 // The account module's game-ID check is unrelated to this fixture. Include its
 // small dependency here without bringing in installation scanning or launching.
 mod epic {

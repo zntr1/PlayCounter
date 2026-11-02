@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter считывает аккаунты Steam на этом ПК. Отдельный вход не требуется.",
   "Sign-in warnings": "Предупреждения о входе",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Предупреждения о входе включены: значок и сообщение, когда {{launcher}} требует повторного входа. Нажмите, чтобы выключить.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Предупреждения о входе выключены: ни значка, ни сообщения, когда {{launcher}} требует повторного входа. Нажмите, чтобы включить."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Предупреждения о входе выключены: ни значка, ни сообщения, когда {{launcher}} требует повторного входа. Нажмите, чтобы включить.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Ваши игры с PS5 и PS4, время, которое учла Sony, и то, во что вы играете сейчас.",
+  "Live from PlayStation": "В реальном времени с PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Показывает, во что вы играете на PS5 или PS4, пока PlayCounter запущен.",
+  "Sign in with a code": "Войти с кодом",
+  "Sign in at playstation.com in your browser.": "Войдите на playstation.com в браузере.",
+  "Open playstation.com": "Открыть playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "В том же браузере откройте страницу Sony с кодом входа.",
+  "Open the code page": "Открыть страницу с кодом",
+  "Copy everything on that page and paste it here.": "Скопируйте всё содержимое этой страницы и вставьте сюда.",
+  "Sign-in code": "Код входа",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "Код работает как ваш пароль. PlayCounter хранит его в зашифрованном виде на этом ПК и отправляет только Sony."
 }

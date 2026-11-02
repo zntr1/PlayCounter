@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter lee las cuentas de Steam de este PC. No necesitas iniciar sesión por separado.",
   "Sign-in warnings": "Advertencias de inicio de sesión",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Advertencias de inicio de sesión activadas: una insignia y un mensaje cuando debas volver a iniciar sesión en {{launcher}}. Haz clic para desactivarlas.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Advertencias de inicio de sesión desactivadas: ni insignia ni mensaje cuando debas volver a iniciar sesión en {{launcher}}. Haz clic para activarlas."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Advertencias de inicio de sesión desactivadas: ni insignia ni mensaje cuando debas volver a iniciar sesión en {{launcher}}. Haz clic para activarlas.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Tus juegos de PS5 y PS4, el tiempo de juego que registró Sony y a qué juegas ahora mismo.",
+  "Live from PlayStation": "En directo desde PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Muestra a qué juegas en tu PS5 o PS4 mientras PlayCounter está abierto.",
+  "Sign in with a code": "Iniciar sesión con un código",
+  "Sign in at playstation.com in your browser.": "Inicia sesión en playstation.com en tu navegador.",
+  "Open playstation.com": "Abrir playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "En el mismo navegador, abre la página de Sony con el código de inicio de sesión.",
+  "Open the code page": "Abrir la página del código",
+  "Copy everything on that page and paste it here.": "Copia todo lo que aparece en esa página y pégalo aquí.",
+  "Sign-in code": "Código de inicio de sesión",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "El código funciona como tu contraseña. PlayCounter lo guarda cifrado en este PC y solo lo envía a Sony."
 }

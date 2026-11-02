@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter 会读取这台电脑上的 Steam 账户，无需单独登录。",
   "Sign-in warnings": "登录警告",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "登录警告已开启：{{launcher}} 需要你重新登录时，会显示徽章和消息。点击可关闭。",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "登录警告已关闭：{{launcher}} 需要你重新登录时，不会显示徽章和消息。点击可开启。"
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "登录警告已关闭：{{launcher}} 需要你重新登录时，不会显示徽章和消息。点击可开启。",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "你的 PS5 和 PS4 游戏、Sony 记录的游戏时长，以及你正在玩的游戏。",
+  "Live from PlayStation": "PlayStation 实时状态",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "在 PlayCounter 运行时显示你在 PS5 或 PS4 上玩的游戏。",
+  "Sign in with a code": "使用代码登录",
+  "Sign in at playstation.com in your browser.": "在浏览器中登录 playstation.com。",
+  "Open playstation.com": "打开 playstation.com",
+  "In the same browser, open Sony's sign-in code page.": "在同一浏览器中打开 Sony 的登录代码页面。",
+  "Open the code page": "打开代码页面",
+  "Copy everything on that page and paste it here.": "复制该页面上的全部内容并粘贴到这里。",
+  "Sign-in code": "登录代码",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "此代码的作用等同于你的密码。PlayCounter 会将其加密保存在这台电脑上，并且只发送给 Sony。"
 }
