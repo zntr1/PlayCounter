@@ -131,7 +131,7 @@ export function ImportDone({ session }: { session: ImportSession }) {
             </Button>
           ) : null}
           <Button variant="ghost" onClick={showImportList}>
-            {t("Back to the games")}
+            {t("Back to the importer")}
           </Button>
         </div>
       </div>

@@ -616,6 +616,124 @@ describe("Needs you", () => {
   });
 });
 
+// Phil, 2026-11-02: keep clicking Import game after game without looking for
+// the button, and no jump back to the top of the list after an import.
+describe("deciding one game after another", () => {
+  const flightSimulator = metadata(108_603, "Microsoft Flight Simulator");
+  const masterChief = metadata(1_255, "Halo: The Master Chief Collection");
+  const gears = metadata(103_303, "Gears 5");
+  const seaOfThieves = metadata(11_137, "Sea of Thieves");
+  const xboxLibrary = {
+    games: [
+      game("1", "Microsoft Flight Simulator 40th Anniversary Edition"),
+      game("2", "Halo: The Master Chief Collection (PC)"),
+      game("3", "Gears 5 Game of the Year Edition"),
+      game("4", "Sea of Thieves 2024 Edition"),
+    ],
+    resolvedGames: [
+      unmatched("xbox:1", [flightSimulator]),
+      unmatched("xbox:2", [masterChief]),
+      unmatched("xbox:3", [gears]),
+      unmatched("xbox:4", [seaOfThieves]),
+    ],
+  };
+
+  beforeEach(() => {
+    mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => ({
+      game: [flightSimulator, masterChief, gears, seaOfThieves].find(
+        (item) => item.id === id,
+      ),
+      executables: [],
+    }));
+  });
+
+  it("puts Skip for now and Import beside the game's name, above its choices, for every game", async () => {
+    await scan("xbox", {
+      games: [
+        game("1", "Microsoft Flight Simulator 40th Anniversary Edition"),
+        // Installed: it asks for the game and for its file.
+        game("2", "Halo: The Master Chief Collection (PC)", {
+          installed: true,
+          installPath: String.raw`C:\XboxGames\Halo MCC\Content`,
+          executables: [exe("mcclauncher.exe"), exe("MCC-Win64-Shipping.exe")],
+        }),
+      ],
+      resolvedGames: [
+        unmatched("xbox:1", [flightSimulator]),
+        unmatched("xbox:2", [masterChief, gears, seaOfThieves]),
+      ],
+    });
+    for (const title of [
+      "Microsoft Flight Simulator 40th Anniversary Edition",
+      "Halo: The Master Chief Collection (PC)",
+    ]) {
+      await act(() => row(title).click());
+      const top = container.querySelector(
+        "section[aria-label]",
+      )!.firstElementChild!;
+      expect(top.querySelector("h3")?.textContent).toBe(title);
+      expect(top.contains(findButton("Skip for now")!)).toBe(true);
+      expect(top.contains(findButton("Import")!)).toBe(true);
+      // "Which game is …?" and "Which file starts the game?" come below.
+      expect(top.querySelector("h4")).toBeNull();
+    }
+    expect(container.textContent).toContain("Which file starts the game?");
+  });
+
+  it("shows the next game that needs you after an import, not the first one in the list", async () => {
+    await scan("xbox", xboxLibrary);
+    await click("Skip for now");
+    expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(listed()).toEqual([
+      "Microsoft Flight Simulator 40th Anniversary Edition",
+      "Gears 5 Game of the Year Edition",
+      "Sea of Thieves 2024 Edition",
+    ]);
+    expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+  });
+
+  it("stays on the game you opened while the import ran", async () => {
+    await scan("xbox", xboxLibrary);
+    let finishImport!: () => void;
+    const importing = new Promise<void>((resolve) => (finishImport = resolve));
+    const putInMyGames = mocks.run.getMockImplementation()!;
+    mocks.run.mockImplementationOnce(async (...args: unknown[]) => {
+      await importing;
+      return putInMyGames(...args);
+    });
+
+    await click("Import");
+    await act(() => row("Sea of Thieves 2024 Edition").click());
+    await act(async () => finishImport());
+    expect(shelf("imported").count).toBe(1);
+    expect(detailTitle()).toBe("Sea of Thieves 2024 Edition");
+  });
+
+  it("ignores a click on Import right after an import moved on to the next game", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      await scan("xbox", xboxLibrary);
+      await click("Import");
+      expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+      // A second click as the next game shows up was meant for the one before.
+      await click("Import");
+      expect(mocks.run).toHaveBeenCalledTimes(1);
+      expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+      vi.setSystemTime(Date.now() + 500);
+      await click("Import");
+      expect(mocks.run).toHaveBeenCalledTimes(2);
+      expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("the file that starts a game", () => {
   it("is preselected when it was linked before", async () => {
     const diablo = metadata(125_165, "Diablo IV");
@@ -772,6 +890,9 @@ it("counts what the import brought and what still needs you", async () => {
   expect(container.textContent).toContain("1 game in My Games updated");
   expect(container.textContent).toContain("1 game still needs you");
   expect(findButton("Open My Games")).toBeDefined();
+  // "Back to the games" read like My Games.
+  expect(findButton("Back to the importer")).toBeDefined();
+  expect(findButton("Back to the games")).toBeUndefined();
 
   await click("Decide 1 game");
   expect(shelf("attention").open).toBe(true);
@@ -1126,7 +1247,7 @@ describe("Wrong game?", () => {
     expect(container.textContent).toContain(
       "The High Life could not be imported. Please try again.",
     );
-    await click("Back to the games");
+    await click("Back to the importer");
     expect(checkbox("The High Life")?.checked).toBe(true);
   });
 

@@ -105,6 +105,8 @@ export type ImportSession = {
   waitingForServer: boolean;
   group: ImportGroupKey;
   current: string | null;
+  /** The game an Import moved on to, and when. */
+  movedOn: { externalId: string; at: number } | null;
   busy: string | null;
   browsing: string | null;
   /** `notImported`: picked games the server could not be asked about. */
@@ -148,6 +150,7 @@ export function createImportSession(
     waitingForServer: false,
     group: "ready",
     current: null,
+    movedOn: null,
     busy: null,
     browsing: null,
     lastImport: null,
@@ -281,6 +284,7 @@ const clearedReview = {
   authorizeUrl: null,
   waitingForServer: false,
   current: null,
+  movedOn: null,
   busy: null,
   browsing: null,
   lastImport: null,
@@ -833,8 +837,11 @@ export async function importSelectedGames() {
 }
 
 /** Imports one game that needed the player: the game they picked, or the
- *  matched one, with the file they picked. */
-export async function importOneGame(externalId: string) {
+ *  matched one, with the file they picked. Then shows `next`, as Skip does. */
+export async function importOneGame(
+  externalId: string,
+  next: string | null = null,
+) {
   const start = session();
   const { providerId } = start;
   const profile = importProfile(providerId);
@@ -904,11 +911,18 @@ export async function importOneGame(externalId: string) {
     update((current) => {
       const selected = new Set(current.selected);
       selected.delete(externalId);
+      // Another game opened while this one was imported stays open.
+      const movesOn =
+        current.current === externalId || current.current === null;
       return {
         saved: new Map(current.saved).set(key, done),
         completed: new Set(current.completed).add(externalId),
         selected,
-        current: null,
+        current: movesOn ? next : current.current,
+        movedOn:
+          movesOn && next !== null
+            ? { externalId: next, at: Date.now() }
+            : current.movedOn,
       };
     });
     const linkedCount =

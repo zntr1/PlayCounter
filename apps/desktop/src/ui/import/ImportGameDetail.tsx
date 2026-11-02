@@ -64,90 +64,105 @@ export function ImportGameDetail({
     offersWrongGame && (doubted || row.replacement !== undefined);
   // A console game has no install or file on this PC to tell about.
   const consoleOnly = importProfile(session.providerId).consoleOnly;
+  const deciding = !row.completed && row.group === "attention" && !skipped;
   return (
+    // One column as wide as the box, so a long path can't widen it.
     <section
       aria-label={row.title}
-      className="grid min-w-0 content-start gap-5 rounded-lg border border-border bg-surface p-5 shadow-raised"
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 rounded-lg border border-border bg-surface p-5 shadow-raised"
     >
-      <div className="grid grid-cols-[112px_minmax(0,1fr)] items-start gap-5">
-        <span className="grid aspect-[3/4] w-full place-items-center overflow-hidden rounded-xl bg-surface-hover text-text-faint shadow-raised">
-          {row.coverUrl ? (
-            <GameCover
-              src={row.coverUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <Gamepad2 size={26} aria-hidden="true" />
-          )}
-        </span>
-        <div className="min-w-0">
-          <h3 className="text-xl font-bold tracking-tight text-text">
-            {row.title}
-          </h3>
-          {row.replacement && matched ? (
-            <p className="mt-1 text-sm text-text-muted">
-              {t("Your pick. {{launcher}} matched {{name}}.", {
-                launcher: launcherName(session.providerId),
-                name: matched.name,
-              })}
-            </p>
-          ) : null}
-          <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-1.5 text-sm">
-            <Fact label={t("Playtime")}>
-              {row.group === "imported" && playtimeGrowth(row)
-                ? playtimeGrowth(row)
-                : playtimeText(game)}
-            </Fact>
-            {lastPlayed ? (
-              <Fact label={t("Last played")}>{lastPlayed}</Fact>
-            ) : null}
-            {consoleOnly ? null : (
-              <Fact label={t("On this PC")}>
-                {game.installed
-                  ? (game.installPath ?? t("Installed"))
-                  : game.installationStatusUnknown
-                    ? t("Installation not checked")
-                    : t("Not installed")}
-              </Fact>
-            )}
-            <Fact label={launcherIdLabel(session.providerId)}>
-              {game.externalId}
-            </Fact>
-            {row.resolved?.status === "resolved" &&
-            !row.replacement &&
-            !consoleOnly ? (
-              <Fact label={t("Game files")}>
-                {files.length
-                  ? t("{{count}} known game files", { count: files.length })
-                  : t("No known game file")}
-              </Fact>
-            ) : null}
-          </dl>
-          {game.consoleUnknown ? (
-            <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning-border/60 bg-warning-tint/40 px-3 py-2 text-xs leading-5 text-warning">
-              <AlertTriangle
-                size={14}
-                aria-hidden="true"
-                className="mt-0.5 shrink-0"
+      {/* Skip for now and Import sit top right, in the same spot for every
+          game, so Import can be clicked game after game. Without room beside
+          the game they wrap onto a line above it, never below: wrap-reverse
+          stacks the lines bottom up, which also makes items-end the top. */}
+      <div className="flex flex-wrap-reverse items-end justify-end gap-x-5 gap-y-4">
+        <div className="grid min-w-[min(100%,24rem)] flex-1 grid-cols-[112px_minmax(0,1fr)] items-start gap-5">
+          <span className="grid aspect-[3/4] w-full place-items-center overflow-hidden rounded-xl bg-surface-hover text-text-faint shadow-raised">
+            {row.coverUrl ? (
+              <GameCover
+                src={row.coverUrl}
+                alt=""
+                className="h-full w-full object-cover"
               />
-              <span className="min-w-0">
-                {t(
-                  "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.",
-                )}
-              </span>
-            </p>
-          ) : null}
-          {offersWrongGame && !replacing ? (
-            <button
-              type="button"
-              onClick={() => setDoubted(true)}
-              className="mt-3 rounded text-sm font-semibold text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-            >
-              {t("Wrong game?")}
-            </button>
-          ) : null}
+            ) : (
+              <Gamepad2 size={26} aria-hidden="true" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold tracking-tight text-text">
+              {row.title}
+            </h3>
+            {row.replacement && matched ? (
+              <p className="mt-1 text-sm text-text-muted">
+                {t("Your pick. {{launcher}} matched {{name}}.", {
+                  launcher: launcherName(session.providerId),
+                  name: matched.name,
+                })}
+              </p>
+            ) : null}
+            <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-1.5 text-sm">
+              <Fact label={t("Playtime")}>
+                {row.group === "imported" && playtimeGrowth(row)
+                  ? playtimeGrowth(row)
+                  : playtimeText(game)}
+              </Fact>
+              {lastPlayed ? (
+                <Fact label={t("Last played")}>{lastPlayed}</Fact>
+              ) : null}
+              {consoleOnly ? null : (
+                <Fact label={t("On this PC")}>
+                  {game.installed
+                    ? (game.installPath ?? t("Installed"))
+                    : game.installationStatusUnknown
+                      ? t("Installation not checked")
+                      : t("Not installed")}
+                </Fact>
+              )}
+              <Fact label={launcherIdLabel(session.providerId)}>
+                {game.externalId}
+              </Fact>
+              {row.resolved?.status === "resolved" &&
+              !row.replacement &&
+              !consoleOnly ? (
+                <Fact label={t("Game files")}>
+                  {files.length
+                    ? t("{{count}} known game files", { count: files.length })
+                    : t("No known game file")}
+                </Fact>
+              ) : null}
+            </dl>
+            {game.consoleUnknown ? (
+              <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning-border/60 bg-warning-tint/40 px-3 py-2 text-xs leading-5 text-warning">
+                <AlertTriangle
+                  size={14}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0"
+                />
+                <span className="min-w-0">
+                  {t(
+                    "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.",
+                  )}
+                </span>
+              </p>
+            ) : null}
+            {offersWrongGame && !replacing ? (
+              <button
+                type="button"
+                onClick={() => setDoubted(true)}
+                className="mt-3 rounded text-sm font-semibold text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              >
+                {t("Wrong game?")}
+              </button>
+            ) : null}
+          </div>
         </div>
+        {deciding ? (
+          <DecisionActions
+            session={session}
+            row={row}
+            nextToDecide={nextToDecide}
+          />
+        ) : null}
       </div>
 
       {row.completed ? (
@@ -165,12 +180,7 @@ export function ImportGameDetail({
             </button>
           </p>
         ) : (
-          <ImportDecision
-            session={session}
-            row={row}
-            replacing={replacing}
-            onSkip={() => skipImportGame(id, nextToDecide)}
-          />
+          <ImportDecision session={session} row={row} replacing={replacing} />
         )
       ) : row.group === "imported" ? (
         <>
@@ -204,21 +214,71 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** "Which game is it?" and "Which file starts it?", then one Import. */
+/** A click on Import this soon after an Import moved on to the game was meant
+ *  for the game before. */
+const MOVED_ON_CLICK_PAUSE_MS = 500;
+
+/** Skip for now and Import, for a game that needs the player. */
+function DecisionActions({
+  session,
+  row,
+  nextToDecide,
+}: {
+  session: ImportSession;
+  row: ImportRow;
+  /** The game to show after this one is skipped or imported. */
+  nextToDecide: string | null;
+}) {
+  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
+  const { game } = row;
+  const id = game.externalId;
+  const requiresFile = requiresExecutableChoice(
+    game,
+    row.resolved,
+    ignoredProcesses,
+  );
+  const canImport =
+    session.capability === "supported" &&
+    (!row.needsGame || Boolean(session.picks[id])) &&
+    (!requiresFile || Boolean(session.manualExecutables[id]));
+  return (
+    <div className="flex min-w-0 flex-wrap justify-end gap-2">
+      <Button variant="ghost" onClick={() => skipImportGame(id, nextToDecide)}>
+        {t("Skip for now")}
+      </Button>
+      <Button
+        variant="primary"
+        icon={Download}
+        loading={session.busy === id}
+        disabled={!canImport}
+        onClick={() => {
+          const { movedOn } = session;
+          if (
+            movedOn?.externalId === id &&
+            Date.now() - movedOn.at < MOVED_ON_CLICK_PAUSE_MS
+          )
+            return;
+          void importOneGame(id, nextToDecide);
+        }}
+      >
+        {t("Import")}
+      </Button>
+    </div>
+  );
+}
+
+/** "Which game is it?" and "Which file starts it?". */
 function ImportDecision({
   session,
   row,
   replacing,
-  onSkip,
 }: {
   session: ImportSession;
   row: ImportRow;
   /** "Wrong game?" is open on a matched game. */
   replacing: boolean;
-  onSkip: () => void;
 }) {
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
-  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
   const profile = importProfile(session.providerId);
   const { game } = row;
   const id = game.externalId;
@@ -228,15 +288,6 @@ function ImportDecision({
   useEffect(() => {
     if (pickedId !== undefined) void lookUpPickedGame(pickedId);
   }, [pickedId]);
-  const requiresFile = requiresExecutableChoice(
-    game,
-    row.resolved,
-    ignoredProcesses,
-  );
-  const canImport =
-    session.capability === "supported" &&
-    (!row.needsGame || Boolean(pick)) &&
-    (!requiresFile || Boolean(session.manualExecutables[id]));
   const launcherTitle = game.name ?? row.title;
   const candidates = session.choices[id] ?? row.resolved?.candidates ?? [];
   return (
@@ -271,33 +322,19 @@ function ImportDecision({
         <MatchReplacement session={session} row={row} />
       ) : null}
       {row.showsFile ? <FileQuestion session={session} row={row} /> : null}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <p className="mr-auto min-w-0 flex-1 basis-60 text-xs leading-5 text-text-faint">
-          {row.showsFile
+      <p className="text-xs leading-5 text-text-faint">
+        {row.showsFile
+          ? t(
+              "A game file PlayCounter doesn't know yet goes to the community for review.",
+            )
+          : profile.hasPlaytime
             ? t(
-                "A game file PlayCounter doesn't know yet goes to the community for review.",
+                "Game names are not always unique. Confirm the right game before its playtime is added to your library.",
               )
-            : profile.hasPlaytime
-              ? t(
-                  "Game names are not always unique. Confirm the right game before its playtime is added to your library.",
-                )
-              : t(
-                  "Game names are not always unique. Confirm the right game before adding it to your library.",
-                )}
-        </p>
-        <Button variant="ghost" onClick={onSkip}>
-          {t("Skip for now")}
-        </Button>
-        <Button
-          variant="primary"
-          icon={Download}
-          loading={session.busy === id}
-          disabled={!canImport}
-          onClick={() => void importOneGame(id)}
-        >
-          {t("Import")}
-        </Button>
-      </div>
+            : t(
+                "Game names are not always unique. Confirm the right game before adding it to your library.",
+              )}
+      </p>
     </div>
   );
 }

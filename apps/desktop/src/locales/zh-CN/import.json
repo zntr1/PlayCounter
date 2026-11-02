@@ -158,6 +158,7 @@
   "No sign-in needed.": "无需登录。",
   "Past playtime stays unknown.": "以往的游戏时长仍然未知。",
   "Back to the games": "返回游戏列表",
+  "Back to the importer": "返回导入页面",
   "Complete the {{providerName}} sign-in in the window that opened…": "请在打开的窗口中完成 {{providerName}} 登录…",
   "Reading your {{providerName}} library…": "正在读取你的 {{providerName}} 游戏库…",
   "Looking for {{providerName}} games on this PC…": "正在此电脑上查找 {{providerName}} 游戏…",
