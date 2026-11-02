@@ -418,6 +418,44 @@ it.each([
   },
 );
 
+it("playstation: a game Sony names no console for starts unchecked, and its details say why", async () => {
+  // Phil's account: Bloodborne he played himself; GTA V someone else played
+  // on it, in Sony's "unknown" category.
+  const own = game("200520", "Bloodborne", {
+    playtimeSeconds: 264_060,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    consoleTitleIds: ["CUSA00207_00"],
+  });
+  const unknown = game("201930", "Grand Theft Auto V", {
+    playtimeSeconds: 2_917_966,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    consoleTitleIds: ["CUSA00411_00"],
+    consoleUnknown: true,
+  });
+  await scan("playstation", {
+    games: [own, unknown],
+    resolvedGames: [
+      matched("playstation:200520", metadata(1, "Bloodborne")),
+      matched("playstation:201930", metadata(2, "Grand Theft Auto V")),
+    ],
+  });
+  expect(listed()).toEqual(["Bloodborne", "Grand Theft Auto V"]);
+  expect(checkbox("Bloodborne")?.checked).toBe(true);
+  expect(checkbox("Grand Theft Auto V")?.checked).toBe(false);
+  expect(container.textContent).toContain("1 game selected");
+
+  const why =
+    "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.";
+  await act(() => row("Grand Theft Auto V").click());
+  expect(detailTitle()).toBe("Grand Theft Auto V");
+  expect(container.textContent).toContain(why);
+  await act(() => row("Bloodborne").click());
+  expect(detailTitle()).toBe("Bloodborne");
+  expect(container.textContent).not.toContain(why);
+});
+
 describe("Needs you", () => {
   const forza5 = metadata(42, "Forza Horizon 5", { releaseYear: 2021 });
   const forza4 = metadata(41, "Forza Horizon 4", { releaseYear: 2018 });

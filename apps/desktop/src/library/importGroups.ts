@@ -46,14 +46,17 @@ export function isImportable(
 }
 
 /**
- * A game you own but never played and have not installed: importable, but
- * only when you pick it. Launcher accounts collect many free games.
+ * A game you own but never played and have not installed, or one the
+ * launcher names no console for (someone else may have played it on your
+ * account): importable, but only when you pick it. Launcher accounts collect
+ * many free games.
  */
 export function startsUnchecked(game: ScannedLibraryGame) {
   return (
-    game.inAccountLibrary === true &&
-    !game.installed &&
-    !hasImportableActivity(game)
+    game.consoleUnknown === true ||
+    (game.inAccountLibrary === true &&
+      !game.installed &&
+      !hasImportableActivity(game))
   );
 }
 

@@ -193,6 +193,7 @@
   "Search games": "Поиск игр",
   "No game matches “{{search}}”.": "Нет игр по запросу «{{search}}».",
   "Never played": "Не играли",
+  "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.": "Sony указывает эту игру без консоли. Отметьте её, только если играли в неё сами и хотите добавить её в свою библиотеку PlayCounter.",
   "{{before}} → {{after}}": "{{before}} → {{after}}",
   "Imported just now": "Только что импортирована",
   "Skipped for now": "Пока пропущена",

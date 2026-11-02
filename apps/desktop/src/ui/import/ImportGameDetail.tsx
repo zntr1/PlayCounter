@@ -1,4 +1,4 @@
-import { Download, Gamepad2 } from "lucide-react";
+import { AlertTriangle, Download, Gamepad2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { getT } from "../../i18n";
 import { importExeCandidates } from "../../library/exeCandidates";
@@ -118,6 +118,20 @@ export function ImportGameDetail({
               </Fact>
             ) : null}
           </dl>
+          {game.consoleUnknown ? (
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning-border/60 bg-warning-tint/40 px-3 py-2 text-xs leading-5 text-warning">
+              <AlertTriangle
+                size={14}
+                aria-hidden="true"
+                className="mt-0.5 shrink-0"
+              />
+              <span className="min-w-0">
+                {t(
+                  "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.",
+                )}
+              </span>
+            </p>
+          ) : null}
           {offersWrongGame && !replacing ? (
             <button
               type="button"

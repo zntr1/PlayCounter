@@ -172,6 +172,7 @@
   "Search games": "搜索游戏",
   "No game matches “{{search}}”.": "没有与“{{search}}”匹配的游戏。",
   "Never played": "从未玩过",
+  "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.": "Sony 列出这款游戏时没有注明主机。只有你亲自玩过并想把它加入你的 PlayCounter 游戏库时才勾选。",
   "{{before}} → {{after}}": "{{before}} → {{after}}",
   "Imported just now": "刚刚导入",
   "Skipped for now": "已暂时跳过",

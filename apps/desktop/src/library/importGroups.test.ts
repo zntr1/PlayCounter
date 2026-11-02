@@ -221,6 +221,17 @@ describe("games that start unchecked", () => {
       false,
     );
   });
+
+  it("are games the launcher names no console for, even with playtime", () => {
+    const played = {
+      ...accountGame,
+      playtimeSeconds: 2_917_966,
+      hasPlayedEvidence: true,
+      lastPlayedUnix: 1_787_248_800,
+    };
+    expect(startsUnchecked(played)).toBe(false);
+    expect(startsUnchecked({ ...played, consoleUnknown: true })).toBe(true);
+  });
 });
 
 describe("the shelf the review opens on", () => {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "../store";
 import { commitLibraryImports } from "./commit";
 import { importProfile } from "./importProfiles";
+import { startsUnchecked } from "./importGroups";
 import { buildLibraryImportCommit } from "./importPlan";
 import { playStationScanResult } from "./playstationAccount";
 import type { ResolvedLibraryGame } from "./types";
@@ -89,6 +90,37 @@ describe("PlayStation import", () => {
     const scan = playStationScanResult({ ...library, incomplete: true });
     expect(scan.partial).toBe(true);
     expect(scan.warnings).toHaveLength(1);
+  });
+
+  it("brings a game Sony names no console for, marked so it starts unchecked", () => {
+    // GTA V on Phil's account: Sony's "unknown" category, played by someone
+    // else on it.
+    const [scanned] = playStationScanResult({
+      games: [
+        {
+          conceptId: "201930",
+          title: "Grand Theft Auto V (PlayStation®5)",
+          playtimeSeconds: 2_917_966,
+          lastPlayedAt: "2026-08-20T18:00:00.000Z",
+          platforms: ["PS4"],
+          titleIds: ["CUSA00411_00"],
+          consoleUnknown: true,
+        },
+      ],
+      incomplete: false,
+    }).games;
+    expect(scanned).toMatchObject({
+      externalId: "201930",
+      playtimeSeconds: 2_917_966,
+      consoleTitleIds: ["CUSA00411_00"],
+      consoleUnknown: true,
+    });
+    expect(startsUnchecked(scanned)).toBe(true);
+    // Games Sony names a console for don't carry the mark.
+    for (const game of playStationScanResult(library).games) {
+      expect(game).not.toHaveProperty("consoleUnknown");
+      expect(startsUnchecked(game)).toBe(false);
+    }
   });
 
   it("keeps Sony's title ids on the saved game, from every read", () => {

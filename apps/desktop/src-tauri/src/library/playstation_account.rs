@@ -103,6 +103,11 @@ pub struct AccountGame {
     platforms: Vec<&'static str>,
     /// Sony's ids of its copies (PPSA01521_00), to recognise it running.
     title_ids: Vec<String>,
+    /// Sony names no console for any of its copies (its "unknown"
+    /// category). Seen for games other people played on the account, so the
+    /// importer leaves them for the player to pick.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    console_unknown: bool,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -437,9 +442,27 @@ fn platform_of(category: &str) -> Option<&'static str> {
     match category {
         "ps5_native_game" => Some("PS5"),
         "ps4_game" => Some("PS4"),
-        // PC copies are this PC's own and its launcher's; "unknown" until seen.
+        // PC copies are this PC's own and its launcher's. "unknown": see
+        // copy_platform.
         _ => None,
     }
+}
+
+/// The console of a copy Sony files under "unknown" (no console named), by
+/// its id: CUSA is a PS4 game, PPSA a PS5 game. Anything else stays out.
+fn copy_platform(title_id: &str) -> Option<&'static str> {
+    if !valid_title_id(title_id) {
+        return None;
+    }
+    match &title_id[..4] {
+        "CUSA" => Some("PS4"),
+        "PPSA" => Some("PS5"),
+        _ => None,
+    }
+}
+
+fn concept_of(row: &PlayedTitle) -> Option<String> {
+    id_text(&row.concept.as_ref()?.id).filter(|id| valid_concept_id(id))
 }
 
 fn build_library(titles: &[PlayedTitle], truncated: bool) -> AccountLibrary {
@@ -451,17 +474,32 @@ fn build_library(titles: &[PlayedTitle], truncated: bool) -> AccountLibrary {
         platforms: BTreeSet<&'static str>,
         title_ids: BTreeSet<String>,
         order: usize,
+        console_unknown: bool,
     }
+    // Copies Sony names no console for count only for games without a copy
+    // it does name one for: such a game stays as it was.
+    let named: BTreeSet<String> = titles
+        .iter()
+        .filter(|row| platform_of(&row.category).is_some())
+        .filter_map(concept_of)
+        .collect();
     let mut games: BTreeMap<String, Game> = BTreeMap::new();
     for (order, row) in titles.iter().enumerate() {
-        let Some(platform) = platform_of(&row.category) else {
-            continue;
-        };
         let Some(concept) = row.concept.as_ref() else {
             continue;
         };
-        let Some(concept_id) = id_text(&concept.id).filter(|id| valid_concept_id(id)) else {
+        let Some(concept_id) = concept_of(row) else {
             continue;
+        };
+        let (platform, console_unknown) = match platform_of(&row.category) {
+            Some(platform) => (platform, false),
+            None if row.category == "unknown" && !named.contains(&concept_id) => {
+                match copy_platform(&row.title_id) {
+                    Some(platform) => (platform, true),
+                    None => continue,
+                }
+            }
+            None => continue,
         };
         let name = [Some(row.name.as_str()), row.localized_name.as_deref()]
             .into_iter()
@@ -471,6 +509,7 @@ fn build_library(titles: &[PlayedTitle], truncated: bool) -> AccountLibrary {
             .map(|name| name.chars().take(256).collect::<String>());
         let game = games.entry(concept_id).or_insert_with(|| Game {
             order,
+            console_unknown,
             ..Game::default()
         });
         // Sony lists the most recently played copy first.
@@ -517,6 +556,7 @@ fn build_library(titles: &[PlayedTitle], truncated: bool) -> AccountLibrary {
                 // PS5 first.
                 platforms: game.platforms.into_iter().rev().collect(),
                 title_ids: game.title_ids.into_iter().collect(),
+                console_unknown: game.console_unknown,
             })
             .collect(),
         incomplete,
@@ -1847,7 +1887,8 @@ mod tests {
                 "Bloodborne",
                 Some("odd"),
             ),
-            // Skipped: a PC copy, an unknown category, no concept id, no name.
+            // Skipped: a PC copy, a category PlayCounter doesn't know, no
+            // concept id, no name.
             row(
                 "pspc_game",
                 10000333.into(),
@@ -1856,7 +1897,7 @@ mod tests {
                 Some("PT99H"),
             ),
             row(
-                "unknown",
+                "ps6_game",
                 228748.into(),
                 "CUSA07669_00",
                 "Fortnite",
@@ -1895,6 +1936,7 @@ mod tests {
                     last_played_at: Some("2026-10-30T21:25:28.987Z".into()),
                     platforms: vec!["PS5", "PS4"],
                     title_ids: vec!["CUSA18638_00".into(), "PPSA04609_00".into()],
+                    console_unknown: false,
                 },
                 AccountGame {
                     concept_id: "10002684".into(),
@@ -1903,6 +1945,7 @@ mod tests {
                     last_played_at: None,
                     platforms: vec!["PS5"],
                     title_ids: vec!["PPSA11110_00".into()],
+                    console_unknown: false,
                 },
                 AccountGame {
                     concept_id: "200520".into(),
@@ -1911,11 +1954,113 @@ mod tests {
                     last_played_at: None,
                     platforms: vec!["PS4"],
                     title_ids: vec!["CUSA00207_00".into()],
+                    console_unknown: false,
                 },
             ]
         );
         assert!(!library.incomplete);
         assert!(build_library(&titles, true).incomplete);
+    }
+
+    #[test]
+    fn a_game_sony_names_no_console_for_comes_by_its_copys_id_and_says_so() {
+        // Sony's "unknown" category as Phil's account showed it on
+        // 2026-11-02: PS4 copies (CUSA) with Sony's playtime, played on his
+        // account by someone else.
+        let titles = vec![
+            row(
+                "unknown",
+                10004896.into(),
+                "CUSA34582_00",
+                "Wobbly Life",
+                Some("PT319H44M46S"),
+            ),
+            row(
+                "unknown",
+                201930.into(),
+                "CUSA00411_00",
+                "Grand Theft Auto V (PlayStation®5)",
+                Some("PT810H32M46S"),
+            ),
+            // A PS5 copy.
+            row(
+                "unknown",
+                10002684.into(),
+                "PPSA11110_00",
+                "Astro Bot",
+                Some("PT3M"),
+            ),
+            // Neither a PS4 nor a PS5 copy: still left out.
+            row(
+                "unknown",
+                212779.into(),
+                "NPEB01899_00",
+                "Minecraft",
+                Some("PT4H"),
+            ),
+            // Rocket League: the player's own PS4 copy, and one Sony names no
+            // console for. The game stays the PS4 copy alone, as before.
+            row(
+                "ps4_game",
+                203715.into(),
+                "CUSA01433_00",
+                "Rocket League®",
+                Some("PT10H"),
+            ),
+            row(
+                "unknown",
+                203715.into(),
+                "CUSA01163_00",
+                "Rocket League®",
+                Some("PT35M"),
+            ),
+        ];
+        let library = build_library(&titles, false);
+        assert_eq!(
+            library.games,
+            vec![
+                AccountGame {
+                    concept_id: "10004896".into(),
+                    title: "Wobbly Life".into(),
+                    playtime_seconds: Some(1_151_086),
+                    last_played_at: None,
+                    platforms: vec!["PS4"],
+                    title_ids: vec!["CUSA34582_00".into()],
+                    console_unknown: true,
+                },
+                AccountGame {
+                    concept_id: "201930".into(),
+                    title: "Grand Theft Auto V (PlayStation®5)".into(),
+                    playtime_seconds: Some(2_917_966),
+                    last_played_at: None,
+                    platforms: vec!["PS4"],
+                    title_ids: vec!["CUSA00411_00".into()],
+                    console_unknown: true,
+                },
+                AccountGame {
+                    concept_id: "10002684".into(),
+                    title: "Astro Bot".into(),
+                    playtime_seconds: Some(180),
+                    last_played_at: None,
+                    platforms: vec!["PS5"],
+                    title_ids: vec!["PPSA11110_00".into()],
+                    console_unknown: true,
+                },
+                AccountGame {
+                    concept_id: "203715".into(),
+                    title: "Rocket League®".into(),
+                    playtime_seconds: Some(36_000),
+                    last_played_at: None,
+                    platforms: vec!["PS4"],
+                    title_ids: vec!["CUSA01433_00".into()],
+                    console_unknown: false,
+                },
+            ]
+        );
+        // Only such a game says so to the web UI.
+        let sent = serde_json::to_value(&library).unwrap();
+        assert_eq!(sent["games"][0]["consoleUnknown"], true);
+        assert!(sent["games"][3].get("consoleUnknown").is_none());
     }
 
     #[test]
@@ -1936,6 +2081,7 @@ mod tests {
                 last_played_at: Some("2026-10-21T19:56:03.780Z".into()),
                 platforms: vec!["PS4"],
                 title_ids: vec!["CUSA01163_00".into(), "CUSA01433_00".into()],
+                console_unknown: false,
             }]
         );
     }

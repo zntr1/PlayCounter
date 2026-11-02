@@ -325,6 +325,45 @@ describe("Sony's totals refresh by themselves", () => {
     expect(useAppStore.getState().libraryImports.has("playstation:10002684")).toBe(false);
   });
 
+  it("never adds a game Sony names no console for: the player picks those in the importer", async () => {
+    mocks.saved = {
+      status: "valid",
+      value: {
+        games: [
+          sonyGame("10002684", "Astro Bot", 6),
+          // GTA V on Phil's account: Sony's "unknown" category.
+          {
+            ...sonyGame("201930", "Grand Theft Auto V (PlayStation®5)", 810),
+            titleIds: ["CUSA00411_00"],
+            consoleUnknown: true,
+          },
+        ],
+        incomplete: false,
+      },
+    };
+    mocks.resolve.mockResolvedValue({
+      capability: "supported",
+      games: [
+        {
+          key: "playstation:10002684",
+          status: "resolved",
+          game: { id: 8, igdbId: 303811, name: "Astro Bot", coverUrl: "", source: "igdb" },
+          executables: [],
+        },
+        {
+          key: "playstation:201930",
+          status: "resolved",
+          game: { id: 9, igdbId: 1020, name: "Grand Theft Auto V", coverUrl: "", source: "igdb" },
+          executables: [],
+        },
+      ],
+    });
+    expect(await live.refreshPlayStationGames("test")).toBe(1);
+    const imports = useAppStore.getState().libraryImports;
+    expect(imports.has("playstation:10002684")).toBe(true);
+    expect(imports.has("playstation:201930")).toBe(false);
+  });
+
   it("adds the new game with its title ids, so it plays live next time", async () => {
     mocks.saved = {
       status: "valid",

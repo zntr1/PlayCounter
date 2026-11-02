@@ -379,6 +379,9 @@ async function newGameCommits(fresh: ScannedLibraryGame[]) {
   const now = Date.now();
   const candidates = fresh.filter(
     (game) =>
+      // Someone else may have played it on the account: only the importer,
+      // where the player picks it.
+      !game.consoleUnknown &&
       !isLauncherGameDismissed(record, {
         provider: "playstation",
         externalId: game.externalId,

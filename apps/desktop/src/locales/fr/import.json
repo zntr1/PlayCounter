@@ -186,6 +186,7 @@
   "Search games": "Rechercher des jeux",
   "No game matches “{{search}}”.": "Aucun jeu ne correspond à « {{search}} ».",
   "Never played": "Jamais lancé",
+  "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.": "Sony liste ce jeu sans console. Cochez-le seulement si vous y avez joué vous-même et voulez l'ajouter à votre bibliothèque PlayCounter.",
   "{{before}} → {{after}}": "{{before}} → {{after}}",
   "Imported just now": "Importé à l'instant",
   "Skipped for now": "Passé pour l'instant",
