@@ -163,10 +163,10 @@ export function mergeReading(
 
 /**
  * What reading a game in My Games again would make of its launcher total:
- * the total after the read, and whether the read brings another account's
- * hours that the total doesn't hold yet (the importer checks such a game,
- * D3). A read of the same account, or one taking over earlier hours, brings
- * none.
+ * the total after the read, and whether that is new playtime, a higher total
+ * than the saved one: more hours on an account, or another account's hours.
+ * The importer checks such a game and lists it under "New playtime" (D3,
+ * widened by Phil 2026-11-02).
  */
 export function readAgain(
   existing: LibraryImportEntry,
@@ -185,8 +185,7 @@ export function readAgain(
   const merged = mergeReading(existing, incoming, scan?.totalsCutShort);
   return {
     seconds: merged.providerSeconds,
-    bringsAccount:
-      (merged.accounts?.length ?? 0) > accountReadings(existing).length &&
+    newPlaytime:
       (merged.providerSeconds ?? 0) > (existing.providerSeconds ?? 0),
   };
 }

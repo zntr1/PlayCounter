@@ -37,6 +37,9 @@ export type ImportRow = {
   existing?: LibraryImportEntry;
   /** A game in My Games: its launcher total after importing it again. */
   totalAfterImport?: number | null;
+  /** A game in My Games an update would bring new playtime: listed under
+   *  "New playtime" and counted as an update. */
+  newPlaytime: boolean;
   completed: boolean;
   selectable: boolean;
   needsGame: boolean;
@@ -79,6 +82,9 @@ export function importRows(
       ignoredProcesses,
     });
     const shown = replacement ?? resolved?.game;
+    const readNow = existing
+      ? readAgain(existing, game, session.scan ?? undefined)
+      : undefined;
     return unchangedRow({
       game,
       key,
@@ -98,9 +104,9 @@ export function importRows(
         (group === "ready" || group === "attention"),
       group,
       existing,
-      totalAfterImport: existing
-        ? readAgain(existing, game, session.scan ?? undefined).seconds
-        : undefined,
+      totalAfterImport: readNow?.seconds,
+      newPlaytime:
+        (readNow?.newPlaytime ?? false) && selectable.has(game.externalId),
       completed,
       selectable: selectable.has(game.externalId),
       needsGame: needsGameChoice(providerId, game, resolved),

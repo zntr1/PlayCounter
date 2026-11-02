@@ -813,7 +813,8 @@ describe("Already in My Games", () => {
     expect(container.textContent).toContain(
       "Already in My Games. Check it in the list to import it again.",
     );
-    expect(checkbox("Hades")?.checked).toBe(false);
+    // New playtime: updating it is what this tab is for (2026-11-02).
+    expect(checkbox("Hades")?.checked).toBe(true);
   });
 
   it("checks the game when you pick its file, and the import saves the file", async () => {
@@ -838,7 +839,7 @@ describe("Already in My Games", () => {
     expect(checkbox("Hades")?.checked).toBe(true);
     expect(container.textContent).toContain("1 update");
 
-    await click("Import 1 game");
+    await click("Update 1 game");
     expect(mocks.run).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -850,6 +851,111 @@ describe("Already in My Games", () => {
       ],
       expect.any(AbortSignal),
     );
+  });
+});
+
+// Phil, 2026-11-02: "Already in My Games" is where launcher hours are caught
+// up, so it leads with the games whose playtime changed.
+describe("updates of games already in My Games", () => {
+  const H = 3_600;
+  const PHIL = { key: "a".repeat(32), name: "zesarex" };
+  const eldenRing = metadata(119_133, "Elden Ring");
+  const hades = metadata(113_112, "Hades");
+  const portal2 = metadata(72, "Portal 2");
+  /** Saved from an earlier import of Phil's account. */
+  const saved = (id: string, match: GameMetadata, hours: number) =>
+    inMyGames("steam", id, match, {
+      providerSeconds: hours * H,
+      accounts: [
+        { ...PHIL, seconds: hours * H, readAt: "2026-10-01T12:00:00.000Z" },
+      ],
+    });
+  const imported = (call: number) =>
+    mocks.run.mock.calls[call][0].map(
+      ({ entry }: { entry: LibraryImportEntry }) => entry.name,
+    );
+
+  /** The game titles under a heading of the open shelf's list. */
+  function section(title: string) {
+    return [
+      ...container.querySelectorAll(
+        `[role="tabpanel"] [role="group"][aria-label="${title}"] button[aria-current] .font-semibold`,
+      ),
+    ].map((item) => item.textContent);
+  }
+
+  it("lists games with new playtime first, checked, and the rest under No change", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("620", "Portal 2", { playtimeSeconds: 10 * H }),
+          game("1245620", "ELDEN RING", { playtimeSeconds: 120 * H }),
+          game("1145360", "Hades", { playtimeSeconds: 54 * H }),
+        ],
+        resolvedGames: [
+          matched("steam:620", portal2),
+          matched("steam:1245620", eldenRing),
+          matched("steam:1145360", hades),
+        ],
+        account: PHIL,
+      },
+      [
+        saved("620", portal2, 10),
+        saved("1245620", eldenRing, 100),
+        saved("1145360", hades, 50),
+      ],
+    );
+    // Nothing new to import: the scan opens on the updates.
+    expect(shelf("imported").open).toBe(true);
+    expect(section("New playtime")).toEqual(["Elden Ring", "Hades"]);
+    expect(section("No change")).toEqual(["Portal 2"]);
+    // More hours on the same account start checked too.
+    expect(checkbox("Elden Ring")?.checked).toBe(true);
+    expect(checkbox("Hades")?.checked).toBe(true);
+    expect(checkbox("Portal 2")?.checked).toBe(false);
+    expect(shelf("imported").tab.textContent).toContain("2 updates");
+
+    await click("Update 2 games");
+    expect(imported(0)).toEqual(["Elden Ring", "Hades"]);
+    expect(container.querySelector("h2")?.textContent).toBe(
+      "2 games in My Games updated",
+    );
+    expect(container.textContent).not.toContain("new playtime");
+  });
+
+  it("points to them after an import of new games", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("400", "Portal", { playtimeSeconds: 5 * H }),
+          game("1245620", "ELDEN RING", { playtimeSeconds: 120 * H }),
+        ],
+        resolvedGames: [
+          matched("steam:400", metadata(71, "Portal")),
+          matched("steam:1245620", eldenRing),
+        ],
+        account: PHIL,
+      },
+      [saved("1245620", eldenRing, 100)],
+    );
+    expect(shelf("ready").open).toBe(true);
+    await click("Import 1 game");
+    expect(imported(0)).toEqual(["Portal"]);
+    expect(container.textContent).toContain(
+      "1 game in My Games has new playtime",
+    );
+
+    await click("Show updates");
+    expect(shelf("imported").open).toBe(true);
+    expect(section("New playtime")).toEqual(["Elden Ring"]);
+    expect(section("No change")).toEqual(["Portal"]);
+    // The game shown is the first one in the list.
+    expect(detailTitle()).toBe("Elden Ring");
+    expect(checkbox("Elden Ring")?.checked).toBe(true);
+    await click("Update 1 game");
+    expect(imported(1)).toEqual(["Elden Ring"]);
   });
 });
 
@@ -901,7 +1007,7 @@ it("counts what the import brought and what still needs you", async () => {
   await act(() => checkbox("DOOM II")!.click());
   expect(container.textContent).toContain("1 game selected");
   expect(container.textContent).toContain("1 update");
-  await click("Import 1 game");
+  await click("Update 1 game");
   expect(container.querySelector("h2")?.textContent).toBe(
     "1 game in My Games updated",
   );
@@ -910,10 +1016,11 @@ it("counts what the import brought and what still needs you", async () => {
 // Phil, 2026-11-02: "Needs you" games are imported one by one, so the bar
 // with "Import N games" was confusing there; and it imports the open tab only.
 describe("the bar at the bottom", () => {
-  /** The bar's "Import N games" button. */
+  /** The bar's "Import N games" button ("Update N games" for games in My
+   *  Games). */
   function bulkImport() {
     return [...document.body.querySelectorAll("button")].find((item) =>
-      /^Import \d+ games?$/.test(item.textContent?.trim() ?? ""),
+      /^(Import|Update) \d+ games?$/.test(item.textContent?.trim() ?? ""),
     );
   }
 
@@ -998,7 +1105,7 @@ describe("the bar at the bottom", () => {
     await click("Back to the importer");
     await act(() => shelf("imported").tab.click());
     expect(checkbox("Hades")?.checked).toBe(true);
-    await click("Import 1 game");
+    await click("Update 1 game");
     expect(imported(1)).toEqual(["Hades"]);
   });
 });
@@ -1472,7 +1579,7 @@ describe("a game already in My Games", () => {
     expect(listed()).toEqual(["The High Life"]);
 
     await act(() => checkbox("The High Life")!.click());
-    await click("Import 1 game");
+    await click("Update 1 game");
     const [commit] = mocks.run.mock.calls[0][0];
     expect(commit.entry).toMatchObject({
       gameId: theHighLife.id,
@@ -1610,7 +1717,7 @@ describe("launcher accounts", () => {
       expect(checkbox("Elden Ring")?.checked).toBe(true);
       expect(container.textContent).toContain(growth);
 
-      await click("Import 1 game");
+      await click("Update 1 game");
       expect(firstCommit().entry.accounts).toMatchObject([
         { ...KID, seconds: hours * H },
       ]);
@@ -1628,7 +1735,8 @@ describe("launcher accounts", () => {
       saved: { providerSeconds: 100 * H },
     },
   ])(
-    "D3: the same account read again leaves the game unchecked, as before ($when)",
+    // Phil, 2026-11-02: D3 widened; new playtime is what this tab is for.
+    "the same account read again with more hours starts checked too ($when)",
     async ({ saved }) => {
       await scan(
         "steam",
@@ -1639,7 +1747,7 @@ describe("launcher accounts", () => {
         },
         [inMyGames("steam", "1245620", eldenRing, saved)],
       );
-      expect(checkbox("Elden Ring")?.checked).toBe(false);
+      expect(checkbox("Elden Ring")?.checked).toBe(true);
       expect(container.textContent).toContain("100h 0m → 105h 0m");
     },
   );

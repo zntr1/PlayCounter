@@ -573,8 +573,8 @@ export async function startImportScan(
         .filter((game) => {
           const key = libraryEntryKey(providerId, game.externalId);
           const existing = existingImports.get(key);
-          // D3 (docs/import-accounts-plan.md): a game in My Games starts
-          // checked when this account brings hours it doesn't hold yet.
+          // D3 (docs/import-accounts-plan.md), widened 2026-11-02: a game in
+          // My Games starts checked when the read brings new playtime.
           if (existing)
             return (
               canImportScannedGame({
@@ -582,7 +582,7 @@ export async function startImportScan(
                 resolved: saved.get(key),
                 alreadyImported: true,
                 ignoredProcesses,
-              }) && readAgain(existing, game, result).bringsAccount
+              }) && readAgain(existing, game, result).newPlaytime
             );
           return (
             importGroupForGame({
@@ -1136,6 +1136,11 @@ export function unskipImportGame(externalId: string) {
 /** From the done screen back to the list, as it was left. */
 export function showImportList() {
   update({ phase: "ready" });
+}
+
+/** From the done screen to the games in My Games with new playtime. */
+export function showImportUpdates() {
+  update({ phase: "ready", group: "imported", current: null });
 }
 
 /** From the done screen back to the games that still need the player. */

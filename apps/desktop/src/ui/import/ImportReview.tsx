@@ -60,6 +60,11 @@ export function useImportGroups(session: ImportSession) {
         rows.filter((row) => row.group === group),
       ]),
     ) as Record<ImportGroupKey, ImportRow[]>;
+    // Games in My Games with new playtime come first, as the list shows them.
+    groups.imported = [
+      ...groups.imported.filter((row) => row.newPlaytime),
+      ...groups.imported.filter((row) => !row.newPlaytime),
+    ];
     return { rows, groups, selectable };
   }, [
     providerId,
@@ -261,13 +266,15 @@ export function ImportReview({
           <div className="flex-1" />
           <Button
             variant="primary"
-            icon={Download}
+            icon={group === "imported" ? RefreshCw : Download}
             loading={session.phase === "importing"}
             disabled={chosen.length === 0 || session.capability !== "supported"}
             onClick={() => void importSelectedGames(chosen)}
             className="px-5 py-2.5 text-[15px]"
           >
-            {t("Import {{count}} games", { count: chosen.length })}
+            {group === "imported"
+              ? t("Update {{count}} games", { count: chosen.length })
+              : t("Import {{count}} games", { count: chosen.length })}
           </Button>
         </div>
       ) : null}

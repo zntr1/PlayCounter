@@ -59,6 +59,9 @@ export function ImportShelves({
         const rows = groups[group];
         const covers = rows.filter((row) => row.coverUrl).slice(0, 3);
         const selected = group === active;
+        // Games in My Games with new playtime stand out like "Needs you".
+        const updates = rows.filter((row) => row.newPlaytime).length;
+        const calls = group === "attention" ? rows.length > 0 : updates > 0;
         return (
           <button
             key={group}
@@ -101,17 +104,24 @@ export function ImportShelves({
               )}
             </span>
             <span className="min-w-0">
-              <span
-                className={clsx(
-                  "block text-[28px] font-bold leading-none tabular-nums",
-                  group === "attention" && rows.length > 0
-                    ? "text-accent-ink"
-                    : group === "ready"
-                      ? "text-text"
-                      : "text-text-muted",
-                )}
-              >
-                {rows.length}
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span
+                  className={clsx(
+                    "block text-[28px] font-bold leading-none tabular-nums",
+                    calls
+                      ? "text-accent-ink"
+                      : group === "ready"
+                        ? "text-text"
+                        : "text-text-muted",
+                  )}
+                >
+                  {rows.length}
+                </span>
+                {updates > 0 ? (
+                  <span className="truncate text-xs font-semibold text-accent-ink">
+                    {t("{{count}} updates", { count: updates })}
+                  </span>
+                ) : null}
               </span>
               <span className="mt-1 block truncate text-sm font-semibold text-text">
                 {importGroupLabel(group)}
