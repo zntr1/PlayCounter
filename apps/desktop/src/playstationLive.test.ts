@@ -14,6 +14,8 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (command === "library_playstation_presence")
       return mocks.presence.shift() ?? { status: "valid", value: { online: true, game: null } };
     if (command === "library_playstation_saved_games") return mocks.saved;
+    if (command === "playstation_read_trophies")
+      return { status: "valid", value: [] };
     return undefined;
   }),
   convertFileSrc: (value: string) => value,
@@ -345,5 +347,25 @@ describe("Sony's totals refresh by themselves", () => {
     ).toMatchObject({ providerSeconds: 6 * 3600, consoleTitleIds: ["PPSA11110_00"] });
     await pollAt(300, playing("PPSA11110_00"));
     expect(consoleSessions()).toMatchObject([{ gameId: 8 }]);
+  });
+});
+
+describe("trophies after a console session", () => {
+  const commands = () =>
+    vi.mocked(invoke).mock.calls.map(([command]) => command);
+
+  it("are read again with the kept sign-in a little after the session ends, never with a window", async () => {
+    await pollAt(0, playing());
+    await pollAt(60, playing());
+    await pollAt(120, nothing);
+    expect(savedSessions()).toHaveLength(1);
+    expect(commands()).not.toContain("playstation_read_trophies");
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(invoke).toHaveBeenCalledWith("playstation_read_trophies", {
+      titleIds: ["PPSA04609_00", "CUSA18638_00"],
+      language: "en-US",
+    });
+    expect(commands()).not.toContain("library_playstation_sign_in");
+    expect(commands()).not.toContain("library_playstation_account_games");
   });
 });

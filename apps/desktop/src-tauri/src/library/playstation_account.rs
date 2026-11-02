@@ -524,7 +524,7 @@ fn build_library(titles: &[PlayedTitle], truncated: bool) -> AccountLibrary {
 }
 
 /// Sony's own image hosts only: the UI loads this address.
-fn image_url(value: Option<&str>) -> Option<String> {
+pub(super) fn image_url(value: Option<&str>) -> Option<String> {
     let url = tauri::Url::parse(value?.trim()).ok()?;
     let host = url.host_str()?.to_ascii_lowercase();
     (url.scheme() == "https"
@@ -722,14 +722,14 @@ fn encode_pairs(pairs: &[(&str, &str)]) -> String {
 }
 
 /// Debug builds only: how a Sony service answered. Never a token, id or name.
-fn debug_answer(step: &str, detail: impl std::fmt::Display) {
+pub(super) fn debug_answer(step: &str, detail: impl std::fmt::Display) {
     #[cfg(debug_assertions)]
     eprintln!("[playstation] {step}: {detail}");
     #[cfg(not(debug_assertions))]
     let _ = (step, detail.to_string());
 }
 
-fn http_client() -> Result<reqwest::Client, String> {
+pub(super) fn http_client() -> Result<reqwest::Client, String> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
@@ -1101,7 +1101,7 @@ async fn read_presence(
 
 /// A read with the kept sign-in. A refused token renews once, then the
 /// sign-in is reported as needed; 429 asks the caller to wait.
-async fn saved_read<T, F, Fut>(app: &AppHandle, read: F) -> SavedRead<T>
+pub(super) async fn saved_read<T, F, Fut>(app: &AppHandle, read: F) -> SavedRead<T>
 where
     F: Fn(reqwest::Client, String, String) -> Fut,
     Fut: std::future::Future<Output = Result<T, u16>>,
@@ -1123,15 +1123,36 @@ where
     let (Ok(store), Ok(client)) = (Store::of(app), http_client()) else {
         return SavedRead::status(LoginStatus::Unavailable);
     };
+    read_with_access(
+        |force| kept_access(&store, &client, &state, force),
+        || forget_access(&state),
+        |token, account_id| read(client.clone(), token, account_id),
+    )
+    .await
+}
+
+/// `saved_read` without the app: `access(force)` is the kept sign-in's
+/// token and account id, `read` asks Sony with them.
+async fn read_with_access<T, A, AccessFut, R, ReadFut>(
+    access: A,
+    forget: impl Fn(),
+    read: R,
+) -> SavedRead<T>
+where
+    A: Fn(bool) -> AccessFut,
+    AccessFut: std::future::Future<Output = Result<(String, String), AccessFailure>>,
+    R: Fn(String, String) -> ReadFut,
+    ReadFut: std::future::Future<Output = Result<T, u16>>,
+{
     for force in [false, true] {
-        let (token, account_id) = match kept_access(&store, &client, &state, force).await {
+        let (token, account_id) = match access(force).await {
             Ok(access) => access,
             Err(failure) => return SavedRead::status(failure.status()),
         };
-        match read(client.clone(), token, account_id).await {
+        match read(token, account_id).await {
             Ok(value) => return SavedRead::ok(value),
             Err(401) if !force => {
-                forget_access(&state);
+                forget();
                 continue;
             }
             Err(429) => {
@@ -2123,6 +2144,93 @@ mod tests {
             "{summary}"
         );
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// A read with the kept sign-in: `access` answers in order (one per
+    /// try), Sony answers `answers` in order. Returns the read, whether each
+    /// try forced a new token, and how often the cached one was dropped.
+    async fn read_with(
+        access: Vec<Result<(String, String), AccessFailure>>,
+        answers: Vec<Result<u8, u16>>,
+    ) -> (SavedRead<u8>, Vec<bool>, usize) {
+        let forced = Mutex::new(Vec::new());
+        let access = Mutex::new(std::collections::VecDeque::from(access));
+        let answers = Mutex::new(std::collections::VecDeque::from(answers));
+        let forgotten = Mutex::new(0);
+        let read = read_with_access(
+            |force| {
+                forced.lock().unwrap().push(force);
+                std::future::ready(access.lock().unwrap().pop_front().expect("no access left"))
+            },
+            || *forgotten.lock().unwrap() += 1,
+            |_, _| std::future::ready(answers.lock().unwrap().pop_front().expect("no answer left")),
+        )
+        .await;
+        (
+            read,
+            forced.into_inner().unwrap(),
+            forgotten.into_inner().unwrap(),
+        )
+    }
+
+    fn access() -> Result<(String, String), AccessFailure> {
+        Ok(("access".into(), "1234567890123456789".into()))
+    }
+
+    #[tokio::test]
+    async fn a_refused_token_renews_once_then_the_sign_in_is_needed() {
+        // Sony refuses the cached token: a new one, and the read again.
+        let (read, forced, forgotten) =
+            read_with(vec![access(), access()], vec![Err(401), Ok(7)]).await;
+        assert_eq!(read, SavedRead::ok(7));
+        assert_eq!(forced, [false, true]);
+        assert_eq!(forgotten, 1);
+        // Sony refuses the renewal too: a new sign-in is needed.
+        let (read, forced, _) = read_with(
+            vec![access(), Err(AccessFailure::NeedsSignIn)],
+            vec![Err(401)],
+        )
+        .await;
+        assert_eq!(read, SavedRead::status(LoginStatus::NeedsSignIn));
+        assert_eq!(forced, [false, true]);
+        // A brand-new token refused as well: no third try, the sign-in stays.
+        let (read, forced, _) = read_with(vec![access(), access()], vec![Err(401), Err(401)]).await;
+        assert_eq!(read, SavedRead::status(LoginStatus::Unavailable));
+        assert_eq!(forced, [false, true]);
+    }
+
+    #[tokio::test]
+    async fn sony_busy_asks_the_caller_to_wait_and_an_outage_only_fails_this_read() {
+        let (read, forced, forgotten) = read_with(vec![access()], vec![Err(429)]).await;
+        assert_eq!(
+            read,
+            SavedRead {
+                status: LoginStatus::Unavailable,
+                value: None,
+                rate_limited: true,
+            }
+        );
+        assert_eq!(forced, [false]);
+        assert_eq!(forgotten, 0);
+        for status in [0, 403, 404, 500, 503] {
+            let (read, forced, _) = read_with(vec![access()], vec![Err(status)]).await;
+            assert_eq!(
+                read,
+                SavedRead::status(LoginStatus::Unavailable),
+                "{status}"
+            );
+            assert_eq!(forced, [false], "{status}");
+        }
+        // Without a usable kept sign-in, Sony is never asked.
+        for (failure, status) in [
+            (AccessFailure::SignedOut, LoginStatus::SignedOut),
+            (AccessFailure::NeedsSignIn, LoginStatus::NeedsSignIn),
+            (AccessFailure::Unavailable, LoginStatus::Unavailable),
+        ] {
+            let (read, forced, _) = read_with(vec![Err(failure)], vec![]).await;
+            assert_eq!(read, SavedRead::status(status));
+            assert_eq!(forced, [false]);
+        }
     }
 
     #[cfg(windows)]

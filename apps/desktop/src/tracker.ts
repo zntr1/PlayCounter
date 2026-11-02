@@ -6839,12 +6839,14 @@ async function endSession(
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
   // Every end of play: a game that exited, was closed from My Games or ended
-  // while PlayCounter was closed, and a timer for play on a console.
+  // while PlayCounter was closed, a timer for play on a console, and a PS5 or
+  // PS4 game Sony no longer shows running.
   if (
     reason === "process-ended" ||
     reason === "closed-in-app" ||
     reason === "recovered-checkpoint" ||
-    reason === "timer-stopped"
+    reason === "timer-stopped" ||
+    reason === "console-ended"
   ) {
     schedulePostGameAchievementRefresh(session);
   }

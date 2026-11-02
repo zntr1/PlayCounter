@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
   readEpic: vi.fn(),
   readGog: vi.fn(),
+  readPlayStation: vi.fn(),
   save: vi.fn(),
   health: "valid",
   revision: 0,
@@ -22,6 +23,9 @@ vi.mock("../library/providers/xbox", () => ({
 }));
 vi.mock("./epic", () => ({ readEpicAchievements: mocks.readEpic }));
 vi.mock("./gog", () => ({ readGogAchievements: mocks.readGog }));
+vi.mock("./playstation", () => ({
+  readPlayStationTrophies: mocks.readPlayStation,
+}));
 vi.mock("./achievementLists", () => ({ saveAchievementLists: mocks.save }));
 
 import {
@@ -67,6 +71,9 @@ beforeEach(() => {
   mocks.refresh.mockReset().mockResolvedValue({ list });
   mocks.readEpic.mockReset().mockResolvedValue({ status: "unavailable" });
   mocks.readGog.mockReset().mockResolvedValue({ status: "unavailable" });
+  mocks.readPlayStation
+    .mockReset()
+    .mockResolvedValue({ status: "unavailable" });
   mocks.save.mockReset().mockResolvedValue(undefined);
   mocks.health = "valid";
   mocks.revision = 0;
@@ -404,6 +411,82 @@ describe("GOG", () => {
       await vi.advanceTimersByTimeAsync(15_000);
     }
     expect(mocks.readGog).toHaveBeenCalledTimes(3);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+});
+
+describe("PlayStation", () => {
+  const playStationImport: LibraryImportEntry = {
+    ...imported,
+    provider: "playstation",
+    externalId: "10000333",
+    consoleTitleIds: ["PPSA04609_00", "CUSA18638_00"],
+  };
+  const trophies: AchievementList = {
+    provider: "playstation",
+    externalId: "10000333",
+    fetchedAt: 4,
+    achievements: [],
+  };
+  const signedIn = [
+    { service: "playstation" as const, name: "zesarex_ps", savedAt: 1 },
+  ];
+  // The session a PS5 game's end leaves, as playstationLive starts it.
+  const onConsole: ActiveSession = {
+    ...session,
+    exeName: "PPSA04609_00",
+    console: "PS5",
+  };
+
+  beforeEach(() => {
+    useAppStore.setState({
+      libraryImports: new Map([["playstation:10000333", playStationImport]]),
+    });
+    useKeptLogins.setState({ logins: signedIn });
+    mocks.readPlayStation.mockResolvedValue({ list: trophies });
+  });
+
+  it("reads the trophies again with the kept sign-in a little after a console session ends", async () => {
+    schedulePostGameAchievementRefresh(onConsole);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(mocks.readPlayStation).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mocks.readPlayStation).toHaveBeenCalledExactlyOnceWith("10000333");
+    expect(mocks.save).toHaveBeenCalledWith([trophies], { show: true });
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.readGog).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing while the game runs on the console", async () => {
+    useAppStore.setState({ activeSessions: [{ ...onConsole, id: 2 }] });
+    schedulePostGameAchievementRefresh(onConsole);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(mocks.readPlayStation).not.toHaveBeenCalled();
+  });
+
+  it.each(["signed out", "needs a new sign-in"])(
+    "reads nothing when PlayStation %s",
+    async (state) => {
+      schedulePostGameAchievementRefresh(onConsole);
+      if (state === "signed out") useKeptLogins.setState({ logins: [] });
+      else mocks.health = "needsSignIn";
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(mocks.readPlayStation).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the saved trophies when Sony sends none", async () => {
+    for (const status of [
+      "noAchievements",
+      "unavailable",
+      "needsSignIn",
+      "noLogin",
+    ]) {
+      mocks.readPlayStation.mockResolvedValue({ status });
+      schedulePostGameAchievementRefresh(onConsole);
+      await vi.advanceTimersByTimeAsync(15_000);
+    }
+    expect(mocks.readPlayStation).toHaveBeenCalledTimes(4);
     expect(mocks.save).not.toHaveBeenCalled();
   });
 });

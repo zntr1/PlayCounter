@@ -81,6 +81,7 @@ export type {
   AchievementList,
   AchievementProvider,
   GameAchievement,
+  TrophyType,
   XboxAchievementError,
   XboxImportStartRequest,
 } from "./achievements.js";
