@@ -256,6 +256,92 @@ describe("Steam", () => {
     expect(rowNames()).toEqual(["Done"]);
   });
 
+  it("sorts with the Sort menu: Newest unlock until another one is picked", async () => {
+    steamAnswers(
+      {
+        status: "ok",
+        hasPlayerStats: true,
+        achievements: [
+          achievement("Rare open"),
+          achievement("No share"),
+          achievement("Rare win", { unlocked: true, unlockedAt: 1_000_000 }),
+          achievement("Common win", { unlocked: true, unlockedAt: 9_000_000 }),
+        ],
+      },
+      [
+        {
+          id: "Common win",
+          name: "Common win",
+          description: "",
+          hidden: false,
+          globalPercent: 74.2,
+        },
+        {
+          id: "Rare win",
+          name: "Rare win",
+          description: "",
+          hidden: false,
+          globalPercent: 3.1,
+        },
+        {
+          id: "Rare open",
+          name: "Rare open",
+          description: "",
+          hidden: false,
+          globalPercent: 0.4,
+        },
+      ],
+    );
+    // Its own app: the public list is kept per app while the app runs.
+    await render([{ provider: "steam", externalId: "440" }]);
+    const sort = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Sort achievements"]',
+    )!;
+    const labels = [...sort.options].map((option) => option.textContent);
+    expect(labels).toHaveLength(5);
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        "Sort: Rarest first",
+        "Sort: Most common first",
+        "Sort: Newest unlock",
+        "Sort: Oldest unlock",
+        "Sort: A–Z",
+      ]),
+    );
+    expect(sort.options[sort.selectedIndex]!.textContent).toBe(
+      "Sort: Newest unlock",
+    );
+    expect(rowNames()).toEqual([
+      "Common win",
+      "Rare win",
+      "Rare open",
+      "No share",
+    ]);
+
+    const pick = (label: string) =>
+      act(() => {
+        sort.value = [...sort.options].find(
+          (option) => option.textContent === label,
+        )!.value;
+        sort.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    await pick("Sort: Rarest first");
+    expect(rowNames()).toEqual([
+      "Rare open",
+      "Rare win",
+      "Common win",
+      "No share",
+    ]);
+
+    // The filter keeps the sort: your rarest unlocks.
+    await act(async () =>
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.startsWith("Unlocked"))!
+        .click(),
+    );
+    expect(rowNames()).toEqual(["Rare win", "Common win"]);
+  });
+
   it("says so when Steam never started the game on this PC", async () => {
     steamAnswers({ status: "noSchema" });
     await render([{ provider: "steam", externalId: "620" }]);

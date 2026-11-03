@@ -12,9 +12,10 @@ import {
   filterAchievements,
   isConcealed,
   mergeSteamCatalog,
-  orderAchievements,
+  sortAchievements,
   TROPHY_TYPES,
   type AchievementFilter,
+  type AchievementSort,
   type SteamCatalogAchievement,
 } from "../../../achievements/model";
 import {
@@ -54,7 +55,7 @@ import { appLocale, getT } from "../../../i18n";
 import { nativeText } from "../../../nativeText";
 import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
-import { Button, Pill } from "../../primitives";
+import { Button, Pill, Select } from "../../primitives";
 import type { GameSummary } from "../MyGamesView";
 import { XboxSignInWait } from "./XboxSignInWait";
 
@@ -758,6 +759,16 @@ function platformsOf(achievements: readonly GameAchievement[]) {
   );
 }
 
+function sortOptions(): Array<{ id: AchievementSort; label: string }> {
+  return [
+    { id: "newest", label: t("Newest unlock") },
+    { id: "oldest", label: t("Oldest unlock") },
+    { id: "rarest", label: t("Rarest first") },
+    { id: "common", label: t("Most common first") },
+    { id: "name", label: t("A–Z") },
+  ];
+}
+
 function AchievementOverview({
   achievements: all,
   origin,
@@ -770,6 +781,7 @@ function AchievementOverview({
   action: ReactNode;
 }) {
   const [filter, setFilter] = useState<AchievementFilter>("all");
+  const [sort, setSort] = useState<AchievementSort>("newest");
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set());
   const platforms = useMemo(() => platformsOf(all), [all]);
   const [chosenPlatform, setPlatform] = useState<"PS5" | "PS4">("PS5");
@@ -783,8 +795,8 @@ function AchievementOverview({
     [all, platforms, platform],
   );
   const ordered = useMemo(
-    () => orderAchievements(achievements),
-    [achievements],
+    () => sortAchievements(achievements, sort),
+    [achievements, sort],
   );
   const summary = useMemo(
     () => achievementSummary(achievements),
@@ -881,17 +893,31 @@ function AchievementOverview({
         {note ? <p className="mt-3 text-sm text-text-muted">{note}</p> : null}
       </section>
 
-      <div className="flex flex-wrap gap-2">
-        {filters.map(({ id, label, count }) => (
-          <Pill
-            key={id}
-            selected={filter === id}
-            count={count}
-            onClick={() => setFilter(id)}
-          >
-            {label}
-          </Pill>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {filters.map(({ id, label, count }) => (
+            <Pill
+              key={id}
+              selected={filter === id}
+              count={count}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+            </Pill>
+          ))}
+        </div>
+        <Select
+          aria-label={t("Sort achievements")}
+          value={sort}
+          onChange={(event) => setSort(event.target.value as AchievementSort)}
+          className="h-8 rounded-lg !py-0 text-[13px] font-medium"
+        >
+          {sortOptions().map(({ id, label }) => (
+            <option key={id} value={id}>
+              {t("Sort: {{label}}", { label })}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {visible.length ? (
