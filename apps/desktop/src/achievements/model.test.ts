@@ -7,6 +7,7 @@ import {
   mergeSteamCatalog,
   orderAchievements,
   parseAchievementList,
+  sortAchievements,
 } from "./model";
 
 function achievement(
@@ -57,6 +58,83 @@ describe("order", () => {
       "a-unknown",
       "b-unknown",
     ]);
+  });
+});
+
+describe("sort", () => {
+  const unlocks = [
+    achievement("locked"),
+    achievement("no-date", { unlocked: true }),
+    achievement("new", { unlocked: true, unlockedAt: 5_000 }),
+    achievement("old", { unlocked: true, unlockedAt: 1_000 }),
+  ];
+  // A share of players is missing where the launcher sends none.
+  const shares = [
+    achievement("unknown", { unlocked: true, unlockedAt: 9_000 }),
+    achievement("common", {
+      unlocked: true,
+      unlockedAt: 5_000,
+      globalPercent: 74.2,
+    }),
+    achievement("rare-locked", { globalPercent: 0.4 }),
+    achievement("rare-won", {
+      unlocked: true,
+      unlockedAt: 1_000,
+      globalPercent: 3.1,
+    }),
+  ];
+  const ids = (list: readonly { id: string }[]) => list.map((a) => a.id);
+
+  it("Newest unlock: the newest unlock first, locked ones last", () => {
+    expect(ids(sortAchievements(unlocks, "newest"))).toEqual([
+      "new",
+      "old",
+      "no-date",
+      "locked",
+    ]);
+  });
+
+  it("Oldest unlock: the oldest unlock first, locked ones last", () => {
+    expect(ids(sortAchievements(unlocks, "oldest"))).toEqual([
+      "old",
+      "new",
+      "no-date",
+      "locked",
+    ]);
+  });
+
+  it("Rarest first, unlocked or not; the ones without a share of players last", () => {
+    expect(ids(sortAchievements(shares, "rarest"))).toEqual([
+      "rare-locked",
+      "rare-won",
+      "common",
+      "unknown",
+    ]);
+  });
+
+  it("Most common first; the ones without a share of players last", () => {
+    expect(ids(sortAchievements(shares, "common"))).toEqual([
+      "common",
+      "rare-won",
+      "rare-locked",
+      "unknown",
+    ]);
+  });
+
+  it("A–Z by name, unlocked or not, whatever the case", () => {
+    const names = sortAchievements(
+      [
+        achievement("1", {
+          name: "Zombie hunter",
+          unlocked: true,
+          unlockedAt: 9_000,
+        }),
+        achievement("2", { name: "Apprentice" }),
+        achievement("3", { name: "master builder", unlocked: true }),
+      ],
+      "name",
+    ).map((a) => a.name);
+    expect(names).toEqual(["Apprentice", "master builder", "Zombie hunter"]);
   });
 });
 

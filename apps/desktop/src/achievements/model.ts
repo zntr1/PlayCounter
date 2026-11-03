@@ -6,6 +6,13 @@ import type {
 
 export type AchievementFilter = "all" | "unlocked" | "locked";
 
+export type AchievementSort =
+  | "newest"
+  | "oldest"
+  | "rarest"
+  | "common"
+  | "name";
+
 /** One entry of Steam's public list (see achievements.rs). */
 export type SteamCatalogAchievement = {
   id: string;
@@ -109,6 +116,43 @@ export function orderAchievements(achievements: readonly GameAchievement[]) {
       a.name.localeCompare(b.name)
     );
   });
+}
+
+/** Newest unlock is the order above; the other sorts keep it for ties.
+ *  Without a value (no unlock date, no share of players) goes last. A–Z puts
+ *  hidden locked ones last: their names are not shown. */
+export function sortAchievements(
+  achievements: readonly GameAchievement[],
+  sort: AchievementSort,
+) {
+  const ordered = orderAchievements(achievements);
+  const by = (value: (a: GameAchievement) => number | undefined) =>
+    ordered.sort((a, b) => {
+      const left = value(a);
+      const right = value(b);
+      if (left === undefined || right === undefined)
+        return Number(left === undefined) - Number(right === undefined);
+      return left - right;
+    });
+  const concealable = (a: GameAchievement) => Number(a.hidden && !a.unlocked);
+  switch (sort) {
+    case "newest":
+      return ordered;
+    case "oldest":
+      return by((a) => (a.unlocked ? a.unlockedAt : undefined));
+    case "rarest":
+      return by((a) => a.globalPercent);
+    case "common":
+      return by((a) =>
+        a.globalPercent === undefined ? undefined : -a.globalPercent,
+      );
+    case "name":
+      return ordered.sort(
+        (a, b) =>
+          concealable(a) - concealable(b) ||
+          a.name.localeCompare(b.name, undefined, { numeric: true }),
+      );
+  }
 }
 
 export function filterAchievements(
