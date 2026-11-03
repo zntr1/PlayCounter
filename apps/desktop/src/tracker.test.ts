@@ -72,6 +72,17 @@ import {
   noteFolderExecutable,
 } from "./tracker";
 import { libraryEntryKey } from "./library/types";
+import { readPersistedRecord } from "./persistence";
+
+// What a restart loads: the last write of every key, read the way PlayCounter
+// reads it.
+function readSavedState() {
+  const written = new Map(vi.mocked(localStorage.setItem).mock.calls);
+  vi.mocked(localStorage.getItem).mockImplementation(
+    (key: string) => written.get(key) ?? null,
+  );
+  return readPersistedRecord();
+}
 
 function entry(overrides: Partial<ExeCacheEntry> = {}): ExeCacheEntry {
   return {
@@ -230,13 +241,9 @@ describe("playthrough tracking", () => {
         Date.parse(useAppStore.getState().activeSessions[0].checkpointedAt),
       ).toBe(Date.parse("2026-09-13T10:02:00Z"));
       persist();
-      const saved = JSON.parse(
-        vi
-          .mocked(localStorage.setItem)
-          .mock.calls.filter(([key]) => key.includes("playcounter"))
-          .at(-1)![1],
-      );
-      expect(saved.activeSessions[0].note).toBe("Boss 2");
+      expect(readSavedState()).toMatchObject({
+        activeSessions: [{ note: "Boss 2" }],
+      });
       running = false;
       vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
       await scanProcessesNow();
@@ -544,12 +551,9 @@ describe("PCSX2 tracking integration", () => {
     configure();
     await scanProcessesNow();
     persist();
-    const saved = vi
-      .mocked(localStorage.setItem)
-      .mock.calls.filter(([key]) => key.includes("playcounter"))
-      .at(-1)?.[1];
-    expect(saved).toBeTruthy();
-    const record = JSON.parse(saved!);
+    const record = readSavedState();
+    expect(record).toHaveProperty("emulatorMappings");
+    expect(record).toHaveProperty("knownEmulators");
     expect(() =>
       validateBackupData(
         {
@@ -559,7 +563,6 @@ describe("PCSX2 tracking integration", () => {
         "backup",
       ),
     ).not.toThrow();
-    vi.mocked(localStorage.getItem).mockReturnValue(saved!);
     useAppStore.setState({
       emulatorMappings: new Map(),
       knownEmulators: new Map(),

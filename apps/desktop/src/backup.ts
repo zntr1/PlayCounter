@@ -11,6 +11,7 @@ import { DEFAULT_API_ENDPOINT, type ExeCacheEntry } from "./store";
 import { readWatchFolders } from "./library/watchFolderState";
 import {
   readPersistedRecord,
+  restorePersistedText,
   STORAGE_KEY,
   writePersistedRecord,
 } from "./persistence";
@@ -300,8 +301,7 @@ export async function importLocalData(): Promise<ImportResult> {
       data.contributionOwnerUuid = installUuid;
       writePersistedRecord(data);
     } catch (error) {
-      if (existing === null) localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, existing);
+      restorePersistedText(existing);
       throw error;
     }
   }

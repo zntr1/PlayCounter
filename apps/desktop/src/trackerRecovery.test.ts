@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { STORAGE_KEY } from "./persistence";
+import { readPersistedRecord, STORAGE_KEY } from "./persistence";
 
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({
@@ -151,9 +151,10 @@ describe("session recovery through startup and process scans", () => {
     vi.setSystemTime(new Date("2026-09-06T12:01:00.000Z"));
     await scanProcessesNow();
     expect(setItem).toHaveBeenCalledTimes(1);
-    expect(
-      JSON.parse(storage.get(STORAGE_KEY)!).activeSessions[0].checkpointedAt,
-    ).toBe("2026-09-06T12:01:00.000Z");
+    // What a restart loads: the checkpoint sits in the small save.
+    expect(readPersistedRecord()).toMatchObject({
+      activeSessions: [{ checkpointedAt: "2026-09-06T12:01:00.000Z" }],
+    });
 
     await stopAt("2026-09-06T12:01:05.000Z");
     const saved = JSON.parse(storage.get(STORAGE_KEY)!);
