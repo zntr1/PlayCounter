@@ -6,7 +6,7 @@ import { saveAchievementLists } from "../achievements/achievementLists";
 import { getT } from "../i18n";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
 import { nativeText } from "../nativeText";
-import { STORAGE_KEY } from "../persistence";
+import { readPersistedText } from "../persistence";
 import { useAppStore, type GameMetadata } from "../store";
 import { importExeCandidates } from "./exeCandidates";
 import { readAgain } from "./accountReadings";
@@ -1225,7 +1225,7 @@ async function backupOnce(signal: AbortSignal) {
   signal.throwIfAborted();
   if (backedUp) return;
   await invoke("backup_local_data", {
-    contents: localStorage.getItem(STORAGE_KEY) ?? "{}",
+    contents: readPersistedText() ?? "{}",
   });
   signal.throwIfAborted();
   backedUp = true;

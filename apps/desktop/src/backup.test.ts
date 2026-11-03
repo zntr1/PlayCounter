@@ -20,7 +20,12 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 import { createTransferData, exportLocalData, importLocalData } from "./backup";
-import { createPersistedPayload, STORAGE_KEY } from "./persistence";
+import {
+  createPersistedPayload,
+  persistAppState,
+  readPersistedRecord,
+  STORAGE_KEY,
+} from "./persistence";
 import { DEFAULT_API_ENDPOINT, useAppStore } from "./store";
 import { hydrate } from "./tracker";
 
@@ -910,5 +915,58 @@ describe("backup import", () => {
     await expect(importLocalData()).rejects.toThrow("disk locked");
     expect(values.get(STORAGE_KEY)).toBe(existing);
     expect(reloadMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("backups and software time saved during play", () => {
+  const day = "2026-11-03";
+
+  // Software time ticks on every scan, so it is saved apart from the rest.
+  function playWithDiscord() {
+    installLocalStorage(null);
+    const state = useAppStore.getState();
+    persistAppState({
+      ...state,
+      toolUsage: { "discord.exe": { days: { [day]: 60 } } },
+    });
+    persistAppState({
+      ...state,
+      toolUsage: { "discord.exe": { days: { [day]: 65 } } },
+    });
+  }
+
+  it("exports the newest software time", async () => {
+    playWithDiscord();
+    saveMock.mockResolvedValue("backup.json");
+    invokeMock.mockResolvedValue(undefined);
+
+    await exportLocalData();
+
+    const write = invokeMock.mock.calls.find(
+      ([command]) => command === "write_text_file",
+    );
+    expect(JSON.parse(write?.[1]?.contents as string).data.toolUsage).toEqual({
+      "discord.exe": { days: { [day]: 65 } },
+    });
+  });
+
+  it("keeps the newest software time when a restore fails", async () => {
+    playWithDiscord();
+    const before = readPersistedRecord();
+    expect(before.toolUsage).toEqual({
+      "discord.exe": { days: { [day]: 65 } },
+    });
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file") {
+        return backup({ installUuid, sessions: [] });
+      }
+      if (command === "backup_local_data") return "automatic-backup.json";
+      if (command === "adopt_install_uuid") throw new Error("disk locked");
+      return undefined;
+    });
+
+    await expect(importLocalData()).rejects.toThrow("disk locked");
+    expect(readPersistedRecord()).toEqual(before);
   });
 });
