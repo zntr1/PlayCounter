@@ -2,6 +2,7 @@ import type { LibraryProviderId } from "@playcounter/shared";
 import { describe, expect, it } from "vitest";
 import {
   addedLabel,
+  newGameKey,
   newRowEntries,
   newRowGames,
   newRowSummary,
@@ -19,6 +20,7 @@ const hoursAgo = (hours: number) => new Date(NOW - hours * HOUR).toISOString();
 
 type TestGame = NewRowGame & { id: string };
 
+let nextGameId = 1;
 function game(
   id: string,
   addedAt: string | undefined,
@@ -27,6 +29,8 @@ function game(
   return {
     id,
     name: id,
+    gameId: -nextGameId++,
+    source: "custom",
     addedAt,
     sessionCount: 0,
     libraryImports: [],
@@ -231,6 +235,37 @@ describe("the folded line (plan 6)", () => {
     expect(newRowSummary(newRowEntries(row))).toBe(
       "Hollow Knight: Silksong and Balatro",
     );
+  });
+});
+
+describe("Mark all as seen (plan 12)", () => {
+  it("drops the games added before it; games added after it are new", () => {
+    const games = [
+      game("added before", hoursAgo(10)),
+      game("added after", hoursAgo(2)),
+    ];
+    const marked = { seenAt: hoursAgo(5), seenGames: {} };
+    expect(newRowGames(games, NOW, marked).map((g) => g.id)).toEqual([
+      "added after",
+    ]);
+    expect(newRowGames(games, NOW).map((g) => g.id)).toEqual([
+      "added after",
+      "added before",
+    ]);
+  });
+});
+
+describe("Mark as seen, one game (plan 13)", () => {
+  it("drops the marked game only", () => {
+    const silksong = game("Silksong", hoursAgo(2));
+    const balatro = game("Balatro", hoursAgo(50));
+    const marked = {
+      seenAt: null,
+      seenGames: { [newGameKey(silksong)]: hoursAgo(1) },
+    };
+    expect(
+      newRowGames([silksong, balatro], NOW, marked).map((g) => g.id),
+    ).toEqual(["Balatro"]);
   });
 });
 

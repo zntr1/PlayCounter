@@ -711,5 +711,9 @@
   "Added yesterday": "Adicionado ontem",
   "Added {{count}} days ago_one": "Adicionado há {{count}} dia",
   "Added {{count}} days ago_many": "Adicionado há {{count}} dias",
-  "Added {{count}} days ago_other": "Adicionado há {{count}} dias"
+  "Added {{count}} days ago_other": "Adicionado há {{count}} dias",
+  "Back to all new games": "Voltar para todos os jogos novos",
+  "Mark all as seen": "Marcar todos como vistos",
+  "Takes them out of this row and removes their New badge. Games added later still show up here.": "Tira os jogos desta fileira e remove o selo Novo deles. Jogos adicionados depois continuam aparecendo aqui.",
+  "Mark as seen": "Marcar como visto"
 }

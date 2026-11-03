@@ -20,6 +20,9 @@ export type MyGamesSortValue = {
   lastPlayedAt: string;
   hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
+  /** A session runs right now, also in its first 30 seconds (activeStartedAt
+   *  waits that long, for the Last played order). */
+  playingNow?: boolean;
   /** When the game joined the library. Absent for games added before the
    *  date was kept and never played since. */
   addedAt?: string;
@@ -49,22 +52,31 @@ export function earliestAddedAt(
     : candidate;
 }
 
-/** Added in the last week and not played yet, here or in its launcher. */
+/** Added in the last week and not played yet, here or in its launcher, and
+ *  added after "Mark all as seen" (seenAt), if that was used. */
 export function isNewGame(
   game: Pick<
     MyGamesSortValue,
-    "addedAt" | "sessionCount" | "hasLastPlayedEvidence" | "activeStartedAt"
+    | "addedAt"
+    | "sessionCount"
+    | "hasLastPlayedEvidence"
+    | "activeStartedAt"
+    | "playingNow"
   >,
   nowMs: number,
+  seenAt?: string | null,
 ) {
   if (
     game.sessionCount > 0 ||
     game.hasLastPlayedEvidence ||
-    game.activeStartedAt !== undefined
+    game.activeStartedAt !== undefined ||
+    game.playingNow
   ) {
     return false;
   }
   const addedMs = addedTime(game);
+  // No date to compare with (never marked) leaves every game as it was.
+  if (addedMs <= Date.parse(seenAt ?? "")) return false;
   return addedMs > 0 && nowMs - addedMs < NEW_GAME_WINDOW_MS;
 }
 

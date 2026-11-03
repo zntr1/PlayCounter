@@ -736,5 +736,9 @@
   "Added {{count}} days ago_one": "Добавлено {{count}} день назад",
   "Added {{count}} days ago_few": "Добавлено {{count}} дня назад",
   "Added {{count}} days ago_many": "Добавлено {{count}} дней назад",
-  "Added {{count}} days ago_other": "Добавлено {{count}} дня назад"
+  "Added {{count}} days ago_other": "Добавлено {{count}} дня назад",
+  "Back to all new games": "Назад ко всем новым играм",
+  "Mark all as seen": "Отметить все как просмотренные",
+  "Takes them out of this row and removes their New badge. Games added later still show up here.": "Убирает их из этого ряда и снимает значок «Новая». Игры, добавленные позже, по-прежнему появятся здесь.",
+  "Mark as seen": "Отметить как просмотренное"
 }

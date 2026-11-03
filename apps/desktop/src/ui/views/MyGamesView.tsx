@@ -67,6 +67,7 @@ import {
   Trophy,
   UsersRound,
   WifiOff,
+  X,
 } from "lucide-react";
 import {
   Fragment,
@@ -283,12 +284,18 @@ import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
   earliestAddedAt,
-  isNewGame,
   mergeLastPlayedEvidence,
   shouldPromoteActiveGame,
   type MyGamesSortKey,
 } from "../myGamesSort";
-import { addedLabel, newRowGames } from "../newGamesRow";
+import {
+  addedLabel,
+  isShownAsNew,
+  markLaunchedGameSeen,
+  newGameKey,
+  newRowGames,
+  NOTHING_SEEN,
+} from "../newGamesRow";
 import { NewGamesRow } from "./games/NewGamesRow";
 import {
   isTourDemoLibraryGame,
@@ -399,6 +406,8 @@ export function MyGamesSortSelect({
 
 const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
 const DEMO_LAUNCH_MS = 2_500;
+// One empty list, so a hidden New games row never changes identity.
+const NO_NEW_GAMES: GameSummary[] = [];
 
 export type GameSummary = {
   kind: LibraryGameKind;
@@ -429,6 +438,8 @@ export type GameSummary = {
   lastPlayedAt: string;
   hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
+  /** A session runs right now (activeStartedAt waits 30 seconds). */
+  playingNow?: boolean;
   addedAt?: string;
   exeNames: string[];
   /** Per file (lowercase): its last real run as this game on this PC. */
@@ -797,6 +808,20 @@ export function MyGamesView({
   );
   const setMyGamesNewRowCollapsed = useAppStore(
     (state) => state.setMyGamesNewRowCollapsed,
+  );
+  const newGamesSeenAt = useAppStore(
+    (state) => state.settings.libraryNewGamesSeenAt ?? null,
+  );
+  const setMyGamesNewGamesSeenAt = useAppStore(
+    (state) => state.setMyGamesNewGamesSeenAt,
+  );
+  const newGamesSeenOneByOne = useAppStore(
+    (state) => state.settings.libraryNewGamesSeen ?? NOTHING_SEEN.seenGames,
+  );
+  const markNewGamesSeen = useAppStore((state) => state.markNewGamesSeen);
+  const newGamesSeen = useMemo(
+    () => ({ seenAt: newGamesSeenAt, seenGames: newGamesSeenOneByOne }),
+    [newGamesSeenAt, newGamesSeenOneByOne],
   );
   const featuredSetting = useAppStore(
     (state) => state.settings.libraryFeaturedGame ?? null,
@@ -1491,6 +1516,8 @@ export function MyGamesView({
         existing.addedAt,
         activeSession.startedAt,
       );
+      // Not new any more from the first second: it is being played.
+      existing.playingNow = true;
       existing.sessionSeconds += activeSeconds;
       activeSecondsBySummary.set(
         existing,
@@ -2111,18 +2138,22 @@ export function MyGamesView({
   // The New row holds the new games of what the list shows: tab, shelf and
   // filters. "Recently added" already puts them first, and search results
   // are short enough to show them (docs/new-games-row-plan.md).
-  const newGames = useMemo(
-    () => newRowGames(displayedGames, Date.now()),
-    [displayedGames],
-  );
-  const newRowVisible =
+  const newRowAllowed =
     renderContent &&
     !parked &&
     showNewRow &&
     !tourDemo.active &&
     sortKey !== "added" &&
-    !query.trim() &&
-    newGames.length > 0;
+    !query.trim();
+  // Switched off or not shown: not even the check for new games runs.
+  const newGames = useMemo(
+    () =>
+      newRowAllowed
+        ? newRowGames(displayedGames, Date.now(), newGamesSeen)
+        : NO_NEW_GAMES,
+    [newRowAllowed, displayedGames, newGamesSeen],
+  );
+  const newRowVisible = newRowAllowed && newGames.length > 0;
   useEffect(() => {
     publishLibrarySources({
       tabs,
@@ -2273,6 +2304,12 @@ export function MyGamesView({
               games={newGames}
               collapsed={newRowCollapsed}
               onCollapsedChange={setMyGamesNewRowCollapsed}
+              onMarkAllSeen={() =>
+                setMyGamesNewGamesSeenAt(new Date(Date.now()).toISOString())
+              }
+              onMarkSeen={(games) =>
+                markNewGamesSeen(games.map((game) => newGameKey(game)))
+              }
               onHide={() => {
                 setMyGamesShowNewRow(false);
                 addToast({
@@ -2311,6 +2348,7 @@ export function MyGamesView({
                     showTrackingWarning={showTrackingWarnings}
                     view="grid"
                     compact
+                    onMarkSeen={markNewGamesSeen}
                     onRemove={requestRemoval}
                     onStopTracking={
                       game.source ? requestStopTracking : undefined
@@ -3215,6 +3253,7 @@ export function GameLibraryCard({
   onToggleSelection,
   demo = false,
   compact = false,
+  onMarkSeen,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3237,9 +3276,12 @@ export function GameLibraryCard({
   selected: boolean;
   onToggleSelection: (key: string, range: boolean) => void;
   demo?: boolean;
-  /** The New row's small card: the same cover, seal and button, then the
-   *  added date instead of playtime, and no hover buttons. Grid view only. */
+  /** The New row's small card: cover, launcher icon, name, the added date
+   *  and the card's button. No badges, warnings, playtime or hover buttons.
+   *  Grid view only. */
   compact?: boolean;
+  /** The New row's ×: this game is seen, it leaves the row and its badge. */
+  onMarkSeen?: (gameKeys: readonly string[]) => void;
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
@@ -3870,7 +3912,16 @@ export function GameLibraryCard({
   // Shown in place of the title while hovering the card with Shift held.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
-  const isNew = isNewGame(game, Date.now());
+  const newGamesSeenAt = useAppStore(
+    (state) => state.settings.libraryNewGamesSeenAt ?? null,
+  );
+  const newGamesSeenOneByOne = useAppStore(
+    (state) => state.settings.libraryNewGamesSeen ?? NOTHING_SEEN.seenGames,
+  );
+  const isNew = isShownAsNew(game, Date.now(), {
+    seenAt: newGamesSeenAt,
+    seenGames: newGamesSeenOneByOne,
+  });
   const localDisplayedSeconds = Math.max(
     0,
     game.recordedSeconds + game.adjustmentSeconds,
@@ -3948,8 +3999,13 @@ export function GameLibraryCard({
     (game.source && (demo ? game.exeNames[0] : checkableFiles.length > 0)) ||
     checksLibraryGame,
   );
+  // The New row's small cards carry no badges or warnings (Phil, 2026-11-03).
   const trackingWarningVisible =
-    showTrackingWarning && trackingUnavailable && !matchOffer && !consoleOnly;
+    showTrackingWarning &&
+    trackingUnavailable &&
+    !matchOffer &&
+    !consoleOnly &&
+    !compact;
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
     canCheckMatches,
@@ -4767,6 +4823,7 @@ export function GameLibraryCard({
       }
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4837,6 +4894,7 @@ export function GameLibraryCard({
       }
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4896,6 +4954,7 @@ export function GameLibraryCard({
       await provider.launch(entry.externalId);
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -6027,7 +6086,7 @@ export function GameLibraryCard({
             cover in another ratio (SteamGridDB grids are 2:3) would otherwise
             stretch the whole card. */}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
-          {!demo || libraryPractice ? (
+          {(!demo || libraryPractice) && !compact ? (
             <GameJournalBadges game={{ ...game, gameName: game.name }} />
           ) : null}
           {shownCover ? (
@@ -6045,14 +6104,9 @@ export function GameLibraryCard({
 
           {/* Match seals top left. Origin coins sit beside the game name, so the
               right column is just the tracking warning and the hover actions. */}
-          {matchVisible && !selectionMode ? (
+          {matchVisible && !selectionMode && !compact ? (
             <GameProvenanceBadges
-              className={clsx(
-                "peer/provenance absolute z-40 drop-shadow-md",
-                compact
-                  ? "left-1.5 top-1.5 origin-top-left scale-[0.85]"
-                  : "left-2 top-2",
-              )}
+              className="peer/provenance absolute left-2 top-2 z-40 drop-shadow-md"
               sources={game.sources}
               emulatorSources={game.emulatorSources}
               approval={communityApproval}
@@ -6087,6 +6141,19 @@ export function GameLibraryCard({
                 </div>
               </div>
             </div>
+          ) : null}
+
+          {/* The New row's ×, shown on hover. */}
+          {compact && onMarkSeen && !selectionMode ? (
+            <button
+              type="button"
+              aria-label={t("Mark as seen")}
+              title={t("Mark as seen")}
+              onClick={() => onMarkSeen([newGameKey(game)])}
+              className="absolute right-1.5 top-1.5 z-40 grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-black/75 text-white opacity-0 shadow-raised transition hover:border-transparent hover:bg-accent hover:text-accent-fg focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
+            >
+              <X size={13} strokeWidth={2.5} />
+            </button>
           ) : null}
 
           {/* Hover Actions - Top Right (constructive first, destructive last).
@@ -6204,7 +6271,9 @@ export function GameLibraryCard({
               <GameOriginBadges
                 providers={importedProviders}
                 emulatorIds={game.emulatorIds}
-                unknownDurationProviders={unknownDurationProviders}
+                unknownDurationProviders={
+                  compact ? [] : unknownDurationProviders
+                }
               />
             ) : null}
             <NameHeading
@@ -6325,7 +6394,7 @@ export function GameLibraryCard({
             </div>
           ) : null}
         </div>
-        {primaryEmulatorCandidate && primaryEmulatorMapping ? (
+        {primaryEmulatorCandidate && primaryEmulatorMapping && !compact ? (
           <button
             type="button"
             title={t(

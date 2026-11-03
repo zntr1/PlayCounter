@@ -734,6 +734,12 @@ export interface Settings {
   libraryShowNewRow?: boolean;
   /** The new games row folded into one line. Absent = open. */
   libraryNewRowCollapsed?: boolean;
+  /** "Mark all as seen" in the new games row: games added up to this time
+   *  are no longer new. Null or absent = never used. */
+  libraryNewGamesSeenAt?: string | null;
+  /** Games marked as seen one by one in the new games row (× on a card):
+   *  game key → when. Marks older than 7 days are dropped. */
+  libraryNewGamesSeen?: Record<string, string>;
   /** Game pinned to the library banner. Null or absent = the last played game. */
   libraryFeaturedGame?: LibraryFeaturedGame | null;
   /** Compact banners in other views are opt-in, independently of My Games. */

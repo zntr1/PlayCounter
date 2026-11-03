@@ -90,7 +90,7 @@ import {
   type MyGamesCardSize,
 } from "./ui/myGamesPresentation";
 import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
-import type { MyGamesSortKey } from "./ui/myGamesSort";
+import { NEW_GAME_WINDOW_MS, type MyGamesSortKey } from "./ui/myGamesSort";
 import type { ToolUsage } from "./toolUsage";
 import {
   archivePlaythroughSeconds,
@@ -679,6 +679,8 @@ export type AppState = {
   setMyGamesShowHero: (enabled: boolean) => void;
   setMyGamesShowNewRow: (enabled: boolean) => void;
   setMyGamesNewRowCollapsed: (collapsed: boolean) => void;
+  setMyGamesNewGamesSeenAt: (seenAt: string | null) => void;
+  markNewGamesSeen: (gameKeys: readonly string[]) => void;
   setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
   setViewShowHero: (view: Exclude<ViewId, "games">, enabled: boolean) => void;
   setViewBannerDetails: (enabled: boolean) => void;
@@ -768,6 +770,8 @@ const defaultSettings: Settings = {
   libraryShowHero: true,
   libraryShowNewRow: true,
   libraryNewRowCollapsed: false,
+  libraryNewGamesSeenAt: null,
+  libraryNewGamesSeen: {},
   libraryFeaturedGame: null,
   viewShowHero: {},
   viewBannerDetails: true,
@@ -1958,6 +1962,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       settings: { ...state.settings, libraryNewRowCollapsed },
     }));
+    persistSoon();
+  },
+  setMyGamesNewGamesSeenAt: (libraryNewGamesSeenAt) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryNewGamesSeenAt },
+    }));
+    persistSoon();
+  },
+  markNewGamesSeen: (gameKeys) => {
+    const nowMs = Date.now();
+    const at = new Date(nowMs).toISOString();
+    set((state) => {
+      // A game is new for 7 days at most, so an older mark can't matter.
+      const marks = Object.fromEntries(
+        Object.entries(state.settings.libraryNewGamesSeen ?? {}).filter(
+          ([, markedAt]) => nowMs - Date.parse(markedAt) < NEW_GAME_WINDOW_MS,
+        ),
+      );
+      for (const key of gameKeys) marks[key] = at;
+      return {
+        settings: { ...state.settings, libraryNewGamesSeen: marks },
+      };
+    });
     persistSoon();
   },
   setLibraryFeaturedGame: (libraryFeaturedGame) => {

@@ -686,5 +686,9 @@
   "Added today": "Heute hinzugefügt",
   "Added yesterday": "Gestern hinzugefügt",
   "Added {{count}} days ago_one": "Vor {{count}} Tag hinzugefügt",
-  "Added {{count}} days ago_other": "Vor {{count}} Tagen hinzugefügt"
+  "Added {{count}} days ago_other": "Vor {{count}} Tagen hinzugefügt",
+  "Back to all new games": "Zurück zu allen neuen Spielen",
+  "Mark all as seen": "Alle als gesehen markieren",
+  "Takes them out of this row and removes their New badge. Games added later still show up here.": "Nimmt sie aus dieser Reihe und entfernt ihr „Neu“-Abzeichen. Spiele, die später dazukommen, erscheinen hier weiterhin.",
+  "Mark as seen": "Als gesehen markieren"
 }

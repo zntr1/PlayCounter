@@ -4,6 +4,8 @@ import {
 } from "@playcounter/shared";
 import clsx from "clsx";
 import {
+  ArrowLeft,
+  CheckCheck,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -11,6 +13,7 @@ import {
   Layers,
   MoreHorizontal,
   Sparkles,
+  X,
 } from "lucide-react";
 import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { appLocale, getT } from "../../../i18n";
@@ -29,6 +32,7 @@ import {
   type NewRowEntry,
 } from "../../newGamesRow";
 import { Button, IconButton } from "../../primitives";
+import { useLibraryRenderWindow } from "../../useLibraryRenderWindow";
 import type { GameSummary } from "../MyGamesView";
 
 const t = getT("myGames");
@@ -43,6 +47,8 @@ export function NewGamesRow({
   games,
   collapsed,
   onCollapsedChange,
+  onMarkAllSeen,
+  onMarkSeen,
   onHide,
   renderCard,
 }: {
@@ -50,6 +56,10 @@ export function NewGamesRow({
   games: readonly GameSummary[];
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  /** Every game in the row is seen: it leaves and loses its New badge. */
+  onMarkAllSeen: () => void;
+  /** These games are seen (the × on an import card). */
+  onMarkSeen: (games: readonly GameSummary[]) => void;
   onHide: () => void;
   /** A small game card, with its key. */
   renderCard: (game: GameSummary) => ReactNode;
@@ -95,17 +105,21 @@ export function NewGamesRow({
         (entry): entry is Extract<typeof entry, { kind: "import" }> =>
           entry.kind === "import" && entry.key === openImport,
       );
-  const opened = expanded || importShown !== undefined;
   const asCards = (list: readonly GameSummary[]): NewRowEntry<GameSummary>[] =>
     list.map((game) => ({ kind: "game", game }));
-  // Opened, every line; closed, the first line.
-  const shown = expanded
-    ? asCards(games)
-    : importShown
-      ? asCards(importShown.games)
-      : columns === null
-        ? []
-        : entries.slice(0, columns);
+  const opened = expanded ? games : importShown?.games;
+  // Opened, cards come in batches like the list's, so a 115-game import
+  // doesn't draw 115 cards at once.
+  const renderWindow = useLibraryRenderWindow(
+    expanded ? "new-games:all" : `new-games:${importShown?.key ?? ""}`,
+    opened?.length ?? 0,
+  );
+  // Show all or one import: every line. Otherwise the first line.
+  const shown = opened
+    ? asCards(opened.slice(0, renderWindow.limit))
+    : columns === null
+      ? []
+      : entries.slice(0, columns);
   const close = () => {
     setExpanded(false);
     setOpenImport(null);
@@ -171,17 +185,28 @@ export function NewGamesRow({
                   })
                 : t("Added in the last 7 days, not played yet")}
           </span>
+          {/* Right after the import's name, where the player already looks. */}
+          {importShown ? (
+            <button
+              type="button"
+              onClick={close}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-[12.5px] font-medium text-text transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              <ArrowLeft size={14} />
+              {t("Back to all new games")}
+            </button>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {!collapsed && (opened || overflow) ? (
+          {!collapsed && !importShown && (expanded || overflow) ? (
             <Button
               variant="ghost"
-              aria-expanded={opened}
+              aria-expanded={expanded}
               aria-controls="new-games-row-cards"
-              onClick={() => (opened ? close() : setExpanded(true))}
+              onClick={() => (expanded ? close() : setExpanded(true))}
               className="h-8 px-2.5 text-[13px]"
             >
-              {opened ? (
+              {expanded ? (
                 <>
                   {t("Show less")}
                   <ChevronUp size={15} />
@@ -192,6 +217,20 @@ export function NewGamesRow({
                   <ChevronRight size={15} />
                 </>
               )}
+            </Button>
+          ) : null}
+          {/* Not inside one import: it would mark more than it shows. */}
+          {!importShown ? (
+            <Button
+              variant="ghost"
+              icon={CheckCheck}
+              title={t(
+                "Takes them out of this row and removes their New badge. Games added later still show up here.",
+              )}
+              onClick={onMarkAllSeen}
+              className="h-8 px-2.5 text-[13px]"
+            >
+              {t("Mark all as seen")}
             </Button>
           ) : null}
           <IconButton
@@ -221,11 +260,27 @@ export function NewGamesRow({
                 provider={entry.provider}
                 games={entry.games}
                 onShowAll={() => setOpenImport(entry.key)}
+                onMarkSeen={() => onMarkSeen(entry.games)}
               />
             ),
           )}
         </div>
       )}
+      {!collapsed && opened && renderWindow.hasMore ? (
+        <div
+          ref={renderWindow.sentinelRef}
+          className="flex justify-center pt-3"
+        >
+          <Button
+            variant="ghost"
+            data-controller-item="library-option"
+            loading={renderWindow.pending}
+            onClick={renderWindow.loadMore}
+          >
+            {t("Show more games")}
+          </Button>
+        </div>
+      ) : null}
       <ContextMenu
         open={menu.open}
         position={menu.position}
@@ -252,10 +307,13 @@ function ImportCard({
   provider,
   games,
   onShowAll,
+  onMarkSeen,
 }: {
   provider: LibraryProviderId;
   games: readonly GameSummary[];
   onShowAll: () => void;
+  /** The ×: every game of this import is seen. */
+  onMarkSeen: () => void;
 }) {
   const coverFor = useCoverLookup();
   const launcher = LIBRARY_PROVIDER_LABELS[provider];
@@ -287,6 +345,15 @@ function ImportCard({
         onClick={onShowAll}
       />
       <div className="new-row-stack relative aspect-[3/4] w-full shrink-0 overflow-hidden">
+        <button
+          type="button"
+          aria-label={t("Mark as seen")}
+          title={t("Mark as seen")}
+          onClick={onMarkSeen}
+          className="absolute right-1.5 top-1.5 z-20 grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-black/75 text-white opacity-0 shadow-raised transition hover:border-transparent hover:bg-accent hover:text-accent-fg focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
+        >
+          <X size={13} strokeWidth={2.5} />
+        </button>
         {left ? (
           <GameCover
             src={left}

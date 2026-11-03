@@ -362,6 +362,8 @@ const settings = object({}, {
   libraryShowHero: boolean,
   libraryShowNewRow: boolean,
   libraryNewRowCollapsed: boolean,
+  libraryNewGamesSeenAt: nullable(date),
+  libraryNewGamesSeen: dictionary(date),
   libraryFeaturedGame: nullable(featuredGame),
   viewShowHero: dictionary(boolean),
   viewBannerDetails: boolean,

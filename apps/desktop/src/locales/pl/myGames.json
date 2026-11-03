@@ -736,5 +736,9 @@
   "Added {{count}} days ago_one": "Dodano {{count}} dzień temu",
   "Added {{count}} days ago_few": "Dodano {{count}} dni temu",
   "Added {{count}} days ago_many": "Dodano {{count}} dni temu",
-  "Added {{count}} days ago_other": "Dodano {{count}} dnia temu"
+  "Added {{count}} days ago_other": "Dodano {{count}} dnia temu",
+  "Back to all new games": "Wróć do wszystkich nowych gier",
+  "Mark all as seen": "Oznacz wszystkie jako widziane",
+  "Takes them out of this row and removes their New badge. Games added later still show up here.": "Usuwa je z tego rzędu i zdejmuje odznakę „Nowa”. Gry dodane później nadal będą się tu pojawiać.",
+  "Mark as seen": "Oznacz jako widziane"
 }

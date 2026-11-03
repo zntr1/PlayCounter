@@ -19,6 +19,7 @@ import {
 } from "../../../library/launchErrors";
 import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
+import { markLaunchedGameSeen } from "../../newGamesRow";
 import {
   launchEmulatorGame,
   launchGame,
@@ -309,6 +310,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       }
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );

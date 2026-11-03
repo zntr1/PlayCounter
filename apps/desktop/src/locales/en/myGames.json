@@ -686,5 +686,9 @@
   "Added today": "Added today",
   "Added yesterday": "Added yesterday",
   "Added {{count}} days ago_one": "Added {{count}} day ago",
-  "Added {{count}} days ago_other": "Added {{count}} days ago"
+  "Added {{count}} days ago_other": "Added {{count}} days ago",
+  "Back to all new games": "Back to all new games",
+  "Mark all as seen": "Mark all as seen",
+  "Takes them out of this row and removes their New badge. Games added later still show up here.": "Takes them out of this row and removes their New badge. Games added later still show up here.",
+  "Mark as seen": "Mark as seen"
 }
