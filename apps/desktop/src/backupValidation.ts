@@ -360,6 +360,8 @@ const settings = object({}, {
   libraryShowProviderTabs: boolean,
   libraryHideEmptyProviderTabs: boolean,
   libraryShowHero: boolean,
+  libraryShowNewRow: boolean,
+  libraryNewRowCollapsed: boolean,
   libraryFeaturedGame: nullable(featuredGame),
   viewShowHero: dictionary(boolean),
   viewBannerDetails: boolean,

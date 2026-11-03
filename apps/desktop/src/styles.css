@@ -2138,6 +2138,46 @@ body[data-tour-dock] [data-modal-backdrop] > [role="dialog"] {
   contain: layout;
 }
 
+/* New games row: an import's first three covers fanned out on one card. */
+.new-row-stack {
+  background: radial-gradient(
+    120% 90% at 50% 18%,
+    rgb(var(--color-surface-hover)),
+    rgb(var(--color-bg))
+  );
+}
+.new-row-fan {
+  position: absolute;
+  top: 11%;
+  left: 50%;
+  width: 58%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.55);
+  transition: transform 0.3s;
+}
+.new-row-fan-left {
+  transform: translateX(-84%) rotate(-9deg) scale(0.88);
+}
+.new-row-fan-right {
+  transform: translateX(-16%) rotate(9deg) scale(0.88);
+}
+.new-row-fan-front {
+  z-index: 2;
+  transform: translateX(-50%);
+}
+.group:hover .new-row-fan-left {
+  transform: translateX(-92%) rotate(-12deg) scale(0.88);
+}
+.group:hover .new-row-fan-right {
+  transform: translateX(-8%) rotate(12deg) scale(0.88);
+}
+.group:hover .new-row-fan-front {
+  transform: translateX(-50%) translateY(-4px);
+}
+
 @media (max-height: 720px) {
   .game-journal .journal-header {
     padding: 10px 16px;

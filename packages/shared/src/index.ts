@@ -730,6 +730,10 @@ export interface Settings {
   libraryHideEmptyProviderTabs?: boolean;
   /** Show the featured-game banner above the library. Absent = enabled. */
   libraryShowHero?: boolean;
+  /** Show the row of new games above the library. Absent = enabled. */
+  libraryShowNewRow?: boolean;
+  /** The new games row folded into one line. Absent = open. */
+  libraryNewRowCollapsed?: boolean;
   /** Game pinned to the library banner. Null or absent = the last played game. */
   libraryFeaturedGame?: LibraryFeaturedGame | null;
   /** Compact banners in other views are opt-in, independently of My Games. */

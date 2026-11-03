@@ -677,6 +677,8 @@ export type AppState = {
   setMyGamesShowProviderTabs: (enabled: boolean) => void;
   setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
   setMyGamesShowHero: (enabled: boolean) => void;
+  setMyGamesShowNewRow: (enabled: boolean) => void;
+  setMyGamesNewRowCollapsed: (collapsed: boolean) => void;
   setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
   setViewShowHero: (view: Exclude<ViewId, "games">, enabled: boolean) => void;
   setViewBannerDetails: (enabled: boolean) => void;
@@ -764,6 +766,8 @@ const defaultSettings: Settings = {
   libraryShowProviderTabs: true,
   libraryHideEmptyProviderTabs: false,
   libraryShowHero: true,
+  libraryShowNewRow: true,
+  libraryNewRowCollapsed: false,
   libraryFeaturedGame: null,
   viewShowHero: {},
   viewBannerDetails: true,
@@ -1941,6 +1945,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowHero: (libraryShowHero) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowHero },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowNewRow: (libraryShowNewRow) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowNewRow },
+    }));
+    persistSoon();
+  },
+  setMyGamesNewRowCollapsed: (libraryNewRowCollapsed) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryNewRowCollapsed },
     }));
     persistSoon();
   },

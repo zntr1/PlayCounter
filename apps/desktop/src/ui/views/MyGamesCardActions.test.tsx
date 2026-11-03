@@ -41,6 +41,8 @@ beforeEach(() => {
       ...useAppStore.getState().settings,
       gameLaunchingEnabled: true,
       libraryShowShelves: false,
+      // These are the list's cards; the New row is MyGamesNewRow.test.tsx.
+      libraryShowNewRow: false,
     },
   });
   container = document.createElement("div");
