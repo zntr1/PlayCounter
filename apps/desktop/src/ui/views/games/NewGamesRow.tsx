@@ -56,10 +56,8 @@ export function NewGamesRow({
 }) {
   // Show all in the header: every new game on its own card, every line.
   const [expanded, setExpanded] = useState(false);
-  // Imports opened with their own Show all: only their games, in place.
-  const [openImports, setOpenImports] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  // An import opened with its own Show all: the row shows only its games.
+  const [openImport, setOpenImport] = useState<string | null>(null);
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
   // How many cards fit on one line. Null until measured.
   const [columns, setColumns] = useState<number | null>(null);
@@ -90,24 +88,27 @@ export function NewGamesRow({
   }, [grid]);
 
   const overflow = columns !== null && entries.length > columns;
-  const opened = expanded || openImports.size > 0;
-  const showAll = (): NewRowEntry<GameSummary>[] =>
-    expanded
-      ? games.map((game) => ({ kind: "game", game }))
-      : entries.flatMap((entry) =>
-          entry.kind === "import" && openImports.has(entry.key)
-            ? entry.games.map((game) => ({ kind: "game" as const, game }))
-            : [entry],
-        );
+  // Gone once all its games were played or turned 7 days old.
+  const importShown = expanded
+    ? undefined
+    : entries.find(
+        (entry): entry is Extract<typeof entry, { kind: "import" }> =>
+          entry.kind === "import" && entry.key === openImport,
+      );
+  const opened = expanded || importShown !== undefined;
+  const asCards = (list: readonly GameSummary[]): NewRowEntry<GameSummary>[] =>
+    list.map((game) => ({ kind: "game", game }));
   // Opened, every line; closed, the first line.
-  const shown = opened
-    ? showAll()
-    : columns === null
-      ? []
-      : entries.slice(0, columns);
+  const shown = expanded
+    ? asCards(games)
+    : importShown
+      ? asCards(importShown.games)
+      : columns === null
+        ? []
+        : entries.slice(0, columns);
   const close = () => {
     setExpanded(false);
-    setOpenImports(new Set());
+    setOpenImport(null);
   };
   const toggleCollapsed = () => {
     close();
@@ -163,7 +164,12 @@ export function NewGamesRow({
           >
             {collapsed
               ? newRowSummary(entries)
-              : t("Added in the last 7 days, not played yet")}
+              : importShown
+                ? t("{{launcher}} import, {{count}} new games", {
+                    launcher: LIBRARY_PROVIDER_LABELS[importShown.provider],
+                    count: importShown.games.length,
+                  })
+                : t("Added in the last 7 days, not played yet")}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -214,9 +220,7 @@ export function NewGamesRow({
                 key={`import:${entry.key}`}
                 provider={entry.provider}
                 games={entry.games}
-                onShowAll={() =>
-                  setOpenImports((current) => new Set(current).add(entry.key))
-                }
+                onShowAll={() => setOpenImport(entry.key)}
               />
             ),
           )}
@@ -243,7 +247,7 @@ export function NewGamesRow({
 }
 
 /* 5 or more games one launcher brought in on one day: fanned covers, the
-   count, and Show all, which puts this import's games in its place. */
+   count, and Show all, which makes the row show only this import's games. */
 function ImportCard({
   provider,
   games,

@@ -233,9 +233,9 @@ it("makes one card of a launcher's import and opens it with its Show all (plan 5
   expect(importCard.textContent).toContain("6 games");
   expect(importCard.textContent).toContain("Added yesterday");
 
+  // Show all 6 shows those 6 games and nothing else.
   await act(() => button("Show all 6", importCard).click());
   expect(rowCardNames()).toEqual([
-    "Hollow Knight: Silksong",
     "Inside",
     "Tunic",
     "Hades",
@@ -243,6 +243,7 @@ it("makes one card of a launcher's import and opens it with its Show all (plan 5
     "Half-Life 2",
     "Portal 2",
   ]);
+  expect(row()!.textContent).toContain("Steam import, 6 new games");
   expect(button("Show less", row()!)).toBeDefined();
 });
 
@@ -273,17 +274,17 @@ it("opens only its own import when two launchers brought games (plan 5)", async 
     "Epic Games import",
   ]);
 
+  // Only Battle.net's games: no game outside the import, no Epic card.
   const battleNet = row()!.querySelectorAll("article")[1];
   await act(() => button("Show all 5", battleNet).click());
   expect(rowCardNames()).toEqual([
-    "Hollow Knight: Silksong",
     "World of Warcraft",
     "Hearthstone",
     "StarCraft II",
     "Overwatch 2",
     "Diablo IV",
-    "Epic Games import",
   ]);
+  expect(row()!.textContent).toContain("Battle.net import, 5 new games");
 
   await act(() => button("Show less", row()!).click());
   expect(rowCardNames()).toEqual([
