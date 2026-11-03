@@ -246,6 +246,53 @@ it("makes one card of a launcher's import and opens it with its Show all (plan 5
   expect(button("Show less", row()!)).toBeDefined();
 });
 
+it("opens only its own import when two launchers brought games (plan 5)", async () => {
+  // Room for three 150 px cards: the opened import needs more than one line.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(500);
+  importGames(
+    "epic",
+    ["Rocket League", "Fortnite", "Alan Wake 2", "Control", "Hades"],
+    hoursAgo(20),
+  );
+  importGames(
+    "battlenet",
+    [
+      "Diablo IV",
+      "Overwatch 2",
+      "StarCraft II",
+      "Hearthstone",
+      "World of Warcraft",
+    ],
+    hoursAgo(5),
+  );
+  addOwnGame("Hollow Knight: Silksong", hoursAgo(2));
+  await render();
+  expect(rowCardNames()).toEqual([
+    "Hollow Knight: Silksong",
+    "Battle.net import",
+    "Epic Games import",
+  ]);
+
+  const battleNet = row()!.querySelectorAll("article")[1];
+  await act(() => button("Show all 5", battleNet).click());
+  expect(rowCardNames()).toEqual([
+    "Hollow Knight: Silksong",
+    "World of Warcraft",
+    "Hearthstone",
+    "StarCraft II",
+    "Overwatch 2",
+    "Diablo IV",
+    "Epic Games import",
+  ]);
+
+  await act(() => button("Show less", row()!).click());
+  expect(rowCardNames()).toEqual([
+    "Hollow Knight: Silksong",
+    "Battle.net import",
+    "Epic Games import",
+  ]);
+});
+
 it("keeps an import of fewer than 5 games as single cards (plan 5)", async () => {
   importGames("steam", ["Portal 2", "Celeste", "Hades", "Tunic"], hoursAgo(23));
   await render();

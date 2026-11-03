@@ -25,9 +25,16 @@ export type NewRowGame = Pick<
   }>;
 };
 
-export type NewRowEntry<G> =
-  | { kind: "game"; game: G }
-  | { kind: "import"; provider: LibraryProviderId; games: G[] };
+/** 5 or more games one launcher brought in on one day. The key names the
+ *  launcher and the day, so it stays the same while its games change. */
+type ImportEntry<G> = {
+  kind: "import";
+  key: string;
+  provider: LibraryProviderId;
+  games: G[];
+};
+
+export type NewRowEntry<G> = { kind: "game"; game: G } | ImportEntry<G>;
 
 const addedTime = (game: NewRowGame) => Date.parse(game.addedAt ?? "");
 
@@ -74,13 +81,8 @@ function importBatch(game: NewRowGame) {
 export function newRowEntries<G extends NewRowGame>(
   games: readonly G[],
 ): NewRowEntry<G>[] {
-  const batches = new Map<
-    string,
-    { kind: "import"; provider: LibraryProviderId; games: G[] }
-  >();
-  const entries: Array<
-    NewRowEntry<G> | { kind: "import"; provider: LibraryProviderId; games: G[] }
-  > = [];
+  const batches = new Map<string, ImportEntry<G>>();
+  const entries: NewRowEntry<G>[] = [];
   for (const game of games) {
     const batch = importBatch(game);
     if (!batch) {
@@ -89,7 +91,12 @@ export function newRowEntries<G extends NewRowGame>(
     }
     let entry = batches.get(batch.key);
     if (!entry) {
-      entry = { kind: "import", provider: batch.provider, games: [] };
+      entry = {
+        kind: "import",
+        key: batch.key,
+        provider: batch.provider,
+        games: [],
+      };
       batches.set(batch.key, entry);
       entries.push(entry);
     }

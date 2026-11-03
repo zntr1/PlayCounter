@@ -54,7 +54,12 @@ export function NewGamesRow({
   /** A small game card, with its key. */
   renderCard: (game: GameSummary) => ReactNode;
 }) {
+  // Show all in the header: every new game on its own card, every line.
   const [expanded, setExpanded] = useState(false);
+  // Imports opened with their own Show all: only their games, in place.
+  const [openImports, setOpenImports] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
   // How many cards fit on one line. Null until measured.
   const [columns, setColumns] = useState<number | null>(null);
@@ -85,14 +90,27 @@ export function NewGamesRow({
   }, [grid]);
 
   const overflow = columns !== null && entries.length > columns;
-  // Opened, every new game is its own card; closed, one line of entries.
-  const shown: NewRowEntry<GameSummary>[] = expanded
-    ? games.map((game) => ({ kind: "game", game }))
+  const opened = expanded || openImports.size > 0;
+  const showAll = (): NewRowEntry<GameSummary>[] =>
+    expanded
+      ? games.map((game) => ({ kind: "game", game }))
+      : entries.flatMap((entry) =>
+          entry.kind === "import" && openImports.has(entry.key)
+            ? entry.games.map((game) => ({ kind: "game" as const, game }))
+            : [entry],
+        );
+  // Opened, every line; closed, the first line.
+  const shown = opened
+    ? showAll()
     : columns === null
       ? []
       : entries.slice(0, columns);
-  const toggleCollapsed = () => {
+  const close = () => {
     setExpanded(false);
+    setOpenImports(new Set());
+  };
+  const toggleCollapsed = () => {
+    close();
     onCollapsedChange(!collapsed);
   };
   const foldLabel = collapsed ? t("Show the row") : t("Fold the row");
@@ -149,15 +167,15 @@ export function NewGamesRow({
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {!collapsed && (expanded || overflow) ? (
+          {!collapsed && (opened || overflow) ? (
             <Button
               variant="ghost"
-              aria-expanded={expanded}
+              aria-expanded={opened}
               aria-controls="new-games-row-cards"
-              onClick={() => setExpanded((current) => !current)}
+              onClick={() => (opened ? close() : setExpanded(true))}
               className="h-8 px-2.5 text-[13px]"
             >
-              {expanded ? (
+              {opened ? (
                 <>
                   {t("Show less")}
                   <ChevronUp size={15} />
@@ -188,15 +206,17 @@ export function NewGamesRow({
           id="new-games-row-cards"
           className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3"
         >
-          {shown.map((entry, index) =>
+          {shown.map((entry) =>
             entry.kind === "game" ? (
               renderCard(entry.game)
             ) : (
               <ImportCard
-                key={`import:${entry.provider}:${index}`}
+                key={`import:${entry.key}`}
                 provider={entry.provider}
                 games={entry.games}
-                onShowAll={() => setExpanded(true)}
+                onShowAll={() =>
+                  setOpenImports((current) => new Set(current).add(entry.key))
+                }
               />
             ),
           )}
@@ -223,7 +243,7 @@ export function NewGamesRow({
 }
 
 /* 5 or more games one launcher brought in on one day: fanned covers, the
-   count, and Show all, which opens the row. */
+   count, and Show all, which puts this import's games in its place. */
 function ImportCard({
   provider,
   games,
