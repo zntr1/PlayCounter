@@ -1,36 +1,45 @@
 import {
+  Ban,
+  Bookmark,
+  Check,
+  Pause,
+  Play,
+  RotateCcw,
+  type LucideIcon,
+} from "lucide-react";
+import {
   GAME_STATUSES,
   type GameStatus,
   type GameTier,
 } from "../personalLibrary";
 
 /** Progress status is the one place in the journal where colour carries
- *  meaning, so each status owns a hue and keeps it on every surface: the
- *  library cover, the filter pills, and the journal header. */
-export const STATUS_TONES: Record<GameStatus, { dot: string; chip: string }> = {
-  playing: {
-    dot: "bg-success",
-    chip: "border-success-border bg-success-tint text-success",
-  },
-  "on-hold": {
-    dot: "bg-warning",
-    chip: "border-warning-border bg-warning-tint text-warning",
-  },
-  finished: {
-    dot: "bg-accent",
-    chip: "border-accent/50 bg-accent-tint text-accent-ink",
-  },
+ *  meaning, so each status owns an icon and a hue and keeps them on every
+ *  surface: the library cover, the status menus, the filter pills, and the
+ *  journal header. The icon says it without the colour; the colours are their
+ *  own (styles.css), never the accent, and green is not In progress because a
+ *  running game's card is green. Filled icons read better at badge size. */
+export const STATUS_TONES: Record<
+  GameStatus,
+  { icon: LucideIcon; filled: boolean; text: string }
+> = {
+  playing: { icon: Play, filled: true, text: "text-status-playing" },
+  "on-hold": { icon: Pause, filled: true, text: "text-status-on-hold" },
+  finished: { icon: Check, filled: false, text: "text-status-finished" },
   "want-to-play": {
-    dot: "bg-text-muted",
-    chip: "border-border bg-surface-hover text-text-muted",
+    icon: Bookmark,
+    filled: true,
+    text: "text-status-want-to-play",
   },
   "want-to-replay": {
-    dot: "bg-community",
-    chip: "border-community-border bg-community-tint text-community",
+    icon: RotateCcw,
+    filled: false,
+    text: "text-status-want-to-replay",
   },
   "not-planned": {
-    dot: "bg-text-faint",
-    chip: "border-dashed border-border bg-transparent text-text-faint",
+    icon: Ban,
+    filled: false,
+    text: "text-status-not-planned",
   },
 };
 

@@ -55,6 +55,14 @@ export default {
           tint: rgb("--color-community-tint"),
           border: rgb("--color-community-border"),
         },
+        status: {
+          playing: rgb("--color-status-playing"),
+          "on-hold": rgb("--color-status-on-hold"),
+          finished: rgb("--color-status-finished"),
+          "want-to-play": rgb("--color-status-want-to-play"),
+          "want-to-replay": rgb("--color-status-want-to-replay"),
+          "not-planned": rgb("--color-status-not-planned"),
+        },
       },
       fontFamily: {
         sans: ["Inter", "Segoe UI", "system-ui", "sans-serif"],

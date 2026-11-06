@@ -1219,6 +1219,46 @@ it("uses the current source, search, shelf, and status filters for bulk assignme
   );
 });
 
+it("shows each status as its icon on the covers, the status filter pills, and the Set status menu", async () => {
+  const icons: [string, string][] = [
+    ["In progress", "lucide-play"],
+    ["On hold", "lucide-pause"],
+    ["Finished", "lucide-check"],
+    ["Want to play", "lucide-bookmark"],
+    ["Want to replay", "lucide-rotate-ccw"],
+    ["Not planned", "lucide-ban"],
+  ];
+  await act(() => root.render(<LibraryTestShell />));
+  // Both seeded favorites are Not planned: an icon on the cover, no name.
+  const badges = [
+    ...container.querySelectorAll(
+      '.game-library-card [aria-label="Status: Not planned"]',
+    ),
+  ];
+  expect(badges).toHaveLength(2);
+  for (const badge of badges) {
+    expect(badge.querySelector("svg.lucide-ban")).not.toBeNull();
+    expect(badge.textContent).toBe("");
+  }
+
+  const filters = [
+    ...container.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((item) => item.textContent?.startsWith("Filters"))!;
+  await act(() => filters.click());
+  for (const [label, icon] of icons)
+    expect(button(label).querySelector(`svg.${icon}`), label).not.toBeNull();
+
+  await enterSelection();
+  await act(() => selectionCheckboxes()[0].click());
+  await act(() => button("Set status").click());
+  const menu = document.querySelector("#library-bulk-status-menu")!;
+  for (const [label, icon] of icons)
+    expect(
+      button(label, menu).querySelector(`svg.${icon}`),
+      label,
+    ).not.toBeNull();
+});
+
 it("selects all results even while most cards have not rendered", async () => {
   vi.stubGlobal(
     "requestIdleCallback",

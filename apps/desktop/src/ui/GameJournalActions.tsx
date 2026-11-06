@@ -10,7 +10,8 @@ import {
   ContextMenuItem,
   ContextMenuSubmenu,
 } from "./primitives";
-import { GAME_STATUS_LIST, STATUS_TONES, TIER_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST, TIER_TONES } from "./journalStyles";
+import { GameStatusIcon } from "./GameStatusIcon";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
 
@@ -64,9 +65,9 @@ export function GameJournalMenu({
               update(game, { status });
             }}
           >
-            <span
-              aria-hidden="true"
-              className={`mr-2 inline-block h-2 w-2 rounded-full align-middle ${STATUS_TONES[status].dot}`}
+            <GameStatusIcon
+              status={status}
+              className="mr-2 inline-block align-middle"
             />
             {gameStatusLabel(status)}
           </ContextMenuItem>
@@ -184,8 +185,20 @@ export function GameJournalBadges({
   if (!hasNote && !journal.favorite && !tier && !status) return null;
   return (
     <div
-      className={`absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
+      className={`status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
     >
+      {status ? (
+        // First, so it sits in the same spot on every card. The icon alone,
+        // like the other badges: a name would not fit beside them in every
+        // language. The name is in the tooltip.
+        <span
+          aria-label={statusLabel}
+          title={statusLabel}
+          className={`${badgeShell} ${compact ? "h-6 w-6" : ""}`}
+        >
+          <GameStatusIcon status={status} size={compact ? 11 : 13} />
+        </span>
+      ) : null}
       {hasNote ? (
         <button
           type="button"
@@ -219,30 +232,6 @@ export function GameJournalBadges({
         >
           {tier}
         </span>
-      ) : null}
-      {status ? (
-        compact ? (
-          <span
-            aria-label={statusLabel}
-            title={statusLabel}
-            className={`${badgeShell} h-6 w-6`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${STATUS_TONES[status].dot}`}
-            />
-          </span>
-        ) : (
-          <span
-            aria-label={statusLabel}
-            title={statusLabel}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-md"
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[status].dot}`}
-            />
-            {gameStatusLabel(status)}
-          </span>
-        )
       ) : null}
     </div>
   );

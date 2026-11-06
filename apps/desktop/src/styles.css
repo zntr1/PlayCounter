@@ -45,6 +45,21 @@
   --scrollbar-thumb-hover: #3a3a40;
 }
 
+/* Game status colours (journalStyles.ts): purple in progress, orange on hold,
+   green finished, white want to play, blue want to replay, grey not planned.
+   Green stays away from In progress because a running game's card is green.
+   The cover badge is black in both themes, so it keeps these dark values in
+   the light theme too (.status-on-dark). */
+:root,
+.status-on-dark {
+  --color-status-playing: 192 132 252;
+  --color-status-on-hold: 251 146 60;
+  --color-status-finished: 74 222 128;
+  --color-status-want-to-play: 244 244 245;
+  --color-status-want-to-replay: 96 165 250;
+  --color-status-not-planned: 113 113 122;
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 
@@ -80,6 +95,14 @@
   --color-community: 109 40 217;
   --color-community-tint: 237 233 254;
   --color-community-border: 167 139 250;
+  /* Status colours dark enough to read on the paper surfaces; white would
+     vanish there, so Want to play turns near-black. */
+  --color-status-playing: 126 34 206;
+  --color-status-on-hold: 194 65 12;
+  --color-status-finished: 21 128 61;
+  --color-status-want-to-play: 39 39 42;
+  --color-status-want-to-replay: 29 78 216;
+  --color-status-not-planned: 113 113 122;
 
   --shadow-raised:
     0 1px 2px rgba(60, 44, 20, 0.06), 0 4px 16px rgba(60, 44, 20, 0.1);

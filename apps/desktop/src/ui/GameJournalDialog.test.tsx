@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore, type ActiveSession } from "../store";
+import { gameStatusLabel, type GameStatus } from "../personalLibrary";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
 import { ContextMenu } from "./ContextMenu";
@@ -10,6 +12,16 @@ import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
+/** The icon each status shows: on the cover, in every status menu, and on
+ *  the filter pills. */
+const STATUS_ICONS: Record<GameStatus, string> = {
+  playing: "lucide-play",
+  "on-hold": "lucide-pause",
+  finished: "lucide-check",
+  "want-to-play": "lucide-bookmark",
+  "want-to-replay": "lucide-rotate-ccw",
+  "not-planned": "lucide-ban",
+};
 let root: Root;
 let container: HTMLDivElement;
 let first: string;
@@ -274,10 +286,11 @@ it("sets the status from the card menu in one click, ticks the current one, and 
     "Want to replay",
     "Not planned",
   ]);
-  // Each status keeps the colour it has on covers and filter pills.
+  // Each status shows the icon it has on covers and filter pills.
   GAME_STATUS_LIST.forEach((status, index) =>
     expect(
-      statusItems()[index].querySelector(`.${STATUS_TONES[status].dot}`),
+      statusItems()[index].querySelector(`svg.${STATUS_ICONS[status]}`),
+      status,
     ).not.toBeNull(),
   );
   expect(
@@ -305,6 +318,74 @@ it("sets the status from the card menu in one click, ticks the current one, and 
   expect(onClose).toHaveBeenCalledTimes(2);
   expect(getGameJournal(useAppStore.getState(), game).status).toBeNull();
   expect(document.querySelector('[aria-label^="Status:"]')).toBeNull();
+});
+
+it.each(GAME_STATUS_LIST)(
+  "shows %s on the cover as its icon, with the name only in the tooltip",
+  async (status) => {
+    useAppStore.getState().updateGameJournal(game, { status });
+    await act(() => root.render(<GameJournalBadges game={game} />));
+    const label = `Status: ${gameStatusLabel(status)}`;
+    const badge = document.querySelector(`[aria-label="${label}"]`);
+    expect(badge).not.toBeNull();
+    expect(badge!.getAttribute("title")).toBe(label);
+    expect(badge!.querySelector(`svg.${STATUS_ICONS[status]}`)).not.toBeNull();
+    // The name never sits on the cover, so long names ("Will ich nochmal
+    // spielen") can't push the other badges off it.
+    expect(container.textContent).not.toContain(gameStatusLabel(status));
+  },
+);
+
+it("puts the status first on the cover, before the note, favorite and tier badges", async () => {
+  useAppStore.getState().updateGameJournal(game, {
+    status: "on-hold",
+    note: "Boss at the bridge",
+    favorite: true,
+  });
+  useAppStore.getState().setGameTier(game, "S");
+  await act(() => root.render(<GameJournalBadges game={game} />));
+  // The status always sits in the same spot, whatever other badges a card has.
+  const row = document.querySelector(
+    '[aria-label="Status: On hold"]',
+  )!.parentElement!;
+  expect([...row.children].map((badge) => badge.getAttribute("title"))).toEqual(
+    ["Status: On hold", "Read note", "Favorite", "Tier: S"],
+  );
+});
+
+it("shows the status icon on the journal's progress button and in its menu", async () => {
+  useAppStore.getState().updateGameJournal(game, { status: "on-hold" });
+  useAppStore.getState().openGameJournal({ game, tab: "note" });
+  await act(() => root.render(<GameJournalHost />));
+  const progress = document.querySelector('[aria-label="Progress status"]')!;
+  expect(progress.textContent).toContain("On hold");
+  expect(progress.querySelector("svg.lucide-pause")).not.toBeNull();
+
+  await clickLabel("Progress status");
+  const items = [...document.querySelectorAll("[data-context-menu-item]")];
+  for (const status of GAME_STATUS_LIST) {
+    const item = items.find(
+      (element) => element.textContent?.trim() === gameStatusLabel(status),
+    );
+    expect(item, `no menu item for ${status}`).toBeDefined();
+    expect(
+      item!.querySelector(`svg.${STATUS_ICONS[status]}`),
+      status,
+    ).not.toBeNull();
+  }
+});
+
+it("gives every status its own colour, never the accent colour, and keeps green away from In progress", () => {
+  const colours = GAME_STATUS_LIST.map((status) => STATUS_TONES[status].text);
+  expect(new Set(colours).size).toBe(GAME_STATUS_LIST.length);
+  for (const colour of colours) expect(colour).not.toMatch(/accent/);
+  // A running game's card turns green ("Running"), so a green In progress
+  // badge would read as running. The dark theme block comes first.
+  const styles = readFileSync("src/styles.css", "utf8");
+  const value = (name: string) =>
+    styles.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1];
+  expect(value("--color-status-playing")).toBeDefined();
+  expect(value("--color-status-playing")).not.toBe(value("--color-success"));
 });
 
 it("shows only the running session's playthrough note when switching assignments in Now Playing", async () => {
