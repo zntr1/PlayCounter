@@ -11,6 +11,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { getSessionGameKey } from "../../historyStats";
 import { useAppStore } from "../../store";
 import { resetGameColors } from "../charts/gameColors";
 import { HistoryView } from "./HistoryView";
@@ -149,6 +150,43 @@ function stubWidth(width = 900) {
 
 const pickerDay = (label: string) =>
   picker()?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+
+describe("tabs", () => {
+  const selectedTab = () =>
+    container.querySelector('[role="tab"][aria-selected="true"]')?.id;
+  const panel = (id: string) =>
+    container.querySelector(
+      `[role="tabpanel"][aria-labelledby="history-tab-${id}"]`,
+    );
+
+  // 31
+  it("opens on Insights", async () => {
+    await render();
+    await settle();
+    expect(selectedTab()).toBe("history-tab-insights");
+    expect(panel("insights")).not.toBeNull();
+    expect(panel("sessions")).toBeNull();
+  });
+
+  // 31: the banner menu, game details and a session's journal set the game
+  it("opens Sessions for a game picked elsewhere", async () => {
+    const witcher = sessions.find((session) => session.gameName === "Witcher")!;
+    useAppStore.setState({
+      historyQuery: "Witcher",
+      historyGameKey: getSessionGameKey(witcher),
+    });
+    await render();
+    expect(selectedTab()).toBe("history-tab-sessions");
+    expect(panel("insights")).toBeNull();
+  });
+
+  // 31
+  it("opens Sessions from a highlight about a game", async () => {
+    await render();
+    await click(container.querySelector('button[data-highlight="mostPlayed"]'));
+    expect(selectedTab()).toBe("history-tab-sessions");
+  });
+});
 
 describe("range chips with arrows", () => {
   // 1–4

@@ -188,18 +188,24 @@ export function HistoryView() {
     (state) => state.settings.showDurationDays,
   );
   const addToast = usePersonalLibraryState((state) => state.addToast);
-  // The tour's chart step points at the Insights tab; open it for the tour.
-  const tourWantsInsights = useAppStore((state) => {
+  // The stats guide opens the tab its step talks about: Sessions for the
+  // session step, Insights for the chart step.
+  const tourTab = useAppStore((state): HistoryTab | null => {
     const active = state.activeTour;
-    if (!active) return false;
+    if (!active || active.tourId !== "stats") return null;
     const step = findTour(active.tourId)?.steps[active.stepIndex];
-    return active.tourId === "stats" && step?.id === "charts";
+    if (step?.id === "sessions") return "sessions";
+    if (step?.id === "charts") return "insights";
+    return null;
   });
   const [selection, setSelection] = useState<HistorySelection>({
     kind: "all",
   });
   const [sort, setSort] = useState<HistorySort>("newest");
-  const [tab, setTab] = useState<HistoryTab>("sessions");
+  // My History opens on Insights; a game picked elsewhere opens its sessions.
+  const [tab, setTab] = useState<HistoryTab>(() =>
+    selectedGameKey ? "sessions" : "insights",
+  );
   const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
@@ -237,8 +243,8 @@ export function HistoryView() {
   }, [insightsReady]);
 
   useEffect(() => {
-    if (tourWantsInsights) setTab("insights");
-  }, [tourWantsInsights]);
+    if (tourTab) setTab(tourTab);
+  }, [tourTab]);
 
   // A game filter set from elsewhere (banner menu, game details) lands on
   // the journal, which is where it applies.
