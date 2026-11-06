@@ -320,6 +320,102 @@ it("sets the status from the card menu in one click, ticks the current one, and 
   expect(document.querySelector('[aria-label^="Status:"]')).toBeNull();
 });
 
+function menuLabels() {
+  return [...document.querySelectorAll("[data-context-menu-item]")].map(
+    (item) => item.textContent?.trim(),
+  );
+}
+
+/** The items of an open submenu, found from its trigger. */
+function submenuItems(label: string) {
+  const trigger = [
+    ...document.querySelectorAll("[data-context-menu-item]"),
+  ].find((item) => item.textContent?.trim() === label)!;
+  return [
+    ...document
+      .getElementById(trigger.getAttribute("aria-controls")!)!
+      .querySelectorAll("[data-context-menu-item]"),
+  ];
+}
+
+it("puts a game on another shelf from the card menu, keeps it on its shelves, and takes it off a ticked one", async () => {
+  const state = () => useAppStore.getState();
+  const rpgs = state().savePersonalShelf({ name: "RPGs" })!;
+  const backlog = state().savePersonalShelf({ name: "Backlog" })!;
+  // Filters fill this shelf; a pick by hand can't put a game on it.
+  state().savePersonalShelf({
+    name: "Unplayed",
+    filters: { played: "unplayed" },
+  });
+  state().updateGameJournal(game, { shelfIds: [rpgs] });
+  const onClose = vi.fn();
+  await act(() =>
+    root.render(
+      <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+        <GameJournalMenu game={game} onClose={onClose} />
+      </ContextMenu>,
+    ),
+  );
+  // Right under Tier, the way Status sits right above it.
+  expect(menuLabels().indexOf("Shelves")).toBe(
+    menuLabels().indexOf("Tier") + 1,
+  );
+  const ticked = () =>
+    submenuItems("Shelves")
+      .filter((item) => item.getAttribute("aria-checked") === "true")
+      .map((item) => item.textContent?.trim());
+
+  await click("Shelves");
+  // Favorites keeps its own item in the menu.
+  expect(
+    submenuItems("Shelves").map((item) => item.textContent?.trim()),
+  ).toEqual(["RPGs", "Backlog"]);
+  expect(ticked()).toEqual(["RPGs"]);
+
+  await click("Backlog");
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(getGameJournal(state(), game).shelfIds).toEqual([rpgs, backlog]);
+
+  await click("Shelves");
+  expect(ticked()).toEqual(["RPGs", "Backlog"]);
+  await click("RPGs");
+  expect(onClose).toHaveBeenCalledTimes(2);
+  expect(getGameJournal(state(), game).shelfIds).toEqual([backlog]);
+});
+
+it("leaves Shelves out of the card menu until a shelf takes games by hand, and while shelves are switched off", async () => {
+  const state = () => useAppStore.getState();
+  await act(() =>
+    root.render(
+      <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+        <GameJournalMenu game={game} onClose={() => {}} />
+      </ContextMenu>,
+    ),
+  );
+  expect(menuLabels()).toContain("Tier");
+  expect(menuLabels()).not.toContain("Shelves");
+
+  await act(() => {
+    state().savePersonalShelf({
+      name: "Unplayed",
+      filters: { played: "unplayed" },
+    });
+  });
+  expect(menuLabels()).not.toContain("Shelves");
+
+  await act(() => {
+    state().savePersonalShelf({ name: "Backlog" });
+  });
+  expect(menuLabels()).toContain("Shelves");
+
+  // Appearance → Shelves off hides the shelf row and the Journal's shelf
+  // buttons; the card menu follows.
+  await act(() => state().setMyGamesShowShelves(false));
+  expect(menuLabels()).not.toContain("Shelves");
+  await act(() => state().setMyGamesShowShelves(true));
+  expect(menuLabels()).toContain("Shelves");
+});
+
 it.each(GAME_STATUS_LIST)(
   "shows %s on the cover as its icon, with the name only in the tooltip",
   async (status) => {

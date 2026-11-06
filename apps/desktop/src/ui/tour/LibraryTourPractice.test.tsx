@@ -253,6 +253,41 @@ it.each(["submit", "button"])(
   },
 );
 
+it("fills the practice shelf from the card menu's Shelves", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await start("organize-library", "fill-shelf");
+    const wow = findTourElement(currentStep().additionalAnchors![0])!;
+    expect(wow.textContent).toContain("World of Warcraft");
+    await act(() =>
+      wow.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          clientX: 10,
+          clientY: 10,
+        }),
+      ),
+    );
+    const item = (label: string) => {
+      const found = [
+        ...document.querySelectorAll<HTMLButtonElement>(
+          "[data-context-menu-item]",
+        ),
+      ].find((button) => button.textContent?.trim() === label);
+      expect(found, `no menu item ${label}`).toBeDefined();
+      return found!;
+    };
+    await act(() => item("Shelves").click());
+    // The guide must let this pick through: WoW on the shelf ends the step.
+    await act(() => item("Online Games").click());
+    await act(() => vi.advanceTimersByTime(800));
+    expect(currentStep().id).toBe("filters");
+    expect(useAppStore.getState().gameJournals).toEqual({});
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("guides Select, each sample card, Set status, the menu choice, and the result", async () => {
   await start("library-progress", "select");
   expect(target().textContent).toBe("Select");

@@ -534,6 +534,7 @@ export function tours(): TourDefinition[] {
           allow: [
             a("demo-library-stage"),
             a("demo-library-menu"),
+            a("demo-shelf-menu"),
             a("demo-library-modal"),
           ],
           title: t("Put games on your shelf"),

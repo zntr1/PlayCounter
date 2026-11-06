@@ -2,7 +2,15 @@ import {
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
-import { BookOpen, CircleDot, Medal, Star, StickyNote, X } from "lucide-react";
+import {
+  BookOpen,
+  CircleDot,
+  FolderHeart,
+  Medal,
+  Star,
+  StickyNote,
+  X,
+} from "lucide-react";
 import { GAME_TIERS, gameStatusLabel, type GameTier } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
 import {
@@ -30,6 +38,12 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
   const update = usePersonalLibraryState((s) => s.updateGameJournal);
+  const shelves = usePersonalLibraryState((s) => s.personalShelves);
+  const showShelves = usePersonalLibraryState(
+    (s) => s.settings.libraryShowShelves !== false,
+  );
+  // Filters fill their own shelves, and Favorites has its own item above.
+  const handShelves = shelves.filter((shelf) => !shelf.filters);
   return (
     <>
       {heading ? (
@@ -92,6 +106,34 @@ export function GameJournalMenu({
       >
         <GameTierMenuItems game={game} onClose={onClose} />
       </ContextMenuSubmenu>
+      {showShelves && handShelves.length ? (
+        // A game can sit on several shelves: a pick adds or removes one.
+        <ContextMenuSubmenu
+          label={t("Shelves")}
+          icon={FolderHeart}
+          menuDataTour={practice ? "demo-shelf-menu" : undefined}
+        >
+          {handShelves.map((shelf) => {
+            const member = journal.shelfIds.includes(shelf.id);
+            return (
+              <ContextMenuItem
+                key={shelf.id}
+                selected={member}
+                onClick={() => {
+                  onClose();
+                  update(game, {
+                    shelfIds: member
+                      ? journal.shelfIds.filter((id) => id !== shelf.id)
+                      : [...journal.shelfIds, shelf.id],
+                  });
+                }}
+              >
+                {shelf.name}
+              </ContextMenuItem>
+            );
+          })}
+        </ContextMenuSubmenu>
+      ) : null}
     </>
   );
 }
