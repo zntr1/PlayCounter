@@ -425,6 +425,9 @@ describe("Insights", () => {
     await click(byLabel("Previous month"));
     expect(coverMonth()).toBe("October 2026");
     expect(coverDays()).toHaveLength(31);
+    // October needs five weeks, but every page has six while paging
+    expect(coverCells()).toHaveLength(42);
+    expect(coverCells()[0].getAttribute("data-cover-day")).toBe("2026-09-28");
     await click(byLabel("Previous month"));
     expect(coverMonth()).toBe("September 2026");
     // the history starts on 10 Sep
@@ -432,8 +435,8 @@ describe("Insights", () => {
     expect(byLabel("Previous month")?.disabled).toBe(true);
   });
 
-  // 25: up to six weeks, the range's own weeks; one day, its week
-  it("shows a month's own weeks and a day's week, and opens a clicked day", async () => {
+  // 25: a range inside one month shows that whole month
+  it("shows a month's own weeks and a clicked day in its whole month", async () => {
     await render();
     await openInsights();
     await click(chip("This month"));
@@ -461,10 +464,64 @@ describe("Insights", () => {
     ).toEqual(["17", "3h 30m", "+1"]);
     await click(busiest);
     expect(rangeLabel()).toBe("Sat, Oct 17");
-    // Monday 12 to Sunday 18 October, the 17th the only day that counts
-    expect(coverCells()).toHaveLength(7);
+    // still all of October, the 17th the only day that counts
+    expect(coverCells()).toHaveLength(35);
     expect(coverDays()).toHaveLength(1);
-    expect(coverCells()[0].getAttribute("data-cover-day")).toBe("2026-10-12");
+    expect(coverCells()[0].getAttribute("data-cover-day")).toBe("2026-09-28");
+    expect(container.querySelector("[data-cover-month]")).toBeNull();
+  });
+
+  // 25: Today and This month show the whole month; 7 and 30 days reach into
+  // October, so they page from November
+  it("shows short ranges in their whole month, paging into the month before", async () => {
+    await render();
+    await openInsights();
+    await click(chip("Today"));
+    // Monday 26 Oct to Sunday 6 Dec, only today counts
+    expect(coverCells()).toHaveLength(42);
+    expect(coverCells()[0].getAttribute("data-cover-day")).toBe("2026-10-26");
+    expect(coverDays()).toHaveLength(1);
+    expect(container.querySelector("[data-cover-month]")).toBeNull();
+    await click(chip("This month"));
+    expect(coverCells()).toHaveLength(42);
+    expect(coverDays()).toHaveLength(6);
+    expect(container.querySelector("[data-cover-month]")).toBeNull();
+    // 31 Oct to 6 Nov
+    await click(chip("7 days"));
+    expect(coverMonth()).toBe("November 2026");
+    expect(byLabel("Next month")?.disabled).toBe(true);
+    expect(coverDays()).toHaveLength(6);
+    await click(byLabel("Previous month"));
+    expect(coverMonth()).toBe("October 2026");
+    expect(coverCells()).toHaveLength(42);
+    expect(coverDays()).toHaveLength(1);
+    expect(byLabel("Previous month")?.disabled).toBe(true);
+    // 8 Oct to 6 Nov
+    await click(chip("30 days"));
+    expect(coverMonth()).toBe("November 2026");
+    await click(byLabel("Previous month"));
+    expect(coverDays()).toHaveLength(24);
+  });
+
+  const sideHeadings = () =>
+    [
+      ...(container
+        .querySelector("[data-history-side]")
+        ?.querySelectorAll("h2") ?? []),
+    ].map((heading) => plain(heading.textContent));
+
+  // 26
+  it("puts When you play under Play habits on All time, below the calendar otherwise", async () => {
+    await render();
+    await openInsights();
+    expect(headings()).toContain("When you play");
+    expect(sideHeadings()).toEqual(["Play habits", "When you play"]);
+    await click(chip("This month"));
+    await click(byLabel("Previous period"));
+    expect(headings()).toContain("When you play");
+    expect(sideHeadings()).toEqual(["Pace", "Play habits"]);
+    await click(chip("Today"));
+    expect(sideHeadings()).toEqual(["Pace", "Play habits"]);
   });
 
   const seasonNames = () =>

@@ -23,11 +23,13 @@ function mondayOf(ms: number) {
   return addDays(day, -((day.getDay() + 6) % 7));
 }
 
-/* A range of up to six weeks as a calendar of covers: each day with play
-   shows the game played most that day, brighter for more playtime, with its
-   playtime and how many more games there were. A click opens that day. */
+/* A month as a calendar of covers: each day with play shows the game played
+   most that day, brighter for more playtime, with its playtime and how many
+   more games there were. A click opens that day. The squares share the width
+   the calendar is given. */
 export function CoverCalendar({
   layout,
+  weeks,
   range,
   days,
   nowMs,
@@ -41,6 +43,8 @@ export function CoverCalendar({
 }: {
   /** The days laid out in weeks (a month page); the range when left out. */
   layout?: HistoryRange;
+  /** Week rows to lay out; the shown days' own weeks when left out. */
+  weeks?: number;
   /** The days that count; the rest are dashed. */
   range: HistoryRange;
   /** The range's day buckets, each game's seconds most first. */
@@ -62,7 +66,9 @@ export function CoverCalendar({
   const todayKey = localDateKey(new Date(nowMs));
   const shown = layout ?? range;
   const first = mondayOf(shown.fromMs);
-  const end = addDays(mondayOf(shown.toMs - 1), 7);
+  const end = weeks
+    ? addDays(first, 7 * weeks)
+    : addDays(mondayOf(shown.toMs - 1), 7);
   const cells: Date[] = [];
   for (let date = first; date < end; date = addDays(date, 1)) cells.push(date);
   const plus = new Intl.NumberFormat(appLocale(), { signDisplay: "always" });
@@ -104,14 +110,13 @@ export function CoverCalendar({
     <div
       role="group"
       aria-labelledby={labelledBy}
-      className="grid gap-1.5"
-      style={{ gridTemplateColumns: "repeat(7, minmax(0, 104px))" }}
+      className="grid grid-cols-7 gap-1.5"
     >
       {weekdayNames("short").map((weekday) => (
         <span
           key={weekday}
           aria-hidden="true"
-          className="pb-0.5 text-center text-[10px] font-bold uppercase tracking-[0.1em] text-text-faint"
+          className="h-4 text-center text-[10px] font-bold uppercase leading-4 tracking-[0.1em] text-text-faint"
         >
           {weekday}
         </span>

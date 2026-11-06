@@ -31,7 +31,7 @@ import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
 import { appLocale, weekdayNames, getT } from "../../../i18n";
-import { CoverCalendarPager, coverCalendarRows } from "./CoverCalendarPager";
+import { CoverCalendarPager } from "./CoverCalendarPager";
 import { GameSeasons } from "./GameSeasons";
 
 const t = getT("history");
@@ -257,8 +257,8 @@ export const HistoryInsights = memo(function HistoryInsights({
     [games],
   );
   const canDetail = chart.full.length !== chart.compact.length;
-  // Two to 42 days show as a calendar of covers; All time counts from the
-  // first session, so a short history gets one too.
+  // The cover calendar and the seasons need days: All time counts from the
+  // first session.
   const shownRange =
     selectedRange ??
     (firstSessionMs === null
@@ -270,20 +270,45 @@ export const HistoryInsights = memo(function HistoryInsights({
   const shownDays = shownRange
     ? Math.round((shownRange.toMs - shownRange.fromMs) / 86_400_000)
     : 0;
-  const coverRows = shownRange ? coverCalendarRows(shownRange) : 0;
   const dayThresholds = useMemo(
     () =>
       quantileThresholds([...historyDaily.values()].map((day) => day.seconds)),
     [historyDaily],
   );
-  // With Pace, the right column holds Pace and Play habits. A calendar of up
-  // to two weeks gets the weekday chart under it, so no panel stretches
-  // empty; a taller one has it full width below.
+  // Next to the calendar: Pace and Play habits, with When you play full
+  // width below. All time has no Pace, so When you play sits under Play
+  // habits instead. The calendar's squares fit that column's height.
   const withPace = Boolean(previousChart && comparisonLabel);
-  const rhythmBeside = withPace && coverRows <= 2;
   const detailed = canDetail && detailedChart;
   const buckets = detailed ? chart.full : chart.compact;
   const chartTotal = buckets.reduce((sum, bucket) => sum + bucket.seconds, 0);
+
+  const rhythmPanel = (fullWidth: boolean) => (
+    <Panel className={clsx("min-w-0 p-5", fullWidth && "2xl:col-span-2")}>
+      <SectionHeading
+        id="rhythm-heading"
+        title={t("When you play")}
+        caption={t("Weekday × hour · {{title}}", { title: rangeLabel })}
+        collapsed={rhythmSection.collapsed}
+        onToggle={rhythmSection.toggle}
+        controls="rhythm-body"
+      />
+      {!rhythmSection.collapsed ? (
+        <div id="rhythm-body">
+          {sessions.length === 0 ? (
+            <div className="py-12 text-center text-sm text-text-muted">
+              {t("Your play rhythm will appear here.")}
+            </div>
+          ) : (
+            <RhythmHeatmap
+              matrix={rhythm}
+              showDurationDays={showDurationDays}
+            />
+          )}
+        </div>
+      ) : null}
+    </Panel>
+  );
 
   return (
     <div className="grid min-w-0 gap-6">
@@ -399,8 +424,8 @@ export const HistoryInsights = memo(function HistoryInsights({
       <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]">
         <Panel
           className={clsx(
-            "min-w-0 p-5 2xl:col-start-1 2xl:row-start-1",
-            (calendarSection.collapsed || withPace) && "self-start",
+            "min-w-0 p-5",
+            calendarSection.collapsed ? "self-start" : "2xl:flex 2xl:flex-col",
           )}
         >
           <SectionHeading
@@ -414,7 +439,10 @@ export const HistoryInsights = memo(function HistoryInsights({
             controls="activity-calendar-body"
           />
           {!calendarSection.collapsed ? (
-            <div id="activity-calendar-body">
+            <div
+              id="activity-calendar-body"
+              className="2xl:flex 2xl:flex-1 2xl:flex-col"
+            >
               {sessions.length === 0 || !shownRange ? (
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("Playtime activity will appear here.")}
@@ -438,12 +466,7 @@ export const HistoryInsights = memo(function HistoryInsights({
             </div>
           ) : null}
         </Panel>
-        <div
-          className={clsx(
-            "grid min-w-0 content-start gap-6 2xl:col-start-2 2xl:row-start-1",
-            rhythmBeside && "2xl:row-span-2",
-          )}
-        >
+        <div data-history-side className="grid min-w-0 content-start gap-6">
           {previousChart && comparisonLabel ? (
             <Panel className="min-w-0 p-5">
               <SectionHeading
@@ -527,38 +550,9 @@ export const HistoryInsights = memo(function HistoryInsights({
               </div>
             ) : null}
           </Panel>
+          {withPace ? null : rhythmPanel(false)}
         </div>
-        <Panel
-          className={clsx(
-            "min-w-0 p-5",
-            rhythmBeside
-              ? "self-start 2xl:col-start-1 2xl:row-start-2"
-              : "2xl:col-span-2",
-          )}
-        >
-          <SectionHeading
-            id="rhythm-heading"
-            title={t("When you play")}
-            caption={t("Weekday × hour · {{title}}", { title: rangeLabel })}
-            collapsed={rhythmSection.collapsed}
-            onToggle={rhythmSection.toggle}
-            controls="rhythm-body"
-          />
-          {!rhythmSection.collapsed ? (
-            <div id="rhythm-body">
-              {sessions.length === 0 ? (
-                <div className="py-12 text-center text-sm text-text-muted">
-                  {t("Your play rhythm will appear here.")}
-                </div>
-              ) : (
-                <RhythmHeatmap
-                  matrix={rhythm}
-                  showDurationDays={showDurationDays}
-                />
-              )}
-            </div>
-          ) : null}
-        </Panel>
+        {withPace ? rhythmPanel(true) : null}
       </div>
     </div>
   );
