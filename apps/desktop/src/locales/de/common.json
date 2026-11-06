@@ -57,15 +57,10 @@
   "Create": "Create",
   "Share": "Share",
   "Options": "Options",
-  "Last 7 Days": "Letzte 7 Tage",
-  "Last 30 Days": "Letzte 30 Tage",
-  "This Month": "Dieser Monat",
-  "All Time": "Gesamter Zeitraum",
   "{{count}} sessions_one": "{{count}} Sitzung",
   "{{count}} sessions_other": "{{count}} Sitzungen",
   "{{count}} total sessions_one": "{{count}} Sitzung insgesamt",
   "{{count}} total sessions_other": "{{count}} Sitzungen insgesamt",
-  "Most played: {{game}}": "Am meisten gespielt: {{game}}",
   "{{label}}: {{duration}}, {{count}} total sessions, most played: {{game}}_one": "{{label}}: {{duration}}, {{count}} Sitzung insgesamt, am meisten gespielt: {{game}}",
   "{{label}}: {{duration}}, {{count}} total sessions, most played: {{game}}_other": "{{label}}: {{duration}}, {{count}} Sitzungen insgesamt, am meisten gespielt: {{game}}",
   "{{label}}: {{duration}}, {{count}} total sessions_one": "{{label}}: {{duration}}, {{count}} Sitzung insgesamt",
@@ -81,5 +76,9 @@
   "Other": "Andere",
   "sessions_one": "Sitzung",
   "sessions_other": "Sitzungen",
-  "Imported from your PlayStation account.": "Aus deinem PlayStation-Konto importiert."
+  "Imported from your PlayStation account.": "Aus deinem PlayStation-Konto importiert.",
+  "Click to see this day": "Klick, um diesen Tag zu sehen",
+  "{{count}} more games_one": "{{count}} weiteres Spiel",
+  "{{count}} more games_other": "{{count}} weitere Spiele",
+  "Running total: {{current}}, the period before: {{previous}}": "Laufende Summe: {{current}}, Zeitraum davor: {{previous}}"
 }

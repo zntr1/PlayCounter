@@ -37,6 +37,16 @@
   --color-community: 196 181 253;
   --color-community-tint: 76 29 149;
   --color-community-border: 124 58 237;
+  /* Games in the stacked playtime chart (ui/charts/gameColors.ts): the
+     dataviz reference palette's dark steps, in its colour-blind-safe order,
+     checked against this surface. Other = the games past the sixth. */
+  --color-series-1: 57 135 229;
+  --color-series-2: 217 89 38;
+  --color-series-3: 25 158 112;
+  --color-series-4: 201 133 0;
+  --color-series-5: 213 81 129;
+  --color-series-6: 0 131 0;
+  --color-series-other: 91 91 99;
 
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
   --shadow-sidebar: 4px 0 24px rgba(0, 0, 0, 0.2);
@@ -95,6 +105,15 @@
   --color-community: 109 40 217;
   --color-community-tint: 237 233 254;
   --color-community-border: 167 139 250;
+  /* The same palette's light steps; the legend names every game, so the
+     lighter ones need not stand out from the paper on their own. */
+  --color-series-1: 42 120 214;
+  --color-series-2: 235 104 52;
+  --color-series-3: 27 175 122;
+  --color-series-4: 237 161 0;
+  --color-series-5: 232 123 164;
+  --color-series-6: 0 131 0;
+  --color-series-other: 176 168 156;
   /* Status colours dark enough to read on the paper surfaces; white would
      vanish there, so Want to play turns near-black. */
   --color-status-playing: 126 34 206;
@@ -1129,55 +1148,8 @@ select {
   animation: chart-bar-grow 360ms ease-out both;
 }
 
-@keyframes chart-cover-sparkle {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 2px rgb(255 255 255 / 0.2));
-    transform: translateY(0);
-  }
-  50% {
-    filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.75));
-    transform: translateY(-2px);
-  }
-}
-
-/* A few sparkles, then still; hovering sparkles again. Endless loops keep the
-   GPU busy for an effect nobody watches. */
-.chart-game-cover {
-  animation: chart-cover-sparkle 2.4s ease-in-out 3;
-}
-
-.chart-game-cover:hover {
-  animation-iteration-count: infinite;
-}
-
-.chart-game-cover-zoom::after {
-  position: absolute;
-  right: -7px;
-  top: -9px;
-  color: #fff7b2;
-  content: "✦";
-  font-size: 16px;
-  line-height: 1;
-  text-shadow: 0 0 6px rgb(255 247 178 / 0.9);
-}
-
-:root[data-theme="light"] .chart-game-cover-zoom::after {
-  color: rgb(var(--color-warning));
-  text-shadow:
-    0 1px 0 rgb(255 255 255 / 0.9),
-    0 0 4px rgb(var(--color-warning) / 0.45);
-}
-
-.chart-game-cover-small .chart-game-cover-zoom::after {
-  right: -4px;
-  top: -5px;
-  font-size: 9px;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .chart-bar-grow,
-  .chart-game-cover {
+  .chart-bar-grow {
     animation: none;
   }
 }

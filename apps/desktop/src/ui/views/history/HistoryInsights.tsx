@@ -1,6 +1,6 @@
 import type { Session } from "@playcounter/shared";
 import clsx from "clsx";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { usePickedCovers } from "../../../pickedCovers";
 import type { GameIdentityResolver } from "../../../store";
 import {
@@ -8,18 +8,27 @@ import {
   dailyTotals,
   getSessionGameKey,
   historyHighlights,
-  historyRange,
   playHabits,
+  previousHistoryRange,
+  quantileThresholds,
+  rangeSeconds,
+  resolveHistorySelection,
   summaryStats,
   topGames,
   weekdayHourMatrix,
-  type HistoryFilter,
+  type DailyTotal,
+  type HistoryRange,
+  type HistorySelection,
   type PlayHabits,
+  type TopGame,
 } from "../../../historyStats";
 import { CalendarHeatmap } from "../../charts/CalendarHeatmap";
 import { ColumnChart } from "../../charts/ColumnChart";
+import { CoverCalendar } from "../../charts/CoverCalendar";
+import { assignGameColors, gameColor } from "../../charts/gameColors";
+import { PaceChart } from "../../charts/PaceChart";
 import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
-import { addDays } from "../../charts/chartUtils";
+import { addDays, localDateKey } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
 import { appLocale, weekdayNames, getT } from "../../../i18n";
@@ -28,9 +37,13 @@ const t = getT("history");
 
 export type ResolvedGame = { name: string; coverUrl: string };
 
-type CachedFilterAnalytics = {
-  selectedRange: ReturnType<typeof historyRange>;
+type CachedSelectionAnalytics = {
+  selectedRange: HistoryRange | null;
+  /** The period to compare with; null for all time. */
+  previousRange: HistoryRange | null;
+  previousSeconds: number;
   chart: ReturnType<typeof bucketSessions>;
+  previousChart: ReturnType<typeof bucketSessions> | null;
   rangeStats: ReturnType<typeof summaryStats>;
   rhythm: ReturnType<typeof weekdayHourMatrix>;
   games: ReturnType<typeof topGames>;
@@ -43,9 +56,11 @@ type CachedHistoryAnalytics = {
   resolveIgdbId: GameIdentityResolver;
   resolveGame: (session: Session) => ResolvedGame;
   allTimeStats: ReturnType<typeof summaryStats>;
-  calendar: ReturnType<typeof dailyTotals>;
+  calendar: Map<string, DailyTotal>;
+  /** Playtime per day from the first session to today. */
+  historyDaily: Map<string, DailyTotal>;
   firstSessionMs: number | null;
-  filters: Map<HistoryFilter, CachedFilterAnalytics>;
+  selections: Map<string, CachedSelectionAnalytics>;
 };
 
 /* Everything derived from the session list, keyed by that list's identity so
@@ -58,9 +73,13 @@ function localDayKey(nowMs: number) {
   return day.getTime();
 }
 
+function selectionKey(selection: HistorySelection) {
+  return JSON.stringify(selection);
+}
+
 export function getHistoryAnalytics(
   sessions: Session[],
-  filter: HistoryFilter,
+  selection: HistorySelection,
   nowMs: number,
   resolveIgdbId: GameIdentityResolver,
   resolveGame: (session: Session) => ResolvedGame,
@@ -74,37 +93,42 @@ export function getHistoryAnalytics(
     cached.resolveGame !== resolveGame
   ) {
     const today = new Date(dayKey);
+    const tomorrowMs = addDays(today, 1).getTime();
     const starts = sessions
       .map((session) => Date.parse(session.startedAt))
       .filter((value) => Number.isFinite(value));
     const firstSessionMs = starts.length > 0 ? Math.min(...starts) : null;
+    const historyDaily =
+      firstSessionMs === null
+        ? new Map<string, DailyTotal>()
+        : dailyTotals(sessions, firstSessionMs, tomorrowMs);
     // The calendar starts at the first session, capped at a year back.
-    const yearAgo = addDays(today, -363);
-    const calendarFrom =
-      firstSessionMs !== null && firstSessionMs > yearAgo.getTime()
-        ? firstSessionMs
-        : yearAgo.getTime();
+    const calendarFromKey = localDateKey(addDays(today, -363));
+    const calendar =
+      firstSessionMs !== null &&
+      localDateKey(new Date(firstSessionMs)) >= calendarFromKey
+        ? historyDaily
+        : dailyTotals(sessions, addDays(today, -363).getTime(), tomorrowMs);
     cached = {
       dayKey,
       resolveIgdbId,
       resolveGame,
       allTimeStats: summaryStats(sessions, nowMs),
-      calendar: dailyTotals(
-        sessions,
-        calendarFrom,
-        addDays(today, 1).getTime(),
-      ),
+      calendar,
+      historyDaily,
       firstSessionMs,
-      filters: new Map(),
+      selections: new Map(),
     };
     historyAnalyticsCache.set(sessions, cached);
   }
 
-  let filtered = cached.filters.get(filter);
-  if (!filtered) {
-    const selectedRange = historyRange(filter, nowMs);
+  const key = selectionKey(selection);
+  let selected = cached.selections.get(key);
+  if (!selected) {
+    const selectedRange = resolveHistorySelection(selection, nowMs);
+    const previousRange = previousHistoryRange(selection, nowMs);
     const rangeStats =
-      filter === "all"
+      selection.kind === "all"
         ? cached.allTimeStats
         : summaryStats(sessions, nowMs, selectedRange);
     const rhythm = weekdayHourMatrix(sessions, nowMs, selectedRange);
@@ -115,9 +139,16 @@ export function getHistoryAnalytics(
       selectedRange,
       resolveIgdbId,
     );
-    filtered = {
+    selected = {
       selectedRange,
-      chart: bucketSessions(sessions, filter, nowMs, resolveIgdbId),
+      previousRange,
+      previousSeconds: previousRange
+        ? rangeSeconds(sessions, previousRange)
+        : 0,
+      chart: bucketSessions(sessions, selectedRange, nowMs, resolveIgdbId),
+      previousChart: previousRange
+        ? bucketSessions(sessions, previousRange, nowMs, resolveIgdbId)
+        : null,
       rangeStats,
       rhythm,
       games,
@@ -130,15 +161,18 @@ export function getHistoryAnalytics(
       ),
       habits: playHabits(rhythm, rangeStats, games),
     };
-    cached.filters.set(filter, filtered);
+    cached.selections.set(key, selected);
   }
 
-  return { ...cached, ...filtered };
+  return { ...cached, ...selected };
 }
 
 export function hasCachedHistoryInsights(sessions: Session[], nowMs: number) {
   const cached = historyAnalyticsCache.get(sessions);
-  return cached?.dayKey === localDayKey(nowMs) && cached.filters.has("all");
+  return (
+    cached?.dayKey === localDayKey(nowMs) &&
+    cached.selections.has(selectionKey({ kind: "all" }))
+  );
 }
 
 function formatHour(hour: number) {
@@ -153,46 +187,109 @@ function formatPercent(share: number) {
 
 export const HistoryInsights = memo(function HistoryInsights({
   sessions,
-  filter,
+  selection,
+  rangeLabel,
+  comparisonLabel,
   nowMs,
   showDurationDays,
   resolveGame,
   resolveIgdbId,
   detailedChart,
   onDetailedChartChange,
+  onSelectDay,
 }: {
   sessions: Session[];
-  filter: HistoryFilter;
+  selection: HistorySelection;
+  rangeLabel: string;
+  /** The period before, by its dates; null for all time. */
+  comparisonLabel: string | null;
   nowMs: number;
   showDurationDays: boolean;
   resolveGame: (session: Session) => ResolvedGame;
   resolveIgdbId: GameIdentityResolver;
   detailedChart: boolean;
   onDetailedChartChange: (detailed: boolean) => void;
+  onSelectDay: (dateKey: string) => void;
 }) {
   const playtimeSection = useSectionCollapse("history.playtime");
   const calendarSection = useSectionCollapse("history.calendar");
+  const paceSection = useSectionCollapse("history.pace");
   const habitsSection = useSectionCollapse("history.habits");
   const rhythmSection = useSectionCollapse("history.rhythm");
-  const { chart, rhythm, calendar, habits, firstSessionMs } = useMemo(
+  const [litGame, setLitGame] = useState<string | null>(null);
+  const {
+    chart,
+    previousChart,
+    previousSeconds,
+    rangeStats,
+    rhythm,
+    calendar,
+    habits,
+    games,
+    selectedRange,
+    firstSessionMs,
+    historyDaily,
+  } = useMemo(
     () =>
-      getHistoryAnalytics(sessions, filter, nowMs, resolveIgdbId, resolveGame),
-    [filter, nowMs, resolveGame, resolveIgdbId, sessions],
+      getHistoryAnalytics(
+        sessions,
+        selection,
+        nowMs,
+        resolveIgdbId,
+        resolveGame,
+      ),
+    [nowMs, resolveGame, resolveIgdbId, selection, sessions],
   );
   const gamesByKey = useMemo(() => {
-    const games = new Map<string, ResolvedGame>();
+    const byKey = new Map<string, ResolvedGame>();
     for (const session of sessions) {
       const key = getSessionGameKey(session, resolveIgdbId);
-      if (!games.has(key)) games.set(key, resolveGame(session));
+      if (!byKey.has(key)) byKey.set(key, resolveGame(session));
     }
-    return games;
+    return byKey;
   }, [resolveGame, resolveIgdbId, sessions]);
   const resolveGameName = (key: string | null) =>
     key ? (gamesByKey.get(key)?.name ?? null) : null;
   const pickedCovers = usePickedCovers();
   const resolveGameCover = (key: string | null) =>
-    key ? (pickedCovers[key] ?? gamesByKey.get(key)?.coverUrl ?? null) : null;
+    key ? (pickedCovers[key] ?? gamesByKey.get(key)?.coverUrl) || null : null;
+  const colorSlots = useMemo(
+    () =>
+      assignGameColors(games.flatMap((game) => (game.key ? [game.key] : []))),
+    [games],
+  );
   const canDetail = chart.full.length !== chart.compact.length;
+  // Two to 42 days show as a calendar of covers; All time counts from the
+  // first session, so a short history gets one too.
+  const shownRange =
+    selectedRange ??
+    (firstSessionMs === null
+      ? null
+      : {
+          fromMs: localDayKey(firstSessionMs),
+          toMs: addDays(new Date(localDayKey(nowMs)), 1).getTime(),
+        });
+  const shownDays = shownRange
+    ? Math.round((shownRange.toMs - shownRange.fromMs) / 86_400_000)
+    : 0;
+  const coverCalendar =
+    shownRange !== null && shownDays >= 2 && shownDays <= 42;
+  const coverWeeks = shownRange
+    ? Math.ceil(
+        (shownDays + ((new Date(shownRange.fromMs).getDay() + 6) % 7)) / 7,
+      )
+    : 0;
+  const dayThresholds = useMemo(
+    () =>
+      quantileThresholds([...historyDaily.values()].map((day) => day.seconds)),
+    [historyDaily],
+  );
+  // With Pace, the right column holds Pace and Play habits. A short calendar
+  // (the activity one, or covers of up to two weeks) gets the weekday chart
+  // under it, so no panel stretches empty; a tall cover calendar has it full
+  // width below.
+  const withPace = Boolean(previousChart && comparisonLabel);
+  const rhythmBeside = withPace && (!coverCalendar || coverWeeks <= 2);
   const detailed = canDetail && detailedChart;
   const buckets = detailed ? chart.full : chart.compact;
   const chartTotal = buckets.reduce((sum, bucket) => sum + bucket.seconds, 0);
@@ -217,7 +314,7 @@ export const HistoryInsights = memo(function HistoryInsights({
           title={t("Playtime over time")}
           caption={t("{{duration}} logged · {{title}}", {
             duration: formatDuration(chartTotal, showDurationDays),
-            title: chart.title,
+            title: rangeLabel,
           })}
           collapsed={playtimeSection.collapsed}
           onToggle={playtimeSection.toggle}
@@ -254,23 +351,31 @@ export const HistoryInsights = memo(function HistoryInsights({
         />
         {!playtimeSection.collapsed ? (
           <div id="playtime-chart-body">
-            {buckets.length === 0 ? (
+            {buckets.length === 0 || chartTotal === 0 ? (
               <div className="py-16 text-center text-sm text-text-muted">
                 {t("No sessions in this range.")}
               </div>
             ) : (
               <figure
                 aria-labelledby="playtime-chart-heading"
-                className={clsx(detailed && "overflow-x-auto pb-1")}
+                className={clsx("m-0", detailed && "overflow-x-auto pb-1")}
               >
                 <ColumnChart
                   buckets={buckets}
                   showDurationDays={showDurationDays}
                   resolveGameName={resolveGameName}
-                  resolveGameCover={resolveGameCover}
+                  colorSlots={colorSlots}
+                  highlightKey={litGame}
                   className={clsx(
                     detailed && buckets.length > 12 && "min-w-[720px]",
                   )}
+                />
+                <GameLegend
+                  games={games}
+                  colorSlots={colorSlots}
+                  pickedCovers={pickedCovers}
+                  showDurationDays={showDurationDays}
+                  onLight={setLitGame}
                 />
               </figure>
             )}
@@ -281,14 +386,21 @@ export const HistoryInsights = memo(function HistoryInsights({
       <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]">
         <Panel
           className={clsx(
-            "min-w-0 p-5",
-            calendarSection.collapsed && "self-start",
+            "min-w-0 p-5 2xl:col-start-1 2xl:row-start-1",
+            (calendarSection.collapsed || withPace || coverCalendar) &&
+              "self-start",
           )}
         >
           <SectionHeading
             id="activity-heading"
-            title={t("Activity calendar")}
-            caption={calendarCaption}
+            title={coverCalendar ? t("Cover calendar") : t("Activity calendar")}
+            caption={
+              coverCalendar
+                ? t("Most played game each day · {{range}}", {
+                    range: rangeLabel,
+                  })
+                : calendarCaption
+            }
             collapsed={calendarSection.collapsed}
             onToggle={calendarSection.toggle}
             controls="activity-calendar-body"
@@ -299,40 +411,147 @@ export const HistoryInsights = memo(function HistoryInsights({
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("Playtime activity will appear here.")}
                 </div>
+              ) : coverCalendar && shownRange ? (
+                <CoverCalendar
+                  range={shownRange}
+                  days={chart.full}
+                  nowMs={nowMs}
+                  thresholds={dayThresholds}
+                  colorSlots={colorSlots}
+                  showDurationDays={showDurationDays}
+                  resolveGameName={resolveGameName}
+                  resolveGameCover={resolveGameCover}
+                  onSelectDay={onSelectDay}
+                  labelledBy="activity-heading"
+                />
               ) : (
                 <CalendarHeatmap
                   totals={calendar}
                   nowMs={nowMs}
                   showDurationDays={showDurationDays}
                   resolveGameName={resolveGameName}
+                  range={selectedRange}
+                  onSelectDay={onSelectDay}
                 />
               )}
             </div>
           ) : null}
         </Panel>
+        <div
+          className={clsx(
+            "grid min-w-0 content-start gap-6 2xl:col-start-2 2xl:row-start-1",
+            rhythmBeside && "2xl:row-span-2",
+          )}
+        >
+          {previousChart && comparisonLabel ? (
+            <Panel className="min-w-0 p-5">
+              <SectionHeading
+                id="pace-heading"
+                title={t("Pace")}
+                caption={t("Running total · {{range}} vs. {{period}}", {
+                  range: rangeLabel,
+                  period: comparisonLabel,
+                })}
+                collapsed={paceSection.collapsed}
+                onToggle={paceSection.toggle}
+                controls="pace-body"
+              />
+              {!paceSection.collapsed ? (
+                <figure
+                  id="pace-body"
+                  aria-labelledby="pace-heading"
+                  className="m-0"
+                >
+                  <PaceChart
+                    current={chart.full}
+                    previous={previousChart.full}
+                    nowMs={nowMs}
+                    showDurationDays={showDurationDays}
+                  />
+                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-text-muted">
+                    <li className="inline-flex items-center gap-1.5">
+                      <span
+                        aria-hidden="true"
+                        className="h-0.5 w-3 rounded-full bg-accent"
+                      />
+                      {rangeLabel}{" "}
+                      <span className="font-mono font-semibold text-text">
+                        {formatDuration(
+                          rangeStats.totalSeconds,
+                          showDurationDays,
+                        )}
+                      </span>
+                    </li>
+                    <li className="inline-flex items-center gap-1.5">
+                      <span
+                        aria-hidden="true"
+                        className="h-0.5 w-3 rounded-full bg-text-muted/80"
+                      />
+                      {comparisonLabel}{" "}
+                      <span className="font-mono font-semibold text-text">
+                        {formatDuration(previousSeconds, showDurationDays)}
+                      </span>
+                    </li>
+                  </ul>
+                </figure>
+              ) : null}
+            </Panel>
+          ) : null}
+          <Panel
+            className={clsx(
+              "min-w-0 p-5",
+              habitsSection.collapsed && "self-start",
+            )}
+          >
+            <SectionHeading
+              id="habits-heading"
+              title={t("Play habits")}
+              caption={rangeLabel}
+              collapsed={habitsSection.collapsed}
+              onToggle={habitsSection.toggle}
+              controls="habits-body"
+            />
+            {!habitsSection.collapsed ? (
+              <div id="habits-body">
+                {habits.gamesPlayed === 0 ? (
+                  <div className="py-12 text-center text-sm text-text-muted">
+                    {t("Your habits will appear here.")}
+                  </div>
+                ) : (
+                  <HabitFacts
+                    habits={habits}
+                    showDurationDays={showDurationDays}
+                  />
+                )}
+              </div>
+            ) : null}
+          </Panel>
+        </div>
         <Panel
           className={clsx(
             "min-w-0 p-5",
-            habitsSection.collapsed && "self-start",
+            rhythmBeside
+              ? "self-start 2xl:col-start-1 2xl:row-start-2"
+              : "2xl:col-span-2",
           )}
         >
           <SectionHeading
-            id="habits-heading"
-            title={t("Play habits")}
-            caption={chart.title}
-            collapsed={habitsSection.collapsed}
-            onToggle={habitsSection.toggle}
-            controls="habits-body"
+            id="rhythm-heading"
+            title={t("When you play")}
+            caption={t("Weekday × hour · {{title}}", { title: rangeLabel })}
+            collapsed={rhythmSection.collapsed}
+            onToggle={rhythmSection.toggle}
+            controls="rhythm-body"
           />
-          {!habitsSection.collapsed ? (
-            <div id="habits-body">
-              {habits.gamesPlayed === 0 ? (
+          {!rhythmSection.collapsed ? (
+            <div id="rhythm-body">
+              {sessions.length === 0 ? (
                 <div className="py-12 text-center text-sm text-text-muted">
-                  {t("Your habits will appear here.")}
+                  {t("Your play rhythm will appear here.")}
                 </div>
               ) : (
-                <HabitFacts
-                  habits={habits}
+                <RhythmHeatmap
+                  matrix={rhythm}
                   showDurationDays={showDurationDays}
                 />
               )}
@@ -340,34 +559,85 @@ export const HistoryInsights = memo(function HistoryInsights({
           ) : null}
         </Panel>
       </div>
-
-      <Panel className="min-w-0 p-5">
-        <SectionHeading
-          id="rhythm-heading"
-          title={t("When you play")}
-          caption={t("Weekday × hour · {{title}}", { title: chart.title })}
-          collapsed={rhythmSection.collapsed}
-          onToggle={rhythmSection.toggle}
-          controls="rhythm-body"
-        />
-        {!rhythmSection.collapsed ? (
-          <div id="rhythm-body">
-            {sessions.length === 0 ? (
-              <div className="py-12 text-center text-sm text-text-muted">
-                {t("Your play rhythm will appear here.")}
-              </div>
-            ) : (
-              <RhythmHeatmap
-                matrix={rhythm}
-                showDurationDays={showDurationDays}
-              />
-            )}
-          </div>
-        ) : null}
-      </Panel>
     </div>
   );
 });
+
+/* The stacked chart's legend: its colored games with cover and playtime, the
+   rest as "Other". Pointing at a game lights its parts of the bars. */
+function GameLegend({
+  games,
+  colorSlots,
+  pickedCovers,
+  showDurationDays,
+  onLight,
+}: {
+  games: TopGame[];
+  colorSlots: ReadonlyMap<string, number>;
+  pickedCovers: Record<string, string>;
+  showDurationDays: boolean;
+  onLight: (key: string | null) => void;
+}) {
+  const colored = games.filter((game) => game.key && colorSlots.has(game.key));
+  const rest = games.filter((game) => !game.key || !colorSlots.has(game.key));
+  const restSeconds = rest.reduce((sum, game) => sum + game.seconds, 0);
+  return (
+    <ul
+      data-chart-legend
+      aria-label={t("Games in the chart")}
+      className="mt-3.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-text-muted"
+    >
+      {colored.map((game) => {
+        const cover = (game.key && pickedCovers[game.key]) || game.coverUrl;
+        return (
+          <li
+            key={game.key}
+            className="inline-flex items-center gap-1.5 hover:text-text"
+            onPointerEnter={() => onLight(game.key)}
+            onPointerLeave={() => onLight(null)}
+          >
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+              style={{ background: gameColor(colorSlots.get(game.key!)) }}
+            />
+            {cover ? (
+              <img
+                src={cover}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                className="h-5 w-[15px] shrink-0 rounded-[2px] object-cover"
+              />
+            ) : null}
+            {game.name}{" "}
+            <span className="font-mono font-semibold text-text">
+              {formatDuration(game.seconds, showDurationDays)}
+            </span>
+          </li>
+        );
+      })}
+      {rest.length > 0 ? (
+        <li
+          className="inline-flex items-center gap-1.5 hover:text-text"
+          title={rest.map((game) => game.name).join(", ")}
+          onPointerEnter={() => onLight("")}
+          onPointerLeave={() => onLight(null)}
+        >
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+            style={{ background: gameColor(undefined) }}
+          />
+          {t("Other games ({{number}})", { number: rest.length })}{" "}
+          <span className="font-mono font-semibold text-text">
+            {formatDuration(restSeconds, showDurationDays)}
+          </span>
+        </li>
+      ) : null}
+    </ul>
+  );
+}
 
 function HabitFacts({
   habits,

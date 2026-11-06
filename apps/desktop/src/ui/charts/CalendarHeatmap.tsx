@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DailyTotal } from "../../historyStats";
+import type { DailyTotal, HistoryRange } from "../../historyStats";
 import { quantileLevel, quantileThresholds } from "../../historyStats";
 import { formatDuration } from "../components";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
@@ -21,6 +21,7 @@ const cellGap = 3;
 
 type CalendarCell = {
   key: string;
+  dayMs: number;
   dateLabel: string;
   total: DailyTotal | undefined;
   isOutside: boolean;
@@ -42,11 +43,17 @@ export function CalendarHeatmap({
   nowMs,
   showDurationDays,
   resolveGameName,
+  range = null,
+  onSelectDay,
 }: {
   totals: Map<string, DailyTotal>;
   nowMs: number;
   showDurationDays: boolean;
   resolveGameName: (key: string | null) => string | null;
+  /** The days My History shows; the others are dimmed. */
+  range?: HistoryRange | null;
+  /** A click on a day opens that day. */
+  onSelectDay?: (dateKey: string) => void;
 }) {
   const today = useMemo(() => {
     const value = new Date(nowMs);
@@ -84,6 +91,7 @@ export function CalendarHeatmap({
           // Formatting all 371 labels again on each frame stalls the animation.
           dateLabel: formatAccessibleDate(date),
           key: localDateKey(date),
+          dayMs: date.getTime(),
           total: isOutside ? undefined : totals.get(localDateKey(date)),
           isOutside,
         };
@@ -181,6 +189,8 @@ export function CalendarHeatmap({
                   todayKey={localDateKey(today)}
                   showDurationDays={showDurationDays}
                   resolveGameName={resolveGameName}
+                  range={range}
+                  onSelectDay={onSelectDay}
                 />
               </div>
             </div>
@@ -213,12 +223,16 @@ const CalendarCells = memo(function CalendarCells({
   todayKey,
   showDurationDays,
   resolveGameName,
+  range,
+  onSelectDay,
 }: {
   cells: CalendarCell[];
   thresholds: number[];
   todayKey: string;
   showDurationDays: boolean;
   resolveGameName: (key: string | null) => string | null;
+  range: HistoryRange | null;
+  onSelectDay?: (dateKey: string) => void;
 }) {
   const cellRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -242,6 +256,9 @@ const CalendarCells = memo(function CalendarCells({
             ? ` · ${resolveGameName(total.topGameKey) ?? t("Unknown game")}`
             : ""}
         </div>
+        {onSelectDay ? (
+          <div className="text-text-faint">{t("Click to see this day")}</div>
+        ) : null}
       </div>
     );
   }
@@ -262,6 +279,9 @@ const CalendarCells = memo(function CalendarCells({
           : level === 0
             ? "rgb(var(--color-surface-hover))"
             : heatmapColor(level, thresholds.length)!;
+        const dimmed =
+          range !== null &&
+          (cell.dayMs < range.fromMs || cell.dayMs >= range.toMs);
         return (
           <button
             key={cell.key}
@@ -273,8 +293,11 @@ const CalendarCells = memo(function CalendarCells({
             tabIndex={index === activeIndex ? 0 : -1}
             disabled={cell.isOutside}
             aria-label={`${cell.dateLabel}: ${formatDuration(cell.total?.seconds ?? 0, showDurationDays)}`}
-            className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
-            style={{ background }}
+            className="rounded-[2px] border-0 p-0 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
+            style={{ background, opacity: dimmed ? 0.25 : undefined }}
+            onClick={() => {
+              if (!cell.isOutside) onSelectDay?.(cell.key);
+            }}
             onPointerEnter={(event) => {
               if (cell.isOutside) return;
               setActiveIndex(index);

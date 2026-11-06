@@ -6,16 +6,45 @@ import { appLocale, getT } from "./i18n";
 
 const t = getT("common");
 
-export type HistoryFilter = "all" | "today" | "week" | "month" | "currentMonth";
+/* What My History shows: everything, a period that the chip arrows step
+   through (offset 0 = the current one, -1 = the one before), or a span picked
+   in the calendar that steps by its own length. */
+export type HistoryPeriod =
+  | "day"
+  | "week"
+  | "month"
+  | "year"
+  | "last7"
+  | "last30"
+  | "last90";
+
+export type HistorySelection =
+  | { kind: "all" }
+  | { kind: HistoryPeriod; offset: number }
+  | {
+      kind: "span";
+      unit: "day" | "month";
+      /** Local date key of the first day at offset 0. */
+      fromKey: string;
+      /** Days or months, by unit. */
+      length: number;
+      offset: number;
+    };
+
+export type HistoryBucketUnit = "hour" | "day" | "week" | "month";
 
 export type HistoryRange = { fromMs: number; toMs: number };
 
 export type HistoryBucket = {
   label: string;
   tooltip: string;
+  fromMs: number;
+  toMs: number;
   seconds: number;
   sessionCount: number;
   topGameKey: string | null;
+  /** Each game's seconds in this bucket, the most played first. */
+  games: Array<{ key: string; seconds: number }>;
 };
 
 export type DailyTotal = {
@@ -159,12 +188,6 @@ function localDateKey(ms: number) {
   return `${year}-${month}-${day}`;
 }
 
-function dayBoundaries(fromMs: number, count: number) {
-  return Array.from({ length: count + 1 }, (_, index) =>
-    addLocalDays(fromMs, index),
-  );
-}
-
 function elapsedHourBoundaries(fromMs: number, toMs: number) {
   const boundaries = [fromMs];
   for (let cursor = fromMs + hourMs; cursor < toMs; cursor += hourMs) {
@@ -174,30 +197,279 @@ function elapsedHourBoundaries(fromMs: number, toMs: number) {
   return boundaries;
 }
 
-export function historyRange(
-  filter: HistoryFilter,
+const rollingDays = { last7: 7, last30: 30, last90: 90 } as const;
+
+function daysBetween(fromMs: number, toMs: number) {
+  return Math.round(
+    (startOfLocalDay(toMs).getTime() - startOfLocalDay(fromMs).getTime()) /
+      86_400_000,
+  );
+}
+
+function monthsBetween(fromMs: number, toMs: number) {
+  const from = new Date(fromMs);
+  const to = new Date(toMs);
+  return (
+    (to.getFullYear() - from.getFullYear()) * 12 +
+    to.getMonth() -
+    from.getMonth()
+  );
+}
+
+/** Weeks start on Monday, like the activity calendar and the rhythm chart. */
+function startOfLocalWeek(ms: number) {
+  const day = startOfLocalDay(ms).getTime();
+  return addLocalDays(day, -((new Date(day).getDay() + 6) % 7));
+}
+
+function addLocalMonths(ms: number, months: number) {
+  const date = new Date(startOfLocalMonth(ms));
+  date.setMonth(date.getMonth() + months);
+  return date.getTime();
+}
+
+function startOfLocalYear(ms: number) {
+  return new Date(new Date(ms).getFullYear(), 0, 1).getTime();
+}
+
+function addLocalYears(ms: number, years: number) {
+  return new Date(new Date(ms).getFullYear() + years, 0, 1).getTime();
+}
+
+function tomorrowStart(nowMs: number) {
+  return addLocalDays(startOfLocalDay(nowMs).getTime(), 1);
+}
+
+type SteppedSelection = Exclude<HistorySelection, { kind: "all" }>;
+
+function stepped(selection: SteppedSelection, by: number): SteppedSelection {
+  return { ...selection, offset: selection.offset + by };
+}
+
+/** The selection's whole period, before it is cut at the end of today. */
+function naturalRange(
+  selection: SteppedSelection,
+  nowMs: number,
+): HistoryRange {
+  const todayMs = startOfLocalDay(nowMs).getTime();
+  const offset = selection.offset;
+  switch (selection.kind) {
+    case "day": {
+      const fromMs = addLocalDays(todayMs, offset);
+      return { fromMs, toMs: addLocalDays(fromMs, 1) };
+    }
+    case "week": {
+      const fromMs = addLocalDays(startOfLocalWeek(todayMs), 7 * offset);
+      return { fromMs, toMs: addLocalDays(fromMs, 7) };
+    }
+    case "month": {
+      const fromMs = addLocalMonths(todayMs, offset);
+      return { fromMs, toMs: addLocalMonths(fromMs, 1) };
+    }
+    case "year": {
+      const fromMs = addLocalYears(todayMs, offset);
+      return { fromMs, toMs: addLocalYears(fromMs, 1) };
+    }
+    case "span": {
+      const startMs = dateKeyToLocalMs(selection.fromKey);
+      if (selection.unit === "month") {
+        const fromMs = addLocalMonths(startMs, selection.length * offset);
+        return { fromMs, toMs: addLocalMonths(fromMs, selection.length) };
+      }
+      const fromMs = addLocalDays(startMs, selection.length * offset);
+      return { fromMs, toMs: addLocalDays(fromMs, selection.length) };
+    }
+    default: {
+      const length = rollingDays[selection.kind];
+      const toMs = addLocalDays(todayMs, 1 + length * offset);
+      return { fromMs: addLocalDays(toMs, -length), toMs };
+    }
+  }
+}
+
+/** The days a selection covers, cut at the end of today; null = all time. */
+export function resolveHistorySelection(
+  selection: HistorySelection,
   nowMs: number,
 ): HistoryRange | null {
-  if (filter === "all") return null;
+  if (selection.kind === "all") return null;
+  const range = naturalRange(selection, nowMs);
+  return {
+    fromMs: range.fromMs,
+    toMs: Math.min(range.toMs, tomorrowStart(nowMs)),
+  };
+}
+
+/**
+ * Days picked in the calendar or on the timeline strip ([fromMs, toMs),
+ * local midnights). A pick that matches a period becomes that period, so the
+ * arrows step it the natural way: a whole month by months, a week by weeks.
+ */
+export function historySelectionFromRange(
+  fromMs: number,
+  toMs: number,
+  nowMs: number,
+  firstSessionMs: number | null,
+): HistorySelection {
   const todayMs = startOfLocalDay(nowMs).getTime();
-  const fromMs =
-    filter === "today"
-      ? todayMs
-      : filter === "currentMonth"
-        ? startOfLocalMonth(nowMs)
-        : addLocalDays(todayMs, filter === "week" ? -6 : -29);
-  return { fromMs, toMs: addLocalDays(todayMs, 1) };
+  const tomorrowMs = addLocalDays(todayMs, 1);
+  const from = startOfLocalDay(fromMs).getTime();
+  const to = Math.min(toMs, tomorrowMs);
+  const endsToday = to === tomorrowMs;
+  if (
+    endsToday &&
+    firstSessionMs !== null &&
+    from <= startOfLocalDay(firstSessionMs).getTime()
+  )
+    return { kind: "all" };
+  const length = Math.max(1, daysBetween(from, to));
+  if (length === 1) return { kind: "day", offset: daysBetween(todayMs, from) };
+  if (from === startOfLocalMonth(from)) {
+    if (
+      to === addLocalMonths(from, 1) ||
+      (endsToday && from === startOfLocalMonth(todayMs))
+    )
+      return { kind: "month", offset: monthsBetween(todayMs, from) };
+    if (
+      from === startOfLocalYear(from) &&
+      (to === addLocalYears(from, 1) ||
+        (endsToday && from === startOfLocalYear(todayMs)))
+    )
+      return {
+        kind: "year",
+        offset: new Date(from).getFullYear() - new Date(todayMs).getFullYear(),
+      };
+    if (to === startOfLocalMonth(to) || endsToday)
+      return {
+        kind: "span",
+        unit: "month",
+        fromKey: localDateKey(from),
+        length: monthsBetween(from, addLocalDays(to, -1)) + 1,
+        offset: 0,
+      };
+  }
+  if (
+    from === startOfLocalWeek(from) &&
+    (to === addLocalDays(from, 7) ||
+      (endsToday && from === startOfLocalWeek(todayMs)))
+  )
+    return {
+      kind: "week",
+      offset: Math.round(daysBetween(startOfLocalWeek(todayMs), from) / 7),
+    };
+  if (endsToday) {
+    for (const kind of ["last7", "last30", "last90"] as const) {
+      if (length === rollingDays[kind]) return { kind, offset: 0 };
+    }
+  }
+  return {
+    kind: "span",
+    unit: "day",
+    fromKey: localDateKey(from),
+    length,
+    offset: 0,
+  };
+}
+
+/** Whole days by date key, the last one included: a streak or a day that a
+ *  highlight or the activity calendar opens. */
+export function historySelectionFromDays(
+  fromKey: string,
+  lastKey: string,
+  nowMs: number,
+  firstSessionMs: number | null,
+) {
+  return historySelectionFromRange(
+    dateKeyToLocalMs(fromKey),
+    addLocalDays(dateKeyToLocalMs(lastKey), 1),
+    nowMs,
+    firstSessionMs,
+  );
+}
+
+/** › stops at the current period, ‹ once the period before ends before the
+ *  first session. */
+export function canStepHistorySelection(
+  selection: HistorySelection,
+  direction: 1 | -1,
+  nowMs: number,
+  firstSessionMs: number | null,
+) {
+  if (selection.kind === "all" || firstSessionMs === null) return false;
+  if (direction > 0)
+    return naturalRange(selection, nowMs).toMs < tomorrowStart(nowMs);
+  return (
+    naturalRange(stepped(selection, -1), nowMs).toMs >
+    startOfLocalDay(firstSessionMs).getTime()
+  );
+}
+
+export function stepHistorySelection(
+  selection: HistorySelection,
+  direction: 1 | -1,
+): HistorySelection {
+  return selection.kind === "all" ? selection : stepped(selection, direction);
+}
+
+/**
+ * The period to compare with: as long as the range and right before it. A
+ * month, week or year still in progress compares with the same days of the
+ * one before (1–6 Nov with 1–6 Oct), never past that one's end.
+ */
+export function previousHistoryRange(
+  selection: HistorySelection,
+  nowMs: number,
+): HistoryRange | null {
+  if (selection.kind === "all") return null;
+  const tomorrowMs = tomorrowStart(nowMs);
+  const current = naturalRange(selection, nowMs);
+  const previous = naturalRange(stepped(selection, -1), nowMs);
+  if (current.toMs <= tomorrowMs) return previous;
+  const length = daysBetween(current.fromMs, tomorrowMs);
+  return {
+    fromMs: previous.fromMs,
+    toMs: Math.min(previous.toMs, addLocalDays(previous.fromMs, length)),
+  };
+}
+
+/** Bar size by range length: 1 day = hours, up to 31 days = days, up to 92
+ *  = weeks (Detailed: days), longer = months (Detailed: weeks). */
+export function historyBucketUnits(days: number): {
+  overview: HistoryBucketUnit;
+  detailed: HistoryBucketUnit;
+} {
+  if (days <= 1) return { overview: "hour", detailed: "hour" };
+  if (days <= 31) return { overview: "day", detailed: "day" };
+  if (days <= 92) return { overview: "week", detailed: "day" };
+  return { overview: "month", detailed: "week" };
+}
+
+/** Days from fromMs to the day before toMs: "Oct 3 – 19", "Wed, Nov 4",
+ *  with the year when it is not this year's. */
+export function formatHistoryDays(fromMs: number, toMs: number, nowMs: number) {
+  const lastMs = addLocalDays(toMs, -1);
+  const year = new Date(nowMs).getFullYear();
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    ...(new Date(fromMs).getFullYear() !== year ||
+    new Date(lastMs).getFullYear() !== year
+      ? { year: "numeric" }
+      : {}),
+  };
+  if (startOfLocalDay(fromMs).getTime() === lastMs)
+    return new Date(fromMs).toLocaleDateString(appLocale(), {
+      weekday: "short",
+      ...options,
+    });
+  return new Intl.DateTimeFormat(appLocale(), options).formatRange(
+    new Date(fromMs),
+    new Date(lastMs),
+  );
 }
 
 function formatHour(ms: number) {
   return new Date(ms).toLocaleTimeString(appLocale(), { hour: "numeric" });
-}
-
-function formatDate(ms: number) {
-  return new Date(ms).toLocaleDateString(appLocale(), {
-    month: "short",
-    day: "numeric",
-  });
 }
 
 function topKey(gameSeconds: Map<string, number>) {
@@ -221,13 +493,18 @@ function aggregateBoundaries(
   descriptors?: Array<{ label: string; tooltip: string }>,
   resolveIgdbId?: GameIdentityResolver,
 ): HistoryBucket[] {
-  const buckets = boundaries.slice(0, -1).map((_, index) => ({
-    label: descriptors?.[index]?.label ?? "",
-    tooltip: descriptors?.[index]?.tooltip ?? "",
-    seconds: 0,
-    sessionCount: 0,
-    topGameKey: null as string | null,
-  }));
+  const buckets: HistoryBucket[] = boundaries
+    .slice(0, -1)
+    .map((fromMs, index) => ({
+      label: descriptors?.[index]?.label ?? "",
+      tooltip: descriptors?.[index]?.tooltip ?? "",
+      fromMs,
+      toMs: boundaries[index + 1],
+      seconds: 0,
+      sessionCount: 0,
+      topGameKey: null,
+      games: [],
+    }));
   const games = buckets.map(() => new Map<string, number>());
 
   for (const session of sessions) {
@@ -241,160 +518,165 @@ function aggregateBoundaries(
 
   buckets.forEach((bucket, index) => {
     bucket.topGameKey = topKey(games[index]);
+    bucket.games = [...games[index]]
+      .map(([key, seconds]) => ({ key, seconds }))
+      .sort(
+        (left, right) =>
+          right.seconds - left.seconds || (left.key < right.key ? -1 : 1),
+      );
   });
   return buckets;
 }
 
-function descriptorsForBoundaries(
+function unitBoundaries(range: HistoryRange, unit: HistoryBucketUnit) {
+  if (unit === "hour") return elapsedHourBoundaries(range.fromMs, range.toMs);
+  const next =
+    unit === "day"
+      ? (ms: number) => addLocalDays(ms, 1)
+      : unit === "week"
+        ? (ms: number) => addLocalDays(startOfLocalWeek(ms), 7)
+        : (ms: number) => addLocalMonths(ms, 1);
+  const boundaries = [range.fromMs];
+  for (
+    let cursor = next(range.fromMs);
+    cursor < range.toMs;
+    cursor = next(cursor)
+  )
+    boundaries.push(cursor);
+  boundaries.push(range.toMs);
+  return boundaries;
+}
+
+function unitDescriptors(
   boundaries: number[],
-  mode: "hour" | "day" | "month",
+  unit: HistoryBucketUnit,
+  rangeDays: number,
+  nowMs: number,
 ) {
+  const todayMs = startOfLocalDay(nowMs).getTime();
+  const spansYears =
+    new Date(boundaries[0]).getFullYear() !==
+    new Date(boundaries[boundaries.length - 1] - 1).getFullYear();
   return boundaries.slice(0, -1).map((fromMs, index) => {
     const toMs = boundaries[index + 1];
-    if (mode === "hour") {
+    if (unit === "hour") {
       return {
         label: formatHour(fromMs),
-        tooltip: `${formatHour(fromMs)} – ${formatHour(toMs)}`,
+        tooltip: new Intl.DateTimeFormat(appLocale(), {
+          hour: "numeric",
+        }).formatRange(new Date(fromMs), new Date(toMs)),
       };
     }
-    if (mode === "month") {
+    if (unit === "day") {
+      const label =
+        rangeDays > 14
+          ? new Date(fromMs).toLocaleDateString(appLocale(), {
+              month: "short",
+              day: "numeric",
+            })
+          : fromMs === todayMs
+            ? t("Today")
+            : new Date(fromMs).toLocaleDateString(appLocale(), {
+                weekday: "short",
+              });
+      return {
+        label,
+        tooltip: new Date(fromMs).toLocaleDateString(appLocale(), {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+      };
+    }
+    if (unit === "week") {
       return {
         label: new Date(fromMs).toLocaleDateString(appLocale(), {
-          month: "long",
-        }),
-        tooltip: new Date(fromMs).toLocaleDateString(appLocale(), {
           month: "short",
-          year: "numeric",
+          day: "numeric",
         }),
+        tooltip: formatHistoryDays(fromMs, toMs, nowMs),
       };
     }
+    const whole =
+      fromMs === startOfLocalMonth(fromMs) &&
+      toMs === addLocalMonths(fromMs, 1);
+    const withYear =
+      spansYears && (index === 0 || new Date(fromMs).getMonth() === 0);
     return {
-      label: new Date(fromMs).toLocaleDateString(appLocale(), {
-        weekday: "short",
-      }),
-      tooltip: formatDate(fromMs),
+      label: new Date(fromMs).toLocaleDateString(
+        appLocale(),
+        withYear ? { month: "short", year: "numeric" } : { month: "short" },
+      ),
+      tooltip: whole
+        ? new Date(fromMs).toLocaleDateString(appLocale(), {
+            month: "long",
+            year: "numeric",
+          })
+        : formatHistoryDays(fromMs, toMs, nowMs),
     };
   });
 }
 
-function groupedBoundaries(boundaries: number[], groups: number) {
-  const intervalCount = boundaries.length - 1;
-  const indexes = Array.from({ length: groups + 1 }, (_, index) =>
-    Math.floor((index * intervalCount) / groups),
-  );
-  indexes[indexes.length - 1] = intervalCount;
-  return indexes.map((index) => boundaries[index]);
+function allTimeRange(sessions: Session[], nowMs: number): HistoryRange | null {
+  let firstMs = Number.POSITIVE_INFINITY;
+  for (const session of sessions) {
+    const interval = sessionInterval(session);
+    if (interval && interval.fromMs < firstMs) firstMs = interval.fromMs;
+  }
+  return Number.isFinite(firstMs)
+    ? { fromMs: startOfLocalDay(firstMs).getTime(), toMs: tomorrowStart(nowMs) }
+    : null;
 }
 
-function rangeDescriptors(boundaries: number[]) {
-  return boundaries.slice(0, -1).map((fromMs, index) => ({
-    label: formatDate(fromMs),
-    tooltip: `${formatDate(fromMs)} – ${formatDate(
-      Math.max(fromMs, boundaries[index + 1] - 1),
-    )}`,
-  }));
-}
-
+/** The playtime chart's bars for a range (null = all time, from the first
+ *  session). compact is the Overview, full the Detailed view; they are the
+ *  same array when the range has no finer view. */
 export function bucketSessions(
   sessions: Session[],
-  filter: HistoryFilter,
+  range: HistoryRange | null,
   nowMs: number,
   resolveIgdbId?: GameIdentityResolver,
 ) {
-  const todayMs = startOfLocalDay(nowMs).getTime();
-
-  if (filter === "today") {
-    const toMs = addLocalDays(todayMs, 1);
-    const hourlyBoundaries = elapsedHourBoundaries(todayMs, toMs);
-    const hourlyBuckets = aggregateBoundaries(
+  const shown = range ?? allTimeRange(sessions, nowMs);
+  if (!shown || shown.toMs <= shown.fromMs)
+    return { compact: [] as HistoryBucket[], full: [] as HistoryBucket[] };
+  const days = Math.max(1, daysBetween(shown.fromMs, shown.toMs));
+  const units = historyBucketUnits(days);
+  const build = (unit: HistoryBucketUnit) => {
+    const boundaries = unitBoundaries(shown, unit);
+    return aggregateBoundaries(
       sessions,
-      hourlyBoundaries,
-      descriptorsForBoundaries(hourlyBoundaries, "hour"),
+      boundaries,
+      unitDescriptors(boundaries, unit, days, nowMs),
       resolveIgdbId,
     );
-    return {
-      title: t("Today"),
-      compact: hourlyBuckets,
-      full: hourlyBuckets,
-    };
-  }
+  };
+  const compact = build(units.overview);
+  const full =
+    units.detailed === units.overview ? compact : build(units.detailed);
+  return { compact, full };
+}
 
-  if (filter === "week" || filter === "month" || filter === "currentMonth") {
-    const days =
-      filter === "week"
-        ? 7
-        : filter === "month"
-          ? 30
-          : new Date(nowMs).getDate();
-    const fromMs = addLocalDays(todayMs, -(days - 1));
-    const fullBoundaries = dayBoundaries(fromMs, days);
-    const compactBoundaries =
-      days <= 10 ? fullBoundaries : groupedBoundaries(fullBoundaries, 5);
-    const fullDescriptors = descriptorsForBoundaries(fullBoundaries, "day");
-    if (fullDescriptors.length > 0) fullDescriptors.at(-1)!.label = t("Today");
-    return {
-      title:
-        filter === "week"
-          ? t("Last 7 Days")
-          : filter === "month"
-            ? t("Last 30 Days")
-            : t("This Month"),
-      compact: aggregateBoundaries(
-        sessions,
-        compactBoundaries,
-        days <= 10 ? fullDescriptors : rangeDescriptors(compactBoundaries),
-        resolveIgdbId,
-      ),
-      full: aggregateBoundaries(
-        sessions,
-        fullBoundaries,
-        fullDescriptors,
-        resolveIgdbId,
-      ),
-    };
+/** Seconds played inside a range (null = all time). */
+export function rangeSeconds(sessions: Session[], range: HistoryRange | null) {
+  let total = 0;
+  for (const session of sessions) {
+    const interval = sessionInterval(session);
+    if (interval) total += Math.round(overlapMs(interval, range) / 1000);
   }
+  return total;
+}
 
-  const starts = sessions
-    .map((session) => sessionInterval(session)?.fromMs)
-    .filter((value): value is number => value !== undefined);
-  if (starts.length === 0) {
-    return { title: t("All Time"), compact: [], full: [] as HistoryBucket[] };
-  }
-
-  const first = new Date(Math.min(...starts));
-  first.setDate(1);
-  first.setHours(0, 0, 0, 0);
-  const afterCurrentMonth = new Date(nowMs);
-  afterCurrentMonth.setDate(1);
-  afterCurrentMonth.setHours(0, 0, 0, 0);
-  afterCurrentMonth.setMonth(afterCurrentMonth.getMonth() + 1);
-  const boundaries: number[] = [];
-  for (const cursor = new Date(first); cursor < afterCurrentMonth; ) {
-    boundaries.push(cursor.getTime());
-    cursor.setMonth(cursor.getMonth() + 1);
-    cursor.setDate(1);
-    cursor.setHours(0, 0, 0, 0);
-  }
-  boundaries.push(afterCurrentMonth.getTime());
-
-  const full = aggregateBoundaries(
-    sessions,
-    boundaries,
-    descriptorsForBoundaries(boundaries, "month"),
-    resolveIgdbId,
-  );
-  const compactBoundaries =
-    full.length <= 6 ? boundaries : groupedBoundaries(boundaries, 6);
-  const compact =
-    full.length <= 6
-      ? full
-      : aggregateBoundaries(
-          sessions,
-          compactBoundaries,
-          rangeDescriptors(compactBoundaries),
-          resolveIgdbId,
-        );
-  return { title: t("All Time"), compact, full };
+/** Running total after each bucket, for the Pace line; buckets that start
+ *  at or after untilMs (still ahead today) get none. */
+export function cumulativeSeconds(
+  buckets: HistoryBucket[],
+  untilMs = Number.POSITIVE_INFINITY,
+) {
+  let total = 0;
+  return buckets
+    .filter((bucket) => bucket.fromMs < untilMs)
+    .map((bucket) => (total += bucket.seconds));
 }
 
 export function dailyTotals(sessions: Session[], fromMs: number, toMs: number) {

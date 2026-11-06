@@ -1,13 +1,28 @@
 import type { GameSource } from "@playcounter/shared";
 import clsx from "clsx";
-import { BarChart3, Flame, Timer } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  Minus,
+  Timer,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { useRef, useState, type ReactNode, type Ref } from "react";
 import { Trans } from "react-i18next";
 import { useGameDetails } from "../../../gameDetails";
-import type {
-  HistoryFilter,
-  HistoryHighlight,
-  SummaryStats,
+import {
+  canStepHistorySelection,
+  historySelectionFromRange,
+  stepHistorySelection,
+  type DailyTotal,
+  type HistoryHighlight,
+  type HistoryRange,
+  type HistorySelection,
+  type SummaryStats,
 } from "../../../historyStats";
 import { usePickedCovers } from "../../../pickedCovers";
 import { customHeroArtKey, useAppStore } from "../../../store";
@@ -15,22 +30,16 @@ import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
 import { appLocale, getT } from "../../../i18n";
+import { HistoryDatePicker } from "./HistoryDatePicker";
+import { historyChips, historySpanLabel } from "./historyRangeLabels";
+import { HistoryTimelineStrip } from "./HistoryTimelineStrip";
 
 const t = getT("history");
 
 /* The History hero: one headline number for the selected range, the range
-   chips that scope the whole page, and the highlights worth noticing. The
-   most played game's key art sits behind it, the way the library hero does. */
-
-export function historyFilters(): Array<{ id: HistoryFilter; label: string }> {
-  return [
-    { id: "all", label: t("All time") },
-    { id: "currentMonth", label: t("This month") },
-    { id: "month", label: t("30 days") },
-    { id: "week", label: t("7 days") },
-    { id: "today", label: t("Today") },
-  ];
-}
+   chips that scope the whole page (the active one steps back and forth), and
+   the highlights worth noticing. The most played game's key art sits behind
+   it, the way the library hero does. */
 
 export type HeroArtworkGame = {
   gameId: number;
@@ -38,6 +47,9 @@ export type HeroArtworkGame = {
   igdbId?: number;
   coverUrl: string;
 };
+
+/** The range before, for "18% more than September 2026". */
+export type HistoryComparison = { previousSeconds: number; label: string };
 
 function formatDay(dateKey: string, withWeekday = false) {
   return new Date(`${dateKey}T00:00:00`).toLocaleDateString(appLocale(), {
@@ -54,31 +66,51 @@ function formatStart(startedAt: string) {
   });
 }
 
+function daysIn(range: HistoryRange) {
+  return Math.max(1, Math.round((range.toMs - range.fromMs) / 86_400_000));
+}
+
+const timeMarkup = <span className="font-mono font-bold tracking-tighter" />;
+
 export function HistoryHero({
-  filter,
-  onFilterChange,
+  selection,
+  onSelectionChange,
+  rangeLabel,
+  range,
+  nowMs,
   rangeStats,
   allTimeStats,
   lifetimeSeconds,
+  comparison,
   highlights,
   firstSessionMs,
+  historyDaily,
   showDurationDays,
   artworkGame,
   resolveGameCover,
   onHighlight,
+  practice,
 }: {
-  filter: HistoryFilter;
-  onFilterChange: (filter: HistoryFilter) => void;
+  selection: HistorySelection;
+  onSelectionChange: (selection: HistorySelection) => void;
+  rangeLabel: string;
+  /** The days on show; null = all time. */
+  range: HistoryRange | null;
+  nowMs: number;
   rangeStats: SummaryStats;
   allTimeStats: SummaryStats;
   /** All time only: the My Games total, edits and launcher time included. */
   lifetimeSeconds: number | null;
+  comparison: HistoryComparison | null;
   highlights: HistoryHighlight[];
   firstSessionMs: number | null;
+  /** Playtime per day over the whole history, for the strip and the picker. */
+  historyDaily: ReadonlyMap<string, DailyTotal>;
   showDurationDays: boolean;
   artworkGame: HeroArtworkGame | null;
   resolveGameCover: (key: string | null) => string | null;
   onHighlight: (highlight: HistoryHighlight) => void;
+  practice: boolean;
 }) {
   const details = useGameDetails(artworkGame?.igdbId);
   const pickedArt = useAppStore((state) =>
@@ -94,11 +126,74 @@ export function HistoryHero({
   // wash the way the library banner does it, never stretched as a photo.
   const artwork = wideArt ?? artworkGame?.coverUrl ?? null;
   const coverOnly = !wideArt && artwork !== null;
-  const rangeLabel = historyFilters().find(
-    (entry) => entry.id === filter,
-  )!.label;
   const hasSessions = rangeStats.sessionCount > 0;
   const hasPlaytime = hasSessions || (lifetimeSeconds ?? 0) > 0;
+  const pickRef = useRef<HTMLButtonElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const chips = historyChips();
+  const onChip = chips.some((chip) => chip.kind === selection.kind);
+  const pick = (next: HistorySelection) => {
+    setPickerOpen(false);
+    onSelectionChange(next);
+  };
+  const stepper = (
+    label: ReactNode,
+    labelProps: {
+      ref?: Ref<HTMLButtonElement>;
+      onClick: () => void;
+      title?: string;
+      "data-chip"?: string;
+      "aria-haspopup"?: "dialog";
+      "aria-expanded"?: boolean;
+    },
+  ) => (
+    <span className="inline-flex h-8 items-stretch rounded-full border border-accent bg-accent text-[13px] font-semibold text-accent-fg shadow-sm">
+      <button
+        type="button"
+        aria-label={t("Previous period")}
+        disabled={
+          !canStepHistorySelection(selection, -1, nowMs, firstSessionMs)
+        }
+        onClick={() => pick(stepHistorySelection(selection, -1))}
+        className="grid w-7 place-items-center rounded-full transition-colors hover:bg-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/50 disabled:pointer-events-none disabled:opacity-30"
+      >
+        <ChevronLeft aria-hidden="true" size={15} strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        {...labelProps}
+        className="inline-flex items-center gap-1.5 whitespace-nowrap px-0.5 underline-offset-[3px] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/50"
+      >
+        {label}
+      </button>
+      <button
+        type="button"
+        aria-label={t("Next period")}
+        disabled={!canStepHistorySelection(selection, 1, nowMs, firstSessionMs)}
+        onClick={() => pick(stepHistorySelection(selection, 1))}
+        className="grid w-7 place-items-center rounded-full transition-colors hover:bg-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/50 disabled:pointer-events-none disabled:opacity-30"
+      >
+        <ChevronRight aria-hidden="true" size={15} strokeWidth={2.5} />
+      </button>
+    </span>
+  );
+  const chipClass = (active: boolean) =>
+    clsx(
+      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+      active
+        ? "border-accent bg-accent text-accent-fg shadow-sm"
+        : "border-border bg-bg/50 text-text-muted hover:border-text-faint hover:text-text",
+    );
+  // The days on show by their dates: the eyebrow already says "30 days".
+  const describeStrip = (span: HistoryRange) =>
+    t("{{range}} · {{count}} days", {
+      range:
+        historySelectionFromRange(span.fromMs, span.toMs, nowMs, firstSessionMs)
+          .kind === "all"
+          ? t("All time")
+          : historySpanLabel(span, nowMs),
+      count: daysIn(span),
+    });
 
   return (
     <section
@@ -126,7 +221,10 @@ export function HistoryHero({
       />
       <div className="relative grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8 lg:p-7">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-accent-ink">
+          <p
+            data-history-range
+            className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-accent-ink"
+          >
             <BarChart3 aria-hidden="true" size={12} />
             {rangeLabel}
           </p>
@@ -143,13 +241,9 @@ export function HistoryHero({
                         showDurationDays,
                       ),
                     }}
-                    components={{
-                      time: (
-                        <span className="font-mono font-bold tracking-tighter" />
-                      ),
-                    }}
+                    components={{ time: timeMarkup }}
                   />
-                ) : filter === "today" ? (
+                ) : selection.kind === "day" && selection.offset === 0 ? (
                   <Trans
                     t={t}
                     i18nKey="<time>{{duration}}</time> played today"
@@ -159,11 +253,31 @@ export function HistoryHero({
                         showDurationDays,
                       ),
                     }}
-                    components={{
-                      time: (
-                        <span className="font-mono font-bold tracking-tighter" />
+                    components={{ time: timeMarkup }}
+                  />
+                ) : selection.kind === "day" && range ? (
+                  <Trans
+                    t={t}
+                    i18nKey="<time>{{duration}}</time> played<br/>on {{date}}"
+                    values={{
+                      duration: formatDuration(
+                        rangeStats.totalSeconds,
+                        showDurationDays,
+                      ),
+                      date: new Date(range.fromMs).toLocaleDateString(
+                        appLocale(),
+                        {
+                          weekday: "long",
+                          month: "short",
+                          day: "numeric",
+                          ...(new Date(range.fromMs).getFullYear() !==
+                          new Date(nowMs).getFullYear()
+                            ? { year: "numeric" }
+                            : {}),
+                        },
                       ),
                     }}
+                    components={{ time: timeMarkup, br: <br /> }}
                   />
                 ) : (
                   <Trans
@@ -176,59 +290,62 @@ export function HistoryHero({
                         showDurationDays,
                       ),
                     }}
-                    components={{
-                      time: (
-                        <span className="font-mono font-bold tracking-tighter" />
-                      ),
-                      br: <br />,
-                    }}
+                    components={{ time: timeMarkup, br: <br /> }}
                   />
                 )}
               </h1>
               {hasSessions ? (
-                <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
-                  <Fact
-                    value={String(rangeStats.sessionCount)}
-                    unit={t("sessions", { count: rangeStats.sessionCount })}
-                  />
-                  <Fact
-                    label={t("average")}
-                    value={formatDuration(
-                      rangeStats.averageSeconds,
-                      showDurationDays,
-                    )}
-                  />
-                  <Fact
-                    label={t("current streak")}
-                    value={t("{{count}} days", {
-                      count: allTimeStats.currentStreakDays,
-                    })}
-                  />
-                  {firstSessionMs !== null ? (
+                <>
+                  <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                     <Fact
-                      label={t("first session")}
-                      value={new Date(firstSessionMs).toLocaleDateString(
-                        appLocale(),
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        },
+                      value={String(rangeStats.sessionCount)}
+                      unit={t("sessions", { count: rangeStats.sessionCount })}
+                    />
+                    <Fact
+                      label={t("average")}
+                      value={formatDuration(
+                        rangeStats.averageSeconds,
+                        showDurationDays,
                       )}
                     />
+                    <Fact
+                      label={t("current streak")}
+                      value={t("{{count}} days", {
+                        count: allTimeStats.currentStreakDays,
+                      })}
+                    />
+                    {firstSessionMs !== null ? (
+                      <Fact
+                        label={t("first session")}
+                        value={new Date(firstSessionMs).toLocaleDateString(
+                          appLocale(),
+                          {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )}
+                      />
+                    ) : null}
+                  </p>
+                  {comparison && comparison.previousSeconds > 0 ? (
+                    <ComparisonLine
+                      seconds={rangeStats.totalSeconds}
+                      comparison={comparison}
+                    />
                   ) : null}
-                </p>
+                </>
               ) : null}
             </>
           ) : (
             <>
               <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text sm:text-[42px]">
-                {filter === "all"
+                {selection.kind === "all"
                   ? t("Nothing played yet")
                   : t("Nothing played in this range")}
               </h1>
               <p className="mt-3 text-sm text-text-muted">
-                {filter === "all"
+                {selection.kind === "all"
                   ? t("Start a tracked game and your first session lands here.")
                   : t("Pick a wider range to see your sessions.")}
               </p>
@@ -239,23 +356,79 @@ export function HistoryHero({
             aria-label={t("Range")}
             className="mt-5 flex flex-wrap gap-1.5"
           >
-            {historyFilters().map((entry) => (
+            {chips.map((chip) =>
+              selection.kind === chip.kind && selection.kind !== "all" ? (
+                <span key={chip.kind} className="contents">
+                  {stepper(rangeLabel, {
+                    "data-chip": chip.kind,
+                    title:
+                      selection.offset !== 0
+                        ? t("Back to the current period")
+                        : undefined,
+                    onClick: () =>
+                      pick({ kind: chip.kind, offset: 0 } as HistorySelection),
+                  })}
+                </span>
+              ) : (
+                <button
+                  key={chip.kind}
+                  type="button"
+                  data-chip={chip.kind}
+                  aria-pressed={selection.kind === chip.kind}
+                  onClick={() =>
+                    pick(
+                      chip.kind === "all"
+                        ? { kind: "all" }
+                        : { kind: chip.kind, offset: 0 },
+                    )
+                  }
+                  className={chipClass(selection.kind === chip.kind)}
+                >
+                  {chip.label}
+                </button>
+              ),
+            )}
+            {onChip ? (
               <button
-                key={entry.id}
+                ref={pickRef}
                 type="button"
-                aria-pressed={filter === entry.id}
-                onClick={() => onFilterChange(entry.id)}
-                className={clsx(
-                  "rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-                  filter === entry.id
-                    ? "border-accent bg-accent text-accent-fg shadow-sm"
-                    : "border-border bg-bg/50 text-text-muted hover:border-text-faint hover:text-text",
-                )}
+                aria-haspopup="dialog"
+                aria-expanded={pickerOpen}
+                onClick={() => setPickerOpen((open) => !open)}
+                className={chipClass(false)}
               >
-                {entry.label}
+                <CalendarDays aria-hidden="true" size={14} />
+                {t("Pick dates")}
               </button>
-            ))}
+            ) : (
+              stepper(
+                <>
+                  <CalendarDays aria-hidden="true" size={14} />
+                  {rangeLabel}
+                </>,
+                {
+                  ref: pickRef,
+                  title: t("Pick dates"),
+                  "aria-haspopup": "dialog",
+                  "aria-expanded": pickerOpen,
+                  onClick: () => setPickerOpen((open) => !open),
+                },
+              )
+            )}
           </div>
+          {pickerOpen ? (
+            <HistoryDatePicker
+              anchorRef={pickRef}
+              selection={selection}
+              nowMs={nowMs}
+              firstSessionMs={firstSessionMs}
+              historyDaily={historyDaily}
+              showDurationDays={showDurationDays}
+              practice={practice}
+              onPick={pick}
+              onClose={() => setPickerOpen(false)}
+            />
+          ) : null}
         </div>
         {highlights.length > 0 ? (
           <ul
@@ -274,8 +447,74 @@ export function HistoryHero({
             ))}
           </ul>
         ) : null}
+        {firstSessionMs !== null ? (
+          <HistoryTimelineStrip
+            historyDaily={historyDaily}
+            firstSessionMs={firstSessionMs}
+            nowMs={nowMs}
+            range={range}
+            describe={describeStrip}
+            onPick={(span) =>
+              onSelectionChange(
+                historySelectionFromRange(
+                  span.fromMs,
+                  span.toMs,
+                  nowMs,
+                  firstSessionMs,
+                ),
+              )
+            }
+          />
+        ) : null}
       </div>
     </section>
+  );
+}
+
+/* More or less than the period before, in the muted text colour: more
+   playtime is not better or worse, so no green or red. */
+function ComparisonLine({
+  seconds,
+  comparison,
+}: {
+  seconds: number;
+  comparison: HistoryComparison;
+}) {
+  const change =
+    (seconds - comparison.previousSeconds) / comparison.previousSeconds;
+  const percent = new Intl.NumberFormat(appLocale(), {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(Math.abs(change));
+  const rounded = Math.round(change * 100);
+  const Icon = rounded > 0 ? TrendingUp : rounded < 0 ? TrendingDown : Minus;
+  const strong = <span className="font-mono font-semibold text-text" />;
+  return (
+    <p
+      data-history-compare
+      className="mt-1.5 flex items-center gap-1.5 text-sm text-text-muted"
+    >
+      <Icon aria-hidden="true" size={15} className="shrink-0 text-text" />
+      <span>
+        {rounded === 0 ? (
+          t("About as much as {{period}}", { period: comparison.label })
+        ) : rounded > 0 ? (
+          <Trans
+            t={t}
+            i18nKey="<b>{{percent}}</b> more than {{period}}"
+            values={{ percent, period: comparison.label }}
+            components={{ b: strong }}
+          />
+        ) : (
+          <Trans
+            t={t}
+            i18nKey="<b>{{percent}}</b> less than {{period}}"
+            values={{ percent, period: comparison.label }}
+            components={{ b: strong }}
+          />
+        )}
+      </span>
+    </p>
   );
 }
 
@@ -324,7 +563,7 @@ function highlightCopy(
             <Em>{formatDuration(highlight.seconds, showDurationDays)}</Em>
           </>
         ),
-        title: t("Open the activity calendar"),
+        title: t("Show these days"),
       };
     case "mostPlayed":
       return {
@@ -347,7 +586,7 @@ function highlightCopy(
             <Em>{t("{{count}} games", { count: highlight.gameCount })}</Em>
           </>
         ),
-        title: t("Open the activity calendar"),
+        title: t("Show this day"),
       };
     case "mostSessions":
       return {
@@ -399,6 +638,7 @@ function HighlightCard({
     <button
       type="button"
       title={copy.title}
+      data-highlight={highlight.kind}
       onClick={onClick}
       className="grid h-full w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-3 rounded-xl border border-border/90 bg-bg/60 p-3 text-left backdrop-blur-sm transition hover:-translate-y-px hover:border-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
     >
