@@ -345,8 +345,10 @@
   );
 }
 
+/* Backwards, not both: an animation that keeps its end state holds the image
+   on its own GPU layer, and WebView2 draws that layer softer for good. */
 .library-hero-art {
-  animation: hero-art-in 700ms ease-out both;
+  animation: hero-art-in 700ms ease-out backwards;
 }
 
 @keyframes hero-art-in {
@@ -1090,9 +1092,10 @@ select {
    on the left like the library banner, plus a faint accent glow when there is
    no art to show. */
 /* Opacity only: the image may carry Tailwind's scale and blur when a cover
-   stands in for wide art, and a transform or filter here would override them. */
+   stands in for wide art, and a transform or filter here would override them.
+   Backwards for the same reason as .library-hero-art: no blur afterwards. */
 .history-hero-art {
-  animation: history-hero-art-in 700ms ease-out both;
+  animation: history-hero-art-in 700ms ease-out backwards;
 }
 
 @keyframes history-hero-art-in {
