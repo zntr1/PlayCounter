@@ -9,6 +9,7 @@ import {
   Flag,
   FolderOpen,
   Gamepad2,
+  Hourglass,
   Info,
   Loader2,
   Medal,
@@ -66,6 +67,8 @@ import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
 import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
+import { Figure, Panel, SkeletonBar, SourceTag } from "./detailsPanels";
+import { HowLongToBeatTab } from "./HowLongToBeatTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
@@ -104,62 +107,13 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
   };
 }
 
-export type DetailsTab = "general" | "files" | "achievements";
+export type DetailsTab = "general" | "howLongToBeat" | "files" | "achievements";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString(appLocale());
-}
-
-function Panel({
-  title,
-  icon: Icon,
-  action,
-  children,
-}: {
-  title: string;
-  icon: LucideIcon;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-border bg-bg p-4">
-      <header className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
-          <Icon size={15} className="text-accent-ink" />
-          {title}
-        </h3>
-        {action}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function Figure({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-accent/20 bg-accent-tint text-accent-ink">
-        <Icon size={17} />
-      </span>
-      <div className="min-w-0">
-        <div className="text-[11px] font-medium text-text-faint">{label}</div>
-        <div className="truncate font-mono text-base font-semibold text-text">
-          {value}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function Row({
@@ -190,18 +144,6 @@ function Row({
   );
 }
 
-/* Placeholders for the IGDB parts while they load: a pulsing block the size
-   of the thing that is coming, so the dialog does not jump once the request
-   lands. */
-function SkeletonBar({ className }: { className: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={`animate-pulse rounded bg-surface-hover motion-reduce:animate-none ${className}`}
-    />
-  );
-}
-
 function Chips({ values }: { values: readonly string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -214,19 +156,6 @@ function Chips({ values }: { values: readonly string[] }) {
         </span>
       ))}
     </div>
-  );
-}
-
-function SourceTag({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-muted transition hover:border-accent/40 hover:text-text"
-    >
-      {label}
-      <ExternalLink size={12} />
-    </button>
   );
 }
 
@@ -368,6 +297,7 @@ export function GameDetailsDialog({
   );
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
     general: null,
+    howLongToBeat: null,
     files: null,
     achievements: null,
   });
@@ -530,6 +460,7 @@ export function GameDetailsDialog({
 
   const tabs: Array<{ id: DetailsTab; label: string; icon: LucideIcon }> = [
     { id: "general", label: t("General"), icon: Info },
+    { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
     { id: "files", label: t("Files"), icon: FolderOpen },
     ...(gameAchievementSources.length
       ? [
@@ -1192,6 +1123,14 @@ export function GameDetailsDialog({
       >
         {tab === "general" ? (
           generalTab
+        ) : tab === "howLongToBeat" ? (
+          <HowLongToBeatTab
+            game={game}
+            details={details}
+            sessions={sessions}
+            demo={demo}
+            onOpenIgdb={() => void openOnIgdb()}
+          />
         ) : tab === "files" ? (
           filesTab
         ) : (

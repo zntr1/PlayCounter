@@ -4,7 +4,7 @@ import type {
   LibraryProviderId,
   Session,
 } from "@playcounter/shared";
-import { playthroughSeconds } from "./personalLibrary";
+import { playthroughSeconds, type GameJournal } from "./personalLibrary";
 
 /* HowLongToBeat ──────────────────────────────────────────────────────────────
    HowLongToBeat has no public API, so PlayCounter never talks to it. The
@@ -35,27 +35,27 @@ export function runSessions(
 }
 
 /**
- * The hours "time left" measures: only the active playthrough's own. The
+ * The hours of one playthrough: a named one's own sessions and archive. The
  * default playthrough gets everything the named ones do not have, so
  * imported launcher hours and manual adjustments count for it (unlike
  * defaultPlaythroughTime, which leaves them out on purpose).
  */
 export function runSeconds({
-  activePlaythroughId,
+  playthroughId,
   playthroughIds,
   gameSessions,
   archivedPlaythroughSeconds,
   gameTotalSeconds,
 }: {
-  activePlaythroughId: string | null;
+  playthroughId: string | null;
   playthroughIds: readonly string[];
   gameSessions: readonly Session[];
   archivedPlaythroughSeconds: Record<string, number>;
   gameTotalSeconds: number;
 }) {
-  if (activePlaythroughId)
+  if (playthroughId)
     return playthroughSeconds(
-      activePlaythroughId,
+      playthroughId,
       gameSessions,
       archivedPlaythroughSeconds,
     );
@@ -67,45 +67,156 @@ export function runSeconds({
   return Math.max(0, gameTotalSeconds - namedSeconds);
 }
 
+/** IGDB's three paces, shown with HowLongToBeat's names: Main story,
+ *  Main + extras, Completionist. */
+export const PACES = ["hastily", "normally", "completely"] as const;
+export type Pace = (typeof PACES)[number];
+
+const PACE_SECONDS = {
+  hastily: "hastilySeconds",
+  normally: "normallySeconds",
+  completely: "completelySeconds",
+} as const satisfies Record<Pace, keyof GameTimeToBeat>;
+
+/** The paces IGDB has a number for, shortest first. */
+export function timeToBeatMarks(time: GameTimeToBeat | undefined) {
+  return PACES.flatMap((pace) => {
+    const seconds = time?.[PACE_SECONDS[pace]];
+    return typeof seconds === "number" && seconds > 0
+      ? [{ pace, seconds }]
+      : [];
+  }).sort((left, right) => left.seconds - right.seconds);
+}
+
 export type TimeToBeatProgress =
   | {
       state: "playing";
       playedSeconds: number;
-      averageSeconds: number;
+      nextPace: Pace;
       leftSeconds: number;
     }
-  | {
-      state: "playing-past";
-      playedSeconds: number;
-      averageSeconds: number;
-      overSeconds: number;
-    }
-  | { state: "finished"; playedSeconds: number; averageSeconds: number };
+  | { state: "past-all"; playedSeconds: number }
+  | { state: "finished"; playedSeconds: number; averageSeconds?: number };
 
-/** A run against IGDB's middle number ("normally"). Null without it. */
+/** A run against the three marks: how far to the next one, or how it ended
+ *  against the middle one. Null without any numbers. */
 export function timeToBeatProgress(
   time: GameTimeToBeat | undefined,
   playedSeconds: number,
   finished: boolean,
 ): TimeToBeatProgress | null {
-  const averageSeconds = time?.normallySeconds;
-  if (!averageSeconds || averageSeconds <= 0) return null;
+  const marks = timeToBeatMarks(time);
+  if (marks.length === 0) return null;
   const played = Math.max(0, playedSeconds);
-  if (finished)
-    return { state: "finished", playedSeconds: played, averageSeconds };
-  return played < averageSeconds
+  if (finished) {
+    const average = time?.normallySeconds;
+    return average && average > 0
+      ? { state: "finished", playedSeconds: played, averageSeconds: average }
+      : { state: "finished", playedSeconds: played };
+  }
+  const next = marks.find((mark) => played < mark.seconds);
+  return next
     ? {
         state: "playing",
         playedSeconds: played,
-        averageSeconds,
-        leftSeconds: averageSeconds - played,
+        nextPace: next.pace,
+        leftSeconds: next.seconds - played,
       }
-    : {
-        state: "playing-past",
-        playedSeconds: played,
-        averageSeconds,
-        overSeconds: played - averageSeconds,
-      };
+    : { state: "past-all", playedSeconds: played };
+}
+
+export type HltbRun = {
+  /** Null for the default playthrough. */
+  id: string | null;
+  /** Null for the default playthrough: the UI names it in the app's language. */
+  name: string | null;
+  seconds: number;
+  finished: boolean;
+  /** A named playthrough's finish date; the default one's last session. */
+  finishedAt?: string;
+  /** New sessions count towards this playthrough. */
+  active: boolean;
+  sessions: Session[];
+};
+
+/**
+ * Every playthrough "Add your time" can be about. The default one has no
+ * finish date of its own: it counts as finished while the game's status is
+ * Finished, on the day of its last session. It is left out when it has no
+ * hours, is not active and named playthroughs exist.
+ */
+export function hltbRuns({
+  journal,
+  gameSessions,
+  archivedPlaythroughSeconds,
+  gameTotalSeconds,
+}: {
+  journal: GameJournal;
+  gameSessions: readonly Session[];
+  archivedPlaythroughSeconds: Record<string, number>;
+  gameTotalSeconds: number;
+}): HltbRun[] {
+  const named = journal.playthroughs.map(
+    (playthrough): HltbRun => ({
+      id: playthrough.id,
+      name: playthrough.name,
+      seconds: playthroughSeconds(
+        playthrough.id,
+        gameSessions,
+        archivedPlaythroughSeconds,
+      ),
+      finished: Boolean(playthrough.completedAt),
+      finishedAt: playthrough.completedAt ?? undefined,
+      active: journal.activePlaythroughId === playthrough.id,
+      sessions: runSessions(gameSessions, playthrough.id),
+    }),
+  );
+  const sessions = runSessions(gameSessions, null);
+  const seconds = runSeconds({
+    playthroughId: null,
+    playthroughIds: journal.playthroughs.map(({ id }) => id),
+    gameSessions,
+    archivedPlaythroughSeconds,
+    gameTotalSeconds,
+  });
+  const finished = journal.status === "finished" && seconds > 0;
+  const defaultRun: HltbRun = {
+    id: null,
+    name: null,
+    seconds,
+    finished,
+    finishedAt: finished ? runDates(sessions).lastPlayedAt : undefined,
+    active: journal.activePlaythroughId === null,
+    sessions,
+  };
+  return named.length === 0 || seconds > 0 || defaultRun.active
+    ? [defaultRun, ...named]
+    : named;
+}
+
+function lastActivityMs(run: HltbRun) {
+  const times = [runDates(run.sessions).lastPlayedAt, run.finishedAt]
+    .map((value) => (value ? Date.parse(value) : Number.NaN))
+    .filter(Number.isFinite);
+  return times.length > 0 ? Math.max(...times) : Number.NEGATIVE_INFINITY;
+}
+
+/**
+ * The playthrough the tab starts on: the one played or finished last. That is
+ * the active one while you play it, and the one you just finished right after
+ * finishing it, although finishing makes the default playthrough active again.
+ */
+export function preferredRun(runs: readonly HltbRun[]) {
+  let best: HltbRun | undefined;
+  let bestMs = Number.NEGATIVE_INFINITY;
+  for (const run of runs) {
+    const ms = lastActivityMs(run);
+    if (ms > bestMs || (ms === bestMs && run.active)) {
+      best = run;
+      bestMs = ms;
+    }
+  }
+  return best ?? runs.find((run) => run.active) ?? runs[0];
 }
 
 /** HowLongToBeat's form asks for hours, minutes and seconds separately. */
