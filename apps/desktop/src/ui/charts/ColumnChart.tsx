@@ -4,12 +4,16 @@ import type { HistoryBucket } from "../../historyStats";
 import { formatDuration } from "../components";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
 import { useElementWidth } from "./chartUtils";
+import { gameColor } from "./gameColors";
 import { appLocale, getT } from "../../i18n";
 
 const t = getT("common");
 
 const defaultChartHeight = 230;
 const margin = { top: 10, right: 12, bottom: 34, left: 58 };
+/** Surface between two stacked parts of a bar. */
+const segmentGap = 2;
+const otherKey = "";
 
 function niceCeiling(value: number) {
   if (value <= 0) return 1;
@@ -41,33 +45,53 @@ function roundedTopPath(x: number, y: number, width: number, height: number) {
   return `M ${x} ${bottom} L ${x} ${y + radius} Q ${x} ${y} ${x + radius} ${y} L ${x + width - radius} ${y} Q ${x + width} ${y} ${x + width} ${y + radius} L ${x + width} ${bottom} Z`;
 }
 
+/** A bar's parts from the bottom up: the colored games in the legend's
+ *  order, then everything else as one grey part on top. */
+function barParts(bucket: HistoryBucket, stackOrder: readonly string[]) {
+  const parts = stackOrder
+    .map((key) => ({
+      key,
+      seconds: bucket.games.find((game) => game.key === key)?.seconds ?? 0,
+    }))
+    .filter((part) => part.seconds > 0);
+  const rest =
+    bucket.seconds - parts.reduce((sum, part) => sum + part.seconds, 0);
+  if (rest > 0) parts.push({ key: otherKey, seconds: rest });
+  return parts;
+}
+
+/* Playtime per bucket, each bar stacked by game: the colored games of the
+   legend at the bottom, the rest grey on top. */
 export function ColumnChart({
   buckets,
   showDurationDays,
   resolveGameName,
-  resolveGameCover,
+  colorSlots,
+  highlightKey,
   className,
   height = defaultChartHeight,
 }: {
   buckets: HistoryBucket[];
   showDurationDays: boolean;
   resolveGameName: (key: string | null) => string | null;
-  resolveGameCover: (key: string | null) => string | null;
+  /** The legend's games, most played first, with their color slot. */
+  colorSlots: ReadonlyMap<string, number>;
+  /** A game lit from the legend: the other parts fade. */
+  highlightKey?: string | null;
   className?: string;
   height?: number;
 }) {
   const [containerRef, width] = useElementWidth<HTMLDivElement>();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [expandedCoverIndex, setExpandedCoverIndex] = useState<number | null>(
-    null,
-  );
   const targetRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tooltip = useChartTooltip();
+  const stackOrder = useMemo(() => [...colorSlots.keys()], [colorSlots]);
   const maxBucket = Math.max(0, ...buckets.map((bucket) => bucket.seconds));
   const scale = useMemo(() => axis(maxBucket), [maxBucket]);
   const plotWidth = Math.max(0, width - margin.left - margin.right);
   const plotHeight = height - margin.top - margin.bottom;
   const bandWidth = buckets.length > 0 ? plotWidth / buckets.length : 0;
+  const barWidth = Math.min(24, Math.max(2, bandWidth * 0.62));
   const widestLabel = Math.min(
     120,
     Math.max(38, ...buckets.map((bucket) => bucket.label.length * 6.5)),
@@ -76,23 +100,47 @@ export function ColumnChart({
     1,
     Math.ceil(widestLabel / Math.max(1, bandWidth)),
   );
+  const yOf = (seconds: number) =>
+    margin.top + plotHeight * (1 - seconds / scale.maxSeconds);
+  const nameOf = (key: string) =>
+    key === otherKey ? t("Other") : (resolveGameName(key) ?? t("Unknown game"));
 
-  const tooltipContent = (bucket: HistoryBucket) => (
-    <div className="grid gap-1">
-      <div className="font-semibold">{bucket.tooltip}</div>
-      <div>{formatDuration(bucket.seconds, showDurationDays)}</div>
-      <div className="text-text-muted">
-        {t("{{count}} total sessions", { count: bucket.sessionCount })}
-      </div>
-      {bucket.topGameKey ? (
-        <div className="text-text-muted">
-          {t("Most played: {{game}}", {
-            game: resolveGameName(bucket.topGameKey) ?? t("Unknown game"),
-          })}
+  const tooltipContent = (bucket: HistoryBucket) => {
+    const games = bucket.games.slice(0, 7);
+    const hidden = bucket.games.length - games.length;
+    return (
+      <div className="grid gap-1">
+        <div className="font-semibold">{bucket.tooltip}</div>
+        <div className="font-mono font-bold">
+          {formatDuration(bucket.seconds, showDurationDays)}
         </div>
-      ) : null}
-    </div>
-  );
+        <div className="text-text-muted">
+          {t("{{count}} total sessions", { count: bucket.sessionCount })}
+        </div>
+        {games.map((game) => (
+          <div
+            key={game.key}
+            className="grid grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-2"
+          >
+            <span
+              aria-hidden="true"
+              className="h-[3px] w-2.5 rounded-full"
+              style={{ background: gameColor(colorSlots.get(game.key)) }}
+            />
+            <span className="truncate text-text-muted">{nameOf(game.key)}</span>
+            <span className="font-mono font-semibold">
+              {formatDuration(game.seconds, showDurationDays)}
+            </span>
+          </div>
+        ))}
+        {hidden > 0 ? (
+          <div className="text-text-muted">
+            {t("{{count}} more games", { count: hidden })}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   function focusIndex(index: number) {
     const next = Math.max(0, Math.min(buckets.length - 1, index));
@@ -111,8 +159,7 @@ export function ColumnChart({
             className="block overflow-visible"
           >
             {scale.ticks.map((tick) => {
-              const y =
-                margin.top + plotHeight * (1 - tick.seconds / scale.maxSeconds);
+              const y = yOf(tick.seconds);
               return (
                 <g key={tick.seconds}>
                   <line
@@ -138,30 +185,62 @@ export function ColumnChart({
             })}
             {buckets.map((bucket, index) => {
               if (bucket.seconds <= 0) return null;
-              const height = Math.max(
-                1,
-                (bucket.seconds / scale.maxSeconds) * plotHeight,
-              );
-              const barWidth = Math.min(24, Math.max(2, bandWidth * 0.62));
               const x =
                 margin.left + index * bandWidth + (bandWidth - barWidth) / 2;
-              const y = margin.top + plotHeight - height;
+              const parts = barParts(bucket, stackOrder);
+              let below = 0;
               return (
-                <path
+                <g
                   key={index}
-                  d={roundedTopPath(x, y, barWidth, height)}
-                  fill="rgb(var(--color-accent))"
-                  opacity={activeIndex === index ? 1 : 0.78}
-                  className="chart-bar-grow transition-opacity"
+                  className="chart-bar-grow"
                   style={{
                     transformOrigin: `${x + barWidth / 2}px ${margin.top + plotHeight}px`,
                     animationDelay: `${index * 12}ms`,
                   }}
-                />
+                  opacity={activeIndex === index ? 1 : 0.9}
+                >
+                  {parts.map((part, partIndex) => {
+                    const bottom =
+                      yOf(below) - (partIndex > 0 ? segmentGap : 0);
+                    const top = yOf(below + part.seconds);
+                    below += part.seconds;
+                    const partHeight = bottom - top;
+                    if (partHeight < 1) return null;
+                    const last = partIndex === parts.length - 1;
+                    return (
+                      <path
+                        key={part.key || "other"}
+                        d={
+                          last
+                            ? roundedTopPath(x, top, barWidth, partHeight)
+                            : `M ${x} ${top} h ${barWidth} v ${partHeight} h ${-barWidth} Z`
+                        }
+                        fill={gameColor(
+                          part.key === otherKey
+                            ? undefined
+                            : colorSlots.get(part.key),
+                        )}
+                        opacity={
+                          highlightKey === undefined ||
+                          highlightKey === null ||
+                          highlightKey === part.key
+                            ? 1
+                            : 0.2
+                        }
+                        className="transition-opacity"
+                      />
+                    );
+                  })}
+                </g>
               );
             })}
-            {buckets.map((bucket, index) =>
-              index % labelEvery === 0 || index === buckets.length - 1 ? (
+            {buckets.map((bucket, index) => {
+              const last = index === buckets.length - 1;
+              const shown =
+                last ||
+                (index % labelEvery === 0 &&
+                  buckets.length - 1 - index >= labelEvery);
+              return shown ? (
                 <text
                   key={index}
                   x={margin.left + index * bandWidth + bandWidth / 2}
@@ -173,83 +252,9 @@ export function ColumnChart({
                 >
                   {bucket.label}
                 </text>
-              ) : null,
-            )}
+              ) : null;
+            })}
           </svg>
-          {bandWidth >= 20 ? (
-            <div
-              className="pointer-events-none absolute inset-0"
-              aria-hidden="true"
-            >
-              {buckets.map((bucket, index) => {
-                const coverUrl = resolveGameCover(bucket.topGameKey);
-                if (!coverUrl || bucket.seconds <= 0) return null;
-                const barHeight = Math.max(
-                  1,
-                  (bucket.seconds / scale.maxSeconds) * plotHeight,
-                );
-                const barWidth = Math.min(24, Math.max(2, bandWidth * 0.62));
-                const centerX = margin.left + index * bandWidth + bandWidth / 2;
-                const roomy = bandWidth >= 68;
-                const coverWidth = roomy
-                  ? 46
-                  : Math.max(12, Math.min(18, bandWidth - 8));
-                const coverHeight = roomy ? 62 : Math.round(coverWidth * 1.4);
-                const placeRight = index < buckets.length - 1;
-                const requestedLeft = roomy
-                  ? placeRight
-                    ? centerX + barWidth / 2 + 9
-                    : centerX - barWidth / 2 - coverWidth - 9
-                  : centerX - coverWidth / 2;
-                const left = Math.max(
-                  margin.left,
-                  Math.min(width - margin.right - coverWidth, requestedLeft),
-                );
-                const top = Math.max(
-                  margin.top + 2,
-                  Math.min(
-                    margin.top + plotHeight - coverHeight,
-                    margin.top +
-                      plotHeight -
-                      barHeight -
-                      (roomy ? 12 : coverHeight + 4),
-                  ),
-                );
-                return (
-                  <span
-                    key={index}
-                    className={clsx(
-                      "chart-game-cover absolute",
-                      !roomy && "chart-game-cover-small",
-                      expandedCoverIndex === index && "z-20",
-                    )}
-                    style={{
-                      left,
-                      top,
-                      width: coverWidth,
-                      height: coverHeight,
-                      animationDelay: `${index * 90}ms`,
-                    }}
-                  >
-                    <span
-                      className={clsx(
-                        "chart-game-cover-zoom relative block h-full w-full origin-bottom transition-transform duration-200 ease-out motion-reduce:transition-none",
-                        expandedCoverIndex === index
-                          ? "scale-[1.7]"
-                          : "scale-100",
-                      )}
-                    >
-                      <img
-                        src={coverUrl}
-                        alt=""
-                        className="h-full w-full rounded-[3px] object-cover"
-                      />
-                    </span>
-                  </span>
-                );
-              })}
-            </div>
-          ) : null}
           <div
             className="absolute"
             style={{
@@ -296,22 +301,14 @@ export function ColumnChart({
                 style={{ left: index * bandWidth, width: bandWidth }}
                 onPointerEnter={(event) => {
                   setActiveIndex(index);
-                  setExpandedCoverIndex(index);
                   tooltip.show(event.currentTarget, tooltipContent(bucket));
                 }}
-                onPointerLeave={() => {
-                  setExpandedCoverIndex(null);
-                  tooltip.hide();
-                }}
+                onPointerLeave={() => tooltip.hide()}
                 onFocus={(event) => {
                   setActiveIndex(index);
-                  setExpandedCoverIndex(index);
                   tooltip.show(event.currentTarget, tooltipContent(bucket));
                 }}
-                onBlur={() => {
-                  setExpandedCoverIndex(null);
-                  tooltip.hide();
-                }}
+                onBlur={() => tooltip.hide()}
                 onKeyDown={(event) => {
                   if (event.key === "ArrowRight") {
                     event.preventDefault();

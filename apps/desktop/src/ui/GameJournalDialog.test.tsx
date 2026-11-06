@@ -691,3 +691,26 @@ it("offers the playthrough menu in Now Playing even before a game has playthroug
     document.querySelector('[aria-label="New playthrough name"]'),
   ).not.toBeNull();
 });
+
+// docs/history-ranges-plan.md 34: the game goes to the search box as a chip.
+it("opens My History filtered to the game, as a chip rather than search text", async () => {
+  const session = {
+    ...game,
+    id: 9,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  useAppStore.setState({ recentSessions: [session] });
+  useAppStore
+    .getState()
+    .openGameJournal({ game, tab: "playthroughs", playthroughId: null });
+  await act(() => root.render(<GameJournalHost />));
+  await click("Show full history");
+  const state = useAppStore.getState();
+  expect(state.activeView).toBe("history");
+  expect(state.historyGameKey).not.toBeNull();
+  expect(state.historyGameName).toBe("Campaign");
+  expect(state.historyQuery).toBe("");
+});

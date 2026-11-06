@@ -306,3 +306,30 @@ it("keeps a launch in progress locked when switching to another banner", async (
   await act(() => play.click());
   expect(launchGame).toHaveBeenCalledOnce();
 });
+
+// docs/history-ranges-plan.md 34: the game goes to the search box as a chip.
+it("opens My History filtered to the banner's game, as a chip rather than search text", async () => {
+  useAppStore.setState({
+    recentSessions: [
+      {
+        id: 1,
+        gameId: -1,
+        source: "custom",
+        gameName: "Library favorite",
+        exeName: "game-1.exe",
+        startedAt: "2026-09-20T10:00:00Z",
+        endedAt: "2026-09-20T11:00:00Z",
+        durationSeconds: 3600,
+      },
+    ],
+  });
+  useAppStore.getState().setViewShowHero("achievements", true);
+  await act(() => root.render(<App />));
+  expect(banner()?.querySelector("h2")?.textContent).toBe("Library favorite");
+  await menuItem("Show history");
+  const state = useAppStore.getState();
+  expect(state.activeView).toBe("history");
+  expect(state.historyGameKey).not.toBeNull();
+  expect(state.historyGameName).toBe("Library favorite");
+  expect(state.historyQuery).toBe("");
+});

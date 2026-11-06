@@ -2,12 +2,20 @@ import type { Session } from "@playcounter/shared";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   bucketSessions,
+  canStepHistorySelection,
+  cumulativeSeconds,
   dailyTotals,
+  gameSeasons,
   getSessionGameKey,
   groupSessionsByDay,
+  historyBucketUnits,
   historyHighlights,
-  historyRange,
+  historySelectionFromRange,
   playHabits,
+  previousHistoryRange,
+  rangeSeconds,
+  resolveHistorySelection,
+  type HistorySelection,
   quantileLevel,
   quantileThresholds,
   sessionMarkers,
@@ -48,34 +56,40 @@ function session(
   };
 }
 
+const today = (nowMs: number) =>
+  resolveHistorySelection({ kind: "day", offset: 0 }, nowMs);
+
 describe("calendar-safe buckets", () => {
   it("keeps range edges at local midnight across spring DST", () => {
     const nowMs = new Date("2026-03-30T12:00:00+02:00").getTime();
-    const range = historyRange("week", nowMs)!;
+    const range = resolveHistorySelection({ kind: "last7", offset: 0 }, nowMs)!;
     expect(new Date(range.fromMs).getHours()).toBe(0);
     expect(new Date(range.toMs).getHours()).toBe(0);
 
     const transitionDay = new Date("2026-03-29T12:00:00+02:00").getTime();
-    const buckets = bucketSessions([], "today", transitionDay);
+    const buckets = bucketSessions([], today(transitionDay), transitionDay);
     expect(buckets.compact).toHaveLength(23);
     expect(buckets.full).toHaveLength(23);
   });
 
   it("keeps range edges at local midnight across fall DST", () => {
     const nowMs = new Date("2026-10-26T12:00:00+01:00").getTime();
-    const range = historyRange("month", nowMs)!;
+    const range = resolveHistorySelection(
+      { kind: "last30", offset: 0 },
+      nowMs,
+    )!;
     expect(new Date(range.fromMs).getHours()).toBe(0);
     expect(new Date(range.toMs).getHours()).toBe(0);
 
     const transitionDay = new Date("2026-10-25T12:00:00+01:00").getTime();
-    const buckets = bucketSessions([], "today", transitionDay);
+    const buckets = bucketSessions([], today(transitionDay), transitionDay);
     expect(buckets.compact).toHaveLength(25);
     expect(buckets.full).toHaveLength(25);
   });
 
   it("shows each hour in the compact Today chart", () => {
     const nowMs = new Date("2026-08-09T12:00:00+02:00").getTime();
-    const buckets = bucketSessions([], "today", nowMs);
+    const buckets = bucketSessions([], today(nowMs), nowMs);
 
     expect(buckets.compact).toHaveLength(24);
     expect(buckets.compact.map((bucket) => bucket.tooltip)).toEqual(
@@ -178,7 +192,7 @@ describe("range-aware aggregates", () => {
   it("clips totals, averages, longest sessions and top games", () => {
     const item = session("2026-08-07T22:00:00+02:00", 4 * 3600);
     const nowMs = new Date("2026-08-08T12:00:00+02:00").getTime();
-    const range = historyRange("today", nowMs);
+    const range = today(nowMs);
     const stats = summaryStats([item], nowMs, range);
     expect(stats.totalSeconds).toBe(7200);
     expect(stats.averageSeconds).toBe(7200);
@@ -322,7 +336,7 @@ describe("history highlights and markers", () => {
   });
 
   it("scopes the highlights to the selected range and drops what does not apply", () => {
-    const range = historyRange("week", nowMs);
+    const range = resolveHistorySelection({ kind: "last7", offset: 0 }, nowMs);
     const highlights = historyHighlights(sessions, nowMs, range, resolveGame);
     expect(highlights.map((highlight) => highlight.kind)).toEqual([
       "longestSession",
@@ -376,7 +390,7 @@ describe("play habits", () => {
     const matrix = weekdayHourMatrix(
       sessions,
       nowMs,
-      historyRange("week", nowMs),
+      resolveHistorySelection({ kind: "last7", offset: 0 }, nowMs),
     );
     expect(matrix.flat().reduce((sum, seconds) => sum + seconds, 0)).toBe(3600);
   });
@@ -407,21 +421,330 @@ describe("day grouping", () => {
 });
 
 describe("current month range", () => {
-  it("starts on the first of the month and buckets by day", () => {
+  it("starts on the first of the month and shows one bar per day", () => {
     const nowMs = Date.parse("2026-09-22T12:00:00+02:00");
-    expect(historyRange("currentMonth", nowMs)).toEqual({
+    const range = resolveHistorySelection({ kind: "month", offset: 0 }, nowMs);
+    expect(range).toEqual({
       fromMs: Date.parse("2026-09-01T00:00:00+02:00"),
       toMs: Date.parse("2026-09-23T00:00:00+02:00"),
     });
     const chart = bucketSessions(
       [session("2026-09-02T12:00:00+02:00", 3600)],
-      "currentMonth",
+      range,
       nowMs,
     );
-    expect(chart.title).toBe("This Month");
     expect(chart.full).toHaveLength(22);
-    expect(chart.compact).toHaveLength(5);
+    expect(chart.compact).toBe(chart.full);
     expect(chart.full[1].seconds).toBe(3600);
+  });
+});
+
+/* Plan: docs/history-ranges-plan.md. Today is Friday, 6 Nov 2026, 21:40 in
+   Berlin; the first session was on 1 Sep 2025. */
+describe("history ranges", () => {
+  const nowMs = Date.parse("2026-11-06T21:40:00+01:00");
+  const firstMs = Date.parse("2025-09-01T19:12:00+02:00");
+  const local = (key: string) => {
+    const [year, month, day] = key.split("-").map(Number);
+    return new Date(year, month - 1, day).getTime();
+  };
+  const days = (from: string, to: string) => ({
+    fromMs: local(from),
+    toMs: local(to),
+  });
+  const resolve = (selection: HistorySelection) =>
+    resolveHistorySelection(selection, nowMs);
+  const picked = (from: string, to: string) =>
+    historySelectionFromRange(local(from), local(to), nowMs, firstMs);
+  const canStep = (selection: HistorySelection, direction: 1 | -1) =>
+    canStepHistorySelection(selection, direction, nowMs, firstMs);
+  const before = (selection: HistorySelection) =>
+    previousHistoryRange(selection, nowMs);
+
+  // 2: This month → October 2026 → September 2026
+  it("steps This month back one month at a time", () => {
+    expect(resolve({ kind: "month", offset: 0 })).toEqual(
+      days("2026-11-01", "2026-11-07"),
+    );
+    expect(resolve({ kind: "month", offset: -1 })).toEqual(
+      days("2026-10-01", "2026-11-01"),
+    );
+    expect(resolve({ kind: "month", offset: -2 })).toEqual(
+      days("2026-09-01", "2026-10-01"),
+    );
+  });
+
+  // 2: 30 days → the 30 days before; 7 days → the 7 before; Today → Yesterday
+  it("steps 30 days, 7 days and Today by their own length", () => {
+    expect(resolve({ kind: "last30", offset: 0 })).toEqual(
+      days("2026-10-08", "2026-11-07"),
+    );
+    expect(resolve({ kind: "last30", offset: -1 })).toEqual(
+      days("2026-09-08", "2026-10-08"),
+    );
+    expect(resolve({ kind: "last7", offset: -1 })).toEqual(
+      days("2026-10-24", "2026-10-31"),
+    );
+    expect(resolve({ kind: "day", offset: -1 })).toEqual(
+      days("2026-11-05", "2026-11-06"),
+    );
+    expect(resolve({ kind: "day", offset: -2 })).toEqual(
+      days("2026-11-04", "2026-11-05"),
+    );
+    expect(resolve({ kind: "all" })).toBeNull();
+  });
+
+  // 3: › is off on the current period, ‹ when the period before ends before
+  // the first session
+  it("steps forward only up to now and back only to the first session", () => {
+    expect(canStep({ kind: "month", offset: 0 }, 1)).toBe(false);
+    expect(canStep({ kind: "month", offset: -1 }, 1)).toBe(true);
+    expect(canStep({ kind: "last30", offset: 0 }, 1)).toBe(false);
+    expect(canStep({ kind: "day", offset: 0 }, 1)).toBe(false);
+    expect(canStep({ kind: "day", offset: 0 }, -1)).toBe(true);
+    // October 2025 → September 2025 holds the first session
+    expect(canStep({ kind: "month", offset: -13 }, -1)).toBe(true);
+    // September 2025 → August 2025 is before it
+    expect(canStep({ kind: "month", offset: -14 }, -1)).toBe(false);
+    expect(canStep({ kind: "all" }, -1)).toBe(false);
+    expect(canStep({ kind: "all" }, 1)).toBe(false);
+  });
+
+  // 5: a picked range steps by its own length
+  it("steps a picked span by its length: days by days, months by months", () => {
+    const span = picked("2026-10-03", "2026-10-20");
+    expect(span).toEqual({
+      kind: "span",
+      unit: "day",
+      fromKey: "2026-10-03",
+      length: 17,
+      offset: 0,
+    });
+    expect(resolve({ ...span, offset: 1 } as HistorySelection)).toEqual(
+      days("2026-10-20", "2026-11-06"),
+    );
+    const summer = picked("2026-06-01", "2026-09-01");
+    expect(summer).toEqual({
+      kind: "span",
+      unit: "month",
+      fromKey: "2026-06-01",
+      length: 3,
+      offset: 0,
+    });
+    expect(resolve({ ...summer, offset: -1 } as HistorySelection)).toEqual(
+      days("2026-03-01", "2026-06-01"),
+    );
+  });
+
+  // 6: a pick that matches a period becomes that period
+  it("turns a pick that matches a period into that period", () => {
+    expect(picked("2026-10-01", "2026-11-01")).toEqual({
+      kind: "month",
+      offset: -1,
+    });
+    expect(picked("2026-11-01", "2026-11-07")).toEqual({
+      kind: "month",
+      offset: 0,
+    });
+    expect(picked("2026-11-02", "2026-11-07")).toEqual({
+      kind: "week",
+      offset: 0,
+    });
+    expect(picked("2026-10-26", "2026-11-02")).toEqual({
+      kind: "week",
+      offset: -1,
+    });
+    expect(picked("2026-11-04", "2026-11-05")).toEqual({
+      kind: "day",
+      offset: -2,
+    });
+    expect(picked("2025-01-01", "2026-01-01")).toEqual({
+      kind: "year",
+      offset: -1,
+    });
+    expect(picked("2026-10-08", "2026-11-07")).toEqual({
+      kind: "last30",
+      offset: 0,
+    });
+    expect(picked("2026-10-31", "2026-11-07")).toEqual({
+      kind: "last7",
+      offset: 0,
+    });
+    expect(picked("2025-09-01", "2026-11-07")).toEqual({ kind: "all" });
+  });
+
+  // 18: same length, ending where the range starts
+  it("compares with the period right before, same length", () => {
+    expect(before({ kind: "month", offset: -1 })).toEqual(
+      days("2026-09-01", "2026-10-01"),
+    );
+    expect(before({ kind: "last30", offset: 0 })).toEqual(
+      days("2026-09-08", "2026-10-08"),
+    );
+    expect(before({ kind: "day", offset: 0 })).toEqual(
+      days("2026-11-05", "2026-11-06"),
+    );
+    expect(before({ kind: "all" })).toBeNull();
+  });
+
+  // 18: a month, week or year in progress: the same days of the one before
+  it("compares a period in progress with the same days of the one before", () => {
+    expect(before({ kind: "month", offset: 0 })).toEqual(
+      days("2026-10-01", "2026-10-07"),
+    );
+    expect(before({ kind: "week", offset: 0 })).toEqual(
+      days("2026-10-26", "2026-10-31"),
+    );
+    expect(before({ kind: "year", offset: 0 })).toEqual(
+      days("2025-01-01", "2025-11-07"),
+    );
+    // 31 days of March against February: capped at February's end
+    expect(
+      previousHistoryRange(
+        { kind: "month", offset: 0 },
+        Date.parse("2026-03-31T12:00:00+02:00"),
+      ),
+    ).toEqual(days("2026-02-01", "2026-03-01"));
+  });
+
+  // 22: 1 day = hours; up to 31 days = days; up to 92 = weeks (Detailed:
+  // days); longer = months (Detailed: weeks)
+  it("picks the bar size from the range length", () => {
+    expect(historyBucketUnits(1)).toEqual({
+      overview: "hour",
+      detailed: "hour",
+    });
+    expect(historyBucketUnits(30)).toEqual({
+      overview: "day",
+      detailed: "day",
+    });
+    expect(historyBucketUnits(31)).toEqual({
+      overview: "day",
+      detailed: "day",
+    });
+    expect(historyBucketUnits(32)).toEqual({
+      overview: "week",
+      detailed: "day",
+    });
+    expect(historyBucketUnits(92)).toEqual({
+      overview: "week",
+      detailed: "day",
+    });
+    expect(historyBucketUnits(93)).toEqual({
+      overview: "month",
+      detailed: "week",
+    });
+  });
+
+  it("shows 30 days as 30 bars and a quarter as calendar weeks", () => {
+    const month = bucketSessions(
+      [],
+      resolve({ kind: "last30", offset: 0 }),
+      nowMs,
+    );
+    expect(month.compact).toHaveLength(30);
+    expect(month.full).toBe(month.compact);
+    // 1 Aug 2026 is a Saturday: a two-day week, then Monday to Sunday
+    const quarter = bucketSessions([], days("2026-08-01", "2026-11-01"), nowMs);
+    expect(quarter.compact).toHaveLength(14);
+    expect(quarter.compact[0]).toMatchObject({
+      fromMs: local("2026-08-01"),
+      toMs: local("2026-08-03"),
+    });
+    expect(quarter.full).toHaveLength(92);
+  });
+
+  it("starts All time at the first session", () => {
+    const first = session("2026-09-14T20:00:00+02:00", 3600);
+    const chart = bucketSessions([first], null, nowMs);
+    // 14 Sep (a Monday) to today: 54 days, so calendar weeks
+    expect(chart.compact).toHaveLength(8);
+    expect(chart.compact[0]).toMatchObject({
+      fromMs: local("2026-09-14"),
+      seconds: 3600,
+    });
+  });
+
+  // 20: every game's part of a bar, the most played first
+  it("keeps each game's part of a bar, most played first", () => {
+    const a = session("2026-10-05T18:00:00+02:00", 7200, {
+      id: 1,
+      gameId: 1,
+      gameName: "A",
+    });
+    const b = session("2026-10-05T21:00:00+02:00", 3600, {
+      id: 2,
+      gameId: 2,
+      gameName: "B",
+    });
+    const chart = bucketSessions(
+      [b, a],
+      days("2026-10-05", "2026-10-12"),
+      nowMs,
+    );
+    expect(chart.full[0].games).toEqual([
+      { key: getSessionGameKey(a), seconds: 7200 },
+      { key: getSessionGameKey(b), seconds: 3600 },
+    ]);
+    expect(chart.full[0].topGameKey).toBe(getSessionGameKey(a));
+    expect(chart.full[1].games).toEqual([]);
+  });
+
+  // 17 + 23: the compare line's total and the Pace line's running total
+  it("adds up a range's playtime and runs a total for the pace line", () => {
+    const items = [
+      // 23:00 on 31 Oct to 1:00 on 1 Nov: one hour falls into November
+      session("2026-10-31T23:00:00+01:00", 7200, { id: 1 }),
+      session("2026-11-02T20:00:00+01:00", 3600, { id: 2 }),
+    ];
+    const november = resolve({ kind: "month", offset: 0 })!;
+    expect(rangeSeconds(items, november)).toBe(7200);
+    expect(
+      cumulativeSeconds(bucketSessions(items, november, nowMs).full),
+    ).toEqual([3600, 7200, 7200, 7200, 7200, 7200]);
+  });
+
+  // 27: one lane per game, most played first, a bar per day it was played
+  it("gives every game its days in the range, the most played game first", () => {
+    const a = (id: number, startedAt: string, seconds: number) =>
+      session(startedAt, seconds, { id, gameId: 1, gameName: "A" });
+    const evening = session("2026-10-05T20:00:00+02:00", 7200, {
+      id: 2,
+      gameId: 2,
+      gameName: "B",
+    });
+    const seasons = gameSeasons(
+      [
+        evening,
+        // 22:30 to 1:30: half on the 3rd, half on the 4th
+        a(1, "2026-10-03T22:30:00+02:00", 3 * 3600),
+        // from 30 Sep, 20:00: only its last hour falls into the range
+        a(3, "2026-09-30T20:00:00+02:00", 5 * 3600),
+      ],
+      days("2026-10-01", "2026-10-08"),
+      nowMs,
+    );
+    expect(seasons.map((season) => [season.key, season.seconds])).toEqual([
+      [getSessionGameKey(a(1, "2026-10-03T22:30:00+02:00", 1)), 4 * 3600],
+      [getSessionGameKey(evening), 7200],
+    ]);
+    expect(seasons[0].days).toEqual([
+      { fromMs: local("2026-10-01"), seconds: 3600 },
+      { fromMs: local("2026-10-03"), seconds: 5400 },
+      { fromMs: local("2026-10-04"), seconds: 5400 },
+    ]);
+  });
+
+  // 23: a range still in progress draws its line only up to now
+  it("stops the running total at now", () => {
+    const evening = session("2026-11-06T19:00:00+01:00", 3600, { id: 3 });
+    const today = resolve({ kind: "day", offset: 0 })!;
+    const hours = bucketSessions([evening], today, nowMs).full;
+    expect(hours).toHaveLength(24);
+    // 21:40: the hours up to 21:00 have a total, 22:00 and 23:00 are ahead
+    const totals = cumulativeSeconds(hours, nowMs);
+    expect(totals).toHaveLength(22);
+    expect(totals.at(-1)).toBe(3600);
   });
 });
 

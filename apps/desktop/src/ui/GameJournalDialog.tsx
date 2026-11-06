@@ -925,8 +925,12 @@ function ShowHistoryLink({
       className="!px-2 !py-1 text-[13px]"
       onClick={() => {
         onNavigate();
-        setHistoryQuery(target.game.gameName ?? "");
-        setHistoryGameKey(getSessionGameKey(session, resolveIgdbId));
+        // The game shows as a chip in the search box, so no search text.
+        setHistoryQuery("");
+        setHistoryGameKey(
+          getSessionGameKey(session, resolveIgdbId),
+          target.game.gameName ?? session.gameName ?? null,
+        );
         setActiveView("history");
       }}
     >
