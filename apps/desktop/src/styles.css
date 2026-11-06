@@ -1137,9 +1137,10 @@ select {
 
 /* My History's cover calendar: square days as wide as the card allows, 104px
    at most. Next to Pace and Play habits (2xl) the card takes the height of
-   that column and the squares fit it too, so both end on one line; the
-   calendar stays --cover-fit-min tall when that column is short. The pager
-   sets --cover-weeks, --cover-chrome (all but the squares) and --cover-gaps.
+   that column and the squares fit it too, so both end on one line; where the
+   width stops them, the days grow taller (--cover-row), up to a game cover's
+   3:4. The calendar stays --cover-fit-min tall when that column is short. The
+   pager sets --cover-weeks, --cover-chrome (all but the days) and --cover-gaps.
    That floor is a growing height, not min-height: when only min-height sized
    the box, Chromium resolved its 100cqh to 0 and the squares vanished. */
 .cover-calendar-fit {
@@ -1148,6 +1149,7 @@ select {
 
 .cover-calendar-pager {
   --cover-cell: min(104px, (100cqw - var(--cover-gaps)) / 7);
+  --cover-row: var(--cover-cell);
   width: calc(7 * var(--cover-cell) + var(--cover-gaps));
   max-width: 100%;
 }
@@ -1162,6 +1164,10 @@ select {
   .cover-calendar-pager {
     --cover-cell: min(
       (100cqw - var(--cover-gaps)) / 7,
+      (100cqh - var(--cover-chrome)) / var(--cover-weeks)
+    );
+    --cover-row: min(
+      var(--cover-cell) * 4 / 3,
       (100cqh - var(--cover-chrome)) / var(--cover-weeks)
     );
   }

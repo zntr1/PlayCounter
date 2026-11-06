@@ -25,8 +25,9 @@ function mondayOf(ms: number) {
 
 /* A month as a calendar of covers: each day with play shows the game played
    most that day, brighter for more playtime, with its playtime and how many
-   more games there were. A click opens that day. The squares share the width
-   the calendar is given. */
+   more games there were. A click opens that day. The days share the width
+   the calendar is given; their rows are --cover-row tall (the pager's
+   styles): square, or taller where the width is short. */
 export function CoverCalendar({
   layout,
   weeks,
@@ -111,6 +112,7 @@ export function CoverCalendar({
       role="group"
       aria-labelledby={labelledBy}
       className="grid grid-cols-7 gap-1.5"
+      style={{ gridTemplateRows: "auto", gridAutoRows: "var(--cover-row)" }}
     >
       {weekdayNames("short").map((weekday) => (
         <span
@@ -139,7 +141,7 @@ export function CoverCalendar({
               data-cover-day={key}
               data-out
               aria-hidden="true"
-              className="relative aspect-square rounded-lg border border-dashed border-border/60"
+              className="relative h-full rounded-lg border border-dashed border-border/60"
             >
               <span className="absolute left-[7px] top-[5px] font-mono text-xs font-bold text-text-faint/45">
                 {number}
@@ -154,7 +156,7 @@ export function CoverCalendar({
               key={key}
               data-cover-day={key}
               className={clsx(
-                "relative aspect-square rounded-lg bg-surface-hover/55",
+                "relative h-full rounded-lg bg-surface-hover/55",
                 isToday && "ring-2 ring-accent",
               )}
             >
@@ -198,7 +200,7 @@ export function CoverCalendar({
             }
             onBlur={() => tooltip.hide()}
             className={clsx(
-              "group relative aspect-square overflow-hidden rounded-lg text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+              "group relative h-full overflow-hidden rounded-lg text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
               isToday && "ring-2 ring-accent",
             )}
             style={
