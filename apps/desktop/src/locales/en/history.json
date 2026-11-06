@@ -187,5 +187,11 @@
   "Games in the chart": "Games in the chart",
   "Other games ({{number}})": "Other games ({{number}})",
   "Cover calendar": "Cover calendar",
-  "Most played game each day · {{range}}": "Most played game each day · {{range}}"
+  "Most played game each day · {{range}}": "Most played game each day · {{range}}",
+  "Game seasons": "Game seasons",
+  "When you played what · {{range}}": "When you played what · {{range}}",
+  "Pick at least a week to see your seasons.": "Pick at least a week to see your seasons.",
+  "Show all {{count}} games_one": "Show all {{count}} game",
+  "Show all {{count}} games_other": "Show all {{count}} games",
+  "Show fewer": "Show fewer"
 }

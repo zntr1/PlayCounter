@@ -123,6 +123,30 @@ const inPicker = (text: string) =>
     (button) => plain(button.textContent) === text,
   );
 
+const inContainer = (text: string) =>
+  [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    (button) => plain(button.textContent) === text,
+  );
+
+/** Charts measure their width with a ResizeObserver; happy-dom has none. */
+function stubWidth(width = 900) {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(
+        private readonly callback: (
+          entries: Array<{ contentRect: { width: number } }>,
+        ) => void,
+      ) {}
+      observe() {
+        this.callback([{ contentRect: { width } }]);
+      }
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+}
+
 const pickerDay = (label: string) =>
   picker()?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 
@@ -176,6 +200,73 @@ describe("range chips with arrows", () => {
     await click(chip("This month"));
     await click(byLabel("Previous period"));
     expect(stripLabel()).toBe("October 2026 · 31 days");
+  });
+
+  // 12: Phil's young install, 8 days of history
+  it("draws a young history as day bars over the last 30 days", async () => {
+    stubWidth();
+    useAppStore.setState({
+      recentSessions: [
+        played(1, "Witcher", "2026-10-30T20:00:00+01:00", 120),
+        played(2, "Witcher", "2026-11-04T20:00:00+01:00", 60),
+      ],
+    });
+    await render();
+    const bars = [
+      ...container.querySelectorAll<HTMLElement>("[data-strip-bar]"),
+    ];
+    expect(bars).toHaveLength(30);
+    // 8 Oct to 6 Nov: the played days are 30 Oct and 4 Nov
+    expect(
+      bars.flatMap((bar, index) =>
+        parseFloat(bar.style.height) > 0 ? [index] : [],
+      ),
+    ).toEqual([22, 27]);
+    // 900px for 30 days: each bar fills its ~30px slot, 2px apart (25 Oct
+    // has 25 hours, so its slot is a little wider)
+    const box = (bar: HTMLElement) => ({
+      left: parseFloat(bar.style.left),
+      width: parseFloat(bar.style.width),
+    });
+    for (let index = 1; index < bars.length; index += 1) {
+      const before = box(bars[index - 1]);
+      expect(box(bars[index]).left - (before.left + before.width)).toBeCloseTo(
+        2,
+        5,
+      );
+      expect(before.width).toBeGreaterThan(27);
+    }
+  });
+
+  // 12: All time's window never starts in the middle of a bar
+  it("puts All time's window over whole bars", async () => {
+    stubWidth();
+    // since Wednesday, 3 June: week bars from Monday, 1 June
+    useAppStore.setState({
+      recentSessions: [
+        played(1, "Witcher", "2026-06-03T20:00:00+02:00", 120),
+        played(2, "Witcher", "2026-11-04T20:00:00+01:00", 60),
+      ],
+    });
+    await render();
+    const stripWindow = container.querySelector<HTMLElement>(
+      "[data-strip-window]",
+    );
+    expect(parseFloat(stripWindow!.style.left)).toBe(0);
+
+    // a young history: from its first day, not from the empty days before
+    useAppStore.setState({
+      recentSessions: [played(3, "Witcher", "2026-10-30T20:00:00+01:00", 120)],
+    });
+    await settle();
+    const bars = [
+      ...container.querySelectorAll<HTMLElement>("[data-strip-bar]"),
+    ];
+    expect(
+      parseFloat(
+        container.querySelector<HTMLElement>("[data-strip-window]")!.style.left,
+      ),
+    ).toBeCloseTo(parseFloat(bars[22].style.left) - 1, 5);
   });
 
   it("has no arrows on All time", async () => {
@@ -345,23 +436,106 @@ describe("Insights", () => {
     expect(headings()).toContain("Activity calendar");
   });
 
+  const seasonNames = () =>
+    [
+      ...container.querySelectorAll("[data-season-lane] [data-season-name]"),
+    ].map((name) => plain(name.textContent));
+
+  // 27 + 29
+  it("shows game seasons from a week up and opens a game's sessions", async () => {
+    await render();
+    await openInsights();
+    expect(headings()).toContain("Game seasons");
+    // Witcher 8h, Hades 4h 30m
+    expect(seasonNames()).toEqual(["Witcher", "Hades"]);
+    await click(chip("Today"));
+    expect(container.textContent).toContain(
+      "Pick at least a week to see your seasons.",
+    );
+    await click(chip("All time"));
+    await click(
+      container.querySelector(
+        '[data-season-lane] button[title="Show sessions of this game"]',
+      ),
+    );
+    expect(
+      container
+        .querySelector("#history-tab-sessions")
+        ?.getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(byLabel("Clear game filter")).not.toBeNull();
+  });
+
+  // 27 + 30
+  it("draws a bar per day on one scale for all lanes, with Mondays on the axis", async () => {
+    stubWidth();
+    await render();
+    await openInsights();
+    await click(chip("This month"));
+    await click(byLabel("Previous period"));
+    const bars = (lane: number) =>
+      [
+        ...container
+          .querySelectorAll("[data-season-lane]")
+          [lane].querySelectorAll("rect[data-season-day]"),
+      ].map((bar) => ({
+        day: bar.getAttribute("data-season-day"),
+        height: Number(bar.getAttribute("height")),
+      }));
+    const witcher = bars(0);
+    const hades = bars(1);
+    expect(witcher.map((bar) => bar.day)).toEqual([
+      "2026-10-03",
+      "2026-10-04",
+      "2026-10-17",
+    ]);
+    expect(hades.map((bar) => bar.day)).toEqual(["2026-10-17"]);
+    // Witcher 3h, 1h and 2h; Hades 1h 30m
+    expect(witcher[1].height / witcher[0].height).toBeCloseTo(1 / 3, 2);
+    expect(hades[0].height / witcher[0].height).toBeCloseTo(1 / 2, 2);
+    expect(
+      [...container.querySelectorAll("[data-season-axis] span")].map((tick) =>
+        plain(tick.textContent),
+      ),
+    ).toEqual(["Oct 1", "Oct 5", "Oct 12", "Oct 19", "Oct 26"]);
+  });
+
+  // 28
+  it("shows the eight most played games and the rest on demand", async () => {
+    // Game 1 played most: ten hours, down to one hour for Game 10
+    useAppStore.setState({
+      recentSessions: Array.from({ length: 10 }, (_, index) => {
+        const startedAt = `2026-10-${20 + index}T18:00:00+02:00`;
+        return {
+          id: 100 + index,
+          gameId: -(10 + index),
+          source: "custom" as const,
+          gameName: `Game ${index + 1}`,
+          exeName: `game${index + 1}.exe`,
+          startedAt,
+          endedAt: new Date(
+            Date.parse(startedAt) + (10 - index) * 3_600_000,
+          ).toISOString(),
+          durationSeconds: (10 - index) * 3600,
+        };
+      }),
+    });
+    await render();
+    await openInsights();
+    expect(seasonNames()).toHaveLength(8);
+    expect(seasonNames()[0]).toBe("Game 1");
+    await click(inContainer("Show all 10 games"));
+    expect(seasonNames()).toHaveLength(10);
+    expect(
+      container.querySelectorAll("[data-season-lane][data-thin]"),
+    ).toHaveLength(2);
+    await click(inContainer("Show fewer"));
+    expect(seasonNames()).toHaveLength(8);
+  });
+
   // 24
   it("opens a day clicked in the activity calendar", async () => {
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        constructor(
-          private readonly callback: (
-            entries: Array<{ contentRect: { width: number } }>,
-          ) => void,
-        ) {}
-        observe() {
-          this.callback([{ contentRect: { width: 900 } }]);
-        }
-        unobserve() {}
-        disconnect() {}
-      },
-    );
+    stubWidth();
     await render();
     await openInsights();
     await click(byLabel("Saturday, October 17, 2026: 3h 30m"));

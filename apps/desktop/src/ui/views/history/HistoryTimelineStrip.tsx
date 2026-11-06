@@ -4,10 +4,11 @@ import type { DailyTotal, HistoryRange } from "../../../historyStats";
 import { useElementWidth } from "../../charts/chartUtils";
 import { appLocale, getT } from "../../../i18n";
 import {
+  stripBarAt,
+  stripBars,
   stripDragMode,
   stripDragRange,
-  stripWeekAt,
-  stripWeeks,
+  stripSpan,
   type StripDragMode,
 } from "./timelineStrip";
 
@@ -26,10 +27,12 @@ function addDays(ms: number, days: number) {
   return date.getTime();
 }
 
-/* The hero's timeline: the whole history as weekly bars, the range as a
-   window over them. Drag on the bars for new days, drag the window to move
-   it, drag its edges to resize it, click a bar for that week. A pointer
-   control only: the chips and Pick dates do the same by keyboard. */
+/* The hero's timeline: the whole history as bars (days, weeks or months by
+   its length; a young history sits at the right end of the last 30 days),
+   the range as a window over them. Drag on the bars for new days, drag the
+   window to move it, drag its edges to resize it, click a bar for its day,
+   week or month. A pointer control only: the chips and Pick dates do the
+   same by keyboard. */
 export function HistoryTimelineStrip({
   historyDaily,
   firstSessionMs,
@@ -47,13 +50,16 @@ export function HistoryTimelineStrip({
   describe: (range: HistoryRange) => string;
   onPick: (range: HistoryRange) => void;
 }) {
-  const minMs = startOfDay(firstSessionMs);
-  const maxMs = addDays(startOfDay(nowMs), 1);
-  const weeks = useMemo(
-    () => stripWeeks(historyDaily, firstSessionMs, maxMs),
-    [firstSessionMs, historyDaily, maxMs],
+  const span = useMemo(
+    () => stripSpan(firstSessionMs, nowMs),
+    [firstSessionMs, nowMs],
   );
-  const startMs = weeks[0]?.fromMs ?? minMs;
+  const bars = useMemo(
+    () => stripBars(historyDaily, span),
+    [historyDaily, span],
+  );
+  const minMs = span.fromMs;
+  const maxMs = span.toMs;
   const [trackRef, width] = useElementWidth<HTMLDivElement>();
   const [preview, setPreview] = useState<HistoryRange | null>(null);
   const drag = useRef<{
@@ -62,25 +68,49 @@ export function HistoryTimelineStrip({
     x0: number;
     moved: boolean;
   } | null>(null);
-  const shown = range ?? { fromMs: minMs, toMs: maxMs };
+  // All time covers the whole strip, so its window never starts in the middle
+  // of a week or month bar; a young history's day bars start at its first day.
+  const shown = range ?? {
+    fromMs: span.unit === "day" ? startOfDay(firstSessionMs) : span.fromMs,
+    toMs: maxMs,
+  };
   const visible = preview ?? shown;
-  const span = Math.max(1, maxMs - startMs);
-  const xOf = (ms: number) => ((ms - startMs) / span) * width;
+  const length = Math.max(1, maxMs - minMs);
+  const xOf = (ms: number) => ((ms - minMs) / length) * width;
   const msAt = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0) return startMs;
-    return startMs + ((clientX - rect.left) / rect.width) * span;
+    if (!rect || rect.width === 0) return minMs;
+    return minMs + ((clientX - rect.left) / rect.width) * length;
   };
-  const most = Math.max(1, ...weeks.map((week) => week.seconds));
-  const months = useMemo(() => {
-    const labels: Array<{ ms: number; label: string }> = [];
-    const first = new Date(startMs);
+  const most = Math.max(1, ...bars.map((bar) => bar.seconds));
+  // Day bars: Mondays, and the first day when no Monday is near. Weeks and
+  // months: month starts, the first one and January with the year.
+  const labels = useMemo(() => {
+    const result: Array<{ ms: number; label: string }> = [];
+    const first = new Date(span.fromMs);
+    if (span.unit === "day") {
+      const dayLabel = (ms: number) =>
+        new Date(ms).toLocaleDateString(appLocale(), {
+          month: "short",
+          day: "numeric",
+        });
+      const firstMonday = (8 - first.getDay()) % 7;
+      if (firstMonday >= 3)
+        result.push({ ms: span.fromMs, label: dayLabel(span.fromMs) });
+      for (
+        let day = addDays(span.fromMs, firstMonday);
+        day < span.toMs;
+        day = addDays(day, 7)
+      )
+        result.push({ ms: day, label: dayLabel(day) });
+      return result;
+    }
     let month = new Date(first.getFullYear(), first.getMonth(), 1).getTime();
-    if (month < startMs)
+    if (month < span.fromMs)
       month = new Date(first.getFullYear(), first.getMonth() + 1, 1).getTime();
-    for (let index = 0; month < maxMs; index += 1) {
+    for (let index = 0; month < span.toMs; index += 1) {
       const date = new Date(month);
-      labels.push({
+      result.push({
         ms: month,
         label: date.toLocaleDateString(
           appLocale(),
@@ -91,8 +121,8 @@ export function HistoryTimelineStrip({
       });
       month = new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime();
     }
-    return labels;
-  }, [maxMs, startMs]);
+    return result;
+  }, [span]);
   let lastLabelX = Number.NEGATIVE_INFINITY;
 
   return (
@@ -161,7 +191,7 @@ export function HistoryTimelineStrip({
               }),
             );
           else if (current.mode === "new")
-            onPick(stripWeekAt(current.startMs, minMs, maxMs));
+            onPick(stripBarAt(current.startMs, span.unit, minMs, maxMs));
         }}
         onPointerCancel={() => {
           drag.current = null;
@@ -171,23 +201,24 @@ export function HistoryTimelineStrip({
         {width > 0 ? (
           <>
             <div className="absolute inset-x-0 top-0.5 h-[46px]">
-              {weeks.map((week) => {
-                const left = xOf(week.fromMs);
+              {bars.map((bar) => {
+                const left = xOf(bar.fromMs);
                 return (
                   <span
-                    key={week.fromMs}
+                    key={bar.fromMs}
+                    data-strip-bar
                     className={clsx(
                       "absolute bottom-0 rounded-t-[2px]",
-                      week.toMs > visible.fromMs && week.fromMs < visible.toMs
+                      bar.toMs > visible.fromMs && bar.fromMs < visible.toMs
                         ? "bg-accent"
                         : "bg-text-muted/30",
                     )}
                     style={{
                       left: left + 1,
-                      width: Math.max(1, xOf(week.toMs) - left - 2),
+                      width: Math.max(1, xOf(bar.toMs) - left - 2),
                       height:
-                        week.seconds > 0
-                          ? Math.max(2, (week.seconds / most) * 44)
+                        bar.seconds > 0
+                          ? Math.max(2, (bar.seconds / most) * 44)
                           : 0,
                     }}
                   />
@@ -212,17 +243,17 @@ export function HistoryTimelineStrip({
               />
             </div>
             <div className="pointer-events-none absolute inset-x-0 top-[55px] h-3.5">
-              {months.map((month) => {
-                const x = xOf(month.ms);
+              {labels.map((entry) => {
+                const x = xOf(entry.ms);
                 if (x - lastLabelX < 34) return null;
                 lastLabelX = x;
                 return (
                   <span
-                    key={month.ms}
+                    key={entry.ms}
                     className="absolute whitespace-nowrap border-l border-border pl-1 text-[10px] font-semibold leading-[13px] text-text-faint"
                     style={{ left: x }}
                   >
-                    {month.label}
+                    {entry.label}
                   </span>
                 );
               })}

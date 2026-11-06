@@ -6,6 +6,7 @@ import type { GameIdentityResolver } from "../../../store";
 import {
   bucketSessions,
   dailyTotals,
+  gameSeasons,
   getSessionGameKey,
   historyHighlights,
   playHabits,
@@ -32,6 +33,7 @@ import { addDays, localDateKey } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
 import { appLocale, weekdayNames, getT } from "../../../i18n";
+import { GameSeasons } from "./GameSeasons";
 
 const t = getT("history");
 
@@ -47,6 +49,7 @@ type CachedSelectionAnalytics = {
   rangeStats: ReturnType<typeof summaryStats>;
   rhythm: ReturnType<typeof weekdayHourMatrix>;
   games: ReturnType<typeof topGames>;
+  seasons: ReturnType<typeof gameSeasons>;
   highlights: ReturnType<typeof historyHighlights>;
   habits: PlayHabits;
 };
@@ -152,6 +155,7 @@ export function getHistoryAnalytics(
       rangeStats,
       rhythm,
       games,
+      seasons: gameSeasons(sessions, selectedRange, nowMs, resolveIgdbId),
       highlights: historyHighlights(
         sessions,
         nowMs,
@@ -197,6 +201,7 @@ export const HistoryInsights = memo(function HistoryInsights({
   detailedChart,
   onDetailedChartChange,
   onSelectDay,
+  onSelectGame,
 }: {
   sessions: Session[];
   selection: HistorySelection;
@@ -210,10 +215,13 @@ export const HistoryInsights = memo(function HistoryInsights({
   detailedChart: boolean;
   onDetailedChartChange: (detailed: boolean) => void;
   onSelectDay: (dateKey: string) => void;
+  /** Opens a game's sessions. */
+  onSelectGame: (key: string) => void;
 }) {
   const playtimeSection = useSectionCollapse("history.playtime");
   const calendarSection = useSectionCollapse("history.calendar");
   const paceSection = useSectionCollapse("history.pace");
+  const seasonsSection = useSectionCollapse("history.seasons");
   const habitsSection = useSectionCollapse("history.habits");
   const rhythmSection = useSectionCollapse("history.rhythm");
   const [litGame, setLitGame] = useState<string | null>(null);
@@ -226,6 +234,7 @@ export const HistoryInsights = memo(function HistoryInsights({
     calendar,
     habits,
     games,
+    seasons,
     selectedRange,
     firstSessionMs,
     historyDaily,
@@ -378,6 +387,40 @@ export const HistoryInsights = memo(function HistoryInsights({
                   onLight={setLitGame}
                 />
               </figure>
+            )}
+          </div>
+        ) : null}
+      </Panel>
+
+      <Panel className="min-w-0 p-5">
+        <SectionHeading
+          id="seasons-heading"
+          title={t("Game seasons")}
+          caption={t("When you played what · {{range}}", { range: rangeLabel })}
+          collapsed={seasonsSection.collapsed}
+          onToggle={seasonsSection.toggle}
+          controls="seasons-body"
+        />
+        {!seasonsSection.collapsed ? (
+          <div id="seasons-body">
+            {!shownRange || shownDays < 7 ? (
+              <div className="py-10 text-center text-sm text-text-muted">
+                {t("Pick at least a week to see your seasons.")}
+              </div>
+            ) : seasons.length === 0 ? (
+              <div className="py-10 text-center text-sm text-text-muted">
+                {t("No sessions in this range.")}
+              </div>
+            ) : (
+              <GameSeasons
+                seasons={seasons}
+                range={shownRange}
+                colorSlots={colorSlots}
+                showDurationDays={showDurationDays}
+                resolveGameName={resolveGameName}
+                resolveGameCover={resolveGameCover}
+                onSelectGame={onSelectGame}
+              />
             )}
           </div>
         ) : null}

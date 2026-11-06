@@ -203,5 +203,13 @@
   "Games in the chart": "Игры на графике",
   "Other games ({{number}})": "Другие игры ({{number}})",
   "Cover calendar": "Календарь обложек",
-  "Most played game each day · {{range}}": "Главная игра каждого дня · {{range}}"
+  "Most played game each day · {{range}}": "Главная игра каждого дня · {{range}}",
+  "Game seasons": "Игровые сезоны",
+  "When you played what · {{range}}": "Во что и когда вы играли · {{range}}",
+  "Pick at least a week to see your seasons.": "Выберите хотя бы неделю, чтобы увидеть сезоны.",
+  "Show all {{count}} games_one": "Показать все {{count}} игру",
+  "Show all {{count}} games_few": "Показать все {{count}} игры",
+  "Show all {{count}} games_many": "Показать все {{count}} игр",
+  "Show all {{count}} games_other": "Показать все {{count}} игры",
+  "Show fewer": "Показать меньше"
 }

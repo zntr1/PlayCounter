@@ -657,6 +657,50 @@ export function bucketSessions(
   return { compact, full };
 }
 
+export type GameSeason = {
+  key: string;
+  seconds: number;
+  /** The days it was played in the range, oldest first. */
+  days: Array<{ fromMs: number; seconds: number }>;
+};
+
+/** Each game's playtime per day of a range (null = all time, from the first
+ *  session), the most played game first: the lanes of Game seasons. */
+export function gameSeasons(
+  sessions: Session[],
+  range: HistoryRange | null,
+  nowMs: number,
+  resolveIgdbId?: GameIdentityResolver,
+): GameSeason[] {
+  const shown = range ?? allTimeRange(sessions, nowMs);
+  if (!shown || shown.toMs <= shown.fromMs) return [];
+  const boundaries = unitBoundaries(shown, "day");
+  const byGame = new Map<string, Map<number, number>>();
+  for (const session of sessions) {
+    const key = getSessionGameKey(session, resolveIgdbId);
+    visitBoundaryOverlaps(session, boundaries, (index, seconds) => {
+      let days = byGame.get(key);
+      if (!days) byGame.set(key, (days = new Map()));
+      days.set(index, (days.get(index) ?? 0) + seconds);
+    });
+  }
+  return [...byGame]
+    .map(([key, days]) => {
+      const list = [...days]
+        .sort((left, right) => left[0] - right[0])
+        .map(([index, seconds]) => ({ fromMs: boundaries[index], seconds }));
+      return {
+        key,
+        seconds: list.reduce((sum, day) => sum + day.seconds, 0),
+        days: list,
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.seconds - left.seconds || (left.key < right.key ? -1 : 1),
+    );
+}
+
 /** Seconds played inside a range (null = all time). */
 export function rangeSeconds(sessions: Session[], range: HistoryRange | null) {
   let total = 0;

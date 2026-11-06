@@ -195,5 +195,12 @@
   "Games in the chart": "Jeux du graphique",
   "Other games ({{number}})": "Autres jeux ({{number}})",
   "Cover calendar": "Calendrier des jaquettes",
-  "Most played game each day · {{range}}": "Jeu le plus joué de chaque jour · {{range}}"
+  "Most played game each day · {{range}}": "Jeu le plus joué de chaque jour · {{range}}",
+  "Game seasons": "Saisons de jeu",
+  "When you played what · {{range}}": "Quand vous avez joué à quoi · {{range}}",
+  "Pick at least a week to see your seasons.": "Choisissez au moins une semaine pour voir vos saisons.",
+  "Show all {{count}} games_one": "Afficher {{count}} jeu",
+  "Show all {{count}} games_many": "Afficher les {{count}} jeux",
+  "Show all {{count}} games_other": "Afficher les {{count}} jeux",
+  "Show fewer": "Afficher moins"
 }

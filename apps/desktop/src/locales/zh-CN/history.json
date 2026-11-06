@@ -179,5 +179,10 @@
   "Games in the chart": "图表中的游戏",
   "Other games ({{number}})": "其他游戏（{{number}}）",
   "Cover calendar": "封面日历",
-  "Most played game each day · {{range}}": "每天玩得最多的游戏 · {{range}}"
+  "Most played game each day · {{range}}": "每天玩得最多的游戏 · {{range}}",
+  "Game seasons": "游戏时期",
+  "When you played what · {{range}}": "什么时候玩了什么 · {{range}}",
+  "Pick at least a week to see your seasons.": "至少选择一周才能查看游戏时期。",
+  "Show all {{count}} games_other": "显示全部 {{count}} 个游戏",
+  "Show fewer": "收起"
 }

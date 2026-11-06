@@ -1061,6 +1061,7 @@ export function HistoryView() {
               rangeLabel={rangeLabel}
               comparisonLabel={comparisonLabel}
               onSelectDay={selectDay}
+              onSelectGame={selectGame}
               nowMs={nowMs}
               showDurationDays={showDurationDays}
               resolveGame={resolveGame}

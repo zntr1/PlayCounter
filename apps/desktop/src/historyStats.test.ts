@@ -5,6 +5,7 @@ import {
   canStepHistorySelection,
   cumulativeSeconds,
   dailyTotals,
+  gameSeasons,
   getSessionGameKey,
   groupSessionsByDay,
   historyBucketUnits,
@@ -701,6 +702,37 @@ describe("history ranges", () => {
     expect(
       cumulativeSeconds(bucketSessions(items, november, nowMs).full),
     ).toEqual([3600, 7200, 7200, 7200, 7200, 7200]);
+  });
+
+  // 27: one lane per game, most played first, a bar per day it was played
+  it("gives every game its days in the range, the most played game first", () => {
+    const a = (id: number, startedAt: string, seconds: number) =>
+      session(startedAt, seconds, { id, gameId: 1, gameName: "A" });
+    const evening = session("2026-10-05T20:00:00+02:00", 7200, {
+      id: 2,
+      gameId: 2,
+      gameName: "B",
+    });
+    const seasons = gameSeasons(
+      [
+        evening,
+        // 22:30 to 1:30: half on the 3rd, half on the 4th
+        a(1, "2026-10-03T22:30:00+02:00", 3 * 3600),
+        // from 30 Sep, 20:00: only its last hour falls into the range
+        a(3, "2026-09-30T20:00:00+02:00", 5 * 3600),
+      ],
+      days("2026-10-01", "2026-10-08"),
+      nowMs,
+    );
+    expect(seasons.map((season) => [season.key, season.seconds])).toEqual([
+      [getSessionGameKey(a(1, "2026-10-03T22:30:00+02:00", 1)), 4 * 3600],
+      [getSessionGameKey(evening), 7200],
+    ]);
+    expect(seasons[0].days).toEqual([
+      { fromMs: local("2026-10-01"), seconds: 3600 },
+      { fromMs: local("2026-10-03"), seconds: 5400 },
+      { fromMs: local("2026-10-04"), seconds: 5400 },
+    ]);
   });
 
   // 23: a range still in progress draws its line only up to now

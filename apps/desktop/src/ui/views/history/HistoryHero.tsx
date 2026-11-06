@@ -185,15 +185,25 @@ export function HistoryHero({
         : "border-border bg-bg/50 text-text-muted hover:border-text-faint hover:text-text",
     );
   // The days on show by their dates: the eyebrow already says "30 days".
-  const describeStrip = (span: HistoryRange) =>
-    t("{{range}} · {{count}} days", {
-      range:
-        historySelectionFromRange(span.fromMs, span.toMs, nowMs, firstSessionMs)
-          .kind === "all"
-          ? t("All time")
-          : historySpanLabel(span, nowMs),
-      count: daysIn(span),
+  // All time counts from the first session, even when a drag on the strip
+  // starts on the empty days before it.
+  const describeStrip = (span: HistoryRange) => {
+    const all =
+      historySelectionFromRange(span.fromMs, span.toMs, nowMs, firstSessionMs)
+        .kind === "all";
+    const firstDayMs =
+      firstSessionMs === null
+        ? span.fromMs
+        : new Date(firstSessionMs).setHours(0, 0, 0, 0);
+    return t("{{range}} · {{count}} days", {
+      range: all ? t("All time") : historySpanLabel(span, nowMs),
+      count: daysIn(
+        all
+          ? { fromMs: Math.max(span.fromMs, firstDayMs), toMs: span.toMs }
+          : span,
+      ),
     });
+  };
 
   return (
     <section
