@@ -23,16 +23,15 @@ import {
   type PlayHabits,
   type TopGame,
 } from "../../../historyStats";
-import { CalendarHeatmap } from "../../charts/CalendarHeatmap";
 import { ColumnChart } from "../../charts/ColumnChart";
-import { CoverCalendar } from "../../charts/CoverCalendar";
 import { assignGameColors, gameColor } from "../../charts/gameColors";
 import { PaceChart } from "../../charts/PaceChart";
 import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
-import { addDays, localDateKey } from "../../charts/chartUtils";
+import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
 import { appLocale, weekdayNames, getT } from "../../../i18n";
+import { CoverCalendarPager, coverCalendarRows } from "./CoverCalendarPager";
 import { GameSeasons } from "./GameSeasons";
 
 const t = getT("history");
@@ -59,7 +58,6 @@ type CachedHistoryAnalytics = {
   resolveIgdbId: GameIdentityResolver;
   resolveGame: (session: Session) => ResolvedGame;
   allTimeStats: ReturnType<typeof summaryStats>;
-  calendar: Map<string, DailyTotal>;
   /** Playtime per day from the first session to today. */
   historyDaily: Map<string, DailyTotal>;
   firstSessionMs: number | null;
@@ -105,19 +103,11 @@ export function getHistoryAnalytics(
       firstSessionMs === null
         ? new Map<string, DailyTotal>()
         : dailyTotals(sessions, firstSessionMs, tomorrowMs);
-    // The calendar starts at the first session, capped at a year back.
-    const calendarFromKey = localDateKey(addDays(today, -363));
-    const calendar =
-      firstSessionMs !== null &&
-      localDateKey(new Date(firstSessionMs)) >= calendarFromKey
-        ? historyDaily
-        : dailyTotals(sessions, addDays(today, -363).getTime(), tomorrowMs);
     cached = {
       dayKey,
       resolveIgdbId,
       resolveGame,
       allTimeStats: summaryStats(sessions, nowMs),
-      calendar,
       historyDaily,
       firstSessionMs,
       selections: new Map(),
@@ -231,7 +221,6 @@ export const HistoryInsights = memo(function HistoryInsights({
     previousSeconds,
     rangeStats,
     rhythm,
-    calendar,
     habits,
     games,
     seasons,
@@ -281,39 +270,20 @@ export const HistoryInsights = memo(function HistoryInsights({
   const shownDays = shownRange
     ? Math.round((shownRange.toMs - shownRange.fromMs) / 86_400_000)
     : 0;
-  const coverCalendar =
-    shownRange !== null && shownDays >= 2 && shownDays <= 42;
-  const coverWeeks = shownRange
-    ? Math.ceil(
-        (shownDays + ((new Date(shownRange.fromMs).getDay() + 6) % 7)) / 7,
-      )
-    : 0;
+  const coverRows = shownRange ? coverCalendarRows(shownRange) : 0;
   const dayThresholds = useMemo(
     () =>
       quantileThresholds([...historyDaily.values()].map((day) => day.seconds)),
     [historyDaily],
   );
-  // With Pace, the right column holds Pace and Play habits. A short calendar
-  // (the activity one, or covers of up to two weeks) gets the weekday chart
-  // under it, so no panel stretches empty; a tall cover calendar has it full
-  // width below.
+  // With Pace, the right column holds Pace and Play habits. A calendar of up
+  // to two weeks gets the weekday chart under it, so no panel stretches
+  // empty; a taller one has it full width below.
   const withPace = Boolean(previousChart && comparisonLabel);
-  const rhythmBeside = withPace && (!coverCalendar || coverWeeks <= 2);
+  const rhythmBeside = withPace && coverRows <= 2;
   const detailed = canDetail && detailedChart;
   const buckets = detailed ? chart.full : chart.compact;
   const chartTotal = buckets.reduce((sum, bucket) => sum + bucket.seconds, 0);
-  const calendarWeeks = useMemo(() => {
-    const firstKey = calendar.keys().next().value as string | undefined;
-    if (!firstKey) return 52;
-    const from = new Date(`${firstKey}T00:00:00`).getTime();
-    return Math.max(1, Math.ceil((localDayKey(nowMs) - from) / 604_800_000));
-  }, [calendar, nowMs]);
-  const calendarCaption =
-    firstSessionMs !== null && calendarWeeks < 52
-      ? t("Since your first session · {{count}} weeks", {
-          count: calendarWeeks,
-        })
-      : t("Last 52 weeks");
 
   return (
     <div className="grid min-w-0 gap-6">
@@ -430,35 +400,32 @@ export const HistoryInsights = memo(function HistoryInsights({
         <Panel
           className={clsx(
             "min-w-0 p-5 2xl:col-start-1 2xl:row-start-1",
-            (calendarSection.collapsed || withPace || coverCalendar) &&
-              "self-start",
+            (calendarSection.collapsed || withPace) && "self-start",
           )}
         >
           <SectionHeading
             id="activity-heading"
-            title={coverCalendar ? t("Cover calendar") : t("Activity calendar")}
-            caption={
-              coverCalendar
-                ? t("Most played game each day · {{range}}", {
-                    range: rangeLabel,
-                  })
-                : calendarCaption
-            }
+            title={t("Cover calendar")}
+            caption={t("Most played game each day · {{range}}", {
+              range: rangeLabel,
+            })}
             collapsed={calendarSection.collapsed}
             onToggle={calendarSection.toggle}
             controls="activity-calendar-body"
           />
           {!calendarSection.collapsed ? (
             <div id="activity-calendar-body">
-              {sessions.length === 0 ? (
+              {sessions.length === 0 || !shownRange ? (
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("Playtime activity will appear here.")}
                 </div>
-              ) : coverCalendar && shownRange ? (
-                <CoverCalendar
+              ) : (
+                <CoverCalendarPager
+                  key={selectionKey(selection)}
+                  sessions={sessions}
                   range={shownRange}
-                  days={chart.full}
                   nowMs={nowMs}
+                  resolveIgdbId={resolveIgdbId}
                   thresholds={dayThresholds}
                   colorSlots={colorSlots}
                   showDurationDays={showDurationDays}
@@ -466,15 +433,6 @@ export const HistoryInsights = memo(function HistoryInsights({
                   resolveGameCover={resolveGameCover}
                   onSelectDay={onSelectDay}
                   labelledBy="activity-heading"
-                />
-              ) : (
-                <CalendarHeatmap
-                  totals={calendar}
-                  nowMs={nowMs}
-                  showDurationDays={showDurationDays}
-                  resolveGameName={resolveGameName}
-                  range={selectedRange}
-                  onSelectDay={onSelectDay}
                 />
               )}
             </div>

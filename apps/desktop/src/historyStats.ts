@@ -701,6 +701,29 @@ export function gameSeasons(
     );
 }
 
+/** One bucket per day of a range, each game's seconds most first: the cover
+ *  calendar's days, also for a single day (bucketSessions gives hours). */
+export function dayBuckets(
+  sessions: Session[],
+  range: HistoryRange,
+  nowMs: number,
+  resolveIgdbId?: GameIdentityResolver,
+) {
+  if (range.toMs <= range.fromMs) return [];
+  const boundaries = unitBoundaries(range, "day");
+  return aggregateBoundaries(
+    sessions,
+    boundaries,
+    unitDescriptors(
+      boundaries,
+      "day",
+      Math.max(1, daysBetween(range.fromMs, range.toMs)),
+      nowMs,
+    ),
+    resolveIgdbId,
+  );
+}
+
 /** Seconds played inside a range (null = all time). */
 export function rangeSeconds(sessions: Session[], range: HistoryRange | null) {
   let total = 0;

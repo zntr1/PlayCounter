@@ -48,13 +48,11 @@
   "Playtime activity will appear here.": "Tutaj pojawi się aktywność.",
   "Your habits will appear here.": "Tutaj pojawią się twoje nawyki.",
   "Your play rhythm will appear here.": "Tutaj pojawi się twój rytm gry.",
-  "Last 52 weeks": "Ostatnie 52 tygodnie",
   "Playtime over time": "Czas gry w czasie",
   "{{duration}} logged · {{title}}": "Zapisano {{duration}} · {{title}}",
   "Chart detail": "Szczegółowość wykresu",
   "Overview": "Przegląd",
   "Detailed": "Szczegółowo",
-  "Activity calendar": "Kalendarz aktywności",
   "Play habits": "Nawyki gracza",
   "When you play": "Kiedy grasz",
   "Weekday × hour · {{title}}": "Dzień tygodnia × godzina · {{title}}",
@@ -103,10 +101,6 @@
   "{{count}} games_few": "{{count}} gry",
   "{{count}} games_many": "{{count}} gier",
   "{{count}} games_other": "{{count}} gier",
-  "Since your first session · {{count}} weeks_one": "Od pierwszej sesji · {{count}} tydzień",
-  "Since your first session · {{count}} weeks_few": "Od pierwszej sesji · {{count}} tygodnie",
-  "Since your first session · {{count}} weeks_many": "Od pierwszej sesji · {{count}} tygodni",
-  "Since your first session · {{count}} weeks_other": "Od pierwszej sesji · {{count}} tygodni",
   "Unknown game": "Nieznana gra",
   "{{count}} sessions_one": "{{count}} sesja",
   "{{count}} sessions_few": "{{count}} sesje",
@@ -211,5 +205,7 @@
   "Show all {{count}} games_few": "Pokaż wszystkie {{count}} gry",
   "Show all {{count}} games_many": "Pokaż wszystkie {{count}} gier",
   "Show all {{count}} games_other": "Pokaż wszystkie {{count}} gier",
-  "Show fewer": "Pokaż mniej"
+  "Show fewer": "Pokaż mniej",
+  "Previous month": "Poprzedni miesiąc",
+  "Next month": "Następny miesiąc"
 }

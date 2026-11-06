@@ -48,13 +48,11 @@
   "Playtime activity will appear here.": "你的游玩活动会显示在这里。",
   "Your habits will appear here.": "你的游玩习惯会显示在这里。",
   "Your play rhythm will appear here.": "你的游玩节奏会显示在这里。",
-  "Last 52 weeks": "过去 52 周",
   "Playtime over time": "游戏时长变化",
   "{{duration}} logged · {{title}}": "已记录 {{duration}} · {{title}}",
   "Chart detail": "图表详情",
   "Overview": "概览",
   "Detailed": "详细",
-  "Activity calendar": "活动日历",
   "Play habits": "游戏习惯",
   "When you play": "你什么时候玩",
   "Weekday × hour · {{title}}": "星期 × 小时 · {{title}}",
@@ -91,7 +89,6 @@
   "sessions_other": "次游玩",
   "{{count}} days_other": "{{count}} 天",
   "{{count}} games_other": "{{count}} 个游戏",
-  "Since your first session · {{count}} weeks_other": "自第一次游玩以来 · {{count}} 周",
   "Unknown game": "未知游戏",
   "{{count}} sessions_other": "{{count}} 次游玩",
   "Session note": "游玩记录笔记",
@@ -184,5 +181,7 @@
   "When you played what · {{range}}": "什么时候玩了什么 · {{range}}",
   "Pick at least a week to see your seasons.": "至少选择一周才能查看游戏时期。",
   "Show all {{count}} games_other": "显示全部 {{count}} 个游戏",
-  "Show fewer": "收起"
+  "Show fewer": "收起",
+  "Previous month": "上个月",
+  "Next month": "下个月"
 }

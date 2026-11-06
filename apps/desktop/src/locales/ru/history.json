@@ -48,13 +48,11 @@
   "Playtime activity will appear here.": "Здесь появится активность.",
   "Your habits will appear here.": "Здесь появятся ваши привычки.",
   "Your play rhythm will appear here.": "Здесь появится ваш игровой ритм.",
-  "Last 52 weeks": "Последние 52 недели",
   "Playtime over time": "Время в игре по периодам",
   "{{duration}} logged · {{title}}": "{{duration}} записано · {{title}}",
   "Chart detail": "Детализация графика",
   "Overview": "Обзор",
   "Detailed": "Подробно",
-  "Activity calendar": "Календарь активности",
   "Play habits": "Игровые привычки",
   "When you play": "Когда вы играете",
   "Weekday × hour · {{title}}": "День недели × час · {{title}}",
@@ -103,10 +101,6 @@
   "{{count}} games_few": "{{count}} игры",
   "{{count}} games_many": "{{count}} игр",
   "{{count}} games_other": "{{count}} игры",
-  "Since your first session · {{count}} weeks_one": "С первой сессии · {{count}} неделя",
-  "Since your first session · {{count}} weeks_few": "С первой сессии · {{count}} недели",
-  "Since your first session · {{count}} weeks_many": "С первой сессии · {{count}} недель",
-  "Since your first session · {{count}} weeks_other": "С первой сессии · {{count}} недели",
   "Unknown game": "Неизвестная игра",
   "{{count}} sessions_one": "{{count}} сессия",
   "{{count}} sessions_few": "{{count}} сессии",
@@ -211,5 +205,7 @@
   "Show all {{count}} games_few": "Показать все {{count}} игры",
   "Show all {{count}} games_many": "Показать все {{count}} игр",
   "Show all {{count}} games_other": "Показать все {{count}} игры",
-  "Show fewer": "Показать меньше"
+  "Show fewer": "Показать меньше",
+  "Previous month": "Предыдущий месяц",
+  "Next month": "Следующий месяц"
 }

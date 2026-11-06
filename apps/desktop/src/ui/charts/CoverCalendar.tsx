@@ -27,6 +27,7 @@ function mondayOf(ms: number) {
    shows the game played most that day, brighter for more playtime, with its
    playtime and how many more games there were. A click opens that day. */
 export function CoverCalendar({
+  layout,
   range,
   days,
   nowMs,
@@ -38,6 +39,9 @@ export function CoverCalendar({
   onSelectDay,
   labelledBy,
 }: {
+  /** The days laid out in weeks (a month page); the range when left out. */
+  layout?: HistoryRange;
+  /** The days that count; the rest are dashed. */
   range: HistoryRange;
   /** The range's day buckets, each game's seconds most first. */
   days: HistoryBucket[];
@@ -56,8 +60,9 @@ export function CoverCalendar({
     days.map((day) => [localDateKey(new Date(day.fromMs)), day]),
   );
   const todayKey = localDateKey(new Date(nowMs));
-  const first = mondayOf(range.fromMs);
-  const end = addDays(mondayOf(range.toMs - 1), 7);
+  const shown = layout ?? range;
+  const first = mondayOf(shown.fromMs);
+  const end = addDays(mondayOf(shown.toMs - 1), 7);
   const cells: Date[] = [];
   for (let date = first; date < end; date = addDays(date, 1)) cells.push(date);
   const plus = new Intl.NumberFormat(appLocale(), { signDisplay: "always" });
@@ -116,7 +121,13 @@ export function CoverCalendar({
         const number = date.getDate();
         const dayMs = date.getTime();
         const isToday = key === todayKey;
-        if (dayMs < range.fromMs || dayMs >= range.toMs || dayMs > nowMs) {
+        if (
+          dayMs < shown.fromMs ||
+          dayMs >= shown.toMs ||
+          dayMs < range.fromMs ||
+          dayMs >= range.toMs ||
+          dayMs > nowMs
+        ) {
           return (
             <div
               key={key}

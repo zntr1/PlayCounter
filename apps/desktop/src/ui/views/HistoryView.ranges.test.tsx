@@ -402,17 +402,45 @@ describe("Insights", () => {
     expect(legend).toContain("Hades 1h 30m");
   });
 
-  // 25
-  it("shows a month as a cover calendar, one day and All time as the activity calendar", async () => {
+  const coverCells = () => container.querySelectorAll("[data-cover-day]");
+  const coverDays = () =>
+    container.querySelectorAll("[data-cover-day]:not([data-out])");
+  const coverMonth = () =>
+    plain(container.querySelector("[data-cover-month]")?.textContent);
+
+  // 24 + 25: a long range, a month at a time
+  it("pages a long range month by month, from its last month", async () => {
     await render();
     await openInsights();
-    expect(headings()).toContain("Activity calendar");
-    await click(chip("This month"));
-    await click(byLabel("Previous period"));
     expect(headings()).toContain("Cover calendar");
     expect(headings()).not.toContain("Activity calendar");
+    // All time is 10 Sep to 6 Nov: November first
+    expect(coverMonth()).toBe("November 2026");
+    expect(byLabel("Next month")?.disabled).toBe(true);
+    // 1 Nov is a Sunday, 30 Nov a Monday: Monday 26 Oct to Sunday 6 Dec
+    expect(coverCells()).toHaveLength(42);
+    expect(coverCells()[0].getAttribute("data-cover-day")).toBe("2026-10-26");
+    // 1–6 Nov count; 26–31 Oct belong to October's page, the rest is ahead
+    expect(coverDays()).toHaveLength(6);
+    await click(byLabel("Previous month"));
+    expect(coverMonth()).toBe("October 2026");
+    expect(coverDays()).toHaveLength(31);
+    await click(byLabel("Previous month"));
+    expect(coverMonth()).toBe("September 2026");
+    // the history starts on 10 Sep
+    expect(coverDays()).toHaveLength(21);
+    expect(byLabel("Previous month")?.disabled).toBe(true);
+  });
+
+  // 25: up to six weeks, the range's own weeks; one day, its week
+  it("shows a month's own weeks and a day's week, and opens a clicked day", async () => {
+    await render();
+    await openInsights();
+    await click(chip("This month"));
+    await click(byLabel("Previous period"));
+    expect(container.querySelector("[data-cover-month]")).toBeNull();
     // October 2026 runs from Thursday the 1st: Monday 28 Sep to Sunday 1 Nov
-    const cells = container.querySelectorAll("[data-cover-day]");
+    const cells = coverCells();
     expect(cells).toHaveLength(35);
     expect(cells[0].getAttribute("data-cover-day")).toBe("2026-09-28");
     expect(
@@ -433,7 +461,10 @@ describe("Insights", () => {
     ).toEqual(["17", "3h 30m", "+1"]);
     await click(busiest);
     expect(rangeLabel()).toBe("Sat, Oct 17");
-    expect(headings()).toContain("Activity calendar");
+    // Monday 12 to Sunday 18 October, the 17th the only day that counts
+    expect(coverCells()).toHaveLength(7);
+    expect(coverDays()).toHaveLength(1);
+    expect(coverCells()[0].getAttribute("data-cover-day")).toBe("2026-10-12");
   });
 
   const seasonNames = () =>
@@ -531,14 +562,5 @@ describe("Insights", () => {
     ).toHaveLength(2);
     await click(inContainer("Show fewer"));
     expect(seasonNames()).toHaveLength(8);
-  });
-
-  // 24
-  it("opens a day clicked in the activity calendar", async () => {
-    stubWidth();
-    await render();
-    await openInsights();
-    await click(byLabel("Saturday, October 17, 2026: 3h 30m"));
-    expect(rangeLabel()).toBe("Sat, Oct 17");
   });
 });
