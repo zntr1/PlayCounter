@@ -469,6 +469,8 @@ export type AppState = {
   libraryImportProvider: BuiltinImportProviderId;
   historyQuery: string;
   historyGameKey: string | null;
+  /** The filtered game's name, for its chip in the title bar's search box. */
+  historyGameName: string | null;
   /** Library search text. Lives here because the search field sits in the
    *  window's title bar, outside the My Games view. Not persisted. */
   libraryQuery: string;
@@ -578,7 +580,8 @@ export type AppState = {
   searchWholeLibrary: () => void;
   setCustomHeroArt: (key: string, url: string | null) => void;
   setCustomCoverArt: (key: string, url: string | null) => void;
-  setHistoryGameKey: (key: string | null) => void;
+  /** Filters My History to one game; its name shows in the search box. */
+  setHistoryGameKey: (key: string | null, name?: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
   setAmbiguousMatch: (match: AmbiguousProcessMatch) => void;
@@ -929,6 +932,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   libraryQuery: "",
   libraryScopeReset: 0,
   historyGameKey: null,
+  historyGameName: null,
   installUuid: null,
   contributionOwnerUuid: null,
   activeSessions: [],
@@ -1137,7 +1141,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     persistSoon();
   },
-  setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),
+  setHistoryGameKey: (historyGameKey, name = null) =>
+    set({ historyGameKey, historyGameName: historyGameKey ? name : null }),
   adoptInstallIdentity: (installUuid) =>
     set((state) => {
       if (state.contributionOwnerUuid === installUuid) {

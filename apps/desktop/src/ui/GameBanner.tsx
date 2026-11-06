@@ -140,8 +140,9 @@ export function GameBanner({
 
   function showHistory() {
     menu.close();
-    setHistoryQuery(game.name);
-    setHistoryGameKey(game.historyGameKey);
+    // The game shows as a chip in the search box, so no search text.
+    setHistoryQuery("");
+    setHistoryGameKey(game.historyGameKey, game.name);
     setActiveView("history");
   }
 

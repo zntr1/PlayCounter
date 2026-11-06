@@ -1006,3 +1006,33 @@ it("walks the tier guide: rate GTA V, sort by tier, then filter its tier", async
   expect(cards()).toEqual(["-2", "-1"]);
   vi.useRealTimers();
 });
+
+// docs/history-ranges-plan.md 37: the practice has no search box, so its
+// game filter stays a badge next to Sort, and the real filter is untouched.
+it("keeps the game filter badge in the stats practice", async () => {
+  await start("stats", "sessions");
+  const row = document.querySelector<HTMLElement>(
+    "[data-history-session-row]",
+  )!;
+  await act(() => {
+    row.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 40,
+        clientY: 40,
+      }),
+    );
+  });
+  const item = [
+    ...document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].find((element) => element.textContent?.trim() === "Filter for this game");
+  expect(item).toBeDefined();
+  await act(() => item!.click());
+  expect(
+    document.querySelector(
+      '[data-tour="demo-stats"] [aria-label="Clear game filter"]',
+    ),
+  ).not.toBeNull();
+  expect(useAppStore.getState().historyGameKey).toBeNull();
+});

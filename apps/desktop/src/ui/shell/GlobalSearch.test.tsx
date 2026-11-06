@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore, type ViewId } from "../../store";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -83,3 +83,70 @@ it.each(Object.entries(escapeOwner))(
     expect(input.value).toBe(owner === "title bar" ? "" : "zelda");
   },
 );
+
+// docs/history-ranges-plan.md 33–36: a game filter is a chip in the box.
+describe("game filter chip on My History", () => {
+  const input = () =>
+    container.querySelector<HTMLInputElement>('[role="search"] input')!;
+  const chip = () => container.querySelector("[data-history-game-filter]");
+
+  async function type(value: string) {
+    await act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input(), value);
+      input().dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  async function press(key: string) {
+    await act(() => {
+      input().dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+    });
+  }
+
+  beforeEach(() => {
+    useAppStore.setState({ activeView: "history" });
+    useAppStore.getState().setHistoryGameKey("custom:-1", "The Witcher 3");
+  });
+
+  it("shows the game's name with × instead of text, on My History only", async () => {
+    await act(() => root.render(<GlobalSearch />));
+    expect(chip()?.textContent).toBe("The Witcher 3");
+    expect(input().value).toBe("");
+    expect(input().placeholder).toBe("");
+    await act(() => useAppStore.getState().setActiveView("games"));
+    expect(chip()).toBeNull();
+  });
+
+  it("removes the chip with × and with Backspace in the empty box", async () => {
+    await act(() => root.render(<GlobalSearch />));
+    await act(() =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Clear game filter"]')!
+        .click(),
+    );
+    expect(chip()).toBeNull();
+    expect(useAppStore.getState().historyGameKey).toBeNull();
+    expect(useAppStore.getState().historyGameName).toBeNull();
+
+    await act(() =>
+      useAppStore.getState().setHistoryGameKey("custom:-1", "The Witcher 3"),
+    );
+    await press("Backspace");
+    expect(chip()).toBeNull();
+    expect(useAppStore.getState().historyGameKey).toBeNull();
+  });
+
+  it("replaces the chip with a text search when typing", async () => {
+    await act(() => root.render(<GlobalSearch />));
+    await type("ha");
+    expect(chip()).toBeNull();
+    expect(useAppStore.getState().historyGameKey).toBeNull();
+    expect(useAppStore.getState().historyQuery).toBe("ha");
+    expect(input().value).toBe("ha");
+  });
+});

@@ -75,6 +75,7 @@
   "Search your games": "Поиск по вашим играм",
   "Search your games (opens My Games)": "Поиск по вашим играм (открывает «Мои игры»)",
   "Clear search": "Очистить поиск",
+  "Clear game filter": "Сбросить фильтр игры",
   "{{label}} unavailable offline.": "{{label}} недоступно без сети.",
   "Could not open {{label}}": "Не удалось открыть {{label}}",
   "PlayCounter website": "Сайт PlayCounter",

@@ -166,7 +166,6 @@ export function HistoryView() {
   const query = practice ? sampleQuery : realQuery;
   const setQuery = practice ? setSampleQuery : setRealQuery;
   const selectedGameKey = practice ? sampleGameKey : realGameKey;
-  const setSelectedGameKey = practice ? setSampleGameKey : setRealGameKey;
   const sessions = usePersonalLibraryState((state) => state.recentSessions);
   const exeCache = usePersonalLibraryState((state) => state.exeCache);
   const hydratedGameMetadata = usePersonalLibraryState(
@@ -333,6 +332,16 @@ export function HistoryView() {
     }
     return games;
   }, [resolveGame, resolveIgdbId, sessions]);
+  // The real filter carries the game's name for its chip in the search box;
+  // the practice has no search box and keeps its own filter.
+  const setSelectedGameKey = useCallback(
+    (key: string | null) => {
+      if (practice) setSampleGameKey(key);
+      else
+        setRealGameKey(key, key ? (gamesByKey.get(key)?.name ?? null) : null);
+    },
+    [gamesByKey, practice, setRealGameKey],
+  );
   const pickedCovers = usePickedCovers();
   const resolveGameCover = useCallback(
     (key: string | null) =>
@@ -909,7 +918,7 @@ export function HistoryView() {
         </div>
         {tab === "sessions" ? (
           <div className="flex flex-wrap items-center gap-2 pb-2">
-            {selectedGameKey ? (
+            {practice && selectedGameKey ? (
               <span className="inline-flex max-w-[280px] items-center gap-1.5 rounded-lg border border-accent/45 bg-accent/10 py-1 pl-2.5 pr-1 text-[13px] font-semibold text-text">
                 <span className="truncate">{selectedGameName}</span>
                 <button

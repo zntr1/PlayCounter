@@ -168,23 +168,35 @@ describe("tabs", () => {
     expect(panel("sessions")).toBeNull();
   });
 
-  // 31: the banner menu, game details and a session's journal set the game
+  // 31: the banner menu and a session's journal set the game
   it("opens Sessions for a game picked elsewhere", async () => {
     const witcher = sessions.find((session) => session.gameName === "Witcher")!;
-    useAppStore.setState({
-      historyQuery: "Witcher",
-      historyGameKey: getSessionGameKey(witcher),
-    });
+    useAppStore
+      .getState()
+      .setHistoryGameKey(getSessionGameKey(witcher), "Witcher");
     await render();
     expect(selectedTab()).toBe("history-tab-sessions");
     expect(panel("insights")).toBeNull();
+    expect(plain(panel("sessions")?.textContent)).not.toContain("Hades");
   });
 
-  // 31
-  it("opens Sessions from a highlight about a game", async () => {
+  // 31 + 33–34: the filter goes to the search box, not next to Sort
+  it("opens Sessions from a highlight about a game, with the game in the search box", async () => {
     await render();
     await click(container.querySelector('button[data-highlight="mostPlayed"]'));
     expect(selectedTab()).toBe("history-tab-sessions");
+    const state = useAppStore.getState();
+    expect(state.historyGameName).toBe("Witcher");
+    expect(state.historyQuery).toBe("");
+    expect(byLabel("Clear game filter")).toBeNull();
+    // Escape still drops it
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", cancelable: true }),
+      );
+    });
+    expect(useAppStore.getState().historyGameKey).toBeNull();
+    expect(useAppStore.getState().historyGameName).toBeNull();
   });
 });
 
@@ -589,7 +601,9 @@ describe("Insights", () => {
         .querySelector("#history-tab-sessions")
         ?.getAttribute("aria-selected"),
     ).toBe("true");
-    expect(byLabel("Clear game filter")).not.toBeNull();
+    // 33–34: the filter shows in the search box, not next to Sort
+    expect(useAppStore.getState().historyGameName).toBe("Witcher");
+    expect(byLabel("Clear game filter")).toBeNull();
   });
 
   // 27 + 30
