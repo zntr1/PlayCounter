@@ -510,6 +510,25 @@ export interface GameDetails {
    * The banner's first choice; absent from APIs without a SteamGridDB key.
    */
   heroUrls?: string[];
+  /**
+   * IGDB's time to beat. Absent when IGDB has no submissions for the game,
+   * and from APIs released before this field existed.
+   */
+  timeToBeat?: GameTimeToBeat;
+  /**
+   * The game's HowLongToBeat id (https://howlongtobeat.com/game/<id>), found
+   * on Wikidata. Absent when Wikidata has none, and from older APIs.
+   */
+  hltbId?: number;
+}
+
+/** IGDB's averages in seconds. A pace nobody submitted is absent, never 0. */
+export interface GameTimeToBeat {
+  hastilySeconds?: number;
+  normallySeconds?: number;
+  completelySeconds?: number;
+  /** How many IGDB submissions the averages come from. */
+  count: number;
 }
 
 export interface GameDetailsResponse {
