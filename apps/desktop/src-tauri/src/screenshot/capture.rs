@@ -163,7 +163,7 @@ pub struct CaptureInfo {
     pub hdr: bool,
     /// Windows' "SDR content brightness" used for that, in nits.
     pub sdr_white_nits: Option<f32>,
-    /// 0 when the graphics device was ready.
+    /// Making the graphics device for this picture.
     pub device_ms: f64,
     pub item_ms: f64,
     pub first_frame_ms: f64,
@@ -210,16 +210,6 @@ pub fn capture_window_as(hwnd: isize, mode: CaptureMode) -> Result<(Picture, Cap
 /// Starts a capture now and lets the caller collect it later.
 pub fn start_capture(hwnd: isize, mode: CaptureMode) -> PendingCapture {
     imp::start_capture(hwnd, mode)
-}
-
-/// Keeps the graphics device ready (while a game runs) or lets it go. Without
-/// it, a picture takes about 150 ms longer.
-pub fn keep_ready(on: bool) {
-    imp::keep_ready(on)
-}
-
-pub fn is_ready() -> bool {
-    imp::is_ready()
 }
 
 /// Writes the picture as a JPEG. `quality` is 0.0 to 1.0. Returns the size in
@@ -272,12 +262,6 @@ mod imp {
         PendingCapture(receiver)
     }
 
-    pub fn keep_ready(_on: bool) {}
-
-    pub fn is_ready() -> bool {
-        false
-    }
-
     pub fn save_jpeg(
         _picture: &Picture,
         _path: &std::path::Path,
@@ -310,10 +294,7 @@ mod imp {
     use super::*;
     use std::{
         path::Path,
-        sync::{
-            atomic::{AtomicBool, Ordering},
-            mpsc, Mutex, OnceLock,
-        },
+        sync::{mpsc, Mutex, OnceLock},
         time::{Duration, Instant},
     };
     use windows::{
@@ -411,19 +392,14 @@ mod imp {
     /// Windows' own default depends on the screen.
     const DEFAULT_SDR_WHITE_NITS: f32 = 200.0;
 
-    /// What the capture thread is asked to do. It owns the graphics device,
-    /// so the device never crosses threads.
-    enum Job {
-        Capture {
-            hwnd: isize,
-            mode: CaptureMode,
-            reply: mpsc::Sender<Result<(Picture, CaptureInfo), String>>,
-        },
-        KeepReady(bool),
+    /// A picture the capture thread is asked to take.
+    struct Job {
+        hwnd: isize,
+        mode: CaptureMode,
+        reply: mpsc::Sender<Result<(Picture, CaptureInfo), String>>,
     }
 
     static WORKER: OnceLock<Mutex<mpsc::Sender<Job>>> = OnceLock::new();
-    static READY: AtomicBool = AtomicBool::new(false);
 
     /// Hands a job to the capture thread, starting it the first time.
     fn send(job: Job) {
@@ -440,47 +416,24 @@ mod imp {
         }
     }
 
+    /// One picture at a time. Each one makes its own graphics device and lets
+    /// it go after. Keeping one ready would save about 0.1 s per picture but
+    /// hold about 37 MB more. The graphics driver stays loaded after the first
+    /// picture either way.
     fn run(jobs: mpsc::Receiver<Job>) {
         let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
-        let mut kept: Option<Devices> = None;
-        for job in jobs {
-            match job {
-                Job::KeepReady(on) => {
-                    kept = if on {
-                        kept.or_else(|| Devices::new().ok())
-                    } else {
-                        None
-                    };
-                }
-                Job::Capture { hwnd, mode, reply } => {
-                    let hwnd = HWND(hwnd as *mut _);
-                    let result = match &kept {
-                        Some(devices) => capture(devices, hwnd, mode, 0.0),
-                        None => {
-                            let started = Instant::now();
-                            Devices::new()
-                                .and_then(|devices| capture(&devices, hwnd, mode, ms(started)))
-                        }
-                    };
-                    let _ = reply.send(result);
-                }
-            }
+        for Job { hwnd, mode, reply } in jobs {
+            let started = Instant::now();
+            let result = Devices::new()
+                .and_then(|devices| capture(&devices, HWND(hwnd as *mut _), mode, ms(started)));
+            let _ = reply.send(result);
         }
     }
 
     pub fn start_capture(hwnd: isize, mode: CaptureMode) -> PendingCapture {
         let (reply, receiver) = mpsc::channel();
-        send(Job::Capture { hwnd, mode, reply });
+        send(Job { hwnd, mode, reply });
         PendingCapture(receiver)
-    }
-
-    pub fn keep_ready(on: bool) {
-        READY.store(on, Ordering::Release);
-        send(Job::KeepReady(on));
-    }
-
-    pub fn is_ready() -> bool {
-        READY.load(Ordering::Acquire)
     }
 
     /// The graphics device, in both forms capture needs.

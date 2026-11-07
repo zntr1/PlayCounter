@@ -624,7 +624,6 @@ pub fn run() {
             quick_note::quick_note_ready,
             quick_note::quick_note_close,
             screenshot::commands::screenshot_take,
-            screenshot::commands::screenshot_ready,
             screenshot::commands::screenshot_list,
             screenshot::commands::screenshot_preview,
             screenshot::commands::screenshot_open,

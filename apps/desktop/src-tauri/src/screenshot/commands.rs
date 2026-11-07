@@ -9,8 +9,7 @@ use super::{
         clean_file_name, is_picture, picture_inside, preview_name, screenshot_stem, unique_path,
         LocalTime,
     },
-    fill_rounded_corners, is_ready, keep_ready, looks_black, save_jpeg, save_preview,
-    save_preview_from_file,
+    fill_rounded_corners, looks_black, save_jpeg, save_preview, save_preview_from_file,
     sound::{play, Sound},
     start_capture, CaptureMode, PendingCapture, CAPTURE_TIMEOUT, MINIMIZED,
 };
@@ -53,9 +52,9 @@ struct Early {
     capture: PendingCapture,
 }
 
-/// The screenshot key, called the moment it is pressed. While a game runs the
-/// graphics device is ready, so the picture is taken right away: what you see
-/// when you press is what you get. Which session it belongs to comes after.
+/// The screenshot key, called the moment it is pressed. The picture is taken
+/// right away, so what you see when you press is what you get. Which session
+/// it belongs to comes after.
 pub fn key_pressed(app: &tauri::AppHandle) {
     let state = app.state::<ScreenshotState>();
     let foreground = window::foreground();
@@ -63,7 +62,6 @@ pub fn key_pressed(app: &tauri::AppHandle) {
         *slot = foreground;
     }
     let early = foreground
-        .filter(|_| is_ready())
         .map(|hwnd| (hwnd, window::process_id(hwnd)))
         // PlayCounter's own window is never the game.
         .filter(|&(_, pid)| pid != 0 && pid != std::process::id())
@@ -76,14 +74,6 @@ pub fn key_pressed(app: &tauri::AppHandle) {
         .early
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = early;
-}
-
-/// Keeps the graphics device ready while a game runs and the key is set.
-#[tauri::command]
-pub fn screenshot_ready(window: tauri::Window, on: bool) -> Result<(), String> {
-    main_only(&window)?;
-    keep_ready(on);
-    Ok(())
 }
 
 /// A running game the key may take a picture of. The main window sends

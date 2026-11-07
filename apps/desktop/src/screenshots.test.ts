@@ -245,34 +245,6 @@ describe("the screenshot key", () => {
     expect(showScreenshotOverlay).not.toHaveBeenCalled();
   });
 
-  it("keeps the capture ready only while a game runs and the key is set", async () => {
-    const readyCalls = () =>
-      invokeMock.mock.calls
-        .filter(([command]) => command === "screenshot_ready")
-        .map(([, args]) => (args as { on: boolean }).on);
-    expect(readyCalls()).toEqual([false]);
-    useAppStore.setState({
-      activeSessions: [active(1, "2026-11-07T18:00:00.000Z")],
-    });
-    expect(readyCalls()).toEqual([false]);
-    useAppStore.setState((state) => ({
-      settings: { ...state.settings, screenshotHotkey: "Alt+F11" },
-    }));
-    expect(readyCalls()).toEqual([false, true]);
-    // A console session has no window on this PC.
-    useAppStore.setState({
-      activeSessions: [
-        active(2, "2026-11-07T19:00:00.000Z", { console: "PS5" }),
-      ],
-    });
-    expect(readyCalls()).toEqual([false, true, false]);
-    useAppStore.setState({
-      activeSessions: [active(3, "2026-11-07T20:00:00.000Z")],
-    });
-    disposeScreenshots();
-    expect(readyCalls()).toEqual([false, true, false, true, false]);
-  });
-
   it("asks for the games on this PC, started last first", async () => {
     useAppStore.setState({
       activeSessions: [

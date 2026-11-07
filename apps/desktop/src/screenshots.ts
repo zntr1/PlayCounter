@@ -181,30 +181,10 @@ export function useSessionScreenshots(sessionId: number): Screenshot[] {
 
 let pidsOf: ((session: ActiveSession) => number[]) | null = null;
 let lifecycle: { disposed: boolean } | null = null;
-/** What Rust was last told: keep the graphics device ready or not. */
-let ready: boolean | null = null;
-let stopWatching: (() => void) | null = null;
 
 /** A game on this PC. Console and hand-timed sessions have no window here. */
 function onThisPc(session: ActiveSession) {
   return !session.recoveredFromCheckpoint && !session.timer && !session.console;
-}
-
-function tellReady(on: boolean) {
-  ready = on;
-  void invoke("screenshot_ready", { on }).catch((error) =>
-    console.error("screenshot ready failed", error),
-  );
-}
-
-/** While a game runs and the key is set, Rust keeps the graphics device
- *  ready, so a picture is taken the moment the key is pressed. Otherwise it
- *  lets the device go and the memory with it. */
-function syncReady() {
-  const state = useAppStore.getState();
-  const want =
-    !!state.settings.screenshotHotkey && state.activeSessions.some(onThisPc);
-  if (want !== ready) tellReady(want);
 }
 
 /** Reads the folder once at start. `pids` names a running game's processes. */
@@ -215,19 +195,12 @@ export function initializeScreenshots(
   if (lifecycle) return;
   lifecycle = { disposed: false };
   void loadScreenshots();
-  ready = null;
-  syncReady();
-  stopWatching = useAppStore.subscribe(syncReady);
 }
 
 export function disposeScreenshots() {
   if (lifecycle) lifecycle.disposed = true;
   lifecycle = null;
   pidsOf = null;
-  stopWatching?.();
-  stopWatching = null;
-  if (ready) tellReady(false);
-  ready = null;
 }
 
 /** Reads Pictures\PlayCounter again: pictures added or deleted in Explorer

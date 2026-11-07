@@ -20,8 +20,8 @@ fn main() {
 #[cfg(windows)]
 mod spike {
     use playcounter_lib::screenshot::{
-        black_share, capture_window, capture_window_as, keep_ready, monitor_is_hdr,
-        request_borderless_capture, save_jpeg,
+        black_share, capture_window, capture_window_as, monitor_is_hdr, request_borderless_capture,
+        save_jpeg,
         sound::{play, Sound},
         CaptureInfo, CaptureMode, Picture, BLACK_SHARE_LIMIT,
     };
@@ -114,8 +114,6 @@ mod spike {
             eprintln!("Ctrl+Shift+F9 is taken by another app: {}", error.message());
             return 1;
         }
-        // Like the app while a game runs: the graphics device stays ready.
-        keep_ready(true);
         log_line(
             &out,
             &format!(
@@ -341,23 +339,27 @@ mod spike {
             }
             std::thread::sleep(Duration::from_millis(15));
         }
-        // Without a ready device first, then with one (as while a game runs),
-        // measuring what keeping it ready costs.
-        let cold = capture_window(hwnd.0 as isize);
+        // Like the app: each picture makes its own graphics device and lets it
+        // go after. The first one also loads Windows' graphics code and the
+        // next few fill caches, which stay; after that memory must stay flat.
+        let take = |count: usize| {
+            let mut last = capture_window(hwnd.0 as isize);
+            for _ in 1..count {
+                last = capture_window(hwnd.0 as isize);
+            }
+            std::thread::sleep(Duration::from_millis(500));
+            (last, private_mb())
+        };
         let before = private_mb();
-        keep_ready(true);
-        let _warm_up = capture_window(hwnd.0 as isize);
-        let ready = private_mb();
-        let result = capture_window(hwnd.0 as isize);
-        keep_ready(false);
-        std::thread::sleep(Duration::from_millis(500));
-        let after = private_mb();
+        let (first, after_first) = take(1);
+        let (_, after_20) = take(19);
+        let (result, after_40) = take(20);
         unsafe {
             let _ = DestroyWindow(hwnd);
         }
-        if let Ok((_, info)) = &cold {
+        if let Ok((_, info)) = &first {
             println!(
-                "Without a ready device: {}",
+                "First picture: {}",
                 timings(
                     info,
                     0.0,
@@ -366,9 +368,14 @@ mod spike {
             );
         }
         println!(
-            "Private memory: {before:.1} MB, {ready:.1} MB with the device ready (+{:.1} MB), {after:.1} MB after letting it go",
-            ready - before
+            "Private memory: {before:.1} MB before any picture, {after_first:.1} MB after the first, {after_20:.1} MB after 20, {after_40:.1} MB after 40"
         );
+        if after_40 - after_20 > 3.0 {
+            return Err(format!(
+                "each picture holds more memory: {:+.1} MB from picture 20 to 40",
+                after_40 - after_20
+            ));
+        }
         let (picture, info) = result?;
         if picture.width != WIDTH as u32 || picture.height != HEIGHT as u32 {
             return Err(format!(
