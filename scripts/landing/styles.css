@@ -835,7 +835,8 @@ main[id] {
   color: var(--faint);
   font-size: 0.78rem;
 }
-#emulators .screenshot {
+#emulators .screenshot,
+#imports .screenshot {
   margin-top: 40px;
 }
 

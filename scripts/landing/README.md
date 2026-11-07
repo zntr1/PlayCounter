@@ -64,6 +64,11 @@ public UI. Change the filenames when replacing them: versioned images are cached
 for a year. Game art comes from the existing landing covers and Steam's public
 store CDN; the launcher and emulator marks come from the repository's `assets/`.
 The older `*-v1-1-16` files stay because the repository README still uses them.
+The `*-v1-6-0` window shots (My History, game achievements, How long to beat,
+PlayStation in Now Playing) show the 1.6.0 interface. They come from the
+What's new fixture in `docs/whats-new/capture.cjs`; Cyberpunk 2077's
+time-to-beat numbers in them are samples, not IGDB's. The 1.2.0
+`playcounter-history-v1-2-0` files stay for the repository README.
 
 The homepage hero is a video frame (`site.trailer` in `site.mjs`, files in
 `landing/videos/`): `site.js` plays a silent preview loop while it is on screen
