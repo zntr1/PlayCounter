@@ -342,5 +342,12 @@
   "Every {{count, number}} minutes_one": "Every minute",
   "Every {{count, number}} minutes_other": "Every {{count, number}} minutes",
   "Forget imported PlayStation data": "Forget imported PlayStation data",
-  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept."
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.",
+  "Take a screenshot": "Take a screenshot",
+  "Screenshots are not supported on macOS yet.": "Screenshots are not supported on macOS yet.",
+  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.": "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.",
+  "Screenshots": "Screenshots",
+  "The folder could not be opened.": "The folder could not be opened.",
+  "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.",
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "Pictures from the screenshot key go to your Pictures folder, one folder per game."
 }

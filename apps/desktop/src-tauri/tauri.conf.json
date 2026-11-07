@@ -31,7 +31,9 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/covers/**/*"
+          "$APPDATA/covers/**/*",
+          "$APPDATA/screenshot-previews/**/*",
+          "$PICTURE/PlayCounter/**/*"
         ]
       }
     }

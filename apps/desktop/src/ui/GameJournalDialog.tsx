@@ -52,6 +52,7 @@ import { GameStatusIcon } from "./GameStatusIcon";
 import { formatDuration } from "./components";
 import { GameCover } from "./GameCover";
 import { SessionNote } from "./SessionNote";
+import { SessionScreenshotsTableRow } from "./SessionScreenshots";
 import { useGameJournal } from "./useGameJournal";
 import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
@@ -895,6 +896,11 @@ function JournalSessionRows({
           </td>
         </tr>
       ) : null}
+      <SessionScreenshotsTableRow
+        sessionId={session.id}
+        gameName={session.gameName}
+        colSpan={4}
+      />
     </>
   );
 }

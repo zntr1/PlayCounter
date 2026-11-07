@@ -72,6 +72,7 @@ import { WhatsNewDialog } from "./WhatsNewDialog";
 import { SidebarButton } from "./SidebarButton";
 import { LanguageNotice } from "./LanguageNotice";
 import { DiscordInviteDialog, discordInviteDue } from "./DiscordInviteDialog";
+import { ScreenshotViewer } from "./ScreenshotViewer";
 import { GlobalSearch } from "./shell/GlobalSearch";
 import { GlobalTooltip } from "./shell/GlobalTooltip";
 import { HeaderLinks } from "./shell/HeaderLinks";
@@ -1439,6 +1440,7 @@ export function App() {
       {discordInviteOpen ? (
         <DiscordInviteDialog onClose={() => setDiscordInviteOpen(false)} />
       ) : null}
+      <ScreenshotViewer />
       {startupNotesOpen && startupUpdate?.status === "available" ? (
         <ReleaseNotesDialog
           version={startupUpdate.version}

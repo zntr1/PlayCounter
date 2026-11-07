@@ -702,6 +702,7 @@ export interface Settings {
   currentSessionHotkey?: string | null;
   quickNoteHotkey?: string | null;
   liveTimerHotkey?: string | null;
+  screenshotHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";

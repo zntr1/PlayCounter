@@ -617,6 +617,20 @@ describe("UI code", () => {
 // Messages that stay English: invariants, parse errors of launcher files,
 // paths, and the tray's defaults until the main window sends its texts.
 const RUST_ENGLISH_ON_PURPOSE = new Set([
+  // Screenshots: logged only; the window shows its own texts for each case.
+  "Screenshots are not supported on this platform.",
+  "The screenshot thread stopped.",
+  "The window is gone.",
+  "The window is minimized.",
+  "Windows sent no picture of the window.",
+  "The window has no picture area.",
+  "No graphics device.",
+  "No readable copy of the picture.",
+  "The window's position is unknown.",
+  "The JPEG encoder made no frame.",
+  "Not a PlayCounter picture.",
+  "The Recycle Bin did not take the picture ({result}).",
+  "The capture took too long.",
   "A PlayCounter data path points outside its app folder.",
   "Battle.net sign-in must be cancelled from PlayCounter.",
   "Closing games is only supported on Windows.",

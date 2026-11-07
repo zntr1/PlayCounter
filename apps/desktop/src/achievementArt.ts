@@ -34,7 +34,8 @@ export type AchievementIconName =
   | "shield-check"
   | "circle-slash"
   | "list-checks"
-  | "message-square";
+  | "message-square"
+  | "camera";
 
 export type AchievementArt = {
   icon: AchievementIconName;
@@ -105,6 +106,14 @@ export function achievementArt(input: {
       return art("shield-check", "bronze", t("approved suggestion"), false);
     case "suggestion-rejected":
       return art("circle-slash", "bronze", t("reviewed suggestion"), false);
+    case "screenshot-black":
+      return art(
+        "camera",
+        "bronze",
+        t("screenshot"),
+        false,
+        t("Screenshot came out black"),
+      );
     case "discovered-review":
       return art(
         "list-checks",

@@ -349,5 +349,12 @@
   "Every {{count, number}} minutes_many": "Toutes les {{count, number}} minutes",
   "Every {{count, number}} minutes_other": "Toutes les {{count, number}} minutes",
   "Forget imported PlayStation data": "Oublier les données PlayStation importées",
-  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Retire la marque PlayStation et le temps de jeu PlayStation importé. Les sessions enregistrées par PlayCounter lui-même, sessions PS5 et PS4 comprises, sont conservées."
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Retire la marque PlayStation et le temps de jeu PlayStation importé. Les sessions enregistrées par PlayCounter lui-même, sessions PS5 et PS4 comprises, sont conservées.",
+  "Take a screenshot": "Prendre une capture d'écran",
+  "Screenshots are not supported on macOS yet.": "Les captures d'écran ne sont pas encore prises en charge sur macOS.",
+  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.": "Enregistre une image du jeu en cours et l'ajoute à la session. Fonctionne avec les jeux en mode fenêtré et en fenêtre sans bordure. En plein écran exclusif, Windows peut masquer le jeu et l'image sera noire.",
+  "Screenshots": "Captures d'écran",
+  "The folder could not be opened.": "Impossible d'ouvrir le dossier.",
+  "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "Les images du raccourci de capture vont dans {{folder}}, un dossier par jeu. Elles y restent si vous désinstallez PlayCounter.",
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "Les images du raccourci de capture vont dans votre dossier Images, un dossier par jeu."
 }

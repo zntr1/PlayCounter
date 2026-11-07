@@ -26,6 +26,7 @@ const EXPECTED_ICONS: Record<NotificationKind, AchievementIconName> = {
   "milestone-verified": "badge-check",
   "milestone-emulator": "joystick",
   "discovered-review": "list-checks",
+  "screenshot-black": "camera",
 };
 
 const TIER_INDEX: Record<AchievementTier, number> = {

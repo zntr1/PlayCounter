@@ -177,5 +177,7 @@
   "Also new in {{version}}": "Также в {{version}}",
   "Also since your last update": "Также с прошлого обновления",
   "Show changes": "Показать изменения",
-  "Hide changes": "Скрыть изменения"
+  "Hide changes": "Скрыть изменения",
+  "Your screenshot of {{game}} came out black": "Скриншот игры {{game}} получился чёрным",
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows скрывает игры в эксклюзивном полноэкранном режиме от других приложений. Переключите игру в окно без рамки или оконный режим и попробуйте снова."
 }

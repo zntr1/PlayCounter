@@ -25,6 +25,7 @@ import { usePickedCovers } from "../../../pickedCovers";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
 import { SessionNote } from "../../SessionNote";
+import { SessionScreenshots } from "../../SessionScreenshots";
 import {
   useLibraryPractice,
   usePersonalLibraryApi,
@@ -453,6 +454,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             />
           </div>
         ) : null}
+        <SessionScreenshots
+          sessionId={session.id}
+          gameName={session.gameName}
+          className="mt-1.5"
+        />
       </div>
       <div className="min-w-0 text-right">
         <div className="font-mono text-[15px] font-bold leading-none tabular-nums text-accent-ink">

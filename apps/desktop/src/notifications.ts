@@ -23,7 +23,8 @@ export type NotificationKind =
   | "milestone-streak"
   | "milestone-verified"
   | "milestone-emulator"
-  | "discovered-review";
+  | "discovered-review"
+  | "screenshot-black";
 
 export type NotificationAction = {
   view: ViewId;
@@ -131,9 +132,34 @@ export function notificationEmoji(kind: NotificationKind) {
       return "🕹️";
     case "discovered-review":
       return "🧹";
+    case "screenshot-black":
+      return "📷";
     default:
       return assertNever(kind);
   }
+}
+
+/** What the bell says about a screenshot that came out black. */
+export function screenshotBlackText(game: string) {
+  return {
+    title: t("Your screenshot of {{game}} came out black", { game }),
+    body: t(
+      "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.",
+    ),
+  };
+}
+
+export function screenshotBlackNotification(
+  game: string,
+  createdAt: string,
+): AppNotification {
+  return {
+    id: `screenshot-black:${createdAt}`,
+    kind: "screenshot-black",
+    ...screenshotBlackText(game),
+    createdAt,
+    params: { game },
+  };
 }
 
 export function feedbackReplyNotification(

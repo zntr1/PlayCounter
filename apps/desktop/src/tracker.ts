@@ -8,6 +8,7 @@ import {
 } from "./achievements/backgroundRefresh";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
+import { initializeScreenshots, disposeScreenshots } from "./screenshots";
 import {
   initializeLiveTimer,
   disposeLiveTimer,
@@ -536,6 +537,7 @@ export async function initializeTracker() {
   initializeHotkeys();
   initializeQuickNotes();
   initializeLiveTimer(runningGamePids);
+  initializeScreenshots(runningGamePids);
   initializePlayStationLive({
     start: startConsoleSession,
     see: seeConsoleSession,
@@ -590,6 +592,7 @@ export async function stopTrackerForReset() {
   disposeHotkeys();
   disposeQuickNotes();
   disposeLiveTimer();
+  disposeScreenshots();
   disposePlayStationLive();
   disposePlaytimeReminder();
   disposeControllerBridge();
@@ -669,6 +672,7 @@ async function finishTrackerStartup() {
     disposeHotkeys();
     disposeQuickNotes();
     disposeLiveTimer();
+    disposeScreenshots();
     disposePlayStationLive();
     disposePlaytimeReminder();
     disposeAutomaticBackups();

@@ -24,6 +24,7 @@ export type {
 export const OVERLAY_PRIORITY: Record<DesktopOverlayKind, number> = {
   "current-session": 7,
   "live-timer": 7,
+  screenshot: 7,
   "playtime-reminder": 6,
   "action-required": 6,
   milestone: 5,
@@ -51,6 +52,7 @@ export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
   "current-session": 6_000,
   "live-timer": 3_000,
+  screenshot: 3_000,
   "playtime-reminder": 10_000,
   "action-required": 15_000,
   "session-start": 10_000,
@@ -63,6 +65,7 @@ const HOLD_MS: Record<DesktopOverlayKind, number> = {
 const TTL_MS: Record<DesktopOverlayKind, number> = {
   "current-session": 10_000,
   "live-timer": 10_000,
+  screenshot: 10_000,
   "playtime-reminder": 5 * 60_000,
   "action-required": 15 * 60_000,
   "session-start": 20_000,
@@ -117,11 +120,27 @@ export type OverlayEvent =
       todaySeconds: number;
     }
   /** Null = switched off. */
-  | { type: "live-timer"; corner: LiveTimerCorner | null };
+  | { type: "live-timer"; corner: LiveTimerCorner | null }
+  | {
+      type: "screenshot";
+      outcome: ScreenshotOutcome;
+      gameName?: string;
+      coverUrl?: string;
+    };
+
+/** How the screenshot key went. */
+export type ScreenshotOutcome =
+  | "saved"
+  | "black"
+  | "minimized"
+  | "no-window"
+  | "failed";
 
 export type TrackerOverlayEvent = Exclude<
   OverlayEvent,
-  { type: "discovery-burst" | "playtime-reminder" | "live-timer" }
+  {
+    type: "discovery-burst" | "playtime-reminder" | "live-timer" | "screenshot";
+  }
 >;
 
 let nextSequence = 0;
@@ -245,6 +264,24 @@ function overlayCopy(
       kicker: t("LIVE TIMER"),
       title: event.corner ? titles[event.corner] : t("Live timer off"),
       body: event.corner ? t("It appears while a game is running.") : undefined,
+    };
+  }
+  if (event.type === "screenshot") {
+    const bodies: Record<ScreenshotOutcome, string> = {
+      saved: t("Added to this session."),
+      black: t(
+        "The picture came out black. Switch the game to borderless or windowed, then try again.",
+      ),
+      minimized: t("The game is minimized. Bring it back and try again."),
+      "no-window": t("PlayCounter couldn't find the game's window."),
+      failed: t("PlayCounter couldn't take the screenshot."),
+    };
+    return {
+      kicker:
+        event.outcome === "saved" ? t("SCREENSHOT SAVED") : t("NO SCREENSHOT"),
+      title: event.gameName ?? t("Screenshot"),
+      body: bodies[event.outcome],
+      coverUrl: event.coverUrl,
     };
   }
   if (kind === "action-required" && event.type === "choice-required") {

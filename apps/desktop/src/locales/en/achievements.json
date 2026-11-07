@@ -98,5 +98,7 @@
   "Legendary": "Legendary",
   "{{title}} · Unlocked {{date}}": "{{title}} · Unlocked {{date}}",
   "{{title}} · Locked": "{{title}} · Locked",
-  "{{count}} {{tier}}": "{{count}} {{tier}}"
+  "{{count}} {{tier}}": "{{count}} {{tier}}",
+  "screenshot": "screenshot",
+  "Screenshot came out black": "Screenshot came out black"
 }

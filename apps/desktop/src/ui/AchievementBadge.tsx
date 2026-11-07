@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   CalendarCheck,
+  Camera,
   CircleSlash,
   Flame,
   Gamepad2,
@@ -34,6 +35,7 @@ const ICONS: Record<AchievementIconName, LucideIcon> = {
   "circle-slash": CircleSlash,
   "list-checks": ListChecks,
   "message-square": MessageSquare,
+  camera: Camera,
 };
 
 export function AchievementBadge({

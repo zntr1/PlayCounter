@@ -64,6 +64,7 @@ import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { PLAYTIME_REMINDER_MINUTES } from "../../playtimeReminder";
+import { openScreenshotsFolder, screenshotsFolder } from "../../screenshots";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
 import { resolveEmulatorBinary } from "../../emulatorLaunch";
@@ -724,6 +725,22 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        <SettingsRow
+          title={t("Take a screenshot")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Screenshots are not supported on macOS yet.")
+              : t(
+                  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="screenshotHotkey"
+            label={t("Take a screenshot")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
         {currentPlatform() !== "macos" ? (
           <SettingsRow
             title={t("Show clock in session popup")}
@@ -813,6 +830,7 @@ export function SettingsView() {
               ))}
             </Select>
           </SettingsRow>
+          <ScreenshotFolderRow />
         </SettingsPanel>
       ) : null}
 
@@ -1991,6 +2009,53 @@ function SettingsPanel({
       </div>
       <div className="grid gap-5 p-5">{children}</div>
     </Panel>
+  );
+}
+
+/** Where the screenshot key's pictures go, with a button to open it. */
+function ScreenshotFolderRow() {
+  const [folder, setFolder] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void screenshotsFolder()
+      .then((path) => {
+        if (current) setFolder(path);
+      })
+      .catch((error) => console.error("screenshot folder failed", error));
+    return () => {
+      current = false;
+    };
+  }, []);
+  return (
+    <SettingsRow
+      title={t("Screenshots")}
+      description={
+        failed
+          ? t("The folder could not be opened.")
+          : folder
+            ? t(
+                "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.",
+                { folder },
+              )
+            : t(
+                "Pictures from the screenshot key go to your Pictures folder, one folder per game.",
+              )
+      }
+    >
+      <Button
+        icon={FolderOpen}
+        onClick={() => {
+          setFailed(false);
+          void openScreenshotsFolder().catch((error) => {
+            console.error("screenshot folder failed", error);
+            setFailed(true);
+          });
+        }}
+      >
+        {t("Open folder")}
+      </Button>
+    </SettingsRow>
   );
 }
 

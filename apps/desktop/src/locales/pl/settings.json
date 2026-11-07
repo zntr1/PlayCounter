@@ -356,5 +356,12 @@
   "Every {{count, number}} minutes_many": "Co {{count, number}} minut",
   "Every {{count, number}} minutes_other": "Co {{count, number}} minuty",
   "Forget imported PlayStation data": "Zapomnij zaimportowane dane PlayStation",
-  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Usuwa oznaczenie PlayStation i zaimportowany czas gry z PlayStation. Sesje zapisane przez sam PlayCounter, także sesje z PS5 i PS4, zostają."
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Usuwa oznaczenie PlayStation i zaimportowany czas gry z PlayStation. Sesje zapisane przez sam PlayCounter, także sesje z PS5 i PS4, zostają.",
+  "Take a screenshot": "Zrób zrzut ekranu",
+  "Screenshots are not supported on macOS yet.": "Zrzuty ekranu nie są jeszcze obsługiwane w systemie macOS.",
+  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.": "Zapisuje obraz gry, w którą grasz, i dodaje go do sesji. Działa w grach w trybie okienkowym i w oknie bez ramki. W wyłącznym trybie pełnoekranowym Windows może ukryć grę i obraz będzie czarny.",
+  "Screenshots": "Zrzuty ekranu",
+  "The folder could not be opened.": "Nie udało się otworzyć folderu.",
+  "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "Obrazy ze skrótu do zrzutów trafiają do {{folder}}, jeden folder na grę. Zostają tam także po odinstalowaniu aplikacji PlayCounter.",
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "Obrazy ze skrótu do zrzutów trafiają do folderu Obrazy, jeden folder na grę."
 }

@@ -342,5 +342,12 @@
   "Every {{count, number}} minutes_one": "Jede Minute",
   "Every {{count, number}} minutes_other": "Alle {{count, number}} Minuten",
   "Forget imported PlayStation data": "Importierte PlayStation-Daten vergessen",
-  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Entfernt die PlayStation-Markierung und die importierte PlayStation-Spielzeit. Sitzungen, die PlayCounter selbst erfasst hat, auch PS5- und PS4-Sitzungen, bleiben erhalten."
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Entfernt die PlayStation-Markierung und die importierte PlayStation-Spielzeit. Sitzungen, die PlayCounter selbst erfasst hat, auch PS5- und PS4-Sitzungen, bleiben erhalten.",
+  "Take a screenshot": "Screenshot aufnehmen",
+  "Screenshots are not supported on macOS yet.": "Screenshots werden unter macOS noch nicht unterstützt.",
+  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.": "Speichert ein Bild des Spiels, das du gerade spielst, und fügt es der Sitzung hinzu. Klappt in Spielen im Fenstermodus und im randlosen Fenster. Im exklusiven Vollbild kann Windows das Spiel verbergen, dann ist das Bild schwarz.",
+  "Screenshots": "Screenshots",
+  "The folder could not be opened.": "Der Ordner konnte nicht geöffnet werden.",
+  "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "Bilder vom Screenshot-Tastenkürzel landen in {{folder}}, ein Ordner pro Spiel. Sie bleiben dort, auch wenn du PlayCounter deinstallierst.",
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "Bilder vom Screenshot-Tastenkürzel landen in deinem Ordner „Bilder“, ein Ordner pro Spiel."
 }

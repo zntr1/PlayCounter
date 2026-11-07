@@ -177,5 +177,7 @@
   "Also new in {{version}}": "{{version}} 的其他新内容",
   "Also since your last update": "自上次更新以来的其他内容",
   "Show changes": "显示更改",
-  "Hide changes": "隐藏更改"
+  "Hide changes": "隐藏更改",
+  "Your screenshot of {{game}} came out black": "你在 {{game}} 中的截图是全黑的",
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows 会对其他应用隐藏独占全屏的游戏画面。请把游戏切换为无边框窗口或窗口模式，然后再试一次。"
 }

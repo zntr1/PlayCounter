@@ -183,5 +183,20 @@
   "Show all {{count}} games_other": "显示全部 {{count}} 个游戏",
   "Show fewer": "收起",
   "Previous month": "上个月",
-  "Next month": "下个月"
+  "Next month": "下个月",
+  "Screenshots": "截图",
+  "Open screenshot {{index}} of {{total}}": "打开第 {{index}} 张截图（共 {{total}} 张）",
+  "Show all screenshots": "显示全部截图",
+  "That didn't work": "操作失败",
+  "The picture may have been moved or deleted.": "图片可能已被移动或删除。",
+  "Moved to the Recycle Bin": "已移到回收站",
+  "Screenshot": "截图",
+  "{{takenAt}} · {{index}} of {{total}}": "{{takenAt}} · 第 {{index}} 张，共 {{total}} 张",
+  "Open in your picture app": "在图片应用中打开",
+  "Show in folder": "在文件夹中显示",
+  "Move to the Recycle Bin": "移到回收站",
+  "Close": "关闭",
+  "Screenshot from {{takenAt}}": "{{takenAt}} 的截图",
+  "Previous screenshot": "上一张截图",
+  "Next screenshot": "下一张截图"
 }

@@ -335,5 +335,12 @@
   "Every {{count, number}} hours_other": "每 {{count, number}} 小时",
   "Every {{count, number}} minutes_other": "每 {{count, number}} 分钟",
   "Forget imported PlayStation data": "清除导入的 PlayStation 数据",
-  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "删除 PlayStation 标记和导入的 PlayStation 游戏时长。PlayCounter 自己记录的游玩记录（包括 PS5 和 PS4 游玩记录）会保留。"
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "删除 PlayStation 标记和导入的 PlayStation 游戏时长。PlayCounter 自己记录的游玩记录（包括 PS5 和 PS4 游玩记录）会保留。",
+  "Take a screenshot": "截图",
+  "Screenshots are not supported on macOS yet.": "macOS 暂不支持截图。",
+  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.": "保存你正在玩的游戏的画面，并添加到本次游玩记录。适用于窗口模式和无边框窗口的游戏。在独占全屏下，Windows 可能会隐藏游戏画面，截图会变成全黑。",
+  "Screenshots": "截图",
+  "The folder could not be opened.": "无法打开该文件夹。",
+  "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "截图快捷键拍下的图片保存在 {{folder}}，每个游戏一个文件夹。卸载 PlayCounter 后它们仍会保留。",
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "截图快捷键拍下的图片保存在你的“图片”文件夹中，每个游戏一个文件夹。"
 }

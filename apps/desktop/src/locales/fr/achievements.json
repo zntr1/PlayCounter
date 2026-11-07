@@ -104,5 +104,7 @@
   "Legendary": "Légendaire",
   "{{title}} · Unlocked {{date}}": "{{title}} · Débloqué le {{date}}",
   "{{title}} · Locked": "{{title}} · Verrouillé",
-  "{{count}} {{tier}}": "{{count}}× {{tier}}"
+  "{{count}} {{tier}}": "{{count}}× {{tier}}",
+  "screenshot": "capture d'écran",
+  "Screenshot came out black": "Capture d'écran noire"
 }

@@ -199,5 +199,20 @@
   "Show all {{count}} games_other": "Afficher les {{count}} jeux",
   "Show fewer": "Afficher moins",
   "Previous month": "Mois précédent",
-  "Next month": "Mois suivant"
+  "Next month": "Mois suivant",
+  "Screenshots": "Captures d'écran",
+  "Open screenshot {{index}} of {{total}}": "Ouvrir la capture d'écran {{index}} sur {{total}}",
+  "Show all screenshots": "Afficher toutes les captures d'écran",
+  "That didn't work": "L'opération a échoué",
+  "The picture may have been moved or deleted.": "L'image a peut-être été déplacée ou supprimée.",
+  "Moved to the Recycle Bin": "Déplacée dans la Corbeille",
+  "Screenshot": "Capture d'écran",
+  "{{takenAt}} · {{index}} of {{total}}": "{{takenAt}} · {{index}} sur {{total}}",
+  "Open in your picture app": "Ouvrir dans votre application de photos",
+  "Show in folder": "Afficher dans le dossier",
+  "Move to the Recycle Bin": "Déplacer dans la Corbeille",
+  "Close": "Fermer",
+  "Screenshot from {{takenAt}}": "Capture d'écran du {{takenAt}}",
+  "Previous screenshot": "Capture d'écran précédente",
+  "Next screenshot": "Capture d'écran suivante"
 }

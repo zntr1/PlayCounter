@@ -110,5 +110,7 @@
   "Legendary": "Legenda",
   "{{title}} · Unlocked {{date}}": "{{title}} · Zdobyte {{date}}",
   "{{title}} · Locked": "{{title}} · Zablokowane",
-  "{{count}} {{tier}}": "{{count}}× {{tier}}"
+  "{{count}} {{tier}}": "{{count}}× {{tier}}",
+  "screenshot": "zrzut ekranu",
+  "Screenshot came out black": "Zrzut ekranu jest czarny"
 }

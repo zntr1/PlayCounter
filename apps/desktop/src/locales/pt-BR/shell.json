@@ -177,5 +177,7 @@
   "Also new in {{version}}": "Mais novidades da versão {{version}}",
   "Also since your last update": "Também desde sua última atualização",
   "Show changes": "Mostrar mudanças",
-  "Hide changes": "Ocultar mudanças"
+  "Hide changes": "Ocultar mudanças",
+  "Your screenshot of {{game}} came out black": "Sua captura de tela de {{game}} saiu preta",
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "O Windows esconde jogos em tela cheia exclusiva de outros apps. Coloque o jogo em janela sem bordas ou modo janela e tente de novo."
 }

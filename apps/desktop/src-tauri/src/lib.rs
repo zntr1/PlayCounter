@@ -32,6 +32,7 @@ mod playstation_pad;
 mod process;
 mod quick_note;
 mod reset;
+pub mod screenshot;
 mod session;
 mod shell_open;
 mod webview_args;
@@ -468,6 +469,7 @@ pub fn run() {
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
         .manage(quick_note::QuickNoteState::default())
+        .manage(screenshot::commands::ScreenshotState::default())
         .manage(live_timer::LiveTimerState::default())
         .manage(library::battlenet_account::AccountState::default())
         .manage(library::epic_account::EpicAccountState::default())
@@ -621,6 +623,15 @@ pub fn run() {
             quick_note::quick_note_open,
             quick_note::quick_note_ready,
             quick_note::quick_note_close,
+            screenshot::commands::screenshot_take,
+            screenshot::commands::screenshot_ready,
+            screenshot::commands::screenshot_list,
+            screenshot::commands::screenshot_preview,
+            screenshot::commands::screenshot_open,
+            screenshot::commands::screenshot_reveal,
+            screenshot::commands::screenshot_delete,
+            screenshot::commands::screenshot_folder,
+            screenshot::commands::screenshot_open_folder,
             live_timer::live_timer_show,
             live_timer::live_timer_hide,
             live_timer::live_timer_ready

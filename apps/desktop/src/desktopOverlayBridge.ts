@@ -99,6 +99,22 @@ export function showLiveTimerToggledOverlay(corner: LiveTimerCorner | null) {
   );
 }
 
+/** The screenshot key's answer, shown at once like the session hotkey's, and
+ *  also when automatic popups are off: it answers a key press. */
+export function showScreenshotOverlay(
+  event: Omit<Extract<OverlayEvent, { type: "screenshot" }>, "type">,
+) {
+  const state = bridge;
+  if (!state || state.disposed) return;
+  state.queue.showImmediately(
+    buildOverlayMessage(
+      "screenshot",
+      { type: "screenshot", ...event },
+      renderContext(),
+    ),
+  );
+}
+
 /** The game started last, the same pick as the quick note hotkey. */
 export function newestSession<
   T extends { startedAt: string; recoveredFromCheckpoint?: boolean },

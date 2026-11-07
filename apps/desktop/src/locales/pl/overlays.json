@@ -51,5 +51,13 @@
   "Live timer at the bottom right": "Licznik na ekranie w prawym dolnym rogu",
   "Live timer at the bottom left": "Licznik na ekranie w lewym dolnym rogu",
   "Live timer off": "Licznik na ekranie wyłączony",
-  "It appears while a game is running.": "Pojawia się, gdy działa gra."
+  "It appears while a game is running.": "Pojawia się, gdy działa gra.",
+  "Added to this session.": "Dodano do tej sesji.",
+  "The picture came out black. Switch the game to borderless or windowed, then try again.": "Obraz jest czarny. Przełącz grę na okno bez ramki lub tryb okienkowy i spróbuj ponownie.",
+  "The game is minimized. Bring it back and try again.": "Gra jest zminimalizowana. Przywróć ją i spróbuj ponownie.",
+  "PlayCounter couldn't find the game's window.": "PlayCounter nie znalazł okna gry.",
+  "PlayCounter couldn't take the screenshot.": "PlayCounter nie mógł zrobić zrzutu ekranu.",
+  "SCREENSHOT SAVED": "ZAPISANO ZRZUT EKRANU",
+  "NO SCREENSHOT": "BRAK ZRZUTU EKRANU",
+  "Screenshot": "Zrzut ekranu"
 }

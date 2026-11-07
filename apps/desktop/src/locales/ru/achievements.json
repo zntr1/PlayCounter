@@ -110,5 +110,7 @@
   "Legendary": "Легенда",
   "{{title}} · Unlocked {{date}}": "{{title}} · Получено {{date}}",
   "{{title}} · Locked": "{{title}} · Закрыто",
-  "{{count}} {{tier}}": "{{count}}× {{tier}}"
+  "{{count}} {{tier}}": "{{count}}× {{tier}}",
+  "screenshot": "скриншот",
+  "Screenshot came out black": "Скриншот получился чёрным"
 }

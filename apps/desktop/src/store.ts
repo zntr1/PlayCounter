@@ -708,7 +708,8 @@ export type AppState = {
       | "showWindowHotkey"
       | "currentSessionHotkey"
       | "quickNoteHotkey"
-      | "liveTimerHotkey",
+      | "liveTimerHotkey"
+      | "screenshotHotkey",
     shortcut: string | null,
   ) => void;
   setDesktopOverlaySetting: (

@@ -13,6 +13,7 @@ import {
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
+import { takeScreenshot } from "./screenshots";
 import { useAppStore } from "./store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -24,6 +25,7 @@ vi.mock("./quickNote", () => ({
   openQuickNoteForCurrentSession: vi.fn(),
 }));
 vi.mock("./liveTimer", () => ({ cycleLiveTimer: vi.fn() }));
+vi.mock("./screenshots", () => ({ takeScreenshot: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
 
@@ -44,6 +46,7 @@ beforeEach(() => {
       currentSessionHotkey: null,
       quickNoteHotkey: null,
       liveTimerHotkey: null,
+      screenshotHotkey: null,
     },
   }));
 });
@@ -62,6 +65,7 @@ describe("global hotkeys", () => {
         currentSessionHotkey: "Alt+F8",
         quickNoteHotkey: "Alt+F9",
         liveTimerHotkey: "Alt+F10",
+        screenshotHotkey: "Alt+F11",
       },
     }));
     initializeHotkeys();
@@ -71,6 +75,7 @@ describe("global hotkeys", () => {
       "playcounter:current-session-hotkey",
       "playcounter:quick-note-hotkey",
       "playcounter:live-timer-hotkey",
+      "playcounter:screenshot-hotkey",
     ]);
     expect(invokeMock.mock.calls).toEqual([
       [
@@ -80,6 +85,7 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "current-session", shortcut: "Alt+F8" }],
       ["set_global_hotkey", { action: "quick-note", shortcut: "Alt+F9" }],
       ["set_global_hotkey", { action: "live-timer", shortcut: "Alt+F10" }],
+      ["set_global_hotkey", { action: "screenshot", shortcut: "Alt+F11" }],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
@@ -94,6 +100,8 @@ describe("global hotkeys", () => {
     expect(showCurrentSessionOverlay).toHaveBeenCalledTimes(2);
     listenMock.mock.calls[2][1]({ payload: null } as never);
     expect(cycleLiveTimer).toHaveBeenCalledOnce();
+    listenMock.mock.calls[3][1]({ payload: null } as never);
+    expect(takeScreenshot).toHaveBeenCalledOnce();
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {
@@ -150,6 +158,7 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "current-session", shortcut: null }],
       ["set_global_hotkey", { action: "quick-note", shortcut: null }],
       ["set_global_hotkey", { action: "live-timer", shortcut: null }],
+      ["set_global_hotkey", { action: "screenshot", shortcut: null }],
     ]);
   });
 });

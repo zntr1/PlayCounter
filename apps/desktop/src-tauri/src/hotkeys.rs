@@ -11,6 +11,19 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 #[derive(Default)]
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
+/// What a hotkey can do.
+const ACTIONS: [&str; 5] = [
+    "show-window",
+    "current-session",
+    "quick-note",
+    "live-timer",
+    "screenshot",
+];
+
+fn is_known_action(action: &str) -> bool {
+    ACTIONS.contains(&action)
+}
+
 // Registration dispatches to the main loop, so never block it with synchronous IPC.
 #[tauri::command(async)]
 pub fn set_global_hotkey(
@@ -23,10 +36,7 @@ pub fn set_global_hotkey(
     if window.label() != "main" {
         return Err("unauthorized window".into());
     }
-    if !matches!(
-        action.as_str(),
-        "show-window" | "current-session" | "quick-note" | "live-timer"
-    ) {
+    if !is_known_action(&action) {
         return Err("Unknown hotkey action".into());
     }
     let next = shortcut
@@ -64,6 +74,12 @@ pub fn set_global_hotkey(
                     "live-timer" => {
                         let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
                     }
+                    "screenshot" => {
+                        // The picture is taken right here, before the main
+                        // window says which session it belongs to.
+                        crate::screenshot::commands::key_pressed(app);
+                        let _ = app.emit_to("main", "playcounter:screenshot-hotkey", ());
+                    }
                     _ => {
                         let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
                     }
@@ -91,6 +107,21 @@ pub fn set_global_hotkey(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn knows_the_screenshot_action_and_nothing_made_up() {
+        for action in [
+            "show-window",
+            "current-session",
+            "quick-note",
+            "live-timer",
+            "screenshot",
+        ] {
+            assert!(is_known_action(action), "{action}");
+        }
+        assert!(!is_known_action("delete-everything"));
+        assert!(!is_known_action(""));
+    }
 
     #[test]
     fn parses_the_recorders_physical_key_names() {

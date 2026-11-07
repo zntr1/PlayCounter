@@ -98,5 +98,7 @@
   "Legendary": "Legendär",
   "{{title}} · Unlocked {{date}}": "{{title}} · Freigeschaltet am {{date}}",
   "{{title}} · Locked": "{{title}} · Gesperrt",
-  "{{count}} {{tier}}": "{{count}}× {{tier}}"
+  "{{count}} {{tier}}": "{{count}}× {{tier}}",
+  "screenshot": "Screenshot",
+  "Screenshot came out black": "Screenshot ist schwarz"
 }

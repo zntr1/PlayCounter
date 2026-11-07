@@ -349,5 +349,12 @@
   "Every {{count, number}} minutes_many": "A cada {{count, number}} minutos",
   "Every {{count, number}} minutes_other": "A cada {{count, number}} minutos",
   "Forget imported PlayStation data": "Esquecer dados importados do PlayStation",
-  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Remove a marca do PlayStation e o tempo de jogo importado do PlayStation. As sessões registradas pelo próprio PlayCounter, inclusive as de PS5 e PS4, são mantidas."
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Remove a marca do PlayStation e o tempo de jogo importado do PlayStation. As sessões registradas pelo próprio PlayCounter, inclusive as de PS5 e PS4, são mantidas.",
+  "Take a screenshot": "Fazer captura de tela",
+  "Screenshots are not supported on macOS yet.": "Capturas de tela ainda não são compatíveis com o macOS.",
+  "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games. In exclusive fullscreen, Windows may hide the game and the picture comes out black.": "Salva uma imagem do jogo que você está jogando e a adiciona à sessão. Funciona em jogos em modo janela e em janela sem bordas. Em tela cheia exclusiva, o Windows pode esconder o jogo e a imagem sai preta.",
+  "Screenshots": "Capturas de tela",
+  "The folder could not be opened.": "Não foi possível abrir a pasta.",
+  "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "As imagens do atalho de captura vão para {{folder}}, uma pasta por jogo. Elas continuam lá se você desinstalar o PlayCounter.",
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "As imagens do atalho de captura vão para a sua pasta Imagens, uma pasta por jogo."
 }

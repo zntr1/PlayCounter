@@ -51,5 +51,13 @@
   "Live timer at the bottom right": "Cronômetro na tela no canto inferior direito",
   "Live timer at the bottom left": "Cronômetro na tela no canto inferior esquerdo",
   "Live timer off": "Cronômetro na tela desativado",
-  "It appears while a game is running.": "Ele aparece enquanto um jogo está rodando."
+  "It appears while a game is running.": "Ele aparece enquanto um jogo está rodando.",
+  "Added to this session.": "Adicionada a esta sessão.",
+  "The picture came out black. Switch the game to borderless or windowed, then try again.": "A imagem saiu preta. Coloque o jogo em janela sem bordas ou modo janela e tente de novo.",
+  "The game is minimized. Bring it back and try again.": "O jogo está minimizado. Traga-o de volta e tente de novo.",
+  "PlayCounter couldn't find the game's window.": "O PlayCounter não encontrou a janela do jogo.",
+  "PlayCounter couldn't take the screenshot.": "O PlayCounter não conseguiu fazer a captura de tela.",
+  "SCREENSHOT SAVED": "CAPTURA SALVA",
+  "NO SCREENSHOT": "SEM CAPTURA",
+  "Screenshot": "Captura de tela"
 }

@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
+import { takeScreenshot } from "./screenshots";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
 import { nativeText } from "./nativeText";
@@ -14,12 +15,14 @@ export type HotkeySetting =
   | "showWindowHotkey"
   | "currentSessionHotkey"
   | "quickNoteHotkey"
-  | "liveTimerHotkey";
+  | "liveTimerHotkey"
+  | "screenshotHotkey";
 const actions: Record<HotkeySetting, string> = {
   showWindowHotkey: "show-window",
   currentSessionHotkey: "current-session",
   quickNoteHotkey: "quick-note",
   liveTimerHotkey: "live-timer",
+  screenshotHotkey: "screenshot",
 };
 /** Hotkeys the main window handles itself; they need its event listeners. */
 const listened: Partial<Record<HotkeySetting, () => void>> = {
@@ -29,11 +32,13 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
     if (!openQuickNoteForCurrentSession()) showCurrentSessionOverlay();
   },
   liveTimerHotkey: () => cycleLiveTimer(),
+  screenshotHotkey: () => void takeScreenshot(),
 };
 const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   currentSessionHotkey: "playcounter:current-session-hotkey",
   quickNoteHotkey: "playcounter:quick-note-hotkey",
   liveTimerHotkey: "playcounter:live-timer-hotkey",
+  screenshotHotkey: "playcounter:screenshot-hotkey",
 };
 export const useHotkeyStatus = create<{
   errors: Partial<Record<HotkeySetting, string>>;
