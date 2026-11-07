@@ -35,6 +35,20 @@ export function ImportQueue({
     ? rows.filter((row) => row.title.toLowerCase().includes(search))
     : rows;
   const checkable = rows.some((row) => row.selectable);
+  // Games in My Games are there to be updated: new playtime leads.
+  const sections =
+    group === "imported"
+      ? [
+          {
+            title: t("New playtime"),
+            rows: shown.filter((row) => row.newPlaytime),
+          },
+          {
+            title: t("No change"),
+            rows: shown.filter((row) => !row.newPlaytime),
+          },
+        ].filter((section) => section.rows.length > 0)
+      : [{ title: null, rows: shown }];
   return (
     <section
       id={`import-panel-${group}`}
@@ -89,20 +103,41 @@ export function ImportQueue({
               : t("Nothing here right now.")}
           </p>
         ) : (
-          shown.map((row) => {
-            const id = row.game.externalId;
-            return (
-              <QueueRow
-                key={id}
-                row={row}
-                active={id === currentId}
-                checked={selected.has(id)}
-                skipped={skipped.has(id)}
-                onShow={onShow}
-                onSelected={onSelected}
-              />
-            );
-          })
+          sections.map((section) => (
+            <div
+              key={section.title ?? "all"}
+              role={section.title ? "group" : undefined}
+              aria-label={section.title ?? undefined}
+            >
+              {section.title ? (
+                <p
+                  aria-hidden="true"
+                  className={clsx(
+                    "px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider",
+                    section.rows[0].newPlaytime
+                      ? "text-accent-ink"
+                      : "text-text-faint",
+                  )}
+                >
+                  {section.title}
+                </p>
+              ) : null}
+              {section.rows.map((row) => {
+                const id = row.game.externalId;
+                return (
+                  <QueueRow
+                    key={id}
+                    row={row}
+                    active={id === currentId}
+                    checked={selected.has(id)}
+                    skipped={skipped.has(id)}
+                    onShow={onShow}
+                    onSelected={onSelected}
+                  />
+                );
+              })}
+            </div>
+          ))
         )}
       </div>
     </section>

@@ -1,13 +1,22 @@
 /**
- * A game's own achievements from its store (Steam, Xbox, Epic Games, GOG), as
- * the developers made them. Not PlayCounter's milestones. Same file in the
- * backend repo.
+ * A game's own achievements from its store (Steam, Xbox, Epic Games, GOG,
+ * PlayStation), as the developers made them. Not PlayCounter's milestones.
+ * Same file in the backend repo.
  */
-export type AchievementProvider = "steam" | "xbox" | "epic" | "gog";
+export type AchievementProvider =
+  | "steam"
+  | "xbox"
+  | "epic"
+  | "gog"
+  | "playstation";
+
+/** A PlayStation trophy's cup. */
+export type TrophyType = "bronze" | "silver" | "gold" | "platinum";
 
 export interface GameAchievement {
   /** Stable within the game: Steam's API name, Xbox "serviceConfigId:id",
-   *  Epic's achievement name, GOG's achievement key. */
+   *  Epic's achievement name, GOG's achievement key, PlayStation
+   *  "npCommunicationId:trophyId". */
   id: string;
   name: string;
   description: string;
@@ -26,11 +35,17 @@ export interface GameAchievement {
   gamerscore?: number;
   /** Epic Games XP. */
   xp?: number;
+  /** PlayStation: the trophy's cup. */
+  trophyType?: TrophyType;
+  /** PlayStation: the console of the trophy's list. Only when the game has a
+   *  PS5 and a PS4 list. */
+  platform?: "PS5" | "PS4";
 }
 
 export interface AchievementList {
   provider: AchievementProvider;
-  /** Steam app id, Xbox title id, Epic app name or GOG product id. */
+  /** Steam app id, Xbox title id, Epic app name, GOG product id or
+   *  PlayStation Store concept id. */
   externalId: string;
   /** When PlayCounter read it, unix ms. */
   fetchedAt: number;

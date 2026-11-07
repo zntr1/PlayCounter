@@ -1,4 +1,8 @@
-import type { AchievementList, GameAchievement } from "@playcounter/shared";
+import type {
+  AchievementList,
+  GameAchievement,
+  TrophyType,
+} from "@playcounter/shared";
 import { Check, Eye, Lock, RefreshCw, Trophy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
@@ -8,8 +12,10 @@ import {
   filterAchievements,
   isConcealed,
   mergeSteamCatalog,
-  orderAchievements,
+  sortAchievements,
+  TROPHY_TYPES,
   type AchievementFilter,
+  type AchievementSort,
   type SteamCatalogAchievement,
 } from "../../../achievements/model";
 import {
@@ -31,9 +37,14 @@ import {
   readGogAchievements,
   type GogAchievementStatus,
 } from "../../../achievements/gog";
+import {
+  readPlayStationTrophies,
+  type PlayStationTrophyStatus,
+} from "../../../achievements/playstation";
 import { refreshXboxAchievementList } from "../../../library/providers/xbox";
 import { signInEpicAccount } from "../../../library/epicAccount";
 import { signInGogAccount } from "../../../library/gogAccount";
+import { signInPlayStationAccount } from "../../../library/playstationAccount";
 import { refreshKeptLogins, useKeptLogin } from "../../../library/keptLogins";
 import {
   beginLoginAccountChange,
@@ -44,7 +55,7 @@ import { appLocale, getT } from "../../../i18n";
 import { nativeText } from "../../../nativeText";
 import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
-import { Button, Pill } from "../../primitives";
+import { Button, Pill, Select } from "../../primitives";
 import type { GameSummary } from "../MyGamesView";
 import { XboxSignInWait } from "./XboxSignInWait";
 
@@ -52,19 +63,21 @@ const t = getT("games");
 const accountsT = getT("accounts");
 
 /* A game's own achievements, the ones its developers made, from Steam's
-   files on this PC or from the last Xbox, Epic Games or GOG sign-in. Not
-   PlayCounter's milestones: those live on the Achievements page. */
+   files on this PC or from the last Xbox, Epic Games, GOG or PlayStation
+   sign-in. Not PlayCounter's milestones: those live on the Achievements
+   page. */
 
 export type AchievementSource = {
-  provider: "steam" | "epic" | "gog" | "xbox";
+  provider: "steam" | "epic" | "gog" | "xbox" | "playstation";
   externalId: string;
 };
 
-/** Steam first, Xbox last. */
-const ORDER = { steam: 0, epic: 1, gog: 2, xbox: 3 } as const;
+/** Steam first, the consoles last. */
+const ORDER = { steam: 0, epic: 1, gog: 2, xbox: 3, playstation: 4 } as const;
 
-/** The game's Steam, Epic Games, GOG and Xbox entries. Epic and GOG only on
- *  Windows, where their sign-ins exist. None: no tab. */
+/** The game's Steam, Epic Games, GOG, Xbox and PlayStation entries. Epic,
+ *  GOG and PlayStation only on Windows, where their sign-ins exist. None: no
+ *  tab. */
 export function achievementSources(
   game: Pick<GameSummary, "libraryImports">,
 ): AchievementSource[] {
@@ -75,7 +88,12 @@ export function achievementSources(
     if (
       provider !== "steam" &&
       provider !== "xbox" &&
-      !((provider === "epic" || provider === "gog") && signIns)
+      !(
+        (provider === "epic" ||
+          provider === "gog" ||
+          provider === "playstation") &&
+        signIns
+      )
     )
       continue;
     const key = `${provider}:${externalId}`;
@@ -91,6 +109,7 @@ const PROVIDER_LABEL = {
   epic: "Epic Games",
   gog: "GOG",
   xbox: "Xbox",
+  playstation: "PlayStation",
 } as const;
 
 export function GameAchievementsTab({
@@ -136,6 +155,12 @@ export function GameAchievementsTab({
         <KeptLoginAchievements
           key={`gog:${source.externalId}`}
           source={gogSource()}
+          externalId={source.externalId}
+        />
+      ) : source.provider === "playstation" ? (
+        <KeptLoginAchievements
+          key={`playstation:${source.externalId}`}
+          source={playStationSource()}
           externalId={source.externalId}
         />
       ) : (
@@ -372,10 +397,10 @@ function XboxAchievements({ titleId }: { titleId: string }) {
 }
 
 /** A launcher whose lists load with its kept sign-in, without a window:
- *  Epic Games and GOG. What differs between them is passed in; texts are
- *  built while rendering, so a language switch updates them. */
+ *  Epic Games, GOG and PlayStation. What differs between them is passed in;
+ *  texts are built while rendering, so a language switch updates them. */
 type KeptLoginSource<S extends string> = {
-  service: "epic" | "gog";
+  service: "epic" | "gog" | "playstation";
   read: (
     externalId: string,
   ) => Promise<{ list: AchievementList } | { status: S }>;
@@ -384,6 +409,9 @@ type KeptLoginSource<S extends string> = {
   statusText: (status: S | "noLogin" | "needsSignIn") => string;
   signInLabel: string;
   origin: (date: string) => string;
+  /** Asks again each time the tab opens, also with a saved list: games
+   *  played on a console end where PlayCounter doesn't always see them. */
+  readOnOpen?: boolean;
 };
 
 function epicStatusText(status: EpicAchievementStatus) {
@@ -429,6 +457,29 @@ function gogSource(): KeptLoginSource<GogAchievementStatus> {
     statusText: gogStatusText,
     signInLabel: t("Sign in to GOG"),
     origin: (date) => t("From GOG, updated {{date}}", { date }),
+  };
+}
+
+function playStationStatusText(status: PlayStationTrophyStatus) {
+  return {
+    noLogin: t("Sign in to PlayStation to load your trophies."),
+    needsSignIn: accountsT("{{launcher}} needs you to sign in again.", {
+      launcher: "PlayStation",
+    }),
+    noAchievements: t("This game has no PlayStation trophies."),
+    unavailable: t("PlayStation didn't send the trophies. Try again later."),
+  }[status];
+}
+
+function playStationSource(): KeptLoginSource<PlayStationTrophyStatus> {
+  return {
+    service: "playstation",
+    read: readPlayStationTrophies,
+    signIn: signInPlayStationAccount,
+    statusText: playStationStatusText,
+    signInLabel: t("Sign in to PlayStation"),
+    origin: (date) => t("From PlayStation, updated {{date}}", { date }),
+    readOnOpen: true,
   };
 }
 
@@ -495,8 +546,15 @@ function KeptLoginAchievements<S extends string>({
   }
 
   // Nothing saved and a kept sign-in: load at once, once. No window opens.
+  // PlayStation asks again with a saved list too; the list shows meanwhile.
   useEffect(() => {
-    if (!nothingSaved || signedOut || needsSignIn || loaded.current) return;
+    if (
+      (!nothingSaved && !source.readOnOpen) ||
+      signedOut ||
+      needsSignIn ||
+      loaded.current
+    )
+      return;
     void read();
   });
 
@@ -630,8 +688,89 @@ function percent(value: number, digits = 0) {
   }).format(value / 100);
 }
 
+/** A PlayStation cup in its color. The word goes next to it, for screen
+ *  readers. */
+function Cup({ type }: { type: TrophyType }) {
+  return (
+    <span
+      aria-hidden
+      className={`achievement-badge achievement-badge-${type} grid h-5 w-5 shrink-0 place-items-center rounded-full`}
+    >
+      <Trophy size={11} strokeWidth={2.5} />
+    </span>
+  );
+}
+
+function cupText(type: TrophyType) {
+  return {
+    platinum: t("Platinum trophy"),
+    gold: t("Gold trophy"),
+    silver: t("Silver trophy"),
+    bronze: t("Bronze trophy"),
+  }[type];
+}
+
+function cupCountText(
+  type: TrophyType,
+  count: { earned: number; total: number },
+) {
+  const values = { earned: number(count.earned), total: number(count.total) };
+  return {
+    platinum: t("Platinum trophies: {{earned}} of {{total}}", values),
+    gold: t("Gold trophies: {{earned}} of {{total}}", values),
+    silver: t("Silver trophies: {{earned}} of {{total}}", values),
+    bronze: t("Bronze trophies: {{earned}} of {{total}}", values),
+  }[type];
+}
+
+/** Earned of all per cup, best cup first. */
+function CupCounts({
+  counts,
+}: {
+  counts: Record<TrophyType, { earned: number; total: number }>;
+}) {
+  return (
+    <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+      {TROPHY_TYPES.map((type) => {
+        const label = cupCountText(type, counts[type]);
+        return (
+          <li
+            key={type}
+            title={label}
+            className="flex items-center gap-1.5 text-sm"
+          >
+            <Cup type={type} />
+            <span aria-hidden className="font-mono text-text">
+              {number(counts[type].earned)}/{number(counts[type].total)}
+            </span>
+            <span className="sr-only">{label}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The consoles of a game's trophy lists, PS5 first. Trophies carry one only
+ *  when the game has a PS5 and a PS4 list. */
+function platformsOf(achievements: readonly GameAchievement[]) {
+  return (["PS5", "PS4"] as const).filter((platform) =>
+    achievements.some((a) => a.platform === platform),
+  );
+}
+
+function sortOptions(): Array<{ id: AchievementSort; label: string }> {
+  return [
+    { id: "newest", label: t("Newest unlock") },
+    { id: "oldest", label: t("Oldest unlock") },
+    { id: "rarest", label: t("Rarest first") },
+    { id: "common", label: t("Most common first") },
+    { id: "name", label: t("A–Z") },
+  ];
+}
+
 function AchievementOverview({
-  achievements,
+  achievements: all,
   origin,
   note,
   action,
@@ -642,10 +781,22 @@ function AchievementOverview({
   action: ReactNode;
 }) {
   const [filter, setFilter] = useState<AchievementFilter>("all");
+  const [sort, setSort] = useState<AchievementSort>("newest");
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set());
+  const platforms = useMemo(() => platformsOf(all), [all]);
+  const [chosenPlatform, setPlatform] = useState<"PS5" | "PS4">("PS5");
+  const platform = platforms.includes(chosenPlatform)
+    ? chosenPlatform
+    : platforms[0];
+  // A game with a PS5 and a PS4 list shows one list at a time.
+  const achievements = useMemo(
+    () =>
+      platforms.length > 1 ? all.filter((a) => a.platform === platform) : all,
+    [all, platforms, platform],
+  );
   const ordered = useMemo(
-    () => orderAchievements(achievements),
-    [achievements],
+    () => sortAchievements(achievements, sort),
+    [achievements, sort],
   );
   const summary = useMemo(
     () => achievementSummary(achievements),
@@ -668,6 +819,23 @@ function AchievementOverview({
 
   return (
     <div className="grid gap-4">
+      {platforms.length > 1 ? (
+        <div
+          role="group"
+          aria-label={t("Trophy list")}
+          className="flex flex-wrap gap-2"
+        >
+          {platforms.map((item) => (
+            <Pill
+              key={item}
+              selected={item === platform}
+              onClick={() => setPlatform(item)}
+            >
+              {item}
+            </Pill>
+          ))}
+        </div>
+      ) : null}
       <section className="rounded-xl border border-border bg-bg p-4">
         <div className="flex flex-wrap items-center gap-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-accent/20 bg-accent-tint text-accent-ink">
@@ -708,6 +876,7 @@ function AchievementOverview({
                 })}
               </p>
             ) : null}
+            {summary.trophies ? <CupCounts counts={summary.trophies} /> : null}
             <p className="text-xs text-text-faint">{origin}</p>
           </div>
           {action}
@@ -724,17 +893,31 @@ function AchievementOverview({
         {note ? <p className="mt-3 text-sm text-text-muted">{note}</p> : null}
       </section>
 
-      <div className="flex flex-wrap gap-2">
-        {filters.map(({ id, label, count }) => (
-          <Pill
-            key={id}
-            selected={filter === id}
-            count={count}
-            onClick={() => setFilter(id)}
-          >
-            {label}
-          </Pill>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {filters.map(({ id, label, count }) => (
+            <Pill
+              key={id}
+              selected={filter === id}
+              count={count}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+            </Pill>
+          ))}
+        </div>
+        <Select
+          aria-label={t("Sort achievements")}
+          value={sort}
+          onChange={(event) => setSort(event.target.value as AchievementSort)}
+          className="h-8 rounded-lg !py-0 text-[13px] font-medium"
+        >
+          {sortOptions().map(({ id, label }) => (
+            <option key={id} value={id}>
+              {t("Sort: {{label}}", { label })}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {visible.length ? (
@@ -774,7 +957,11 @@ function AchievementRow({
   const icon = achievement.unlocked
     ? achievement.iconUrl
     : (achievement.lockedIconUrl ?? achievement.iconUrl);
-  const { progress } = achievement;
+  // 0 / 100 is not started: Xbox sends it for every locked achievement.
+  const progress =
+    achievement.progress && achievement.progress.current > 0
+      ? achievement.progress
+      : undefined;
   return (
     <li
       data-achievement-row
@@ -808,9 +995,17 @@ function AchievementRow({
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <h4 className="truncate text-sm font-semibold text-text">
-          {concealed ? t("Hidden achievement") : achievement.name}
-        </h4>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {achievement.trophyType ? (
+            <span title={cupText(achievement.trophyType)} className="flex">
+              <Cup type={achievement.trophyType} />
+              <span className="sr-only">{cupText(achievement.trophyType)}</span>
+            </span>
+          ) : null}
+          <h4 className="truncate text-sm font-semibold text-text">
+            {concealed ? t("Hidden achievement") : achievement.name}
+          </h4>
+        </div>
         <p className="text-sm text-text-muted">
           {concealed
             ? t("Unlock it to see what it is.")

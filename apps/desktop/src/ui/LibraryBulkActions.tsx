@@ -15,7 +15,8 @@ import {
   ContextMenuSeparator,
   useAnchoredMenu,
 } from "./primitives";
-import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST } from "./journalStyles";
+import { GameStatusIcon } from "./GameStatusIcon";
 import { getT } from "../i18n";
 
 const t = getT("myGames");
@@ -205,9 +206,7 @@ export function LibraryBulkActions({
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-text transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
               onClick={() => apply(status)}
             >
-              <span
-                className={`h-2 w-2 rounded-full ${STATUS_TONES[status].dot}`}
-              />
+              <GameStatusIcon status={status} />
               {gameStatusLabel(status)}
             </button>
           ))}

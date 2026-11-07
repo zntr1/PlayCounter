@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   scan: vi.fn(),
   connect: vi.fn(),
+  connectWithCode: vi.fn(),
   openImport: vi.fn(),
   logins: [] as { service: string; name: string | null; savedAt: number }[],
   steamAvailable: true,
@@ -26,6 +27,11 @@ vi.mock("../../library/epicAccount", () => ({
 }));
 vi.mock("../../library/gogAccount", () => ({
   signInGogAccount: (signal: AbortSignal) => mocks.connect("gog", { signal }),
+}));
+vi.mock("../../library/playstationAccount", () => ({
+  signInPlayStationAccount: (signal: AbortSignal) =>
+    mocks.connect("playstation", { signal }),
+  signInPlayStationWithCode: (code: string) => mocks.connectWithCode(code),
 }));
 vi.mock("../../library/providers/xbox", () => ({
   signInXboxAccount: (options: LibraryScanOptions) =>
@@ -167,9 +173,11 @@ it("shows all launchers with saved connection status and a local Steam account",
     { service: "epic", name: "Epic Player", savedAt: 1 },
     { service: "battlenet", name: null, savedAt: 2 },
     { service: "gog", name: "zesarex", savedAt: 3 },
+    { service: "playstation", name: "zesarex_ps", savedAt: 4 },
   ];
   await render();
-  expect(container.querySelectorAll("section")).toHaveLength(5);
+  expect(container.querySelectorAll("section")).toHaveLength(6);
+  expect(card("playstation").textContent).toContain("Signed in as zesarex_ps");
   expect(card("epic").textContent).toContain("Signed in as Epic Player");
   expect(card("battlenet").textContent).toContain("Signed in");
   expect(card("gog").textContent).toContain("Signed in as zesarex");
@@ -198,6 +206,54 @@ it("signs in to GOG with GOG's own sign-in, never another launcher's", async () 
   );
   await act(() => menuItem("Find installed games").click());
   expect(mocks.openImport).toHaveBeenCalledWith("gog", "installed");
+});
+
+it("signs in to PlayStation with Sony's own sign-in, never another launcher's", async () => {
+  mocks.connect.mockImplementation(async (service: string) => {
+    mocks.logins = [{ service, name: "zesarex_ps", savedAt: 1 }];
+  });
+  await render();
+  expect(card("playstation").textContent).toContain("Not signed in");
+  await act(() => button(card("playstation"), "Sign in").click());
+  expect(mocks.connect).toHaveBeenCalledTimes(1);
+  expect(mocks.connect).toHaveBeenCalledWith(
+    "playstation",
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
+  expect(card("playstation").textContent).toContain("Signed in as zesarex_ps");
+  // Signed in: the live switch, no code sign-in, nothing to find on this PC.
+  expect(card("playstation").textContent).toContain("Live from PlayStation");
+  expect(card("playstation").textContent).not.toContain("Sign in with a code");
+  await openMore("playstation");
+  expect(menuItems().map((item) => item.textContent)).not.toContain(
+    "Find installed games",
+  );
+});
+
+it("offers the code sign-in as a visible choice and sends the pasted code", async () => {
+  mocks.connectWithCode.mockImplementation(async () => {
+    mocks.logins = [{ service: "playstation", name: "zesarex_ps", savedAt: 1 }];
+  });
+  await render();
+  await act(() => button(card("playstation"), "Sign in with a code").click());
+  const input = card("playstation").querySelector<HTMLInputElement>(
+    'input[aria-label="Sign-in code"]',
+  )!;
+  expect(input.type).toBe("password");
+  await act(async () => {
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!;
+    setValue.call(input, '{"npsso":"abc"}');
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const submit = [...card("playstation").querySelectorAll("button")].find(
+    (item) => item.getAttribute("type") === "submit",
+  )!;
+  await act(async () => submit.click());
+  expect(mocks.connectWithCode).toHaveBeenCalledWith('{"npsso":"abc"}');
+  expect(mocks.connect).not.toHaveBeenCalled();
 });
 
 it("shows one button per card, amber only where something needs you", async () => {

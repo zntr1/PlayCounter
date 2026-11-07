@@ -9,6 +9,7 @@ import {
   Flag,
   FolderOpen,
   Gamepad2,
+  Hourglass,
   Info,
   Loader2,
   Medal,
@@ -27,6 +28,8 @@ import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
 import { useCoverUrl } from "../../../pickedCovers";
+import { playsOnConsole } from "../../../library/importProfiles";
+import { EARLIER_IMPORT } from "../../../library/accountReadings";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
 import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
@@ -58,11 +61,14 @@ import {
 import {
   libraryProviders,
   hasUnknownProviderPlaytime,
+  isConsoleOnlyGame,
 } from "../../providerLibrary";
 import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
 import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
+import { Figure, Panel, SkeletonBar, SourceTag } from "./detailsPanels";
+import { HowLongToBeatTab } from "./HowLongToBeatTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
@@ -87,6 +93,7 @@ const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   battlenet: "Battle.net",
   epic: "Epic Games",
   gog: "GOG",
+  playstation: "PlayStation",
 };
 
 function providerIdLabels(): Record<LibraryProviderId, string> {
@@ -96,10 +103,11 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
     battlenet: t("Battle.net product"),
     epic: t("Epic app name"),
     gog: t("GOG ID"),
+    playstation: t("PlayStation concept"),
   };
 }
 
-export type DetailsTab = "general" | "files" | "achievements";
+export type DetailsTab = "general" | "howLongToBeat" | "files" | "achievements";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
@@ -108,77 +116,31 @@ function formatDate(value: string | null | undefined) {
   return date.toLocaleDateString(appLocale());
 }
 
-function Panel({
-  title,
-  icon: Icon,
-  action,
-  children,
-}: {
-  title: string;
-  icon: LucideIcon;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-border bg-bg p-4">
-      <header className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
-          <Icon size={15} className="text-accent-ink" />
-          {title}
-        </h3>
-        {action}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function Figure({
-  icon: Icon,
+function Row({
   label,
   value,
+  nested = false,
 }: {
-  icon: LucideIcon;
   label: string;
-  value: string;
+  value: ReactNode;
+  /** A part of the row above it, such as one account's hours. */
+  nested?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-accent/20 bg-accent-tint text-accent-ink">
-        <Icon size={17} />
-      </span>
-      <div className="min-w-0">
-        <div className="text-[11px] font-medium text-text-faint">{label}</div>
-        <div className="truncate font-mono text-base font-semibold text-text">
-          {value}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: ReactNode }) {
-  return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5">
-      <span className="text-xs uppercase tracking-wider text-text-faint">
+      <span
+        className={
+          nested
+            ? "min-w-0 break-all pl-3 text-xs text-text-faint"
+            : "text-xs uppercase tracking-wider text-text-faint"
+        }
+      >
         {label}
       </span>
       <span className="min-w-0 break-all text-right text-sm text-text">
         {value}
       </span>
     </div>
-  );
-}
-
-/* Placeholders for the IGDB parts while they load: a pulsing block the size
-   of the thing that is coming, so the dialog does not jump once the request
-   lands. */
-function SkeletonBar({ className }: { className: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={`animate-pulse rounded bg-surface-hover motion-reduce:animate-none ${className}`}
-    />
   );
 }
 
@@ -194,19 +156,6 @@ function Chips({ values }: { values: readonly string[] }) {
         </span>
       ))}
     </div>
-  );
-}
-
-function SourceTag({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-muted transition hover:border-accent/40 hover:text-text"
-    >
-      {label}
-      <ExternalLink size={12} />
-    </button>
   );
 }
 
@@ -348,6 +297,7 @@ export function GameDetailsDialog({
   );
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
     general: null,
+    howLongToBeat: null,
     files: null,
     achievements: null,
   });
@@ -510,7 +460,6 @@ export function GameDetailsDialog({
 
   const tabs: Array<{ id: DetailsTab; label: string; icon: LucideIcon }> = [
     { id: "general", label: t("General"), icon: Info },
-    { id: "files", label: t("Files"), icon: FolderOpen },
     ...(gameAchievementSources.length
       ? [
           {
@@ -520,6 +469,8 @@ export function GameDetailsDialog({
           },
         ]
       : []),
+    { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
+    { id: "files", label: t("Files"), icon: FolderOpen },
   ];
 
   const header = (
@@ -794,7 +745,8 @@ export function GameDetailsDialog({
             icon={CalendarDays}
             label={t("Last played")}
             value={
-              formatDate(lastPlayedAt) ?? (hasPlayed ? "Unknown" : "Never")
+              formatDate(lastPlayedAt) ??
+              (hasPlayed ? t("Unknown") : t("Never"))
             }
           />
         </div>
@@ -881,175 +833,184 @@ export function GameDetailsDialog({
     </div>
   );
 
+  // A game that only comes from PlayStation plays on the console: it has no
+  // file names to show or look for.
   const filesTab = (
     <div className="grid gap-4">
-      <Panel title={t("Known file matches")} icon={FolderOpen}>
-        {game.exeNames.length === 0 && game.emulatorLabels.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            {t(
-              "No file names or emulator matches are saved for this game yet. PlayCounter can look for a match when you run the game.",
-            )}
-          </p>
-        ) : (
-          <div className="grid gap-2">
+      {isConsoleOnlyGame(game) ? null : (
+        <Panel title={t("Known file matches")} icon={FolderOpen}>
+          {game.exeNames.length === 0 && game.emulatorLabels.length === 0 ? (
             <p className="text-sm text-text-muted">
               {t(
-                "These matches help PlayCounter recognize the game when it runs. They do not confirm that it is currently installed.",
+                "No file names or emulator matches are saved for this game yet. PlayCounter can look for a match when you run the game.",
               )}
             </p>
-            {game.exeNames.map((exeName) => {
-              const scoped = scopedByExe.get(exeName.toLowerCase()) ?? [];
-              const target = launcher.launchTargets.find(
-                (entry) =>
-                  entry.exeName.toLowerCase() === exeName.toLowerCase(),
-              );
-              const cached = exeCache.get(exeName.toLowerCase());
-              const facts = gameFiles.find((file) => file.exeName === exeName);
-              const nameLink =
-                cached?.state === "matched" && ownsLink(cached)
-                  ? cached
-                  : undefined;
-              // Who matched the file: IGDB, the community, or the user.
-              const fileSource = fileMatchSource(nameLink ?? scoped[0] ?? {});
-              // Only the user's own file can be removed, and not while a
-              // suggestion for it waits for review.
-              const removable = (
-                link: Parameters<typeof canCancelCommunitySuggestion>[0],
-              ) =>
-                !demo &&
-                link.source === "custom" &&
-                !canCancelCommunitySuggestion(link);
-              const removeButton = (ref: LocalLinkRef) => (
-                <Button
-                  variant="ghost"
-                  icon={Trash2}
-                  disabled={launcher.hasActiveSession}
-                  title={
-                    launcher.hasActiveSession
-                      ? t("Close the game first")
-                      : t("Stop counting {{exeName}} for {{name}}", {
-                          exeName,
-                          name: game.name,
-                        })
-                  }
-                  onClick={() => removeFile(ref, exeName)}
-                  className="shrink-0 px-2 py-1 text-xs"
-                >
-                  {t("Remove")}
-                </Button>
-              );
-              return (
+          ) : (
+            <div className="grid gap-2">
+              <p className="text-sm text-text-muted">
+                {t(
+                  "These matches help PlayCounter recognize the game when it runs. They do not confirm that it is currently installed.",
+                )}
+              </p>
+              {game.exeNames.map((exeName) => {
+                const scoped = scopedByExe.get(exeName.toLowerCase()) ?? [];
+                const target = launcher.launchTargets.find(
+                  (entry) =>
+                    entry.exeName.toLowerCase() === exeName.toLowerCase(),
+                );
+                const cached = exeCache.get(exeName.toLowerCase());
+                const facts = gameFiles.find(
+                  (file) => file.exeName === exeName,
+                );
+                const nameLink =
+                  cached?.state === "matched" && ownsLink(cached)
+                    ? cached
+                    : undefined;
+                // Who matched the file: IGDB, the community, or the user.
+                const fileSource = fileMatchSource(nameLink ?? scoped[0] ?? {});
+                // Only the user's own file can be removed, and not while a
+                // suggestion for it waits for review.
+                const removable = (
+                  link: Parameters<typeof canCancelCommunitySuggestion>[0],
+                ) =>
+                  !demo &&
+                  link.source === "custom" &&
+                  !canCancelCommunitySuggestion(link);
+                const removeButton = (ref: LocalLinkRef) => (
+                  <Button
+                    variant="ghost"
+                    icon={Trash2}
+                    disabled={launcher.hasActiveSession}
+                    title={
+                      launcher.hasActiveSession
+                        ? t("Close the game first")
+                        : t("Stop counting {{exeName}} for {{name}}", {
+                            exeName,
+                            name: game.name,
+                          })
+                    }
+                    onClick={() => removeFile(ref, exeName)}
+                    className="shrink-0 px-2 py-1 text-xs"
+                  >
+                    {t("Remove")}
+                  </Button>
+                );
+                return (
+                  <div
+                    key={exeName}
+                    className="rounded-lg border border-border bg-surface px-3 py-2.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ExeIcon
+                        exePath={target?.path ?? null}
+                        className="h-4 w-4 shrink-0"
+                        fallback={
+                          <Gamepad2
+                            size={15}
+                            className="shrink-0 text-text-faint"
+                          />
+                        }
+                      />
+                      <span className="min-w-0 truncate font-mono text-sm text-text">
+                        {exeName}
+                      </span>
+                      <span className="ml-auto flex shrink-0 items-center gap-3">
+                        <SourceBadge source={fileSource} variant="text" />
+                        <span className="text-[11px] uppercase tracking-wider text-text-faint">
+                          {scoped.length > 0
+                            ? t("Matches in folder")
+                            : t("Matches by name")}
+                        </span>
+                        {nameLink && removable(nameLink)
+                          ? removeButton({
+                              kind: "exe",
+                              key: exeName.toLowerCase(),
+                            })
+                          : null}
+                        {onReportFile && facts && canReportFile(facts) ? (
+                          <Button
+                            variant="ghost"
+                            icon={Flag}
+                            title={t(
+                              "Report {{exeName}} as a wrong match for {{name}}",
+                              { exeName, name: game.name },
+                            )}
+                            onClick={() => onReportFile(exeName)}
+                            className="shrink-0 px-2 py-1 text-xs"
+                          >
+                            {t("Report")}
+                          </Button>
+                        ) : null}
+                      </span>
+                    </div>
+                    {facts && !demo ? (
+                      <div className="mt-1 text-xs text-text-muted">
+                        {fileRunStatus(facts)}
+                      </div>
+                    ) : null}
+                    {scoped.map((link) => {
+                      const key = scopedExeLinkKey(
+                        link.exeName,
+                        link.pathPrefix,
+                      );
+                      return (
+                        <div
+                          key={link.pathPrefix}
+                          className="mt-1.5 flex items-center gap-2"
+                        >
+                          <span className="min-w-0 flex-1 break-all text-xs text-text-faint">
+                            {t("Tracking folder: {{pathPrefix}}", {
+                              pathPrefix: link.pathPrefix,
+                            })}
+                          </span>
+                          {key && removable(link)
+                            ? removeButton({ kind: "scoped", key })
+                            : null}
+                        </div>
+                      );
+                    })}
+                    {target ? (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="min-w-0 flex-1 break-all text-xs text-text-muted">
+                          {t("Saved launch path: {{path}}", {
+                            path: target.path,
+                          })}
+                        </span>
+                        <Button
+                          icon={FolderOpen}
+                          className="shrink-0 px-2 py-1 text-xs"
+                          onClick={() => void revealPath(target.path)}
+                        >
+                          {t("Show")}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {game.emulatorLabels.map((label, index) => (
                 <div
-                  key={exeName}
+                  key={`${label}-${index}`}
                   className="rounded-lg border border-border bg-surface px-3 py-2.5"
                 >
                   <div className="flex items-center gap-2">
-                    <ExeIcon
-                      exePath={target?.path ?? null}
-                      className="h-4 w-4 shrink-0"
-                      fallback={
-                        <Gamepad2
-                          size={15}
-                          className="shrink-0 text-text-faint"
-                        />
-                      }
-                    />
-                    <span className="min-w-0 truncate font-mono text-sm text-text">
-                      {exeName}
-                    </span>
-                    <span className="ml-auto flex shrink-0 items-center gap-3">
-                      <SourceBadge source={fileSource} variant="text" />
-                      <span className="text-[11px] uppercase tracking-wider text-text-faint">
-                        {scoped.length > 0
-                          ? t("Matches in folder")
-                          : t("Matches by name")}
-                      </span>
-                      {nameLink && removable(nameLink)
-                        ? removeButton({
-                            kind: "exe",
-                            key: exeName.toLowerCase(),
-                          })
-                        : null}
-                      {onReportFile && facts && canReportFile(facts) ? (
-                        <Button
-                          variant="ghost"
-                          icon={Flag}
-                          title={t(
-                            "Report {{exeName}} as a wrong match for {{name}}",
-                            { exeName, name: game.name },
-                          )}
-                          onClick={() => onReportFile(exeName)}
-                          className="shrink-0 px-2 py-1 text-xs"
-                        >
-                          {t("Report")}
-                        </Button>
-                      ) : null}
+                    <Gamepad2 size={15} className="shrink-0 text-text-faint" />
+                    <span className="text-sm text-text">{label}</span>
+                    <span className="ml-auto text-[11px] uppercase tracking-wider text-text-faint">
+                      {t("Emulator")}
                     </span>
                   </div>
-                  {facts && !demo ? (
-                    <div className="mt-1 text-xs text-text-muted">
-                      {fileRunStatus(facts)}
-                    </div>
-                  ) : null}
-                  {scoped.map((link) => {
-                    const key = scopedExeLinkKey(link.exeName, link.pathPrefix);
-                    return (
-                      <div
-                        key={link.pathPrefix}
-                        className="mt-1.5 flex items-center gap-2"
-                      >
-                        <span className="min-w-0 flex-1 break-all text-xs text-text-faint">
-                          {t("Tracking folder: {{pathPrefix}}", {
-                            pathPrefix: link.pathPrefix,
-                          })}
-                        </span>
-                        {key && removable(link)
-                          ? removeButton({ kind: "scoped", key })
-                          : null}
-                      </div>
-                    );
-                  })}
-                  {target ? (
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="min-w-0 flex-1 break-all text-xs text-text-muted">
-                        {t("Saved launch path: {{path}}", {
-                          path: target.path,
-                        })}
-                      </span>
-                      <Button
-                        icon={FolderOpen}
-                        className="shrink-0 px-2 py-1 text-xs"
-                        onClick={() => void revealPath(target.path)}
-                      >
-                        {t("Show")}
-                      </Button>
+                  {game.emulatorContentKeys[index] ? (
+                    <div className="mt-1.5 break-all font-mono text-xs text-text-faint">
+                      {game.emulatorContentKeys[index]}
                     </div>
                   ) : null}
                 </div>
-              );
-            })}
-            {game.emulatorLabels.map((label, index) => (
-              <div
-                key={`${label}-${index}`}
-                className="rounded-lg border border-border bg-surface px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <Gamepad2 size={15} className="shrink-0 text-text-faint" />
-                  <span className="text-sm text-text">{label}</span>
-                  <span className="ml-auto text-[11px] uppercase tracking-wider text-text-faint">
-                    {t("Emulator")}
-                  </span>
-                </div>
-                {game.emulatorContentKeys[index] ? (
-                  <div className="mt-1.5 break-all font-mono text-xs text-text-faint">
-                    {game.emulatorContentKeys[index]}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+              ))}
+            </div>
+          )}
+        </Panel>
+      )}
 
       {game.libraryImports.length > 0 ? (
         <Panel
@@ -1091,19 +1052,40 @@ export function GameDetailsDialog({
                     value={
                       entry.entry.providerSeconds === null
                         ? entry.provider === "battlenet"
-                          ? "Not available"
-                          : "Not reported"
+                          ? t("Not available")
+                          : t("Not reported")
                         : duration(entry.entry.providerSeconds)
                     }
                   />
+                  {/* The total above is the sum of its accounts' hours. */}
+                  {entry.entry.accounts?.map((reading) => (
+                    <Row
+                      key={reading.key}
+                      nested
+                      label={
+                        reading.name ??
+                        (reading.key === EARLIER_IMPORT
+                          ? t("Earlier import")
+                          : t("Unnamed account"))
+                      }
+                      value={
+                        reading.seconds === null
+                          ? t("Not reported")
+                          : duration(reading.seconds)
+                      }
+                    />
+                  ))}
                   <Row
                     label={t("Imported")}
-                    value={formatDate(entry.entry.importedAt) ?? "Unknown"}
+                    value={formatDate(entry.entry.importedAt) ?? t("Unknown")}
                   />
-                  <Row
-                    label={t("Installed here")}
-                    value={entry.installed ? "Yes" : "No"}
-                  />
+                  {/* A PlayStation copy is never installed on this PC. */}
+                  {playsOnConsole(entry.provider) ? null : (
+                    <Row
+                      label={t("Installed here")}
+                      value={entry.installed ? t("Yes") : t("No")}
+                    />
+                  )}
                   {entry.install?.installPath ? (
                     <Row
                       label={t("Install folder")}
@@ -1141,6 +1123,14 @@ export function GameDetailsDialog({
       >
         {tab === "general" ? (
           generalTab
+        ) : tab === "howLongToBeat" ? (
+          <HowLongToBeatTab
+            game={game}
+            details={details}
+            sessions={sessions}
+            demo={demo}
+            onOpenIgdb={() => void openOnIgdb()}
+          />
         ) : tab === "files" ? (
           filesTab
         ) : (

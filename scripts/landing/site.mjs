@@ -3,9 +3,9 @@
 export const site = {
   origin: "https://playcounter.app",
   name: "PlayCounter",
-  version: "1.5.0",
+  version: "1.6.0",
   reviewed: "2026-09-24",
-  // Set both after the 1.5.0 installer is published: the release date and the
+  // Set both after the 1.6.0 installer is published: the release date and the
   // byte size of PlayCounter-Setup.exe from the GitHub release. Until then the
   // download line omits the size and the structured data omits the date.
   releaseDate: null,
@@ -16,7 +16,7 @@ export const site = {
   repository: "https://github.com/zntr1/PlayCounter",
   discord: "https://discord.gg/t2nG3jaEEY",
   description:
-    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic and GOG hours and your Battle.net games.",
+    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic, GOG and PlayStation hours.",
   milestone: "+500 installations in the last 30 days.",
   // The milestone is the owner's install count for the last 30 days, September 2026.
   // It is not the presence endpoint's online installation count or a download count.
@@ -41,8 +41,9 @@ export const site = {
     poster: "/videos/playcounter-loop-v1-poster.webp",
   },
   // App views and guide steps, captured from the 1.2.0 UI with an example
-  // library. "window" images are full app windows with a 1000px variant;
-  // "crop" images are 2x captures and width/height are their display size.
+  // library; the -v1-6-0 views from the 1.6.0 UI. "window" images are full
+  // app windows with a 1000px variant; "crop" images are 2x captures and
+  // width/height are their display size.
   screenshots: {
     library: {
       kind: "window",
@@ -62,11 +63,35 @@ export const site = {
     },
     history: {
       kind: "window",
-      file: "playcounter-history-v1-2-0.webp",
-      small: "playcounter-history-v1-2-0-1000.webp",
+      file: "playcounter-history-v1-6-0.webp",
+      small: "playcounter-history-v1-6-0-1000.webp",
       width: 2000,
       height: 1250,
-      alt: "PlayCounter My History with the playtime of the last 30 days, highlights such as the longest session and best streak, and recorded sessions by day",
+      alt: "PlayCounter My History for October 2026: 230 hours played across 27 days, highlights such as the longest session and best streak, and a strip of the whole history to pick days from",
+    },
+    "game-achievements": {
+      kind: "window",
+      file: "playcounter-game-achievements-v1-6-0.webp",
+      small: "playcounter-game-achievements-v1-6-0-1000.webp",
+      width: 2000,
+      height: 1250,
+      alt: "Rocket League’s achievements in PlayCounter: 30 of 88 unlocked from Epic Games, sorted by newest unlock, each with its unlock date, XP and share of players",
+    },
+    howlongtobeat: {
+      kind: "window",
+      file: "playcounter-howlongtobeat-v1-6-0.webp",
+      small: "playcounter-howlongtobeat-v1-6-0-1000.webp",
+      width: 2000,
+      height: 1250,
+      alt: "How long to beat for Cyberpunk 2077: Main story 26 hours, Main + extras 62 hours, Completionist 106 hours, a bar at 28 hours played and the values to add your time on HowLongToBeat",
+    },
+    playstation: {
+      kind: "window",
+      file: "playcounter-playstation-v1-6-0.webp",
+      small: "playcounter-playstation-v1-6-0-1000.webp",
+      width: 2000,
+      height: 1250,
+      alt: "PlayCounter Now Playing with Ghost of Tsushima running on a PS5: a live session timer, the label Playing on PS5 and the total playtime",
     },
     achievements: {
       kind: "window",
@@ -244,7 +269,6 @@ export const site = {
       logo: "/brands/epic.svg",
       method: "With Epic sign-in",
       brings: "Games + your Epic hours",
-      isNew: true,
       detail:
         "Sign in to bring in your Epic library with the playtime Epic recorded. Or just scan installed games without signing in; their earlier hours then stay unknown.",
       guide: "/check-playtime-epic-games/",
@@ -256,11 +280,22 @@ export const site = {
       logo: "/brands/gog.svg",
       method: "With GOG sign-in",
       brings: "Games + your GOG hours",
-      isNew: true,
       detail:
         "Sign in to bring in your GOG library with the playtime GOG recorded. Or just scan installed games without signing in; their earlier hours then stay unknown.",
       guide: "/check-playtime-gog-galaxy/",
       guideLabel: "Import GOG playtime",
+    },
+    {
+      id: "playstation",
+      name: "PlayStation",
+      logo: "/brands/playstation.svg",
+      method: "With PlayStation sign-in",
+      brings: "Games + your PS5 & PS4 hours",
+      isNew: true,
+      detail:
+        "Sign in to bring in your PS5 and PS4 games with the playtime Sony recorded. While PlayCounter runs, a game you start on the console shows up live in Now Playing.",
+      guide: "/check-playtime-ps5/",
+      guideLabel: "Import PS5 playtime",
     },
     {
       id: "battlenet",
@@ -268,7 +303,6 @@ export const site = {
       logo: "/brands/battlenet.svg",
       method: "Optional · tracking works without it",
       brings: "Game list only · no playtime",
-      isNew: true,
       detail:
         "Battle.net shares no playtime, so there is nothing to bring over but your game list. You can skip it: start your games from Battle.net and PlayCounter tracks them anyway. Set earlier hours yourself, for example from WoW’s /played.",
       guide: "/check-playtime-battle-net/",
@@ -415,7 +449,7 @@ export const faq = [
   ],
   [
     "Can I bring in hours from before I installed it?",
-    'Yes. Steam, Xbox, Epic and GOG imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
+    'Yes. Steam, Xbox, Epic, GOG and PlayStation imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
   ],
   [
     "Which emulators are supported?",
@@ -427,7 +461,7 @@ export const faq = [
   ],
   [
     "What stays on my PC, and what goes online?",
-    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic, GOG and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
+    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic, GOG, PlayStation and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
   ],
   [
     "Is PlayCounter coming to Steam?",
@@ -435,6 +469,6 @@ export const faq = [
   ],
   [
     "Does it work on macOS, Linux or consoles?",
-    "The public installer is for Windows. PlayCounter records games running on that PC. Xbox import can include account playtime reported for other devices; it does not add live console tracking.",
+    "The public installer is for Windows. PlayCounter records games running on that PC. Xbox import can include account playtime reported for other devices. The PlayStation import adds your PS5 and PS4 playtime and, while PlayCounter runs, sees what you play on the console.",
   ],
 ];

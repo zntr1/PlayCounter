@@ -149,9 +149,9 @@
   "Reload failed": "重新加载失败",
   "Unavailable": "不可用",
   "Folder unavailable": "文件夹不可用",
-  "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games or GOG. Install paths and the game files linked to them always stay on this PC.": "让你的启动器游戏保持最新，或删除从 Steam、Xbox、Battle.net、Epic Games 或 GOG 导入的数据。安装路径以及与之关联的游戏文件始终保留在这台电脑上。",
+  "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. Install paths and the game files linked to them always stay on this PC.": "让你的启动器游戏保持最新，或删除从 Steam、Xbox、Battle.net、Epic Games、GOG 或 PlayStation 导入的数据。安装路径以及与之关联的游戏文件始终保留在这台电脑上。",
   "Library import": "导入游戏库",
-  "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.": "首次从 Steam、Battle.net、Epic Games 或 GOG 导入后，你在那里安装的游戏会自动出现在“我的游戏”中。你从 PlayCounter 中移除的游戏不会再被添加。Xbox 游戏仍需通过 Xbox 导入，因为 Xbox 不会告诉 PlayCounter 每个安装对应哪个游戏。",
+  "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.": "首次从 Steam、Battle.net、Epic Games 或 GOG 导入后，你在那里安装的游戏会自动出现在“我的游戏”中，你在 PlayStation 上玩的新游戏也一样。你从 PlayCounter 中移除的游戏不会再被添加。Xbox 游戏仍需通过 Xbox 导入，因为 Xbox 不会告诉 PlayCounter 每个安装对应哪个游戏。",
   "Add new games automatically": "自动添加新游戏",
   "Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept.": "删除 Steam 标记、导入的 Steam 游戏时长、Steam 关联的游戏文件及其安装位置。PlayCounter 自己记录的游玩记录会保留。",
   "Removes the Xbox mark, the imported Xbox playtime, and the game files Xbox linked. Sessions PlayCounter recorded itself are kept.": "删除 Xbox 标记、导入的 Xbox 游戏时长以及 Xbox 关联的游戏文件。PlayCounter 自己记录的游玩记录会保留。",
@@ -333,5 +333,7 @@
   "A popup every time today's playtime grows by this much. All games count together.": "今天的游戏时长每增加这么多，就会弹窗提醒一次。所有游戏合并计算。",
   "Off": "关闭",
   "Every {{count, number}} hours_other": "每 {{count, number}} 小时",
-  "Every {{count, number}} minutes_other": "每 {{count, number}} 分钟"
+  "Every {{count, number}} minutes_other": "每 {{count, number}} 分钟",
+  "Forget imported PlayStation data": "清除导入的 PlayStation 数据",
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "删除 PlayStation 标记和导入的 PlayStation 游戏时长。PlayCounter 自己记录的游玩记录（包括 PS5 和 PS4 游玩记录）会保留。"
 }

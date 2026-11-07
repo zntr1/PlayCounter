@@ -9,6 +9,7 @@ import {
 import { scopedExeLinkKey } from "./scopedLinks";
 import { scopedLocalGameId } from "./localGameIds";
 import { libraryEntryKey, type LibraryImportCommit } from "./types";
+import { mergeProviderSeconds, mergeReading } from "./accountReadings";
 import { undismissLauncherGames } from "./libraryAutoAddState";
 import {
   evaluateMilestones,
@@ -16,6 +17,7 @@ import {
   recordedSecondsByGame,
 } from "../milestones";
 import {
+  CONSOLE_PROVIDERS,
   providerFloorKey,
   providerFloors,
   providerFloorsByKey,
@@ -47,27 +49,23 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     providerFloors(state.libraryImports.values()),
   );
   const readGames = new Set<string>();
+  const consoleReadGames = new Set<string>();
 
   for (const original of commits) {
     const commit = withoutRejectedFiles(original, state.rejectedGameFiles);
     const key = libraryEntryKey(commit.entry.provider, commit.entry.externalId);
     const previous = libraryImports.get(key);
+    // Each account keeps its own hours; the entry's total is their sum.
+    const { accounts, ...hours } = mergeReading(
+      previous,
+      commit.entry,
+      commit.partialRead,
+    );
+    const { accounts: _reading, ...read } = commit.entry;
     libraryImports.set(key, {
-      ...commit.entry,
+      ...read,
       importedAt: previous?.importedAt ?? commit.entry.importedAt,
-      providerLastPlayedAt: [
-        previous?.providerLastPlayedAt,
-        commit.entry.providerLastPlayedAt,
-      ]
-        .filter(
-          (date): date is string =>
-            Boolean(date) && Number.isFinite(Date.parse(date!)),
-        )
-        .sort((a, b) => Date.parse(b) - Date.parse(a))[0],
-      providerHasPlayedEvidence:
-        previous?.providerHasPlayedEvidence === true
-          ? true
-          : commit.entry.providerHasPlayedEvidence,
+      ...hours,
       linkedExeNames: uniqueExeNames([
         ...(previous?.linkedExeNames ?? []),
         ...commit.entry.linkedExeNames,
@@ -78,14 +76,24 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
           ...commit.entry.linkedExeSources,
         ]),
       ],
-      providerSeconds: mergeProviderSeconds(
-        previous?.providerSeconds,
-        commit.entry.providerSeconds,
-      ),
       recordedSecondsAtRead: previous?.recordedSecondsAtRead,
+      ...(previous?.consoleTitleIds || commit.entry.consoleTitleIds
+        ? {
+            consoleTitleIds: [
+              ...new Set([
+                ...(previous?.consoleTitleIds ?? []),
+                ...(commit.entry.consoleTitleIds ?? []),
+              ]),
+            ],
+          }
+        : {}),
+      ...(accounts ? { accounts } : {}),
     });
     if (commit.entry.providerSeconds !== null)
-      readGames.add(providerFloorKey(commit.entry));
+      (CONSOLE_PROVIDERS.has(commit.entry.provider)
+        ? consoleReadGames
+        : readGames
+      ).add(providerFloorKey(commit.entry));
     if (commit.install) libraryInstalls.set(key, commit.install);
     else if (!commit.preserveInstall) libraryInstalls.delete(key);
     gameMetadata.set(gameMetadataKey(commit.metadata), commit.metadata);
@@ -161,34 +169,63 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     state.archivedGameSeconds,
     split.removed,
     state.archivedPlaythroughSeconds,
+    state.archivedConsoleSeconds,
   );
   const recorded = recordedSecondsByGame({
     sessions: split.kept,
     archivedGameSeconds: archive.archivedGameSeconds,
+    archivedConsoleSeconds: archive.archivedConsoleSeconds,
     resolveIgdbId,
   });
   const floorsAfter = providerFloorsByKey(
     providerFloors(libraryImports.values()),
   );
+  // One snapshot per game and side: this PC's launchers form one combined
+  // total, the console side (PlayStation) another.
+  const setSnapshot = (gameKey: string, console: boolean, snapshot: number) => {
+    for (const [key, entry] of libraryImports) {
+      if (
+        entry.providerSeconds === null ||
+        providerFloorKey(entry) !== gameKey ||
+        CONSOLE_PROVIDERS.has(entry.provider) !== console
+      )
+        continue;
+      libraryImports.set(key, { ...entry, recordedSecondsAtRead: snapshot });
+    }
+  };
   const firstReadGames = new Set<string>();
-  for (const gameKey of readGames) {
+  for (const gameKey of new Set([...readGames, ...consoleReadGames])) {
     const floor = floorsAfter[gameKey];
     if (!floor) continue;
     const before = floorsBefore[gameKey];
     if (!before) firstReadGames.add(gameKey);
-    const snapshot = recordedSecondsAtRead(
-      before && {
-        seconds: before.seconds,
-        recordedSecondsAtRead: recorded.secondsAtRead(before),
-      },
-      floor.seconds,
-      recorded.secondsFor(gameKey),
-    );
-    // One snapshot per game: its launchers form one combined total.
-    for (const [key, entry] of libraryImports) {
-      if (entry.providerSeconds === null || providerFloorKey(entry) !== gameKey)
-        continue;
-      libraryImports.set(key, { ...entry, recordedSecondsAtRead: snapshot });
+    if (readGames.has(gameKey)) {
+      setSnapshot(
+        gameKey,
+        false,
+        recordedSecondsAtRead(
+          before && {
+            seconds: before.seconds - (before.console?.seconds ?? 0),
+            recordedSecondsAtRead: recorded.secondsAtRead(before),
+          },
+          floor.seconds - (floor.console?.seconds ?? 0),
+          recorded.thisPcSecondsFor(floor),
+        ),
+      );
+    }
+    if (consoleReadGames.has(gameKey) && floor.console) {
+      setSnapshot(
+        gameKey,
+        true,
+        recordedSecondsAtRead(
+          before?.console && {
+            seconds: before.console.seconds,
+            recordedSecondsAtRead: recorded.consoleSecondsAtRead(before),
+          },
+          floor.console.seconds,
+          recorded.consoleSecondsFor(gameKey),
+        ),
+      );
     }
   }
   // Hours typed in by hand before the first launcher read are not counted
@@ -197,6 +234,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   moveAdjustmentsOnTop(playtimeAdjustments, firstReadGames, {
     sessions: split.kept,
     archivedGameSeconds: archive.archivedGameSeconds,
+    archivedConsoleSeconds: archive.archivedConsoleSeconds,
     providerFloors: providerFloors(libraryImports.values()),
     resolveIgdbId,
   });
@@ -204,6 +242,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     sessions: split.kept,
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
+    archivedConsoleSeconds: archive.archivedConsoleSeconds,
     playtimeAdjustments,
     providerFloors: providerFloors(libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
@@ -232,6 +271,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
     archivedPlaythroughSeconds: archive.archivedPlaythroughSeconds,
+    archivedConsoleSeconds: archive.archivedConsoleSeconds,
   };
   const result = persistAppState(candidate);
   if (result.status === "suspended")
@@ -251,20 +291,14 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedSeconds: result.archivedSeconds,
     archivedGameSeconds: result.archivedGameSeconds,
     archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
+    archivedConsoleSeconds: result.archivedConsoleSeconds,
   });
   // Importing a game again takes back an earlier removal.
   undismissLauncherGames(commits.map((commit) => commit.entry));
   return result;
 }
 
-export function mergeProviderSeconds(
-  previous: number | null | undefined,
-  incoming: number | null,
-) {
-  if (incoming === null) return previous ?? null;
-  if (previous === null || previous === undefined) return incoming;
-  return Math.max(previous, incoming);
-}
+export { mergeProviderSeconds };
 
 /**
  * PlayCounter's time that the combined launcher total already holds. On a

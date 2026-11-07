@@ -72,6 +72,17 @@ import {
   noteFolderExecutable,
 } from "./tracker";
 import { libraryEntryKey } from "./library/types";
+import { readPersistedRecord } from "./persistence";
+
+// What a restart loads: the last write of every key, read the way PlayCounter
+// reads it.
+function readSavedState() {
+  const written = new Map(vi.mocked(localStorage.setItem).mock.calls);
+  vi.mocked(localStorage.getItem).mockImplementation(
+    (key: string) => written.get(key) ?? null,
+  );
+  return readPersistedRecord();
+}
 
 function entry(overrides: Partial<ExeCacheEntry> = {}): ExeCacheEntry {
   return {
@@ -230,13 +241,9 @@ describe("playthrough tracking", () => {
         Date.parse(useAppStore.getState().activeSessions[0].checkpointedAt),
       ).toBe(Date.parse("2026-09-13T10:02:00Z"));
       persist();
-      const saved = JSON.parse(
-        vi
-          .mocked(localStorage.setItem)
-          .mock.calls.filter(([key]) => key.includes("playcounter"))
-          .at(-1)![1],
-      );
-      expect(saved.activeSessions[0].note).toBe("Boss 2");
+      expect(readSavedState()).toMatchObject({
+        activeSessions: [{ note: "Boss 2" }],
+      });
       running = false;
       vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
       await scanProcessesNow();
@@ -544,12 +551,9 @@ describe("PCSX2 tracking integration", () => {
     configure();
     await scanProcessesNow();
     persist();
-    const saved = vi
-      .mocked(localStorage.setItem)
-      .mock.calls.filter(([key]) => key.includes("playcounter"))
-      .at(-1)?.[1];
-    expect(saved).toBeTruthy();
-    const record = JSON.parse(saved!);
+    const record = readSavedState();
+    expect(record).toHaveProperty("emulatorMappings");
+    expect(record).toHaveProperty("knownEmulators");
     expect(() =>
       validateBackupData(
         {
@@ -559,7 +563,6 @@ describe("PCSX2 tracking integration", () => {
         "backup",
       ),
     ).not.toThrow();
-    vi.mocked(localStorage.getItem).mockReturnValue(saved!);
     useAppStore.setState({
       emulatorMappings: new Map(),
       knownEmulators: new Map(),
@@ -3921,9 +3924,9 @@ describe("contribution marker repair", () => {
 });
 
 describe("imported local link sharing", () => {
-  const key = "game.exe|c:\\steam\\game";
+  const key = "dots.exe|c:\\steam\\game";
   const link = {
-    exeName: "game.exe",
+    exeName: "dots.exe",
     pathPrefix: "C:\\Steam\\Game",
     gameId: -42,
     igdbId: 123,
@@ -3994,7 +3997,7 @@ describe("imported local link sharing", () => {
     ).resolves.toEqual({ kind: "submitted" });
 
     const state = useAppStore.getState();
-    expect(state.exeCache.has("game.exe")).toBe(false);
+    expect(state.exeCache.has("dots.exe")).toBe(false);
     expect(state.scopedExeLinks.get(key)).toMatchObject({
       pathPrefix: link.pathPrefix,
       communitySuggestionId: 42,
@@ -4004,7 +4007,7 @@ describe("imported local link sharing", () => {
     expect(
       JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)),
     ).toEqual({
-      exeName: "game.exe",
+      exeName: "dots.exe",
       name: "Game",
       coverUrl: "cover",
       igdbId: 123,
@@ -4046,6 +4049,33 @@ describe("imported local link sharing", () => {
     });
   });
 
+  // A Steam import links War of Dots' Game.exe to its folder as a Custom
+  // game; 1.4.0 then sent Game.exe for review (pending suggestion #1335).
+  it.each(["Game.exe", "javaw.exe"])(
+    "never sends an imported %s, a name many games share, for review",
+    async (exeName) => {
+      const genericKey = `${exeName.toLowerCase()}|c:\\steam\\war of dots`;
+      const generic = {
+        ...link,
+        exeName,
+        pathPrefix: "C:\\Steam\\War of Dots",
+        gameName: "War of Dots",
+      };
+      useAppStore.setState({ scopedExeLinks: new Map([[genericKey, generic]]) });
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(
+        submitLocalLinkToCommunity({ kind: "scoped", key: genericKey }),
+      ).resolves.toEqual({ kind: "not-applicable" });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(useAppStore.getState().scopedExeLinks.get(genericKey)).toBe(
+        generic,
+      );
+    },
+  );
+
   it("keeps the local link and exposes retry state when submission fails", async () => {
     useAppStore.setState({ scopedExeLinks: new Map([[key, link]]) });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
@@ -4062,7 +4092,7 @@ describe("imported local link sharing", () => {
   });
 
   it("converts an approved scoped suggestion to its community game", () => {
-    const scopedKey = "game.exe|c:\\steam\\game";
+    const scopedKey = "dots.exe|c:\\steam\\game";
     useAppStore.setState({
       scopedExeLinks: new Map([
         [
@@ -4089,14 +4119,14 @@ describe("imported local link sharing", () => {
             importedAt: "2026-08-23T00:00:00.000Z",
             providerSeconds: 0,
             lastReadAt: "2026-08-23T00:00:00.000Z",
-            linkedExeNames: ["Game.exe"],
+            linkedExeNames: ["Dots.exe"],
             linkedExeSources: ["custom" as const],
           },
         ],
       ]),
     });
 
-    convertLocalSuggestionToCommunity("Game.exe");
+    convertLocalSuggestionToCommunity("Dots.exe");
 
     expect(useAppStore.getState().scopedExeLinks.get(scopedKey)).toMatchObject({
       gameId: 42,

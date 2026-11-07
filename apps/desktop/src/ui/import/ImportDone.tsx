@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { AlertTriangle, Check } from "lucide-react";
+import { AlertTriangle, Check, RefreshCw } from "lucide-react";
 import { Trans } from "react-i18next";
 import { getT } from "../../i18n";
 import { importProfile } from "../../library/importProfiles";
@@ -7,6 +7,7 @@ import {
   notImportedText,
   reviewRemainingGames,
   showImportList,
+  showImportUpdates,
   type ImportSession,
 } from "../../library/importSession";
 import { useAppStore } from "../../store";
@@ -29,6 +30,8 @@ export function ImportDone({ session }: { session: ImportSession }) {
   const updated = session.lastImport?.updated ?? 0;
   const notImported = session.lastImport?.notImported ?? [];
   const remaining = groups.attention.filter((row) => !row.completed).length;
+  // Games in My Games with new playtime wait on their own tab.
+  const updates = groups.imported.filter((row) => row.newPlaytime).length;
   const covers = rows
     .filter((row) => added.includes(row.game.externalId) && row.coverUrl)
     .slice(0, 5);
@@ -80,7 +83,8 @@ export function ImportDone({ session }: { session: ImportSession }) {
         </p>
         {(added.length > 0 && updated > 0) ||
         notImported.length > 0 ||
-        remaining > 0 ? (
+        remaining > 0 ||
+        updates > 0 ? (
           <ul className="mt-4 grid gap-1.5 text-sm text-text-muted">
             {added.length > 0 && updated > 0 ? (
               <li className="flex items-center gap-2">
@@ -108,6 +112,18 @@ export function ImportDone({ session }: { session: ImportSession }) {
                 {t("{{count}} games still need you", { count: remaining })}
               </li>
             ) : null}
+            {updates > 0 ? (
+              <li className="flex items-center gap-2">
+                <RefreshCw
+                  size={16}
+                  aria-hidden="true"
+                  className="text-accent-ink"
+                />
+                {t("{{count}} games in My Games have new playtime", {
+                  count: updates,
+                })}
+              </li>
+            ) : null}
           </ul>
         ) : null}
         <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -127,11 +143,20 @@ export function ImportDone({ session }: { session: ImportSession }) {
               onClick={reviewRemainingGames}
               className="px-5 py-2.5 text-[15px]"
             >
-              {t("Decide {{count}} games", { count: remaining })}
+              {t("Review {{count}} games", { count: remaining })}
+            </Button>
+          ) : null}
+          {updates > 0 ? (
+            <Button
+              variant="secondary"
+              onClick={showImportUpdates}
+              className="px-5 py-2.5 text-[15px]"
+            >
+              {t("Show updates")}
             </Button>
           ) : null}
           <Button variant="ghost" onClick={showImportList}>
-            {t("Back to the games")}
+            {t("Back to the importer")}
           </Button>
         </div>
       </div>

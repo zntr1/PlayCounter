@@ -34,6 +34,8 @@ beforeEach(() => {
       ...useAppStore.getState().settings,
       gameLaunchingEnabled: false,
       libraryShowShelves: false,
+      // The list's order; the New row is MyGamesNewRow.test.tsx.
+      libraryShowNewRow: false,
     },
   });
   container = document.createElement("div");

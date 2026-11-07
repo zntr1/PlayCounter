@@ -67,6 +67,7 @@ import {
   Trophy,
   UsersRound,
   WifiOff,
+  X,
 } from "lucide-react";
 import {
   Fragment,
@@ -283,11 +284,19 @@ import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
   earliestAddedAt,
-  isNewGame,
   mergeLastPlayedEvidence,
   shouldPromoteActiveGame,
   type MyGamesSortKey,
 } from "../myGamesSort";
+import {
+  addedLabel,
+  isShownAsNew,
+  markLaunchedGameSeen,
+  newGameKey,
+  newRowGames,
+  NOTHING_SEEN,
+} from "../newGamesRow";
+import { NewGamesRow } from "./games/NewGamesRow";
 import {
   isTourDemoLibraryGame,
   type LibraryGameKind,
@@ -319,6 +328,7 @@ import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 import {
   hasUnknownProviderPlaytime,
+  isConsoleOnlyGame,
   libraryProviders,
   trackingUnavailableMessage,
 } from "../providerLibrary";
@@ -396,6 +406,8 @@ export function MyGamesSortSelect({
 
 const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
 const DEMO_LAUNCH_MS = 2_500;
+// One empty list, so a hidden New games row never changes identity.
+const NO_NEW_GAMES: GameSummary[] = [];
 
 export type GameSummary = {
   kind: LibraryGameKind;
@@ -426,6 +438,8 @@ export type GameSummary = {
   lastPlayedAt: string;
   hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
+  /** A session runs right now (activeStartedAt waits 30 seconds). */
+  playingNow?: boolean;
   addedAt?: string;
   exeNames: string[];
   /** Per file (lowercase): its last real run as this game on this PC. */
@@ -783,6 +797,32 @@ export function MyGamesView({
     (state) => state.settings.libraryShowHero !== false,
   );
   const setMyGamesShowHero = useAppStore((state) => state.setMyGamesShowHero);
+  const showNewRow = useAppStore(
+    (state) => state.settings.libraryShowNewRow !== false,
+  );
+  const setMyGamesShowNewRow = useAppStore(
+    (state) => state.setMyGamesShowNewRow,
+  );
+  const newRowCollapsed = useAppStore(
+    (state) => state.settings.libraryNewRowCollapsed === true,
+  );
+  const setMyGamesNewRowCollapsed = useAppStore(
+    (state) => state.setMyGamesNewRowCollapsed,
+  );
+  const newGamesSeenAt = useAppStore(
+    (state) => state.settings.libraryNewGamesSeenAt ?? null,
+  );
+  const setMyGamesNewGamesSeenAt = useAppStore(
+    (state) => state.setMyGamesNewGamesSeenAt,
+  );
+  const newGamesSeenOneByOne = useAppStore(
+    (state) => state.settings.libraryNewGamesSeen ?? NOTHING_SEEN.seenGames,
+  );
+  const markNewGamesSeen = useAppStore((state) => state.markNewGamesSeen);
+  const newGamesSeen = useMemo(
+    () => ({ seenAt: newGamesSeenAt, seenGames: newGamesSeenOneByOne }),
+    [newGamesSeenAt, newGamesSeenOneByOne],
+  );
   const featuredSetting = useAppStore(
     (state) => state.settings.libraryFeaturedGame ?? null,
   );
@@ -796,6 +836,7 @@ export function MyGamesView({
     recentSessions: sessions,
     activeSessions,
     archivedGameSeconds,
+    archivedConsoleSeconds,
   } = useLibrarySessionState();
   const libraryTab = useAppStore((state) => state.libraryTab);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
@@ -984,9 +1025,10 @@ export function MyGamesView({
       recordedSecondsByGame({
         sessions,
         archivedGameSeconds,
+        archivedConsoleSeconds,
         resolveIgdbId,
       }),
-    [archivedGameSeconds, resolveIgdbId, sessions],
+    [archivedConsoleSeconds, archivedGameSeconds, resolveIgdbId, sessions],
   );
   const localLinks = useMemo(
     () => listLocalLinks(exeCache, scopedExeLinks),
@@ -1242,6 +1284,9 @@ export function MyGamesView({
 
     for (const session of sessions) {
       if (isIgnored(session.exeName)) continue;
+      // Sony's id of the copy (PPSA04609_00) stands where the file would: a
+      // console session adds no file name and no file badge.
+      const consoleSession = session.origin === "playstation";
 
       const hydratedMeta =
         session.source === "igdb" || session.source === "community"
@@ -1295,7 +1340,7 @@ export function MyGamesView({
             "",
           source: resolvedSource,
           lastPlayedAt: endedOrStartedAt,
-          exeName: session.exeName,
+          exeName: consoleSession ? "" : session.exeName,
           historyGameKey: summaryKey,
         });
         summaries.set(summaryKey, existing);
@@ -1304,14 +1349,14 @@ export function MyGamesView({
         existing,
         session.gameId,
         session.source,
-        session.emulator ? null : undefined,
+        session.emulator || consoleSession ? null : undefined,
       );
       if (session.source !== resolvedSource) {
         addAlias(
           existing,
           session.gameId,
           resolvedSource,
-          session.emulator ? null : undefined,
+          session.emulator || consoleSession ? null : undefined,
         );
       }
       for (const entry of gameEntries) mergeEntry(existing, entry);
@@ -1320,7 +1365,11 @@ export function MyGamesView({
       existing.sessionCount += 1;
       // Proof a file ran here. A manual session only borrows a file name, and
       // an emulator session names the emulator, not a file of this game.
-      if (session.origin !== "manual" && !session.emulator) {
+      if (
+        session.origin !== "manual" &&
+        session.origin !== "playstation" &&
+        !session.emulator
+      ) {
         const exeKey = session.exeName.toLowerCase();
         existing.exeLastRanAt ??= {};
         const previous = existing.exeLastRanAt[exeKey];
@@ -1358,7 +1407,7 @@ export function MyGamesView({
         existing.lastPlayedAt = endedOrStartedAt;
       }
       summariesWithPlayEvidence.add(summaryKey);
-      if (!hasExeName(existing.exeNames, session.exeName)) {
+      if (!consoleSession && !hasExeName(existing.exeNames, session.exeName)) {
         existing.exeNames.push(session.exeName);
       }
       if (session.emulator) {
@@ -1441,22 +1490,23 @@ export function MyGamesView({
             promoteForRecentSort || previousLibraryTimestamp === null
               ? activeSession.checkpointedAt
               : previousLibraryTimestamp,
-          exeName: activeSession.exeName,
+          exeName: activeSession.console ? "" : activeSession.exeName,
         });
         summaries.set(summaryKey, existing);
       }
+      // As for saved sessions: Sony's copy id is no file of the game.
       addAlias(
         existing,
         activeSession.gameId,
         activeSession.source,
-        activeSession.emulator ? null : undefined,
+        activeSession.emulator || activeSession.console ? null : undefined,
       );
       if (activeSession.source !== resolvedSource) {
         addAlias(
           existing,
           activeSession.gameId,
           resolvedSource,
-          activeSession.emulator ? null : undefined,
+          activeSession.emulator || activeSession.console ? null : undefined,
         );
       }
       for (const entry of gameEntries) {
@@ -1466,13 +1516,19 @@ export function MyGamesView({
         existing.addedAt,
         activeSession.startedAt,
       );
+      // Not new any more from the first second: it is being played.
+      existing.playingNow = true;
       existing.sessionSeconds += activeSeconds;
       activeSecondsBySummary.set(
         existing,
         (activeSecondsBySummary.get(existing) ?? 0) + activeSeconds,
       );
       // A timer only borrows the file name; the file is not running.
-      if (!activeSession.emulator && !activeSession.timer) {
+      if (
+        !activeSession.emulator &&
+        !activeSession.timer &&
+        !activeSession.console
+      ) {
         existing.exeRunningNow ??= [];
         existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
       }
@@ -1497,7 +1553,10 @@ export function MyGamesView({
       if (canSwitchApprovedSuggestionToCommunity(activeSession)) {
         existing.communitySuggestionExeName ??= activeSession.exeName;
       }
-      if (!hasExeName(existing.exeNames, activeSession.exeName)) {
+      if (
+        !activeSession.console &&
+        !hasExeName(existing.exeNames, activeSession.exeName)
+      ) {
         existing.exeNames.push(activeSession.exeName);
       }
       if (activeSession.emulator) {
@@ -2076,6 +2135,25 @@ export function MyGamesView({
     layout.panel !== "empty-library" &&
     featured !== null &&
     !isCoreTourDemo;
+  // The New row holds the new games of what the list shows: tab, shelf and
+  // filters. "Recently added" already puts them first, and search results
+  // are short enough to show them (docs/new-games-row-plan.md).
+  const newRowAllowed =
+    renderContent &&
+    !parked &&
+    showNewRow &&
+    !tourDemo.active &&
+    sortKey !== "added" &&
+    !query.trim();
+  // Switched off or not shown: not even the check for new games runs.
+  const newGames = useMemo(
+    () =>
+      newRowAllowed
+        ? newRowGames(displayedGames, Date.now(), newGamesSeen)
+        : NO_NEW_GAMES,
+    [newRowAllowed, displayedGames, newGamesSeen],
+  );
+  const newRowVisible = newRowAllowed && newGames.length > 0;
   useEffect(() => {
     publishLibrarySources({
       tabs,
@@ -2218,6 +2296,66 @@ export function MyGamesView({
                 else setLibraryFeaturedGame(null);
               }}
               onHide={() => setMyGamesShowHero(false)}
+            />
+          ) : null}
+
+          {newRowVisible ? (
+            <NewGamesRow
+              games={newGames}
+              collapsed={newRowCollapsed}
+              onCollapsedChange={setMyGamesNewRowCollapsed}
+              onMarkAllSeen={() =>
+                setMyGamesNewGamesSeenAt(new Date(Date.now()).toISOString())
+              }
+              onMarkSeen={(games) =>
+                markNewGamesSeen(games.map((game) => newGameKey(game)))
+              }
+              onHide={() => {
+                setMyGamesShowNewRow(false);
+                addToast({
+                  tone: "info",
+                  title: t("New games row hidden"),
+                  detail: t(
+                    "Turn it back on in Customize, next to the view buttons.",
+                  ),
+                });
+              }}
+              renderCard={(game) => {
+                const cardKey = `new:${
+                  game.igdbId !== undefined
+                    ? `igdb#${game.igdbId}`
+                    : `${game.source ?? "unknown"}:${game.gameId}`
+                }`;
+                return (
+                  <MemoizedGameLibraryCard
+                    key={cardKey}
+                    launchKey={cardKey}
+                    launchBlocked={launchingGameKey !== null}
+                    onAcquireLaunch={acquireLaunchLock}
+                    onReleaseLaunch={releaseLaunchLock}
+                    onDragGame={libraryDrag.start}
+                    selectionMode={bulkSelection.active}
+                    selected={bulkSelection.selected.has(
+                      librarySelectionKey(game),
+                    )}
+                    onToggleSelection={bulkSelection.toggleGame}
+                    game={game}
+                    bannerShelf={selectedShelf}
+                    localLinks={localLinks}
+                    showDurationDays={showDurationDays}
+                    showOrigin={showOrigin}
+                    showMatch={showMatch}
+                    showTrackingWarning={showTrackingWarnings}
+                    view="grid"
+                    compact
+                    onMarkSeen={markNewGamesSeen}
+                    onRemove={requestRemoval}
+                    onStopTracking={
+                      game.source ? requestStopTracking : undefined
+                    }
+                  />
+                );
+              }}
             />
           ) : null}
 
@@ -2465,6 +2603,15 @@ export function MyGamesView({
                         help={t("The featured game above your library.")}
                         checked={showHero}
                         onChange={setMyGamesShowHero}
+                      />
+                      <OptionRow
+                        id="library-show-new-row"
+                        label={t("New games row")}
+                        help={t(
+                          "Games you added in the last 7 days and haven't played yet, above your library.",
+                        )}
+                        checked={showNewRow}
+                        onChange={setMyGamesShowNewRow}
                       />
                       <LibraryLayoutControls
                         view={view}
@@ -3105,6 +3252,8 @@ export function GameLibraryCard({
   selected,
   onToggleSelection,
   demo = false,
+  compact = false,
+  onMarkSeen,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3127,6 +3276,12 @@ export function GameLibraryCard({
   selected: boolean;
   onToggleSelection: (key: string, range: boolean) => void;
   demo?: boolean;
+  /** The New row's small card: cover, launcher icon, name, the added date
+   *  and the card's button. No badges, warnings, playtime or hover buttons.
+   *  Grid view only. */
+  compact?: boolean;
+  /** The New row's ×: this game is seen, it leaves the row and its badge. */
+  onMarkSeen?: (gameKeys: readonly string[]) => void;
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
@@ -3162,6 +3317,14 @@ export function GameLibraryCard({
   );
   const isList = view === "list";
   const isLarge = view === "large";
+  const footerSize = isLarge
+    ? "h-12 text-sm"
+    : compact
+      ? "h-8 text-[11.5px]"
+      : "h-10 text-xs";
+  const footerIconSize = isLarge ? 16 : compact ? 13 : 14;
+  // The New row has its own heading, so its cards' names sit one level below.
+  const NameHeading = compact ? "h3" : "h2";
   const addToast = useAppStore((state) => state.addToast);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
@@ -3356,6 +3519,7 @@ export function GameLibraryCard({
       state.activeSessions.find(
         (session) =>
           !session.timer &&
+          !session.console &&
           game.aliases.some(
             (alias) =>
               session.gameId === alias.gameId &&
@@ -3566,6 +3730,9 @@ export function GameLibraryCard({
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
   const showLaunchNote = !showLaunchFooter && !demo && canLaunchExecutables;
+  // A game that only comes from PlayStation plays on the console: no file to
+  // pick, look for or warn about on this PC.
+  const consoleOnly = isConsoleOnlyGame(game);
   // No known .exe: an Xbox game opens in Xbox; any other database game gets
   // its .exe picked here and checked like in Add game.
   const showOpenInXbox = showLaunchNote && xboxActions.showOpenInLauncher;
@@ -3580,7 +3747,10 @@ export function GameLibraryCard({
         }
       : null;
   const showPickLaunchFile =
-    showLaunchNote && !showOpenInXbox && launchFileGame !== null;
+    showLaunchNote &&
+    !showOpenInXbox &&
+    !consoleOnly &&
+    launchFileGame !== null;
   const launchFileDialog =
     settingLaunchFile && launchFileGame ? (
       <AddGameDialog
@@ -3742,7 +3912,16 @@ export function GameLibraryCard({
   // Shown in place of the title while hovering the card with Shift held.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
-  const isNew = isNewGame(game, Date.now());
+  const newGamesSeenAt = useAppStore(
+    (state) => state.settings.libraryNewGamesSeenAt ?? null,
+  );
+  const newGamesSeenOneByOne = useAppStore(
+    (state) => state.settings.libraryNewGamesSeen ?? NOTHING_SEEN.seenGames,
+  );
+  const isNew = isShownAsNew(game, Date.now(), {
+    seenAt: newGamesSeenAt,
+    seenGames: newGamesSeenOneByOne,
+  });
   const localDisplayedSeconds = Math.max(
     0,
     game.recordedSeconds + game.adjustmentSeconds,
@@ -3787,7 +3966,7 @@ export function GameLibraryCard({
       : undefined;
   // A PlayCounter game without a file checks like a launcher game.
   const playcounterMatchEntry =
-    trackingUnavailable && !matchCheckImportEntry
+    trackingUnavailable && !matchCheckImportEntry && !consoleOnly
       ? playcounterEntry
       : undefined;
   const playcounterMatchOffer =
@@ -3820,8 +3999,13 @@ export function GameLibraryCard({
     (game.source && (demo ? game.exeNames[0] : checkableFiles.length > 0)) ||
     checksLibraryGame,
   );
+  // The New row's small cards carry no badges or warnings (Phil, 2026-11-03).
   const trackingWarningVisible =
-    showTrackingWarning && trackingUnavailable && !matchOffer;
+    showTrackingWarning &&
+    trackingUnavailable &&
+    !matchOffer &&
+    !consoleOnly &&
+    !compact;
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
     canCheckMatches,
@@ -4550,6 +4734,7 @@ export function GameLibraryCard({
       .activeSessions.filter(
         (session) =>
           !session.timer &&
+          !session.console &&
           !game.aliases.some(
             (alias) =>
               session.gameId === alias.gameId &&
@@ -4638,6 +4823,7 @@ export function GameLibraryCard({
       }
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4708,6 +4894,7 @@ export function GameLibraryCard({
       }
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4767,6 +4954,7 @@ export function GameLibraryCard({
       await provider.launch(entry.externalId);
       keepLaunchFeedback = true;
       hideToTrayWhenGameStarts(game.aliases);
+      markLaunchedGameSeen(game);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -5871,7 +6059,10 @@ export function GameLibraryCard({
                   : t("{{game}}, no launch file saved", { game: game.name })
             : undefined
         }
-        className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
+        className={clsx(
+          "game-library-card group relative isolate flex flex-col overflow-hidden border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
+          compact ? "rounded-[10px]" : "rounded-xl",
+        )}
       >
         {controllerNavigable ? (
           <button
@@ -5895,7 +6086,7 @@ export function GameLibraryCard({
             cover in another ratio (SteamGridDB grids are 2:3) would otherwise
             stretch the whole card. */}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
-          {!demo || libraryPractice ? (
+          {(!demo || libraryPractice) && !compact ? (
             <GameJournalBadges game={{ ...game, gameName: game.name }} />
           ) : null}
           {shownCover ? (
@@ -5913,7 +6104,7 @@ export function GameLibraryCard({
 
           {/* Match seals top left. Origin coins sit beside the game name, so the
               right column is just the tracking warning and the hover actions. */}
-          {matchVisible && !selectionMode ? (
+          {matchVisible && !selectionMode && !compact ? (
             <GameProvenanceBadges
               className="peer/provenance absolute left-2 top-2 z-40 drop-shadow-md"
               sources={game.sources}
@@ -5952,8 +6143,22 @@ export function GameLibraryCard({
             </div>
           ) : null}
 
-          {/* Hover Actions - Top Right (constructive first, destructive last) */}
-          {!selectionMode ? (
+          {/* The New row's ×, shown on hover. */}
+          {compact && onMarkSeen && !selectionMode ? (
+            <button
+              type="button"
+              aria-label={t("Mark as seen")}
+              title={t("Mark as seen")}
+              onClick={() => onMarkSeen([newGameKey(game)])}
+              className="absolute right-1.5 top-1.5 z-40 grid h-6 w-6 place-items-center rounded-full border border-white/20 bg-black/75 text-white opacity-0 shadow-raised transition hover:border-transparent hover:bg-accent hover:text-accent-fg focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover:opacity-100"
+            >
+              <X size={13} strokeWidth={2.5} />
+            </button>
+          ) : null}
+
+          {/* Hover Actions - Top Right (constructive first, destructive last).
+              The New row's small cards keep them in the right-click menu. */}
+          {!selectionMode && !compact ? (
             <div
               className={clsx(
                 "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
@@ -6052,22 +6257,29 @@ export function GameLibraryCard({
         <div
           className={clsx(
             "flex flex-1 flex-col border-t border-border bg-surface",
-            isLarge ? "p-4" : "p-3",
+            isLarge ? "p-4" : compact ? "px-2.5 pb-2 pt-2" : "p-3",
           )}
         >
-          <div className="flex min-w-0 items-center gap-2">
+          <div
+            className={clsx(
+              "flex min-w-0 items-center",
+              compact ? "gap-1.5" : "gap-2",
+            )}
+          >
             {/* Origin leads the name: where the game came from, then what it is */}
             {originVisible ? (
               <GameOriginBadges
                 providers={importedProviders}
                 emulatorIds={game.emulatorIds}
-                unknownDurationProviders={unknownDurationProviders}
+                unknownDurationProviders={
+                  compact ? [] : unknownDurationProviders
+                }
               />
             ) : null}
-            <h2
+            <NameHeading
               className={clsx(
                 "min-w-0 flex-1 truncate font-semibold text-text",
-                isLarge ? "text-lg" : "text-[15px]",
+                isLarge ? "text-lg" : compact ? "text-[13.5px]" : "text-[15px]",
               )}
               title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
             >
@@ -6081,47 +6293,54 @@ export function GameLibraryCard({
               ) : (
                 game.name
               )}
-            </h2>
-            {isNew ? <NewGameBadge /> : null}
+            </NameHeading>
+            {/* Everything in the New row is new: no badge there. */}
+            {isNew && !compact ? <NewGameBadge /> : null}
           </div>
-          <div
-            data-tour={demo ? "demo-playtime-result" : undefined}
-            className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5"
-          >
-            <span
-              title={playtimeTitle}
-              className={clsx(
-                "whitespace-nowrap font-mono font-bold tracking-tight text-text",
-                isLarge ? "text-xl" : "text-lg",
-              )}
+          {compact ? (
+            <div className="mt-0.5 truncate text-[11.5px] text-text-muted">
+              {addedLabel(game.addedAt, Date.now())}
+            </div>
+          ) : (
+            <div
+              data-tour={demo ? "demo-playtime-result" : undefined}
+              className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5"
             >
-              {formatDuration(game.totalSeconds, showDurationDays)}
-            </span>
-            {/* "in 35 sessions" moves to its own line rather than being cut. */}
-            <span className="flex min-w-0 items-baseline gap-1.5">
-              <span className="text-[11px] font-medium text-text-muted">
-                {t("in")}
-              </span>
-              <button
-                type="button"
-                disabled={game.sessionCount === 0}
-                onClick={handleShowHistory}
-                className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
-                aria-label={t(
-                  "Show {{count}} sessions for {{game}} in history",
-                  {
-                    count: game.sessionCount,
-                    game: game.name,
-                  },
+              <span
+                title={playtimeTitle}
+                className={clsx(
+                  "whitespace-nowrap font-mono font-bold tracking-tight text-text",
+                  isLarge ? "text-xl" : "text-lg",
                 )}
               >
-                {t("{{count}} sessions", { count: game.sessionCount })}
-              </button>
-            </span>
-          </div>
+                {formatDuration(game.totalSeconds, showDurationDays)}
+              </span>
+              {/* "in 35 sessions" moves to its own line rather than being cut. */}
+              <span className="flex min-w-0 items-baseline gap-1.5">
+                <span className="text-[11px] font-medium text-text-muted">
+                  {t("in")}
+                </span>
+                <button
+                  type="button"
+                  disabled={game.sessionCount === 0}
+                  onClick={handleShowHistory}
+                  className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
+                  aria-label={t(
+                    "Show {{count}} sessions for {{game}} in history",
+                    {
+                      count: game.sessionCount,
+                      game: game.name,
+                    },
+                  )}
+                >
+                  {t("{{count}} sessions", { count: game.sessionCount })}
+                </button>
+              </span>
+            </div>
+          )}
 
           {/* Persistent Community Prompts */}
-          {game.communityUpgradeExeName ? (
+          {game.communityUpgradeExeName && !compact ? (
             <div className="mt-3 flex flex-col gap-2 border-t border-border/50 pt-3">
               <div
                 className="truncate text-[11px] font-semibold text-success"
@@ -6175,7 +6394,7 @@ export function GameLibraryCard({
             </div>
           ) : null}
         </div>
-        {primaryEmulatorCandidate && primaryEmulatorMapping ? (
+        {primaryEmulatorCandidate && primaryEmulatorMapping && !compact ? (
           <button
             type="button"
             title={t(
@@ -6208,7 +6427,7 @@ export function GameLibraryCard({
           <div
             className={clsx(
               "flex shrink-0 items-stretch border-t border-success-border bg-success-tint font-semibold",
-              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+              footerSize,
             )}
           >
             <span className="flex min-w-0 flex-1 items-center justify-center gap-2 text-success">
@@ -6273,7 +6492,7 @@ export function GameLibraryCard({
             onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t font-semibold transition disabled:cursor-not-allowed",
-              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+              footerSize,
               !showPlayButton && !showInstallInSteam
                 ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
                 : playButtonRunning
@@ -6283,14 +6502,14 @@ export function GameLibraryCard({
           >
             {showInstallInSteam ? (
               <>
-                <Download size={isLarge ? 16 : 14} />
+                <Download size={footerIconSize} />
                 {t("Install in Steam")}
               </>
             ) : !showPlayButton ? (
               <>
                 {primaryEmulatorCandidate ? (
                   <>
-                    <Check size={isLarge ? 16 : 14} className="shrink-0" />
+                    <Check size={footerIconSize} className="shrink-0" />
                     <span className="min-w-0 truncate">
                       {t("Use {{displayName}}", {
                         displayName: primaryEmulatorCandidate.displayName,
@@ -6299,7 +6518,7 @@ export function GameLibraryCard({
                   </>
                 ) : (
                   <>
-                    <FolderSearch size={isLarge ? 16 : 14} />
+                    <FolderSearch size={footerIconSize} />
                     {gameEmulatorMappings.length > 1
                       ? t("Choose emulator game")
                       : t("Set launch file")}
@@ -6316,7 +6535,7 @@ export function GameLibraryCard({
               </>
             ) : playState.loading ? (
               <>
-                <Loader2 size={isLarge ? 16 : 14} className="animate-spin" />
+                <Loader2 size={footerIconSize} className="animate-spin" />
                 {t("Starting…")}
               </>
             ) : (
@@ -6324,7 +6543,7 @@ export function GameLibraryCard({
                 {/* The selected card swaps the play icon for the key that
                     launches it, so the button doubles as the button hint. */}
                 <Play
-                  size={isLarge ? 16 : 14}
+                  size={footerIconSize}
                   className={clsx(
                     controllerNavigable &&
                       "group-data-[controller-selected=true]:hidden",
@@ -6350,17 +6569,17 @@ export function GameLibraryCard({
             }
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t border-border font-semibold text-text-faint transition hover:bg-surface-hover hover:text-text-muted",
-              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+              footerSize,
             )}
           >
             {showOpenInXbox ? (
               <>
-                <ExternalLink size={isLarge ? 16 : 14} />
+                <ExternalLink size={footerIconSize} />
                 {t("Open in Xbox")}
               </>
             ) : (
               <>
-                <FolderSearch size={isLarge ? 16 : 14} />
+                <FolderSearch size={footerIconSize} />
                 {t("Set launch file")}
               </>
             )}
@@ -6370,10 +6589,10 @@ export function GameLibraryCard({
             title={t("PlayCounter can't launch this game directly")}
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t border-border text-text-faint",
-              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+              footerSize,
             )}
           >
-            <Info size={isLarge ? 16 : 14} />
+            <Info size={footerIconSize} />
             {t("Not launchable")}
           </div>
         ) : null}

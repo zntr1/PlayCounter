@@ -14,7 +14,6 @@ import {
   type LibraryImportCommit,
   type LibraryScanResult,
   type LocalLibraryAccount,
-  type ScannedLibraryGame,
 } from "./types";
 import { getT } from "../i18n";
 
@@ -156,23 +155,23 @@ async function addNewGames(
     });
   if (fresh.length === 0) return 0;
 
-  const games = await scanNewGames(provider, fresh, record.steamAccountId);
-  if (games.length === 0) return 0;
+  const scan = await scanNewGames(provider, fresh, record.steamAccountId);
+  if (scan.games.length === 0) return 0;
   const lookup = await resolveLibraryGames(
     useAppStore.getState().settings.apiEndpoint,
     provider,
-    games,
+    scan.games,
   );
   if (lookup.capability !== "supported") return 0;
   // Games the catalog cannot place wait a day before the next lookup.
-  for (const game of games) {
+  for (const game of scan.games) {
     unknownGamesCheckedAt.set(libraryEntryKey(provider, game.externalId), now);
   }
 
   const resolved = new Map(lookup.games.map((game) => [game.key, game]));
   const state = useAppStore.getState();
   const commits: LibraryImportCommit[] = [];
-  for (const game of games) {
+  for (const game of scan.games) {
     const key = libraryEntryKey(provider, game.externalId);
     const match = resolved.get(key);
     // Imported by hand meanwhile, or unknown to the catalog: leave it be.
@@ -184,6 +183,7 @@ async function addNewGames(
       scanned: game,
       resolved: match,
       ignoredProcesses: state.ignoredProcesses,
+      account: scan.account,
     });
     if (!commit) continue;
     commits.push(commit);
@@ -194,21 +194,22 @@ async function addNewGames(
   return commits.length;
 }
 
-/** Full scans (with executables) of only the newly installed games. */
+/** Full scans (with executables) of only the newly installed games, and the
+ *  account Steam's scan read. */
 async function scanNewGames(
   provider: LibraryProviderId,
   externalIds: readonly string[],
   steamAccountId: number | undefined,
-): Promise<ScannedLibraryGame[]> {
+): Promise<Pick<LibraryScanResult, "games" | "account">> {
   if (provider === "steam") {
     const accountId = steamAccountId ?? (await mostRecentSteamAccount());
-    if (accountId === undefined) return [];
+    if (accountId === undefined) return { games: [] };
     const scan = await invoke<LibraryScanResult>("library_scan", {
       provider,
       accountId,
       appIds: externalIds,
     });
-    return scan.games;
+    return { games: scan.games, account: scan.account };
   }
   // Battle.net, Epic and GOG scans have no per-game filter. A game that is
   // still downloading has no executable yet and is left for a later run.
@@ -216,9 +217,11 @@ async function scanNewGames(
     provider,
     accountId: 0,
   });
-  return scan.games.filter(
-    (game) => game.installed && externalIds.includes(game.externalId),
-  );
+  return {
+    games: scan.games.filter(
+      (game) => game.installed && externalIds.includes(game.externalId),
+    ),
+  };
 }
 
 /** Steam imports made before PlayCounter remembered the imported account. */

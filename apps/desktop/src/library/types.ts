@@ -31,6 +31,31 @@ export type LibraryImportEntry = {
   lastReadAt: string;
   linkedExeNames: string[];
   linkedExeSources: GameSource[];
+  /** PlayStation: Sony's ids of the game's copies, so a game running on the
+   *  console is recognised (playstationLive.ts). */
+  consoleTitleIds?: string[];
+  /** Each launcher account's own reading of this game; `providerSeconds` is
+   *  their sum. Absent on entries saved before accounts were known, until an
+   *  account reads the game again (docs/import-accounts-plan.md). */
+  accounts?: AccountReading[];
+};
+
+/** The launcher account a scan read. */
+export type LibraryAccount = {
+  /** SHA-256 of "<launcher>:<account id>", 32 hex characters. Made in Rust,
+   *  or by our server for Xbox: the account id never reaches this side. */
+  key: string;
+  /** Steam persona, Xbox gamertag, Epic display name, GOG user name or PSN
+   *  online id. Null when the launcher gives none. */
+  name: string | null;
+};
+
+/** One account's reading of a game. */
+export type AccountReading = LibraryAccount & {
+  seconds: number | null;
+  lastPlayedAt?: string;
+  hasPlayedEvidence?: boolean;
+  readAt: string;
 };
 
 export type LibraryInstallEntry = {
@@ -126,6 +151,12 @@ export type ScannedLibraryGame = {
   /** The launcher starts the game in an emulator it ships with the game
    *  (GOG's DOSBox and ScummVM games): there is no game file to link. */
   runsInEmulator?: boolean;
+  /** PlayStation: Sony's ids of the game's copies (PPSA01521_00). */
+  consoleTitleIds?: string[];
+  /** PlayStation: Sony names no console for any copy (its "unknown"
+   *  category), seen for games other people played on the account. Starts
+   *  unchecked and is never added in the background. */
+  consoleUnknown?: boolean;
 };
 
 export type LibraryScanResult = {
@@ -135,6 +166,12 @@ export type LibraryScanResult = {
   resolvedGames?: ResolvedLibraryGame[];
   /** Xbox: the achievements read during the same sign-in. */
   achievementLists?: AchievementList[];
+  /** The account it read. Absent for scans of this PC only. */
+  account?: LibraryAccount;
+  /** Some totals may be short: Sony's list ended early, so a game's copies
+   *  may not all be added up. Such a read decides no account's earlier
+   *  hours (docs/import-accounts-plan.md, D1). */
+  totalsCutShort?: boolean;
 };
 
 export type ResolvedLibraryGame = {
@@ -152,6 +189,8 @@ export type LibraryImportCommit = {
   preserveInstall?: boolean;
   exeCacheEntries: ExeCacheEntry[];
   scopedLinks: ScopedExeLink[];
+  /** The read stopped early: it never splits earlier hours (D1). */
+  partialRead?: boolean;
 };
 
 export function libraryEntryKey(

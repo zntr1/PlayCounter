@@ -1,6 +1,10 @@
 import type { Session } from "@playcounter/shared";
 import { dailyTotals, getSessionGameKey, summaryStats } from "./historyStats";
-import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
+import {
+  gameSecondsKey,
+  gameSecondsRefFromKey,
+  isConsoleSession,
+} from "./gameSeconds";
 import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 import type { ProviderFloor } from "./library/playtimeFloor";
@@ -76,6 +80,8 @@ export type MilestoneInput = {
   sessions: Session[];
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  /** The console part of archivedGameSeconds (see isConsoleSession). */
+  archivedConsoleSeconds?: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   verifiedContributions: number;
   verifiedEmulatorContributions?: number;
@@ -188,6 +194,7 @@ export function gameLifetimeTotals(
     MilestoneInput,
     | "sessions"
     | "archivedGameSeconds"
+    | "archivedConsoleSeconds"
     | "playtimeAdjustments"
     | "providerFloors"
     | "resolveIgdbId"
@@ -301,24 +308,33 @@ export function moveAdjustmentsOnTop(
  * PlayCounter's recorded time per game (sessions + archive), keyed like
  * launcher totals. `secondsFor` with a date counts only sessions started
  * before it; archived time has no dates and always counts.
+ *
+ * A game with a console side (PlayStation data) has two sides: this PC's
+ * sessions compared with this PC's launchers, and its console sessions (PS5
+ * seen live, timed or logged by hand) compared with Sony's total. The sides
+ * never overlap, so they are added (docs/psn-import-plan.md).
  */
 export function recordedSecondsByGame(
   input: Pick<
     MilestoneInput,
-    "sessions" | "archivedGameSeconds" | "resolveIgdbId"
+    | "sessions"
+    | "archivedGameSeconds"
+    | "archivedConsoleSeconds"
+    | "resolveIgdbId"
   >,
 ) {
   const games = new Map<
     string,
     {
       archivedSeconds: number;
-      sessions: { startedMs: number; seconds: number }[];
+      archivedConsoleSeconds: number;
+      sessions: { startedMs: number; seconds: number; console: boolean }[];
     }
   >();
   const game = (key: string) => {
     let entry = games.get(key);
     if (!entry) {
-      entry = { archivedSeconds: 0, sessions: [] };
+      entry = { archivedSeconds: 0, archivedConsoleSeconds: 0, sessions: [] };
       games.set(key, entry);
     }
     return entry;
@@ -329,46 +345,116 @@ export function recordedSecondsByGame(
     game(resolvedCanonicalGameKey(ref, input.resolveIgdbId)).archivedSeconds +=
       Math.max(0, seconds);
   }
+  for (const [key, seconds] of Object.entries(
+    input.archivedConsoleSeconds ?? {},
+  )) {
+    const ref = gameSecondsRefFromKey(key);
+    if (!ref) continue;
+    game(
+      resolvedCanonicalGameKey(ref, input.resolveIgdbId),
+    ).archivedConsoleSeconds += Math.max(0, seconds);
+  }
   for (const session of input.sessions) {
     game(getSessionGameKey(session, input.resolveIgdbId)).sessions.push({
       startedMs: Date.parse(session.startedAt),
       seconds: Math.max(0, session.durationSeconds ?? 0),
+      console: isConsoleSession(session),
     });
   }
-  const secondsFor = (canonicalKey: string, beforeMs = Infinity) => {
+  const sum = (
+    canonicalKey: string,
+    beforeMs: number,
+    consoleOnly: boolean,
+  ) => {
     const entry = games.get(canonicalKey);
     if (!entry) return 0;
     return Math.round(
       entry.sessions.reduce(
         (total, session) =>
           // A session without a valid start counts as before the read.
-          session.startedMs >= beforeMs ? total : total + session.seconds,
-        entry.archivedSeconds,
+          session.startedMs >= beforeMs || (consoleOnly && !session.console)
+            ? total
+            : total + session.seconds,
+        consoleOnly
+          ? Math.min(entry.archivedConsoleSeconds, entry.archivedSeconds)
+          : entry.archivedSeconds,
       ),
     );
   };
+  const secondsFor = (canonicalKey: string, beforeMs = Infinity) =>
+    sum(canonicalKey, beforeMs, false);
+  /** Play away from this PC (see isConsoleSession). */
+  const consoleSecondsFor = (canonicalKey: string, beforeMs = Infinity) =>
+    sum(canonicalKey, beforeMs, true);
+  /** This PC's side: all of it, unless the game has a console side. */
+  const thisPcSecondsFor = (floor: LauncherRead, beforeMs = Infinity) =>
+    secondsFor(floor.canonicalKey, beforeMs) -
+    (floor.console ? consoleSecondsFor(floor.canonicalKey, beforeMs) : 0);
   /**
    * PlayCounter's time the launcher total holds: the snapshot, but never more
    * than what is still recorded from before the read. Time removed from back
    * then (a deleted session, a file removed with its history) must not hold
-   * back the sessions played after the import.
+   * back the sessions played after the import. This PC's launchers only.
    */
   const secondsAtRead = (floor: LauncherRead) =>
     floor.recordedSecondsAtRead === undefined
       ? undefined
       : Math.min(
           floor.recordedSecondsAtRead,
-          secondsFor(floor.canonicalKey, floor.readAtMs),
+          thisPcSecondsFor(floor, floor.readAtMs),
+        );
+  /** The same for the console side and Sony's total. */
+  const consoleSecondsAtRead = (floor: LauncherRead) =>
+    floor.console?.recordedSecondsAtRead === undefined
+      ? undefined
+      : Math.min(
+          floor.console.recordedSecondsAtRead,
+          consoleSecondsFor(floor.canonicalKey, floor.console.readAtMs),
         );
   return {
     secondsFor,
+    consoleSecondsFor,
+    thisPcSecondsFor,
     secondsAtRead,
-    /** PlayCounter time since the launcher read, added on top of it. */
+    consoleSecondsAtRead,
+    /**
+     * What every screen adds on top of the launcher total
+     * (effectiveTotalSeconds): PlayCounter time since the launcher read. With
+     * a console side, whatever makes the total this PC's side plus the
+     * console side.
+     */
     secondsSinceRead(floor: LauncherRead | undefined, runningSeconds = 0) {
       if (!floor) return 0;
-      return trackedSinceReadSeconds(
-        secondsAtRead(floor),
-        secondsFor(floor.canonicalKey) + runningSeconds,
+      if (!floor.console)
+        return trackedSinceReadSeconds(
+          secondsAtRead(floor),
+          secondsFor(floor.canonicalKey) + runningSeconds,
+        );
+      const consoleLauncher = floor.console.seconds;
+      const thisPcLauncher = Math.max(
+        0,
+        (floor.seconds ?? consoleLauncher) - consoleLauncher,
+      );
+      const thisPcNow = thisPcSecondsFor(floor);
+      const consoleNow = consoleSecondsFor(floor.canonicalKey);
+      const thisPcSide =
+        thisPcLauncher > 0
+          ? Math.max(
+              thisPcNow,
+              thisPcLauncher +
+                trackedSinceReadSeconds(secondsAtRead(floor), thisPcNow),
+            )
+          : thisPcNow;
+      const consoleSide = Math.max(
+        consoleNow,
+        consoleLauncher +
+          trackedSinceReadSeconds(consoleSecondsAtRead(floor), consoleNow),
+      );
+      return (
+        Math.max(
+          0,
+          thisPcSide + consoleSide - thisPcLauncher - consoleLauncher,
+        ) + Math.max(0, runningSeconds)
       );
     },
   };
@@ -377,7 +463,8 @@ export function recordedSecondsByGame(
 type LauncherRead = Pick<
   ProviderFloor,
   "canonicalKey" | "recordedSecondsAtRead" | "readAtMs"
->;
+> &
+  Partial<Pick<ProviderFloor, "seconds" | "console">>;
 
 export function evaluateMilestones(
   input: MilestoneInput & {

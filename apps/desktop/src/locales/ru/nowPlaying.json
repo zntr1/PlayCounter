@@ -99,5 +99,6 @@
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own. It still matches {{count}} games.": "Другие игроки отметили этот файл как не игру, поэтому PlayCounter больше не привязывает его сам. Он по-прежнему подходит к нескольким играм ({{count}}).",
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.": "Другие игроки отметили этот файл как не игру, поэтому PlayCounter больше не привязывает его сам.",
   "{{hours}}h {{minutes}}m ago": "{{hours}} ч {{minutes}} мин назад",
-  "{{minutes}}m ago": "{{minutes}} мин назад"
+  "{{minutes}}m ago": "{{minutes}} мин назад",
+  "Playing on {{console}}": "Игра на {{console}}"
 }

@@ -18,13 +18,14 @@ import {
 import { saveAchievementLists } from "./achievementLists";
 import { readEpicAchievements } from "./epic";
 import { readGogAchievements } from "./gog";
+import { readPlayStationTrophies } from "./playstation";
 
 // Give the launcher a moment to upload unlocks after its game exits.
 const AFTER_GAME_DELAY_MS = 15_000;
 
 /** Lists that refresh with a kept launcher sign-in. */
-type Provider = "xbox" | "epic" | "gog";
-const PROVIDERS: readonly string[] = ["xbox", "epic", "gog"];
+type Provider = "xbox" | "epic" | "gog" | "playstation";
+const PROVIDERS: readonly string[] = ["xbox", "epic", "gog", "playstation"];
 
 type Job = {
   provider: Provider;
@@ -52,8 +53,8 @@ function account(provider: Provider) {
     .logins.find((login) => login.service === provider);
 }
 
-/** Whether the game runs, and its Xbox title ids, Epic app names and GOG
- *  product ids. */
+/** Whether the game runs, and its Xbox title ids, Epic app names, GOG
+ *  product ids and PlayStation concept ids. */
 function currentGameSources(game: GameIdentityRef) {
   const state = useAppStore.getState();
   const resolve = createGameIdentityResolver(
@@ -81,10 +82,12 @@ function currentGameSources(game: GameIdentityRef) {
 }
 
 async function readList(job: Job, apiEndpoint: string) {
-  if (job.provider === "epic" || job.provider === "gog") {
+  if (job.provider !== "xbox") {
     const result = await (job.provider === "epic"
       ? readEpicAchievements(job.externalId)
-      : readGogAchievements(job.externalId));
+      : job.provider === "gog"
+        ? readGogAchievements(job.externalId)
+        : readPlayStationTrophies(job.externalId));
     return "list" in result ? result.list : null;
   }
   const result = await refreshXboxAchievementList(job.externalId, {

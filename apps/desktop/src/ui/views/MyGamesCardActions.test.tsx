@@ -6,7 +6,7 @@ import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { addGameWithoutFile } from "../../library/manualAdd";
 import { useAppStore } from "../../store";
-import type { Session } from "@playcounter/shared";
+import type { LibraryKnownExecutable, Session } from "@playcounter/shared";
 import {
   applyKnownGameMatch,
   changeCustomGameLocally,
@@ -41,6 +41,8 @@ beforeEach(() => {
       ...useAppStore.getState().settings,
       gameLaunchingEnabled: true,
       libraryShowShelves: false,
+      // These are the list's cards; the New row is MyGamesNewRow.test.tsx.
+      libraryShowNewRow: false,
     },
   });
   container = document.createElement("div");
@@ -840,4 +842,215 @@ it("accepts a database match for the user's own file, not the card's IGDB file",
     OWN_FILE.exeName,
     expect.objectContaining({ source: "igdb", id: DRAGON_AGE.id }),
   );
+});
+
+/* A game that only comes from PlayStation plays on the console: Sony's
+   sign-in tracks it, never a file on this PC. Elden Ring and Rocket League
+   with their copies as Sony lists them on a real account. */
+const ELDEN_RING = {
+  id: 7,
+  igdbId: 119133,
+  name: "Elden Ring",
+  coverUrl: "",
+  source: "igdb" as const,
+};
+const ROCKET_LEAGUE = {
+  id: 8,
+  igdbId: 11198,
+  name: "Rocket League",
+  coverUrl: "",
+  source: "igdb" as const,
+};
+
+function importFrom(
+  provider: "playstation" | "epic",
+  externalId: string,
+  game: typeof ELDEN_RING,
+  consoleTitleIds?: string[],
+  executables: LibraryKnownExecutable[] = [],
+) {
+  commitLibraryImports([
+    buildLibraryImportCommit({
+      provider,
+      now: DATE,
+      scanned: {
+        externalId,
+        playtimeSeconds: 45_000,
+        hasPlayedEvidence: true,
+        inAccountLibrary: true,
+        installed: false,
+        executables: [],
+        ...(consoleTitleIds ? { consoleTitleIds } : {}),
+      },
+      resolved: {
+        key: `${provider}:${externalId}`,
+        status: "resolved",
+        game,
+        executables,
+      },
+    })!,
+  ]);
+}
+
+function importEldenRingFromPlayStation() {
+  importFrom("playstation", "10000333", ELDEN_RING, [
+    "CUSA18638_00",
+    "PPSA04609_00",
+  ]);
+}
+
+/** Elden Ring on the PS5: Sony's copy id stands where a file name would. */
+const PS5_SESSION = {
+  id: 1,
+  gameId: ELDEN_RING.id,
+  igdbId: ELDEN_RING.igdbId,
+  gameName: ELDEN_RING.name,
+  coverUrl: "",
+  source: "igdb" as const,
+  exeName: "PPSA04609_00",
+  startedAt: DATE,
+  console: "PS5" as const,
+};
+
+function trackingWarning() {
+  return card().querySelector(`[title="New sessions won't be tracked yet"]`);
+}
+
+function filesPanel() {
+  return document.querySelector("#game-details-panel-files")?.textContent ?? "";
+}
+
+it("plays a PlayStation-only game on the console: no warning sign, and the card says Not launchable", async () => {
+  importEldenRingFromPlayStation();
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(trackingWarning()).toBeNull();
+  expect(cardButton("Set launch file")).toBeUndefined();
+  expect(card().textContent).toContain("Not launchable");
+});
+
+it("says Not launchable also when the database knows the PC version's .exe", async () => {
+  // Horizon Zero Dawn in the PlayStation library (2026-11-02): the import
+  // linked HorizonZeroDawn.exe, so the card offered Set launch file.
+  importFrom(
+    "playstation",
+    "200937",
+    { ...ELDEN_RING, id: 21, igdbId: 11156, name: "Horizon Zero Dawn" },
+    ["CUSA01967_00"],
+    [
+      {
+        platform: "windows",
+        kind: "exe",
+        value: "HorizonZeroDawn.exe",
+        provenance: "igdb",
+        verified: true,
+      },
+    ],
+  );
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(card().textContent).toContain("Not launchable");
+  expect(cardButton("Set launch file")).toBeUndefined();
+  expect(card().innerHTML).not.toContain("has this file name on record");
+  expect(trackingWarning()).toBeNull();
+});
+
+it("counts no Sony game id as a file, while the game runs on the PS5 or after", async () => {
+  importEldenRingFromPlayStation();
+  useAppStore.setState({
+    activeSessions: [{ ...PS5_SESSION, checkpointedAt: DATE }],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  expect(card().innerHTML).not.toContain("has this file name on record");
+  expect(card().textContent).toContain("Not launchable");
+
+  await act(async () =>
+    useAppStore.setState({
+      activeSessions: [],
+      recentSessions: [
+        {
+          ...PS5_SESSION,
+          endedAt: DATE,
+          durationSeconds: 3600,
+          origin: "playstation",
+        },
+      ],
+    }),
+  );
+  expect(card().textContent).toContain("1 session");
+  expect(card().innerHTML).not.toContain("has this file name on record");
+  expect(card().textContent).toContain("Not launchable");
+  await openFilesTab(ELDEN_RING.name);
+  expect(filesPanel()).not.toContain("PPSA04609_00");
+});
+
+it("shows a PlayStation-only game no file matches and no Installed here in Details", async () => {
+  importEldenRingFromPlayStation();
+  await act(() => root.render(<LibraryTestShell />));
+  await openFilesTab(ELDEN_RING.name);
+
+  expect(filesPanel()).toContain("PlayStation concept");
+  expect(filesPanel()).not.toContain("Known file matches");
+  expect(filesPanel()).not.toContain("Installed here");
+});
+
+it("keeps the PC options of a PlayStation game that is also on Epic Games", async () => {
+  importFrom("playstation", "203715", ROCKET_LEAGUE, ["CUSA01433_00"]);
+  importFrom("epic", "Sugar", ROCKET_LEAGUE);
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  expect(trackingWarning()).not.toBeNull();
+  expect(cardButton("Set launch file")).toBeDefined();
+  await openFilesTab(ROCKET_LEAGUE.name);
+  expect(filesPanel()).toContain("Known file matches");
+  // Epic's copy can be installed here, the PlayStation copy never.
+  expect(filesPanel().match(/Installed here/g)).toHaveLength(1);
+});
+
+it("brings the PC options back once the PC version of a PlayStation game runs here", async () => {
+  importEldenRingFromPlayStation();
+  useAppStore.getState().setExeCacheEntry({
+    exeName: "eldenring.exe",
+    state: "matched",
+    gameId: ELDEN_RING.id,
+    igdbId: ELDEN_RING.igdbId,
+    gameName: ELDEN_RING.name,
+    coverUrl: "",
+    source: "igdb",
+    lastCheckedAt: DATE,
+  });
+  useAppStore.setState({
+    recentSessions: [
+      {
+        id: 2,
+        gameId: ELDEN_RING.id,
+        igdbId: ELDEN_RING.igdbId,
+        gameName: ELDEN_RING.name,
+        coverUrl: "",
+        source: "igdb",
+        exeName: "eldenring.exe",
+        startedAt: DATE,
+        endedAt: DATE,
+        durationSeconds: 3600,
+      },
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  expect(card().textContent).not.toContain("Not launchable");
+  expect(cardButton("Set launch file")).toBeDefined();
+});
+
+it("offers no Check for Matches for a PlayStation game that was also added by hand", async () => {
+  addGameWithoutFile(ELDEN_RING);
+  importEldenRingFromPlayStation();
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  await openMatchingMenu();
+  expect(menuText()).toContain("Move to PlayCounter");
+  expect(menuText()).not.toContain("Check for Matches");
 });

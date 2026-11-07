@@ -345,6 +345,7 @@ fn scan_entries(list: &UninstallList, with_executables: bool, deadline: Instant)
         games,
         partial: !warnings.is_empty(),
         warnings,
+        account: None,
     }
 }
 

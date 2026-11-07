@@ -113,7 +113,14 @@ export function combineSessions(
       ...(note ? { note } : {}),
       ...(earlier.origin === "manual" || later.origin === "manual"
         ? { origin: "manual" as const }
-        : {}),
+        : earlier.origin === "playstation" || later.origin === "playstation"
+          ? {
+              origin: "playstation" as const,
+              ...((later.console ?? earlier.console)
+                ? { console: later.console ?? earlier.console }
+                : {}),
+            }
+          : {}),
     },
     {
       startMs: sessionTimes(earlier).startMs,

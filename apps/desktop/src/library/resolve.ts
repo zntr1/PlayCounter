@@ -58,7 +58,8 @@ export async function resolveLibraryGames(
       [404, 405, 501].includes(response.status) ||
       ((provider === "battlenet" ||
         provider === "epic" ||
-        provider === "gog") &&
+        provider === "gog" ||
+        provider === "playstation") &&
         response.status === 400)
     ) {
       return { capability: "unsupported", games: [] };

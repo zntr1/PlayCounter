@@ -144,7 +144,9 @@ async function click(label: string) {
 /** Opens the launcher with these games already in My Games, and scans. */
 async function scan(
   provider: BuiltinImportProviderId,
-  result: Omit<LibraryScanResult, "warnings" | "partial">,
+  result: Omit<LibraryScanResult, "warnings" | "partial"> & {
+    partial?: boolean;
+  },
   imports: LibraryImportEntry[] = [],
 ) {
   await act(() =>
@@ -418,6 +420,98 @@ it.each([
   },
 );
 
+it("playstation: a game Sony names no console for starts unchecked, and its details say why", async () => {
+  // Phil's account: Bloodborne he played himself; GTA V someone else played
+  // on it, in Sony's "unknown" category.
+  const own = game("200520", "Bloodborne", {
+    playtimeSeconds: 264_060,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    consoleTitleIds: ["CUSA00207_00"],
+  });
+  const unknown = game("201930", "Grand Theft Auto V", {
+    playtimeSeconds: 2_917_966,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    consoleTitleIds: ["CUSA00411_00"],
+    consoleUnknown: true,
+  });
+  await scan("playstation", {
+    games: [own, unknown],
+    resolvedGames: [
+      matched("playstation:200520", metadata(1, "Bloodborne")),
+      matched("playstation:201930", metadata(2, "Grand Theft Auto V")),
+    ],
+  });
+  expect(listed()).toEqual(["Bloodborne", "Grand Theft Auto V"]);
+  expect(checkbox("Bloodborne")?.checked).toBe(true);
+  expect(checkbox("Grand Theft Auto V")?.checked).toBe(false);
+  expect(container.textContent).toContain("1 game selected");
+
+  const why =
+    "Sony lists this game without a console. Check it only if you played it yourself and want to add it to your PlayCounter library.";
+  await act(() => row("Grand Theft Auto V").click());
+  expect(detailTitle()).toBe("Grand Theft Auto V");
+  expect(container.textContent).toContain(why);
+  await act(() => row("Bloodborne").click());
+  expect(detailTitle()).toBe("Bloodborne");
+  expect(container.textContent).not.toContain(why);
+});
+
+it("playstation: a game's details name no PC install and no PC game files", async () => {
+  // The database knows the PC version's .exe; the PlayStation copy has none.
+  const horizon = game("200937", "Horizon Zero Dawn", {
+    playtimeSeconds: 22_576,
+    hasPlayedEvidence: true,
+    inAccountLibrary: true,
+    consoleTitleIds: ["CUSA01967_00"],
+  });
+  await scan("playstation", {
+    games: [horizon],
+    resolvedGames: [
+      matched("playstation:200937", metadata(21, "Horizon Zero Dawn"), [
+        knownFile("HorizonZeroDawn.exe"),
+      ]),
+    ],
+  });
+  await act(() => row("Horizon Zero Dawn").click());
+  const details =
+    container.querySelector('section[aria-label="Horizon Zero Dawn"]')
+      ?.textContent ?? "";
+  expect(details).toContain("Concept ID");
+  expect(details).not.toContain("On this PC");
+  expect(details).not.toContain("Game files");
+});
+
+it("playstation: importing a game you confirmed names no PC game files", async () => {
+  // Sony's title isn't matched, so the player confirms the game; the
+  // database knows the PC version's .exe.
+  const ghost = metadata(22, "Ghost of Tsushima");
+  mocks.reverse.mockResolvedValue({
+    game: ghost,
+    executables: [knownFile("GhostOfTsushima.exe")],
+  });
+  await scan("playstation", {
+    games: [
+      game("10000886", "Ghost of Tsushima", {
+        playtimeSeconds: 180_000,
+        hasPlayedEvidence: true,
+        inAccountLibrary: true,
+        consoleTitleIds: ["CUSA13323_00"],
+      }),
+    ],
+    resolvedGames: [unmatched("playstation:10000886", [ghost])],
+  });
+  expect(detailTitle()).toBe("Ghost of Tsushima");
+
+  await click("Import");
+  expect(mocks.run).toHaveBeenCalledTimes(1);
+  expect(mocks.run.mock.calls[0][0][0].exeCacheEntries).toEqual([]);
+  const [toast] = store.getState().toasts;
+  expect(toast?.title).toBe("Ghost of Tsushima imported");
+  expect(toast?.detail ?? "").not.toMatch(/game file/i);
+});
+
 describe("Needs you", () => {
   const forza5 = metadata(42, "Forza Horizon 5", { releaseYear: 2021 });
   const forza4 = metadata(41, "Forza Horizon 4", { releaseYear: 2018 });
@@ -522,6 +616,124 @@ describe("Needs you", () => {
   });
 });
 
+// Phil, 2026-11-02: keep clicking Import game after game without looking for
+// the button, and no jump back to the top of the list after an import.
+describe("deciding one game after another", () => {
+  const flightSimulator = metadata(108_603, "Microsoft Flight Simulator");
+  const masterChief = metadata(1_255, "Halo: The Master Chief Collection");
+  const gears = metadata(103_303, "Gears 5");
+  const seaOfThieves = metadata(11_137, "Sea of Thieves");
+  const xboxLibrary = {
+    games: [
+      game("1", "Microsoft Flight Simulator 40th Anniversary Edition"),
+      game("2", "Halo: The Master Chief Collection (PC)"),
+      game("3", "Gears 5 Game of the Year Edition"),
+      game("4", "Sea of Thieves 2024 Edition"),
+    ],
+    resolvedGames: [
+      unmatched("xbox:1", [flightSimulator]),
+      unmatched("xbox:2", [masterChief]),
+      unmatched("xbox:3", [gears]),
+      unmatched("xbox:4", [seaOfThieves]),
+    ],
+  };
+
+  beforeEach(() => {
+    mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => ({
+      game: [flightSimulator, masterChief, gears, seaOfThieves].find(
+        (item) => item.id === id,
+      ),
+      executables: [],
+    }));
+  });
+
+  it("puts Skip for now and Import beside the game's name, above its choices, for every game", async () => {
+    await scan("xbox", {
+      games: [
+        game("1", "Microsoft Flight Simulator 40th Anniversary Edition"),
+        // Installed: it asks for the game and for its file.
+        game("2", "Halo: The Master Chief Collection (PC)", {
+          installed: true,
+          installPath: String.raw`C:\XboxGames\Halo MCC\Content`,
+          executables: [exe("mcclauncher.exe"), exe("MCC-Win64-Shipping.exe")],
+        }),
+      ],
+      resolvedGames: [
+        unmatched("xbox:1", [flightSimulator]),
+        unmatched("xbox:2", [masterChief, gears, seaOfThieves]),
+      ],
+    });
+    for (const title of [
+      "Microsoft Flight Simulator 40th Anniversary Edition",
+      "Halo: The Master Chief Collection (PC)",
+    ]) {
+      await act(() => row(title).click());
+      const top = container.querySelector(
+        "section[aria-label]",
+      )!.firstElementChild!;
+      expect(top.querySelector("h3")?.textContent).toBe(title);
+      expect(top.contains(findButton("Skip for now")!)).toBe(true);
+      expect(top.contains(findButton("Import")!)).toBe(true);
+      // "Which game is …?" and "Which file starts the game?" come below.
+      expect(top.querySelector("h4")).toBeNull();
+    }
+    expect(container.textContent).toContain("Which file starts the game?");
+  });
+
+  it("shows the next game that needs you after an import, not the first one in the list", async () => {
+    await scan("xbox", xboxLibrary);
+    await click("Skip for now");
+    expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(listed()).toEqual([
+      "Microsoft Flight Simulator 40th Anniversary Edition",
+      "Gears 5 Game of the Year Edition",
+      "Sea of Thieves 2024 Edition",
+    ]);
+    expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+  });
+
+  it("stays on the game you opened while the import ran", async () => {
+    await scan("xbox", xboxLibrary);
+    let finishImport!: () => void;
+    const importing = new Promise<void>((resolve) => (finishImport = resolve));
+    const putInMyGames = mocks.run.getMockImplementation()!;
+    mocks.run.mockImplementationOnce(async (...args: unknown[]) => {
+      await importing;
+      return putInMyGames(...args);
+    });
+
+    await click("Import");
+    await act(() => row("Sea of Thieves 2024 Edition").click());
+    await act(async () => finishImport());
+    expect(shelf("imported").count).toBe(1);
+    expect(detailTitle()).toBe("Sea of Thieves 2024 Edition");
+  });
+
+  it("ignores a click on Import right after an import moved on to the next game", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      await scan("xbox", xboxLibrary);
+      await click("Import");
+      expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+      // A second click as the next game shows up was meant for the one before.
+      await click("Import");
+      expect(mocks.run).toHaveBeenCalledTimes(1);
+      expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+      vi.setSystemTime(Date.now() + 500);
+      await click("Import");
+      expect(mocks.run).toHaveBeenCalledTimes(2);
+      expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("the file that starts a game", () => {
   it("is preselected when it was linked before", async () => {
     const diablo = metadata(125_165, "Diablo IV");
@@ -601,7 +813,8 @@ describe("Already in My Games", () => {
     expect(container.textContent).toContain(
       "Already in My Games. Check it in the list to import it again.",
     );
-    expect(checkbox("Hades")?.checked).toBe(false);
+    // New playtime: updating it is what this tab is for (2026-11-02).
+    expect(checkbox("Hades")?.checked).toBe(true);
   });
 
   it("checks the game when you pick its file, and the import saves the file", async () => {
@@ -626,7 +839,7 @@ describe("Already in My Games", () => {
     expect(checkbox("Hades")?.checked).toBe(true);
     expect(container.textContent).toContain("1 update");
 
-    await click("Import 1 game");
+    await click("Update 1 game");
     expect(mocks.run).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -638,6 +851,111 @@ describe("Already in My Games", () => {
       ],
       expect.any(AbortSignal),
     );
+  });
+});
+
+// Phil, 2026-11-02: "Already in My Games" is where launcher hours are caught
+// up, so it leads with the games whose playtime changed.
+describe("updates of games already in My Games", () => {
+  const H = 3_600;
+  const PHIL = { key: "a".repeat(32), name: "zesarex" };
+  const eldenRing = metadata(119_133, "Elden Ring");
+  const hades = metadata(113_112, "Hades");
+  const portal2 = metadata(72, "Portal 2");
+  /** Saved from an earlier import of Phil's account. */
+  const saved = (id: string, match: GameMetadata, hours: number) =>
+    inMyGames("steam", id, match, {
+      providerSeconds: hours * H,
+      accounts: [
+        { ...PHIL, seconds: hours * H, readAt: "2026-10-01T12:00:00.000Z" },
+      ],
+    });
+  const imported = (call: number) =>
+    mocks.run.mock.calls[call][0].map(
+      ({ entry }: { entry: LibraryImportEntry }) => entry.name,
+    );
+
+  /** The game titles under a heading of the open shelf's list. */
+  function section(title: string) {
+    return [
+      ...container.querySelectorAll(
+        `[role="tabpanel"] [role="group"][aria-label="${title}"] button[aria-current] .font-semibold`,
+      ),
+    ].map((item) => item.textContent);
+  }
+
+  it("lists games with new playtime first, checked, and the rest under No change", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("620", "Portal 2", { playtimeSeconds: 10 * H }),
+          game("1245620", "ELDEN RING", { playtimeSeconds: 120 * H }),
+          game("1145360", "Hades", { playtimeSeconds: 54 * H }),
+        ],
+        resolvedGames: [
+          matched("steam:620", portal2),
+          matched("steam:1245620", eldenRing),
+          matched("steam:1145360", hades),
+        ],
+        account: PHIL,
+      },
+      [
+        saved("620", portal2, 10),
+        saved("1245620", eldenRing, 100),
+        saved("1145360", hades, 50),
+      ],
+    );
+    // Nothing new to import: the scan opens on the updates.
+    expect(shelf("imported").open).toBe(true);
+    expect(section("New playtime")).toEqual(["Elden Ring", "Hades"]);
+    expect(section("No change")).toEqual(["Portal 2"]);
+    // More hours on the same account start checked too.
+    expect(checkbox("Elden Ring")?.checked).toBe(true);
+    expect(checkbox("Hades")?.checked).toBe(true);
+    expect(checkbox("Portal 2")?.checked).toBe(false);
+    expect(shelf("imported").tab.textContent).toContain("2 updates");
+
+    await click("Update 2 games");
+    expect(imported(0)).toEqual(["Elden Ring", "Hades"]);
+    expect(container.querySelector("h2")?.textContent).toBe(
+      "2 games in My Games updated",
+    );
+    expect(container.textContent).not.toContain("new playtime");
+  });
+
+  it("points to them after an import of new games", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("400", "Portal", { playtimeSeconds: 5 * H }),
+          game("1245620", "ELDEN RING", { playtimeSeconds: 120 * H }),
+        ],
+        resolvedGames: [
+          matched("steam:400", metadata(71, "Portal")),
+          matched("steam:1245620", eldenRing),
+        ],
+        account: PHIL,
+      },
+      [saved("1245620", eldenRing, 100)],
+    );
+    expect(shelf("ready").open).toBe(true);
+    await click("Import 1 game");
+    expect(imported(0)).toEqual(["Portal"]);
+    expect(container.textContent).toContain(
+      "1 game in My Games has new playtime",
+    );
+
+    await click("Show updates");
+    expect(shelf("imported").open).toBe(true);
+    expect(section("New playtime")).toEqual(["Elden Ring"]);
+    expect(section("No change")).toEqual(["Portal"]);
+    // The game shown is the first one in the list.
+    expect(detailTitle()).toBe("Elden Ring");
+    expect(checkbox("Elden Ring")?.checked).toBe(true);
+    await click("Update 1 game");
+    expect(imported(1)).toEqual(["Elden Ring"]);
   });
 });
 
@@ -665,23 +983,131 @@ it("counts what the import brought and what still needs you", async () => {
     },
     [inMyGames("steam", "2280", metadata(312, "DOOM II"))],
   );
-  await act(() => shelf("imported").tab.click());
-  await act(() => checkbox("DOOM II")!.click());
-  expect(container.textContent).toContain("3 games selected");
+  expect(shelf("ready").open).toBe(true);
+  expect(container.textContent).toContain("2 games selected");
   expect(container.textContent).toContain("2 new");
-  expect(container.textContent).toContain("1 update");
 
-  await click("Import 3 games");
+  await click("Import 2 games");
   expect(container.querySelector("h2")?.textContent).toBe(
     "2 games imported from Steam",
   );
-  expect(container.textContent).toContain("1 game in My Games updated");
   expect(container.textContent).toContain("1 game still needs you");
   expect(findButton("Open My Games")).toBeDefined();
+  // "Back to the games" read like My Games.
+  expect(findButton("Back to the importer")).toBeDefined();
+  expect(findButton("Back to the games")).toBeUndefined();
 
-  await click("Decide 1 game");
+  // Phil, 2026-11-02: "Decide 1 game" became "Review 1 game".
+  await click("Review 1 game");
   expect(shelf("attention").open).toBe(true);
   expect(listed()).toEqual(["Ultimate Doom"]);
+
+  // An update of a game in My Games is an import of its own tab.
+  await act(() => shelf("imported").tab.click());
+  await act(() => checkbox("DOOM II")!.click());
+  expect(container.textContent).toContain("1 game selected");
+  expect(container.textContent).toContain("1 update");
+  await click("Update 1 game");
+  expect(container.querySelector("h2")?.textContent).toBe(
+    "1 game in My Games updated",
+  );
+});
+
+// Phil, 2026-11-02: "Needs you" games are imported one by one, so the bar
+// with "Import N games" was confusing there; and it imports the open tab only.
+describe("the bar at the bottom", () => {
+  /** The bar's "Import N games" button ("Update N games" for games in My
+   *  Games). */
+  function bulkImport() {
+    return [...document.body.querySelectorAll("button")].find((item) =>
+      /^(Import|Update) \d+ games?$/.test(item.textContent?.trim() ?? ""),
+    );
+  }
+
+  it("shows only on a tab whose games can be checked", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("620", "Portal 2"),
+          game("2300", "Ultimate Doom", {
+            installed: true,
+            installPath: String.raw`C:\Steam\steamapps\common\Ultimate Doom`,
+            executables: [exe("dosbox.exe"), exe("gzdoom.exe")],
+          }),
+          game("1145360", "Hades"),
+          // Never played: nothing to import.
+          game("480", "Spacewar", { playtimeSeconds: 0 }),
+        ],
+        resolvedGames: [
+          matched("steam:620", metadata(72, "Portal 2")),
+          matched("steam:2300", metadata(1_456, "Ultimate Doom")),
+          matched("steam:1145360", metadata(113_112, "Hades")),
+          matched("steam:480", metadata(1_234, "Spacewar")),
+        ],
+      },
+      [inMyGames("steam", "1145360", metadata(113_112, "Hades"))],
+    );
+    expect(counts()).toEqual({
+      ready: 1,
+      attention: 1,
+      imported: 1,
+      unavailable: 1,
+    });
+    for (const [group, shown] of [
+      ["ready", true],
+      ["attention", false],
+      ["imported", true],
+      ["unavailable", false],
+    ] as const) {
+      await act(() => shelf(group).tab.click());
+      expect(Boolean(bulkImport()), group).toBe(shown);
+    }
+  });
+
+  it("imports the open tab's checked games only, and each tab keeps its checks", async () => {
+    await scan(
+      "steam",
+      {
+        games: [
+          game("620", "Portal 2"),
+          game("400", "Portal"),
+          game("1145360", "Hades"),
+        ],
+        resolvedGames: [
+          matched("steam:620", metadata(72, "Portal 2")),
+          matched("steam:400", metadata(71, "Portal")),
+          matched("steam:1145360", metadata(113_112, "Hades")),
+        ],
+      },
+      [inMyGames("steam", "1145360", metadata(113_112, "Hades"))],
+    );
+    await act(() => shelf("imported").tab.click());
+    await act(() => checkbox("Hades")!.click());
+    expect(container.textContent).toContain("1 game selected");
+
+    await act(() => shelf("ready").tab.click());
+    expect(container.textContent).toContain("2 games selected");
+    await act(() => checkbox("Portal")!.click());
+    // A look at another tab undoes nothing.
+    await act(() => shelf("imported").tab.click());
+    await act(() => shelf("ready").tab.click());
+    expect(checkbox("Portal")?.checked).toBe(false);
+    expect(checkbox("Portal 2")?.checked).toBe(true);
+
+    await click("Import 1 game");
+    const imported = (call: number) =>
+      mocks.run.mock.calls[call][0].map(
+        ({ entry }: { entry: LibraryImportEntry }) => entry.name,
+      );
+    expect(imported(0)).toEqual(["Portal 2"]);
+
+    await click("Back to the importer");
+    await act(() => shelf("imported").tab.click());
+    expect(checkbox("Hades")?.checked).toBe(true);
+    await click("Update 1 game");
+    expect(imported(1)).toEqual(["Hades"]);
+  });
 });
 
 it("shows suggestions as covers to click, with the year", async () => {
@@ -1032,7 +1458,7 @@ describe("Wrong game?", () => {
     expect(container.textContent).toContain(
       "The High Life could not be imported. Please try again.",
     );
-    await click("Back to the games");
+    await click("Back to the importer");
     expect(checkbox("The High Life")?.checked).toBe(true);
   });
 
@@ -1153,7 +1579,7 @@ describe("a game already in My Games", () => {
     expect(listed()).toEqual(["The High Life"]);
 
     await act(() => checkbox("The High Life")!.click());
-    await click("Import 1 game");
+    await click("Update 1 game");
     const [commit] = mocks.run.mock.calls[0][0];
     expect(commit.entry).toMatchObject({
       gameId: theHighLife.id,
@@ -1185,5 +1611,162 @@ describe("a game already in My Games", () => {
     expect(listed()).toEqual(["Portal 2"]);
     await act(() => shelf("imported").tab.click());
     expect(listed()).toEqual(["The High Life"]);
+  });
+});
+
+// docs/import-accounts-plan.md: each account keeps its own hours of a game,
+// the launcher's total is their sum, and D3 for games already in My Games.
+describe("launcher accounts", () => {
+  const H = 3_600;
+  const eldenRing = metadata(119_133, "Elden Ring");
+  const PHIL = { key: "a".repeat(32), name: "zesarex" };
+  const KID = { key: "b".repeat(32), name: "Kid" };
+  const reading = (account: typeof PHIL, hours: number) => ({
+    ...account,
+    seconds: hours * H,
+    readAt: "2026-10-01T12:00:00.000Z",
+  });
+  const steamEldenRing = (hours: number) =>
+    game("1245620", "ELDEN RING", { playtimeSeconds: hours * H });
+  const psEldenRing = (hours: number) =>
+    game("10000333", "ELDEN RING", {
+      playtimeSeconds: hours * H,
+      hasPlayedEvidence: true,
+      inAccountLibrary: true,
+      consoleTitleIds: ["PPSA04609_00"],
+    });
+  const firstCommit = () => mocks.run.mock.calls[0][0][0];
+
+  it("an import keeps the account the scan read, and whole totals when only the file search ran out of time", async () => {
+    await scan("steam", {
+      games: [steamEldenRing(100)],
+      resolvedGames: [matched("steam:1245620", eldenRing)],
+      account: PHIL,
+      partial: true,
+    });
+    await click("Import 1 game");
+    expect(firstCommit().entry.accounts).toMatchObject([
+      { ...PHIL, seconds: 100 * H },
+    ]);
+    expect(firstCommit().partialRead).toBeFalsy();
+  });
+
+  it("playstation: a list Sony cut short imports as a partial read", async () => {
+    await scan("playstation", {
+      games: [psEldenRing(12)],
+      resolvedGames: [matched("playstation:10000333", eldenRing)],
+      account: KID,
+      totalsCutShort: true,
+    });
+    await click("Import 1 game");
+    expect(firstCommit()).toMatchObject({
+      partialRead: true,
+      entry: { accounts: [{ ...KID, seconds: 12 * H }] },
+    });
+  });
+
+  it("playstation: a game imported on its own keeps the account and the partial read too", async () => {
+    const ghost = metadata(22, "Ghost of Tsushima");
+    mocks.reverse.mockResolvedValue({ game: ghost, executables: [] });
+    await scan("playstation", {
+      games: [
+        game("10000886", "Ghost of Tsushima", {
+          playtimeSeconds: 50 * H,
+          hasPlayedEvidence: true,
+          inAccountLibrary: true,
+        }),
+      ],
+      resolvedGames: [unmatched("playstation:10000886", [ghost])],
+      account: KID,
+      totalsCutShort: true,
+    });
+    await click("Import");
+    expect(firstCommit()).toMatchObject({
+      partialRead: true,
+      entry: { accounts: [{ ...KID, seconds: 50 * H }] },
+    });
+  });
+
+  it.each([
+    {
+      when: "another account",
+      saved: { providerSeconds: 100 * H, accounts: [reading(PHIL, 100)] },
+      growth: "100h 0m → 120h 0m",
+    },
+    {
+      // D1: an account with fewer hours than the import from before is
+      // another account.
+      when: "an import from before accounts",
+      saved: { providerSeconds: 120 * H },
+      growth: "120h 0m → 220h 0m",
+    },
+  ])(
+    "D3: a game in My Games starts checked when an account brings hours it doesn't hold yet ($when), and shows the total before → after",
+    async ({ saved, growth }) => {
+      const hours = saved.accounts ? 20 : 100;
+      await scan(
+        "steam",
+        {
+          games: [steamEldenRing(hours)],
+          resolvedGames: [matched("steam:1245620", eldenRing)],
+          account: KID,
+        },
+        [inMyGames("steam", "1245620", eldenRing, saved)],
+      );
+      expect(shelf("imported").open).toBe(true);
+      expect(checkbox("Elden Ring")?.checked).toBe(true);
+      expect(container.textContent).toContain(growth);
+
+      await click("Update 1 game");
+      expect(firstCommit().entry.accounts).toMatchObject([
+        { ...KID, seconds: hours * H },
+      ]);
+    },
+  );
+
+  it.each([
+    {
+      when: "its own hours",
+      saved: { providerSeconds: 100 * H, accounts: [reading(PHIL, 100)] },
+    },
+    {
+      // D1: at least as many hours as the import from before: they were its.
+      when: "an import from before accounts",
+      saved: { providerSeconds: 100 * H },
+    },
+  ])(
+    // Phil, 2026-11-02: D3 widened; new playtime is what this tab is for.
+    "the same account read again with more hours starts checked too ($when)",
+    async ({ saved }) => {
+      await scan(
+        "steam",
+        {
+          games: [steamEldenRing(105)],
+          resolvedGames: [matched("steam:1245620", eldenRing)],
+          account: PHIL,
+        },
+        [inMyGames("steam", "1245620", eldenRing, saved)],
+      );
+      expect(checkbox("Elden Ring")?.checked).toBe(true);
+      expect(container.textContent).toContain("100h 0m → 105h 0m");
+    },
+  );
+
+  it("a read without an account shows no growth for a game with accounts", async () => {
+    await scan(
+      "steam",
+      {
+        games: [steamEldenRing(130)],
+        resolvedGames: [matched("steam:1245620", eldenRing)],
+      },
+      [
+        inMyGames("steam", "1245620", eldenRing, {
+          providerSeconds: 120 * H,
+          accounts: [reading(PHIL, 100), reading(KID, 20)],
+        }),
+      ],
+    );
+    expect(checkbox("Elden Ring")?.checked).toBe(false);
+    expect(container.textContent).not.toContain("→");
   });
 });

@@ -9,8 +9,10 @@ const t = getT("common");
 
 const gap = 3;
 
+/* 10px at least: on All time the chart sits in the narrow column next to
+   the cover calendar (My History), where 14px squares would scroll. */
 function rhythmCellSize(width: number) {
-  return Math.max(14, Math.min(40, Math.floor((width - 68 - 23 * gap) / 24)));
+  return Math.max(10, Math.min(40, Math.floor((width - 68 - 23 * gap) / 24)));
 }
 
 export function RhythmHeatmap({

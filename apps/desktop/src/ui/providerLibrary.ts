@@ -1,5 +1,6 @@
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
+import { playsOnConsole } from "../library/importProfiles";
 import { providerFloorKey } from "../library/playtimeFloor";
 import { getT } from "../i18n";
 
@@ -31,6 +32,24 @@ export function libraryProviders(
 ) {
   return [...new Set(imports.map((entry) => entry.provider))];
 }
+
+/** A game that only comes from PlayStation: no PC launcher's copy, no file
+ *  and no emulator game. It plays on the console and Sony's sign-in tracks
+ *  it, so PlayCounter has no file to look for or start on this PC. */
+export function isConsoleOnlyGame(game: {
+  exeNames: readonly string[];
+  emulatorContentKeys: readonly string[];
+  libraryImports: readonly { provider: LibraryProviderId }[];
+}) {
+  return (
+    game.libraryImports.length > 0 &&
+    game.libraryImports.every((entry) => playsOnConsole(entry.provider)) &&
+    // A manual session without a file leaves an empty name.
+    !game.exeNames.some(Boolean) &&
+    game.emulatorContentKeys.length === 0
+  );
+}
+
 export function trackingUnavailableMessage(
   providers: readonly LibraryProviderId[],
   canCheckMatches: boolean,

@@ -21,12 +21,13 @@ import { parseAchievementList } from "../../achievements/model";
 import { DEFAULT_API_ENDPOINT, type GameMetadata } from "../../store";
 import type { LocalLibraryProvider, LibraryScanOptions } from "../provider";
 import type {
+  LibraryAccount,
   LibraryScanResult,
   ResolvedLibraryGame,
   ScannedExecutable,
 } from "../types";
 import { appLanguage, getT } from "../../i18n";
-import { refreshKeptLogins, useKeptLogins } from "../keptLogins";
+import { namedAccount, refreshKeptLogins, useKeptLogins } from "../keptLogins";
 import {
   getLoginOperationRevision,
   recordLoginHealth,
@@ -72,9 +73,13 @@ type XboxFailureContext = {
 
 type ParsedXboxImportResult = { loginReady?: boolean } & (
   | { status: "pending"; stage?: XboxImportProgressStage }
-  | { status: "done"; games: ParsedXboxImportGame[] }
+  | { status: "done"; games: ParsedXboxImportGame[]; account?: LibraryAccount }
   | ({ status: "failed" } & XboxFailureContext)
 );
+
+/** What one Xbox sign-in read: the titles, and the account when the server
+ *  names it (older servers don't). */
+type XboxRead = { games: ParsedXboxImportGame[]; account?: LibraryAccount };
 
 export const xboxProvider: LocalLibraryProvider = {
   id: "xbox",
@@ -107,14 +112,18 @@ export async function scanXboxLibrary(
   options: LibraryScanOptions = {},
 ): Promise<LibraryScanResult> {
   // A server without achievement support refuses the option: import plainly.
-  const games =
+  const read =
     (await signInToXbox(options, {
       includeAchievements: true,
       language: appLanguage(),
     })) ?? (await signInToXbox(options));
   const localGames = await scanLocalXboxGames();
   ensureNotAborted(options.signal);
-  return mapXboxImportGames(games ?? [], localGames);
+  return mapXboxImportGames(
+    read?.games ?? [],
+    localGames,
+    namedAccount("xbox", read?.account),
+  );
 }
 
 /** Connect without importing or reading the account's library. */
@@ -132,30 +141,30 @@ export async function refreshXboxAchievementList(
   titleId: string,
   options: LibraryScanOptions = {},
 ): Promise<{ list: AchievementList } | { error: XboxAchievementError }> {
-  const games = await signInToXbox(options, {
+  const read = await signInToXbox(options, {
     achievementTitleIds: [titleId],
     language: appLanguage(),
   });
-  if (!games) {
+  if (!read) {
     throw new Error(
       t(
         "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.",
       ),
     );
   }
-  const game = games.find((item) => item.externalId === titleId);
+  const game = read.games.find((item) => item.externalId === titleId);
   return game?.achievements
     ? { list: game.achievements }
     : { error: game?.achievementError ?? "failed" };
 }
 
-/** Signs in through the backend and returns Xbox's titles. A kept sign-in
+/** Signs in through the backend and returns what Xbox read. A kept sign-in
  *  needs no browser. With a `request` an older server answers 400 before any
  *  sign-in starts: null then. */
 async function signInToXbox(
   options: LibraryScanOptions,
   request?: XboxImportStartRequest,
-): Promise<ParsedXboxImportGame[] | null> {
+): Promise<XboxRead | null> {
   const apiEndpoint = (options.apiEndpoint ?? DEFAULT_API_ENDPOINT).replace(
     /\/+$/,
     "",
@@ -315,7 +324,10 @@ async function signInToXbox(
       ensureNotAborted(requestController.signal);
       if (result.status === "done") {
         attemptActive = false;
-        return result.games;
+        return {
+          games: result.games,
+          ...(result.account ? { account: result.account } : {}),
+        };
       }
       if (result.status === "failed") {
         attemptActive = false;
@@ -537,6 +549,7 @@ async function scanLocalXboxGames(): Promise<XboxLocalScan> {
 function mapXboxImportGames(
   games: ParsedXboxImportGame[],
   local: XboxLocalScan,
+  account?: LibraryAccount,
 ): LibraryScanResult {
   const byExternalId = new Map(
     local.games.map((game) => [game.externalId, game]),
@@ -568,6 +581,7 @@ function mapXboxImportGames(
     warnings: local.warnings,
     partial: local.partial,
     resolvedGames,
+    ...(account ? { account } : {}),
   };
 }
 
@@ -651,10 +665,12 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
     if (!Array.isArray(record.games)) {
       throw new Error(t("Xbox import returned an invalid game list."));
     }
+    const account = parseXboxAccount(record.account);
     return {
       status: "done",
       loginReady,
       games: record.games.map(parseXboxImportGame),
+      ...(account ? { account } : {}),
     };
   }
   if (record.status === "failed" && isXboxFailureReason(record.reason)) {
@@ -689,6 +705,17 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
     };
   }
   throw new Error(t("Xbox import returned an invalid status."));
+}
+
+/** The account the server names: a key made from the Xbox user id and the
+ *  gamertag. One that doesn't look right is left out; the import goes on. */
+function parseXboxAccount(value: unknown): LibraryAccount | undefined {
+  const record = asRecord(value);
+  if (typeof record?.key !== "string" || !/^[a-f0-9]{32}$/.test(record.key))
+    return undefined;
+  const name =
+    typeof record.name === "string" ? record.name.trim().slice(0, 64) : "";
+  return { key: record.key, name: name || null };
 }
 
 function parseXboxImportGame(value: unknown): ParsedXboxImportGame {

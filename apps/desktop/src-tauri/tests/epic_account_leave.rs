@@ -16,6 +16,9 @@ mod kept_logins;
 #[allow(dead_code)]
 #[path = "../src/library/login_status.rs"]
 mod login_status;
+#[allow(dead_code)]
+#[path = "../src/library/scan_account.rs"]
+mod scan_account;
 #[path = "../src/webview_args.rs"]
 mod webview_args;
 
@@ -36,6 +39,17 @@ mod gog_account {
 
     pub fn cancel_active(_: &tauri::AppHandle) {
         panic!("Epic fixtures must never cancel GOG sessions");
+    }
+}
+
+#[allow(dead_code)]
+mod playstation_account {
+    pub async fn check_saved_login(_: &tauri::AppHandle) -> super::login_status::LoginStatus {
+        panic!("Epic fixtures must never validate PlayStation accounts");
+    }
+
+    pub fn cancel_active(_: &tauri::AppHandle) {
+        panic!("Epic fixtures must never cancel PlayStation sessions");
     }
 }
 

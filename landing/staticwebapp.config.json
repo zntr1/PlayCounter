@@ -130,6 +130,11 @@
       "statusCode": 301
     },
     {
+      "route": "/check-playtime-ps5/index",
+      "redirect": "/check-playtime-ps5/",
+      "statusCode": 301
+    },
+    {
       "route": "/check-playtime-ea-app/index",
       "redirect": "/check-playtime-ea-app/",
       "statusCode": 301

@@ -149,9 +149,9 @@
   "Reload failed": "Falha ao recarregar",
   "Unavailable": "Indisponível",
   "Folder unavailable": "Pasta indisponível",
-  "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games or GOG. Install paths and the game files linked to them always stay on this PC.": "Mantenha seus jogos de launchers atualizados ou remova os dados importados do Steam, do Xbox, do Battle.net, da Epic Games ou da GOG. Os caminhos de instalação e os arquivos de jogo vinculados a eles sempre ficam neste PC.",
+  "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. Install paths and the game files linked to them always stay on this PC.": "Mantenha seus jogos de launchers atualizados ou remova os dados importados do Steam, do Xbox, do Battle.net, da Epic Games, da GOG ou do PlayStation. Os caminhos de instalação e os arquivos de jogo vinculados a eles sempre ficam neste PC.",
   "Library import": "Importação de biblioteca",
-  "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.": "Depois da sua primeira importação do Steam, do Battle.net, da Epic Games ou da GOG, os jogos que você instalar lá aparecem sozinhos em Meus jogos. Jogos que você remover do PlayCounter não são adicionados de novo. Jogos do Xbox ainda precisam de uma importação do Xbox, porque o Xbox não informa ao PlayCounter qual jogo é cada instalação.",
+  "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.": "Depois da sua primeira importação do Steam, do Battle.net, da Epic Games ou da GOG, os jogos que você instalar lá aparecem sozinhos em Meus jogos, assim como os jogos novos que você jogar no PlayStation. Jogos que você remover do PlayCounter não são adicionados de novo. Jogos do Xbox ainda precisam de uma importação do Xbox, porque o Xbox não informa ao PlayCounter qual jogo é cada instalação.",
   "Add new games automatically": "Adicionar novos jogos automaticamente",
   "Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept.": "Remove a marca do Steam, o tempo de jogo importado do Steam, os arquivos de jogo vinculados pelo Steam e onde estão instalados. As sessões registradas pelo próprio PlayCounter são mantidas.",
   "Removes the Xbox mark, the imported Xbox playtime, and the game files Xbox linked. Sessions PlayCounter recorded itself are kept.": "Remove a marca do Xbox, o tempo de jogo importado do Xbox e os arquivos de jogo vinculados pelo Xbox. As sessões registradas pelo próprio PlayCounter são mantidas.",
@@ -347,5 +347,7 @@
   "Every {{count, number}} hours_other": "A cada {{count, number}} horas",
   "Every {{count, number}} minutes_one": "A cada minuto",
   "Every {{count, number}} minutes_many": "A cada {{count, number}} minutos",
-  "Every {{count, number}} minutes_other": "A cada {{count, number}} minutos"
+  "Every {{count, number}} minutes_other": "A cada {{count, number}} minutos",
+  "Forget imported PlayStation data": "Esquecer dados importados do PlayStation",
+  "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.": "Remove a marca do PlayStation e o tempo de jogo importado do PlayStation. As sessões registradas pelo próprio PlayCounter, inclusive as de PS5 e PS4, são mantidas."
 }

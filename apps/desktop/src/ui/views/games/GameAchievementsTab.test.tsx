@@ -48,7 +48,7 @@ import {
   clearLoginHealth,
   recordLoginHealth,
 } from "../../../library/loginHealth";
-import { appLocale } from "../../../i18n";
+import { appLocale, applyLanguage, getT } from "../../../i18n";
 import { useAppStore } from "../../../store";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 
@@ -256,6 +256,92 @@ describe("Steam", () => {
     expect(rowNames()).toEqual(["Done"]);
   });
 
+  it("sorts with the Sort menu: Newest unlock until another one is picked", async () => {
+    steamAnswers(
+      {
+        status: "ok",
+        hasPlayerStats: true,
+        achievements: [
+          achievement("Rare open"),
+          achievement("No share"),
+          achievement("Rare win", { unlocked: true, unlockedAt: 1_000_000 }),
+          achievement("Common win", { unlocked: true, unlockedAt: 9_000_000 }),
+        ],
+      },
+      [
+        {
+          id: "Common win",
+          name: "Common win",
+          description: "",
+          hidden: false,
+          globalPercent: 74.2,
+        },
+        {
+          id: "Rare win",
+          name: "Rare win",
+          description: "",
+          hidden: false,
+          globalPercent: 3.1,
+        },
+        {
+          id: "Rare open",
+          name: "Rare open",
+          description: "",
+          hidden: false,
+          globalPercent: 0.4,
+        },
+      ],
+    );
+    // Its own app: the public list is kept per app while the app runs.
+    await render([{ provider: "steam", externalId: "440" }]);
+    const sort = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Sort achievements"]',
+    )!;
+    const labels = [...sort.options].map((option) => option.textContent);
+    expect(labels).toHaveLength(5);
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        "Sort: Rarest first",
+        "Sort: Most common first",
+        "Sort: Newest unlock",
+        "Sort: Oldest unlock",
+        "Sort: A–Z",
+      ]),
+    );
+    expect(sort.options[sort.selectedIndex]!.textContent).toBe(
+      "Sort: Newest unlock",
+    );
+    expect(rowNames()).toEqual([
+      "Common win",
+      "Rare win",
+      "Rare open",
+      "No share",
+    ]);
+
+    const pick = (label: string) =>
+      act(() => {
+        sort.value = [...sort.options].find(
+          (option) => option.textContent === label,
+        )!.value;
+        sort.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    await pick("Sort: Rarest first");
+    expect(rowNames()).toEqual([
+      "Rare open",
+      "Rare win",
+      "Common win",
+      "No share",
+    ]);
+
+    // The filter keeps the sort: your rarest unlocks.
+    await act(async () =>
+      [...container.querySelectorAll("button")]
+        .find((button) => button.textContent?.startsWith("Unlocked"))!
+        .click(),
+    );
+    expect(rowNames()).toEqual(["Rare win", "Common win"]);
+  });
+
   it("says so when Steam never started the game on this PC", async () => {
     steamAnswers({ status: "noSchema" });
     await render([{ provider: "steam", externalId: "620" }]);
@@ -334,6 +420,37 @@ describe("Xbox", () => {
     expect(container.textContent).toContain("30 of 100 Gamerscore");
     expect(container.textContent).toContain("Refresh with Microsoft");
     expect(loadListMock).not.toHaveBeenCalled();
+  });
+
+  it("shows progress only once it started: Xbox sends 0 / 100 for every locked one", async () => {
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          "xbox:1234",
+          {
+            provider: "xbox",
+            externalId: "1234",
+            fetchedAt: 1,
+            achievements: [
+              achievement("Not started", {
+                progress: { current: 0, target: 100 },
+              }),
+              achievement("Halfway", {
+                progress: { current: 45, target: 100 },
+              }),
+            ],
+          },
+        ],
+      ]),
+    });
+    await render([{ provider: "xbox", externalId: "1234" }]);
+    const row = (name: string) =>
+      [...container.querySelectorAll("[data-achievement-row]")].find(
+        (node) => node.querySelector("h4")?.textContent === name,
+      )?.textContent;
+    expect(row("Halfway")).toContain("45 / 100");
+    expect(row("Not started")).toBeDefined();
+    expect(row("Not started")).not.toContain("/ 100");
   });
 
   describe("with a kept sign-in", () => {
@@ -940,5 +1057,378 @@ describe("GOG", () => {
       (button) => button.textContent,
     );
     expect(pills).toEqual(["Epic Games", "GOG", "Xbox"]);
+  });
+});
+
+describe("PlayStation", () => {
+  // Elden Ring, by its PlayStation Store concept; Sony is asked with its
+  // copies' title ids, saved by the import.
+  const eldenRing = [
+    { provider: "playstation" as const, externalId: "10000333" },
+  ];
+  const titleIds = ["PPSA04609_00", "CUSA18638_00"];
+  const kept = [
+    { service: "playstation" as const, name: "zesarex_ps", savedAt: 1 },
+  ];
+  const buttons = () =>
+    [...container.querySelectorAll("button")].map((button) =>
+      button.textContent?.trim(),
+    );
+  const trophyReads = () =>
+    invokeMock.mock.calls.filter(
+      ([command]) => command === "playstation_read_trophies",
+    );
+  const trophy = (id: number, fields: Partial<GameAchievement> = {}) =>
+    achievement(`NPWR22810_00:${id}`, fields);
+
+  async function click(label: string) {
+    const button = [...container.querySelectorAll("button")].find(
+      (item) => item.textContent?.trim() === label,
+    );
+    expect(button, label).toBeDefined();
+    await act(async () => button!.click());
+    await act(async () => {});
+    await act(async () => {});
+  }
+
+  function nothingSaved() {
+    useAchievementLists.setState({ lists: new Map() });
+    loadListMock.mockImplementation(async (provider: string, id: string) => {
+      useAchievementLists.setState({
+        lists: new Map([[`${provider}:${id}`, null]]),
+      });
+      return null;
+    });
+  }
+
+  function saved(achievements: GameAchievement[]) {
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          "playstation:10000333",
+          {
+            provider: "playstation",
+            externalId: "10000333",
+            fetchedAt: Date.UTC(2026, 10, 1),
+            achievements,
+          },
+        ],
+      ]),
+    });
+  }
+
+  /** What the Rust part answers, with these kept sign-ins. */
+  function sony(answer: () => unknown, logins: typeof kept | [] = kept) {
+    useKeptLogins.setState({ logins });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "logins_list") return logins;
+      if (command === "playstation_read_trophies") return answer();
+      throw new Error(`unexpected ${command}`);
+    });
+  }
+
+  beforeEach(() => {
+    clearLoginHealth("playstation");
+    useAppStore.setState({
+      libraryImports: new Map([
+        [
+          "playstation:10000333",
+          {
+            provider: "playstation",
+            externalId: "10000333",
+            gameId: 7,
+            igdbId: 119133,
+            source: "igdb",
+            name: "Elden Ring",
+            coverUrl: "",
+            importedAt: "2026-11-01T20:00:00.000Z",
+            lastReadAt: "2026-11-01T20:00:00.000Z",
+            providerSeconds: 36_000,
+            linkedExeNames: [],
+            linkedExeSources: [],
+            consoleTitleIds: titleIds,
+          },
+        ],
+      ]),
+    });
+  });
+
+  afterEach(() => {
+    saveListsMock.mockClear();
+    applyLanguage("en");
+  });
+
+  it("PlayStation games get the tab on Windows, after Xbox", () => {
+    const entry = (provider: string, externalId: string) =>
+      ({ provider, externalId }) as never;
+    expect(
+      achievementSources({
+        libraryImports: [
+          entry("playstation", "10000333"),
+          entry("xbox", "1234"),
+          entry("steam", "1245620"),
+          entry("playstation", "10000333"),
+        ],
+      }),
+    ).toEqual([
+      { provider: "steam", externalId: "1245620" },
+      { provider: "xbox", externalId: "1234" },
+      { provider: "playstation", externalId: "10000333" },
+    ]);
+    // Its sign-in exists only on Windows.
+    platform.value = "macos";
+    expect(
+      achievementSources({
+        libraryImports: [entry("playstation", "10000333")],
+      }),
+    ).toEqual([]);
+  });
+
+  it("opening the tab with a kept sign-in and nothing saved loads the trophies, without a window", async () => {
+    nothingSaved();
+    sony(() => ({
+      status: "valid",
+      value: [
+        trophy(0, { name: "Elden Ring", trophyType: "platinum" }),
+        trophy(2, {
+          name: "Shardbearer Godrick",
+          trophyType: "bronze",
+          unlocked: true,
+        }),
+      ],
+    }));
+    await render(eldenRing);
+    expect(trophyReads()).toEqual([
+      ["playstation_read_trophies", { titleIds, language: "en-US" }],
+    ]);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "library_playstation_sign_in",
+      expect.anything(),
+    );
+    expect(container.textContent).toContain("1 of 2 unlocked");
+    expect(rowNames()).toEqual(["Shardbearer Godrick", "Elden Ring"]);
+    expect(saveListsMock).toHaveBeenCalledOnce();
+  });
+
+  it("a saved list shows at once, and Sony is asked again: play happens on the console", async () => {
+    saved([trophy(2, { name: "Shardbearer Godrick", trophyType: "bronze" })]);
+    let answer!: (value: unknown) => void;
+    sony(() => new Promise((resolve) => (answer = resolve)));
+    await render(eldenRing);
+    expect(rowNames()).toEqual(["Shardbearer Godrick"]);
+    expect(container.textContent).toContain("0 of 1 unlocked");
+    expect(trophyReads()).toHaveLength(1);
+    await act(async () =>
+      answer({
+        status: "valid",
+        value: [
+          trophy(2, {
+            name: "Shardbearer Godrick",
+            trophyType: "bronze",
+            unlocked: true,
+            unlockedAt: 1_793_395_328_000,
+          }),
+        ],
+      }),
+    );
+    await act(async () => {});
+    expect(container.textContent).toContain("1 of 1 unlocked");
+    expect(saveListsMock).toHaveBeenCalledOnce();
+  });
+
+  it("Sony down when the tab opens keeps the saved list, with the line above it", async () => {
+    saved([trophy(2, { name: "Shardbearer Godrick", trophyType: "bronze" })]);
+    sony(() => ({ status: "unavailable" }));
+    await render(eldenRing);
+    expect(trophyReads()).toHaveLength(1);
+    expect(rowNames()).toEqual(["Shardbearer Godrick"]);
+    expect(container.textContent).toContain(
+      "PlayStation didn't send the trophies. Try again later.",
+    );
+    expect(saveListsMock).not.toHaveBeenCalled();
+  });
+
+  it("never loads without a kept sign-in, and offers the PlayStation sign-in", async () => {
+    nothingSaved();
+    sony(() => ({ status: "valid", value: [] }), []);
+    await render(eldenRing);
+    expect(trophyReads()).toHaveLength(0);
+    expect(container.textContent).toContain(
+      "Sign in to PlayStation to load your trophies.",
+    );
+    expect(buttons()).toContain("Sign in to PlayStation");
+  });
+
+  it("signs in through the existing PlayStation window, then loads once", async () => {
+    nothingSaved();
+    let logins: typeof kept | [] = [];
+    useKeptLogins.setState({ logins });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "library_playstation_sign_in") {
+        logins = kept;
+        return undefined;
+      }
+      if (command === "logins_list") return logins;
+      if (command === "playstation_read_trophies")
+        return {
+          status: "valid",
+          value: [trophy(2, { trophyType: "bronze", unlocked: true })],
+        };
+      throw new Error(`unexpected ${command}`);
+    });
+    await render(eldenRing);
+    await click("Sign in to PlayStation");
+    await act(async () => {});
+    expect(invokeMock).toHaveBeenCalledWith(
+      "library_playstation_sign_in",
+      expect.objectContaining({ requestId: expect.any(String) }),
+    );
+    expect(trophyReads()).toHaveLength(1);
+    expect(container.textContent).toContain("1 of 1 unlocked");
+  });
+
+  it("has a text for every answer without a list", async () => {
+    for (const [answer, text] of [
+      [
+        { status: "valid", value: [] },
+        "This game has no PlayStation trophies.",
+      ],
+      [
+        { status: "unavailable" },
+        "PlayStation didn't send the trophies. Try again later.",
+      ],
+      // A sign-in window is open.
+      [
+        { status: "busy" },
+        "PlayStation didn't send the trophies. Try again later.",
+      ],
+      [
+        { status: "signedOut" },
+        "Sign in to PlayStation to load your trophies.",
+      ],
+      [{ status: "needsSignIn" }, "PlayStation needs you to sign in again."],
+    ] as const) {
+      nothingSaved();
+      clearLoginHealth("playstation");
+      sony(() => answer);
+      await act(async () => root.render(<></>));
+      await render(eldenRing);
+      expect(container.textContent, answer.status).toContain(text);
+    }
+    expect(buttons()).toContain("Sign in again");
+  });
+
+  it("shows each trophy's cup, and earned of all per cup above the list", async () => {
+    saved([
+      trophy(0, { name: "Elden Ring", trophyType: "platinum" }),
+      trophy(1, { name: "Elden Lord", trophyType: "gold", unlocked: true }),
+      trophy(2, {
+        name: "Shardbearer Godrick",
+        trophyType: "bronze",
+        unlocked: true,
+      }),
+      trophy(3, { name: "Shardbearer Radahn", trophyType: "bronze" }),
+    ]);
+    sony(() => new Promise(() => {}));
+    await render(eldenRing);
+    for (const text of [
+      "Platinum trophies: 0 of 1",
+      "Gold trophies: 1 of 1",
+      "Silver trophies: 0 of 0",
+      "Bronze trophies: 1 of 2",
+    ])
+      expect(container.textContent).toContain(text);
+    const row = (name: string) =>
+      [...container.querySelectorAll("[data-achievement-row]")].find(
+        (node) => node.querySelector("h4")?.textContent === name,
+      )?.textContent;
+    expect(row("Elden Ring")).toContain("Platinum trophy");
+    expect(row("Elden Lord")).toContain("Gold trophy");
+    expect(row("Shardbearer Radahn")).toContain("Bronze trophy");
+    expect(container.textContent).toContain(
+      `From PlayStation, updated ${new Date(Date.UTC(2026, 10, 1)).toLocaleDateString(appLocale())}`,
+    );
+    expect(container.textContent).not.toContain("Gamerscore");
+    expect(container.textContent).not.toContain("XP");
+  });
+
+  it("a game with a PS5 and a PS4 list gets PS5 and PS4 buttons, PS5 first", async () => {
+    saved([
+      trophy(0, {
+        name: "PS5 platinum",
+        trophyType: "platinum",
+        platform: "PS5",
+      }),
+      trophy(1, {
+        name: "PS5 gold",
+        trophyType: "gold",
+        platform: "PS5",
+        unlocked: true,
+      }),
+      achievement("NPWR22809_00:0", {
+        name: "PS4 platinum",
+        trophyType: "platinum",
+        platform: "PS4",
+        unlocked: true,
+      }),
+    ]);
+    sony(() => new Promise(() => {}));
+    await render(eldenRing);
+    const consoles = () =>
+      [...container.querySelectorAll('[role="group"] button')].map(
+        (button) => button.textContent,
+      );
+    expect(consoles()).toEqual(["PS5", "PS4"]);
+    expect(rowNames()).toEqual(["PS5 gold", "PS5 platinum"]);
+    expect(container.textContent).toContain("1 of 2 unlocked");
+    expect(container.textContent).toContain("Platinum trophies: 0 of 1");
+    await click("PS4");
+    expect(rowNames()).toEqual(["PS4 platinum"]);
+    expect(container.textContent).toContain("1 of 1 unlocked");
+    expect(container.textContent).toContain("Platinum trophies: 1 of 1");
+  });
+
+  it("one list gets no PS5 or PS4 buttons", async () => {
+    saved([trophy(0, { name: "Elden Ring", trophyType: "platinum" })]);
+    sony(() => new Promise(() => {}));
+    await render(eldenRing);
+    expect(buttons()).not.toContain("PS5");
+    expect(buttons()).not.toContain("PS4");
+  });
+
+  it("follows a language switch", async () => {
+    saved([trophy(0, { name: "Elden Ring", trophyType: "platinum" })]);
+    sony(() => new Promise(() => {}));
+    await render(eldenRing);
+    applyLanguage("de");
+    await render(eldenRing);
+    const de = getT("games");
+    for (const text of [
+      de("From PlayStation, updated {{date}}", {
+        date: new Date(Date.UTC(2026, 10, 1)).toLocaleDateString(appLocale()),
+      }),
+      de("Platinum trophies: {{earned}} of {{total}}", {
+        earned: "0",
+        total: "1",
+      }),
+      de("Platinum trophy"),
+    ]) {
+      expect(text).not.toMatch(/PlayStation, updated|trophies:|trophy$/);
+      expect(container.textContent).toContain(text);
+    }
+  });
+
+  it("names PlayStation in the pills", async () => {
+    steamAnswers({
+      status: "ok",
+      hasPlayerStats: true,
+      achievements: [achievement("Steam win", { unlocked: true })],
+    });
+    saved([trophy(0, { name: "Elden Ring", trophyType: "platinum" })]);
+    await render([{ provider: "steam", externalId: "1245620" }, ...eldenRing]);
+    const pills = [...container.querySelectorAll('[role="group"] button')].map(
+      (button) => button.textContent,
+    );
+    expect(pills).toEqual(["Steam", "PlayStation"]);
   });
 });

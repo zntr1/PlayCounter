@@ -102,7 +102,14 @@ function dictionary(validate: Validator): Validator {
 }
 
 const source = oneOf("igdb", "community", "custom");
-const provider = oneOf("steam", "xbox", "battlenet", "epic", "gog");
+const provider = oneOf(
+  "steam",
+  "xbox",
+  "battlenet",
+  "epic",
+  "gog",
+  "playstation",
+);
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
@@ -146,7 +153,8 @@ const session = object(
   },
   {
     ...gameFields,
-    origin: oneOf("manual"),
+    origin: oneOf("manual", "playstation"),
+    console: oneOf("PS5", "PS4"),
     emulator: emulatorContext,
     playthroughId: nonempty,
     note: string,
@@ -195,6 +203,17 @@ const libraryImport = object(
     providerHasPlayedEvidence: boolean,
     recordedSecondsAtRead: nonnegative,
     linkedExeSources: array(source),
+    consoleTitleIds: array(nonempty),
+    accounts: array(
+      object(
+        { key: nonempty, seconds: nullable(nonnegative), readAt: date },
+        {
+          name: nullable(string),
+          lastPlayedAt: date,
+          hasPlayedEvidence: boolean,
+        },
+      ),
+    ),
   },
 );
 const emulatorMapping = object(
@@ -341,6 +360,10 @@ const settings = object({}, {
   libraryShowProviderTabs: boolean,
   libraryHideEmptyProviderTabs: boolean,
   libraryShowHero: boolean,
+  libraryShowNewRow: boolean,
+  libraryNewRowCollapsed: boolean,
+  libraryNewGamesSeenAt: nullable(date),
+  libraryNewGamesSeen: dictionary(date),
   libraryFeaturedGame: nullable(featuredGame),
   viewShowHero: dictionary(boolean),
   viewBannerDetails: boolean,
@@ -399,6 +422,7 @@ const settings = object({}, {
   hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
   loginWarningsOff: array(nonempty),
+  playstationLiveOff: boolean,
   showInstallInSteam: boolean,
   showAdultArt: boolean,
 } satisfies Record<keyof Settings, Validator>);
@@ -470,6 +494,7 @@ const validateBackupShape: Validator = object(
                 "battlenet",
                 "epic",
                 "gog",
+                "playstation",
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),
@@ -525,6 +550,7 @@ const validateBackupShape: Validator = object(
     milestonesInitializedAt: nullable(date),
     archivedSeconds: nonnegative,
     archivedGameSeconds: dictionary(nonnegative),
+    archivedConsoleSeconds: dictionary(nonnegative),
     playtimeAdjustments: dictionary(number),
     customHeroArt: dictionary(string),
     customCoverArt: dictionary(string),

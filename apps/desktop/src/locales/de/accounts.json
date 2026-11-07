@@ -48,5 +48,16 @@
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter liest Steam-Konten auf diesem PC. Eine separate Anmeldung ist nicht nötig.",
   "Sign-in warnings": "Anmeldewarnungen",
   "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Anmeldewarnungen an: ein Abzeichen und eine Meldung, wenn {{launcher}} eine erneute Anmeldung erfordert. Klicke, um sie auszuschalten.",
-  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Anmeldewarnungen aus: kein Abzeichen und keine Meldung, wenn {{launcher}} eine erneute Anmeldung erfordert. Klicke, um sie einzuschalten."
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Anmeldewarnungen aus: kein Abzeichen und keine Meldung, wenn {{launcher}} eine erneute Anmeldung erfordert. Klicke, um sie einzuschalten.",
+  "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.": "Deine PS5- und PS4-Spiele, die von Sony erfasste Spielzeit und was du gerade spielst.",
+  "Live from PlayStation": "Live von PlayStation",
+  "Shows what you play on your PS5 or PS4 while PlayCounter runs.": "Zeigt, was du auf deiner PS5 oder PS4 spielst, solange PlayCounter läuft.",
+  "Sign in with a code": "Mit Code anmelden",
+  "Sign in at playstation.com in your browser.": "Melde dich in deinem Browser auf playstation.com an.",
+  "Open playstation.com": "playstation.com öffnen",
+  "In the same browser, open Sony's sign-in code page.": "Öffne im selben Browser Sonys Seite mit dem Anmeldecode.",
+  "Open the code page": "Code-Seite öffnen",
+  "Copy everything on that page and paste it here.": "Kopiere alles auf dieser Seite und füge es hier ein.",
+  "Sign-in code": "Anmeldecode",
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "Der Code wirkt wie dein Passwort. PlayCounter speichert ihn verschlüsselt auf diesem PC und schickt ihn nur an Sony."
 }

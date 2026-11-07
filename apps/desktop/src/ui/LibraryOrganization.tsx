@@ -47,7 +47,8 @@ import {
   Pill,
   useContextMenu,
 } from "./primitives";
-import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST } from "./journalStyles";
+import { GameStatusIcon } from "./GameStatusIcon";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
 import { emitTourEvent } from "./tour/TourUI";
@@ -483,9 +484,7 @@ export function LibraryOrganizationToolbar({
                   )
                 }
               >
-                <span
-                  className={`h-2 w-2 rounded-full ${STATUS_TONES[value].dot}`}
-                />
+                <GameStatusIcon status={value} />
                 {gameStatusLabel(value)}
               </Pill>
             ))}

@@ -44,6 +44,8 @@ const WEBSITE_URL: &str = "https://playcounter.app/";
 const DISCORD_URL: &str = "https://discord.gg/t2nG3jaEEY";
 /// The Discord invite dialog's own invite, so Discord counts its joins.
 const DISCORD_INVITE_URL: &str = "https://discord.gg/FeW3jUhR4h";
+const PLAYSTATION_SIGN_IN_URL: &str = "https://www.playstation.com/";
+const PLAYSTATION_CODE_URL: &str = "https://ca.account.sony.com/api/v1/ssocookie";
 
 struct TrayState {
     icon: Mutex<Option<TrayIcon<Wry>>>,
@@ -280,10 +282,14 @@ fn open_external_url(url: String) -> Result<(), String> {
         WEBSITE_URL | "https://playcounter.app" => WEBSITE_URL,
         DISCORD_URL => DISCORD_URL,
         DISCORD_INVITE_URL => DISCORD_INVITE_URL,
-        // The game details view links out to IGDB. Unlike the fixed URLs
-        // above this one is built at runtime, so it is validated rather than
-        // compared.
-        _ if is_allowed_igdb_url(trimmed) => trimmed,
+        // "Sign in with a code" for PlayStation: Sony's sign-in, then its
+        // page with the session code (copied by the player, never read here).
+        PLAYSTATION_SIGN_IN_URL => PLAYSTATION_SIGN_IN_URL,
+        PLAYSTATION_CODE_URL => PLAYSTATION_CODE_URL,
+        // The game details view links out to IGDB and HowLongToBeat. Unlike
+        // the fixed URLs above these are built at runtime, so they are
+        // validated rather than compared.
+        _ if is_allowed_igdb_url(trimmed) || is_allowed_hltb_url(trimmed) => trimmed,
         _ => return Err("Unsupported external URL.".to_string()),
     };
 
@@ -291,16 +297,24 @@ fn open_external_url(url: String) -> Result<(), String> {
 }
 
 /// True only for an `https://www.igdb.com/...` URL safe to hand to the shell.
-///
+fn is_allowed_igdb_url(url: &str) -> bool {
+    is_safe_url_under(url, "https://www.igdb.com/")
+}
+
+/// True only for an `https://howlongtobeat.com/...` URL safe to hand to the
+/// shell: a game's HowLongToBeat page, its form for adding a time, or the
+/// search.
+fn is_allowed_hltb_url(url: &str) -> bool {
+    is_safe_url_under(url, "https://howlongtobeat.com/")
+}
+
 /// The prefix check settles the host on its own: a URL's authority ends at the
-/// first `/` after the scheme, so anything matching this prefix cannot smuggle
+/// first `/` after the scheme, so anything matching the prefix cannot smuggle
 /// in userinfo (`user@evil.test`) or a different host. What is left to reject
 /// is whitespace and control characters, which have no place in a URL and
 /// could otherwise be used to confuse the shell.
-fn is_allowed_igdb_url(url: &str) -> bool {
-    const IGDB_PREFIX: &str = "https://www.igdb.com/";
-
-    url.starts_with(IGDB_PREFIX)
+fn is_safe_url_under(url: &str, prefix: &str) -> bool {
+    url.starts_with(prefix)
         && url.len() <= 2048
         && !url.chars().any(|c| c.is_whitespace() || c.is_control())
 }
@@ -458,6 +472,7 @@ pub fn run() {
         .manage(library::battlenet_account::AccountState::default())
         .manage(library::epic_account::EpicAccountState::default())
         .manage(library::gog_account::GogAccountState::default())
+        .manage(library::playstation_account::PlayStationAccountState::default())
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
@@ -474,6 +489,7 @@ pub fn run() {
                     !label.starts_with("battlenet-sign-in-")
                         && !label.starts_with("epic-sign-in-")
                         && !label.starts_with("gog-sign-in-")
+                        && !label.starts_with("playstation-sign-in-")
                         && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
                         && label != quick_note::LABEL
                         && !label.starts_with(live_timer::LABEL_PREFIX)
@@ -571,6 +587,13 @@ pub fn run() {
             library::gog_account::library_gog_sign_in,
             library::gog_account::library_cancel_gog_account,
             library::gog_achievements::gog_read_achievements,
+            library::playstation_account::library_playstation_account_games,
+            library::playstation_account::library_playstation_sign_in,
+            library::playstation_account::library_playstation_sign_in_with_code,
+            library::playstation_account::library_cancel_playstation_account,
+            library::playstation_account::library_playstation_saved_games,
+            library::playstation_account::library_playstation_presence,
+            library::playstation_trophies::playstation_read_trophies,
             library::kept_logins::logins_list,
             library::kept_logins::logins_check,
             library::kept_logins::logins_sign_out,
@@ -856,7 +879,33 @@ fn open_url(url: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::is_allowed_igdb_url;
+    use super::{is_allowed_hltb_url, is_allowed_igdb_url};
+
+    #[test]
+    fn accepts_howlongtobeat_game_and_search_urls() {
+        assert!(is_allowed_hltb_url("https://howlongtobeat.com/game/68151"));
+        assert!(is_allowed_hltb_url(
+            "https://howlongtobeat.com/submit/game/23050"
+        ));
+        assert!(is_allowed_hltb_url(
+            "https://howlongtobeat.com/?q=Hollow%20Knight"
+        ));
+    }
+
+    #[test]
+    fn rejects_urls_that_only_look_like_howlongtobeat() {
+        for url in [
+            "http://howlongtobeat.com/game/68151",
+            "https://howlongtobeat.com.evil.test/game/68151",
+            "https://howlongtobeat.com@evil.test/game/68151",
+            "https://evil.test/?u=https://howlongtobeat.com/",
+            "https://howlongtobeat.com/game/a b",
+            "https://howlongtobeat.com/game/a\nb",
+            "",
+        ] {
+            assert!(!is_allowed_hltb_url(url), "should reject {url}");
+        }
+    }
 
     #[test]
     fn accepts_igdb_game_and_search_urls() {

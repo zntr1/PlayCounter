@@ -283,6 +283,20 @@ describe("Track as software", () => {
     ).toBe(false);
   });
 
+  it("never sends Game.exe, a name many games share, for review", async () => {
+    const outcome = await markExecutableAsSoftware("Game.exe", {
+      name: "Some Tool",
+      share: true,
+    });
+
+    expect(outcome).toEqual({ kind: "local" });
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).endsWith("/api/community/suggestions"),
+      ),
+    ).toBe(false);
+  });
+
   it("shares a tool suggestion and follows its approval", async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).endsWith("/api/community/suggestions")) {

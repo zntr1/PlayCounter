@@ -29,6 +29,7 @@ export function createLibraryTourStore(
     personalShelves: [],
     archivedPlaythroughSeconds: {},
     archivedGameSeconds: {},
+    archivedConsoleSeconds: {},
     playtimeAdjustments: {},
     journalTarget: null,
     gameMetadata: new Map(),

@@ -13,12 +13,19 @@ import {
 export const LOGIN_CHECK_INTERVAL_MS = 30 * 60_000;
 const RETRY_INTERVAL_MS = 5 * 60_000;
 const t = getT("accounts");
-const services: KeptLoginService[] = ["xbox", "epic", "battlenet", "gog"];
+const services: KeptLoginService[] = [
+  "xbox",
+  "epic",
+  "battlenet",
+  "gog",
+  "playstation",
+];
 const labels = {
   xbox: "Xbox",
   epic: "Epic Games",
   battlenet: "Battle.net",
   gog: "GOG",
+  playstation: "PlayStation",
 };
 
 export type LoginHealth = {
@@ -35,12 +42,14 @@ const versions: Record<KeptLoginService, number> = {
   epic: 0,
   battlenet: 0,
   gog: 0,
+  playstation: 0,
 };
 const operationRevisions: Record<KeptLoginService, number> = {
   xbox: 0,
   epic: 0,
   battlenet: 0,
   gog: 0,
+  playstation: 0,
 };
 const inFlight = new Map<KeptLoginService, Promise<void>>();
 const previousChecks = new Map<KeptLoginService, LoginHealth | undefined>();

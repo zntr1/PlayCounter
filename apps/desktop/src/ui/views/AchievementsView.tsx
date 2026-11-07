@@ -91,6 +91,9 @@ export function AchievementsView() {
   const sessions = useAppStore((state) => state.recentSessions);
   const archivedSeconds = useAppStore((state) => state.archivedSeconds);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
+  const archivedConsoleSeconds = useAppStore(
+    (state) => state.archivedConsoleSeconds,
+  );
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const verifiedContributions = useAppStore(
     (state) => state.contributionCounts.verified,
@@ -111,6 +114,7 @@ export function AchievementsView() {
         sessions,
         archivedSeconds,
         archivedGameSeconds,
+        archivedConsoleSeconds,
         playtimeAdjustments,
         providerFloors: providerFloors(libraryImports.values()),
         verifiedContributions,
@@ -118,6 +122,7 @@ export function AchievementsView() {
         resolveIgdbId,
       }),
     [
+      archivedConsoleSeconds,
       archivedGameSeconds,
       archivedSeconds,
       playtimeAdjustments,

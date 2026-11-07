@@ -54,7 +54,7 @@ beforeEach(async () => {
   requestMock.mockReset();
   vi.mocked(linkServerKnownFiles).mockReset();
   props = {
-    exeName: "Game.exe",
+    exeName: "Dots.exe",
     onKnownGame: vi.fn(),
     onRejected: vi.fn(),
     onSuggested: vi.fn(),
@@ -146,8 +146,19 @@ describe("community correction flow", () => {
     expect(current.state).toBe("idle");
   });
 
+  it.each(["Game.exe", "javaw.exe"])(
+    "never sends %s, a name many games share, for review",
+    async (exeName) => {
+      await render({ exeName, targetKey: exeName.toLowerCase() });
+      await act(() => current.applyCandidate(candidate));
+      await act(() => current.submit());
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(props.onSuggested).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not apply a late submission to a different scoped link", async () => {
-    await render({ targetKey: "game.exe|c:\\one" });
+    await render({ targetKey: "dots.exe|c:\\one" });
     await act(() => current.applyCandidate(candidate));
     const reply = deferred<unknown>();
     requestMock.mockReturnValueOnce(reply.promise);
@@ -157,7 +168,7 @@ describe("community correction flow", () => {
     });
     const signal = requestMock.mock.calls[0][1]!.signal!;
 
-    await render({ targetKey: "game.exe|c:\\two" });
+    await render({ targetKey: "dots.exe|c:\\two" });
     expect(signal.aborted).toBe(true);
     await act(async () => {
       reply.resolve({ id: 7, verified: true });
@@ -190,7 +201,7 @@ describe("community correction flow", () => {
       });
       expect(requestMock).toHaveBeenCalledOnce();
       expect(JSON.parse(requestMock.mock.calls[0][1]!.body as string)).toEqual({
-        exeName: "Game.exe",
+        exeName: "Dots.exe",
         name: candidate.name,
         coverUrl: candidate.coverUrl,
         igdbId: candidate.igdbId,

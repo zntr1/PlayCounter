@@ -65,10 +65,8 @@ export function LauncherCard({
   const localAccount = accounts.find(
     (account) => account.accountId === accountId,
   );
-  const noAccounts =
-    !missing &&
-    profile.choice !== "accountOrInstalled" &&
-    accounts.length === 0;
+  // Found, but no account to import from: what keeps Find games disabled.
+  const noAccounts = !missing && status !== null && accountId === null;
 
   return (
     <Panel className="grid gap-6 p-6">

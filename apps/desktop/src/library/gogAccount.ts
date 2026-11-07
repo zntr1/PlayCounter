@@ -1,7 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { LibraryScanResult, ScannedLibraryGame } from "./types";
+import type {
+  LibraryAccount,
+  LibraryScanResult,
+  ScannedLibraryGame,
+} from "./types";
 import { getT } from "../i18n";
-import { refreshKeptLogins, useKeptLogins } from "./keptLogins";
+import { namedAccount, refreshKeptLogins, useKeptLogins } from "./keptLogins";
 import {
   getLoginOperationRevision,
   recordLoginHealth,
@@ -18,6 +22,9 @@ export type GogAccountLibrary = {
     playtimeSeconds: number | null;
   }[];
   incomplete: boolean;
+  /** The account read, by a key made in Rust from its id. GOG's user name
+   *  comes with the sign-in, not with this read. */
+  account?: LibraryAccount;
 };
 
 /**
@@ -69,6 +76,9 @@ export function mergeGogAccountLibrary(
         : []),
     ],
     partial: local.partial || account.incomplete,
+    ...(account.account
+      ? { account: namedAccount("gog", account.account) }
+      : {}),
   };
 }
 

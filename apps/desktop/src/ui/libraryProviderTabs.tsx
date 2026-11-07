@@ -2,6 +2,7 @@ import type { LibraryProviderId, Platform } from "@playcounter/shared";
 import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import epicIconUrl from "../../../../assets/epic/epic.svg";
 import gogIconUrl from "../../../../assets/gog/gog.svg";
+import playStationIconUrl from "../../../../assets/playstation/playstation.svg";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
@@ -112,6 +113,20 @@ export function providerTabConfigs(): readonly ProviderTabConfig[] {
         "Sign in to bring in your GOG library with its playtime, or scan installed games without signing in. PlayCounter tracks your future sessions.",
       ),
       firstImportCtaLabel: t("Import from GOG"),
+      import: { kind: "builtin", platforms: ["windows"] },
+    },
+    {
+      id: "playstation",
+      label: "PlayStation",
+      iconUrl: playStationIconUrl,
+      headline: t("PlayStation library"),
+      subtitle: t("Games imported from your PlayStation account."),
+      importCtaLabel: t("Import more from PlayStation"),
+      emptyTitle: t("No PlayStation games imported yet"),
+      emptyBody: t(
+        "Sign in to bring in your PS5 and PS4 games with the playtime Sony recorded. PlayCounter keeps it up to date and shows what you play on the console.",
+      ),
+      firstImportCtaLabel: t("Import from PlayStation"),
       import: { kind: "builtin", platforms: ["windows"] },
     },
   ];

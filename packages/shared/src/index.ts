@@ -64,7 +64,13 @@ export interface EmulatorResolveResponse {
 }
 
 /** A locally installed or remotely linked game-library provider. */
-export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic" | "gog";
+export type LibraryProviderId =
+  | "steam"
+  | "xbox"
+  | "battlenet"
+  | "epic"
+  | "gog"
+  | "playstation";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,
@@ -75,6 +81,7 @@ export type {
   AchievementList,
   AchievementProvider,
   GameAchievement,
+  TrophyType,
   XboxAchievementError,
   XboxImportStartRequest,
 } from "./achievements.js";
@@ -84,7 +91,8 @@ export interface LibraryResolveRequest {
     /** Client-generated correlation key; never treated as game identity. */
     key: string;
     provider: LibraryProviderId;
-    /** Provider-native id. Steam uses its decimal AppID, GOG its product id. */
+    /** Provider-native id. Steam uses its decimal AppID, GOG its product id,
+     *  PlayStation its PlayStation Store concept id. */
     externalId: string;
     /** Store title. Only Epic sends it: IGDB does not index Epic app names,
      *  so the server matches the exact title among IGDB's Epic entries. */
@@ -175,9 +183,18 @@ export interface XboxImportGame {
 
 export type XboxImportProgressStage = "authorization" | "history";
 
+/** The Xbox account an import read. `key` is made from its Xbox user id
+ *  (SHA-256 of "xbox:<id>", 32 hex characters), never the id itself; the
+ *  desktop makes its other launchers' keys the same way. */
+export interface XboxImportAccount {
+  key: string;
+  /** The gamertag, for display. */
+  name?: string;
+}
+
 export type XboxImportResultResponse = { loginReady?: boolean } & (
   | { status: "pending"; stage?: XboxImportProgressStage }
-  | { status: "done"; games: XboxImportGame[] }
+  | { status: "done"; games: XboxImportGame[]; account?: XboxImportAccount }
   | {
       status: "failed";
       reason: XboxImportFailureReason;
@@ -493,6 +510,25 @@ export interface GameDetails {
    * The banner's first choice; absent from APIs without a SteamGridDB key.
    */
   heroUrls?: string[];
+  /**
+   * IGDB's time to beat. Absent when IGDB has no submissions for the game,
+   * and from APIs released before this field existed.
+   */
+  timeToBeat?: GameTimeToBeat;
+  /**
+   * The game's HowLongToBeat id (https://howlongtobeat.com/game/<id>), found
+   * on Wikidata. Absent when Wikidata has none, and from older APIs.
+   */
+  hltbId?: number;
+}
+
+/** IGDB's averages in seconds. A pace nobody submitted is absent, never 0. */
+export interface GameTimeToBeat {
+  hastilySeconds?: number;
+  normallySeconds?: number;
+  completelySeconds?: number;
+  /** How many IGDB submissions the averages come from. */
+  count: number;
 }
 
 export interface GameDetailsResponse {
@@ -550,7 +586,11 @@ export interface Session {
   startedAt: string;
   endedAt: string | null;
   durationSeconds: number | null;
-  origin?: "manual";
+  /** "manual": timed or logged by hand. "playstation": a PS5 or PS4 session
+   *  PlayCounter saw live through the PlayStation sign-in. */
+  origin?: "manual" | "playstation";
+  /** The console of a "playstation" session. */
+  console?: "PS5" | "PS4";
   emulator?: EmulatorLaunchContext;
   /** What the player wrote about this session. Local only, never included in
    *  tracking API payloads. */
@@ -709,6 +749,16 @@ export interface Settings {
   libraryHideEmptyProviderTabs?: boolean;
   /** Show the featured-game banner above the library. Absent = enabled. */
   libraryShowHero?: boolean;
+  /** Show the row of new games above the library. Absent = enabled. */
+  libraryShowNewRow?: boolean;
+  /** The new games row folded into one line. Absent = open. */
+  libraryNewRowCollapsed?: boolean;
+  /** "Mark all as seen" in the new games row: games added up to this time
+   *  are no longer new. Null or absent = never used. */
+  libraryNewGamesSeenAt?: string | null;
+  /** Games marked as seen one by one in the new games row (× on a card):
+   *  game key → when. Marks older than 7 days are dropped. */
+  libraryNewGamesSeen?: Record<string, string>;
   /** Game pinned to the library banner. Null or absent = the last played game. */
   libraryFeaturedGame?: LibraryFeaturedGame | null;
   /** Compact banners in other views are opt-in, independently of My Games. */
@@ -775,6 +825,9 @@ export interface Settings {
    * badge to Launcher accounts and shows no message. Absent = every launcher
    * warns. */
   loginWarningsOff?: string[];
+  /** PlayStation's "Live from PlayStation" switch is off: no presence reads,
+   *  no live PS5/PS4 sessions. Absent = on. */
+  playstationLiveOff?: boolean;
   /** Offer Steam's installer for imported Steam games that are not installed.
    * Absent = disabled. */
   showInstallInSteam?: boolean;

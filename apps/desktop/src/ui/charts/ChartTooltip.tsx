@@ -7,13 +7,13 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-type TooltipState = { anchor: HTMLElement; content: ReactNode } | null;
+type TooltipState = { anchor: Element; content: ReactNode } | null;
 
 export function useChartTooltip() {
   const [state, setState] = useState<TooltipState>(null);
   return {
     state,
-    show: (anchor: HTMLElement, content: ReactNode) =>
+    show: (anchor: Element, content: ReactNode) =>
       setState({ anchor, content }),
     hide: () => setState(null),
   };

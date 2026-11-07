@@ -2,7 +2,15 @@ import {
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
-import { BookOpen, Medal, Star, StickyNote, X } from "lucide-react";
+import {
+  BookOpen,
+  CircleDot,
+  FolderHeart,
+  Medal,
+  Star,
+  StickyNote,
+  X,
+} from "lucide-react";
 import { GAME_TIERS, gameStatusLabel, type GameTier } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
 import {
@@ -10,7 +18,8 @@ import {
   ContextMenuItem,
   ContextMenuSubmenu,
 } from "./primitives";
-import { STATUS_TONES, TIER_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST, TIER_TONES } from "./journalStyles";
+import { GameStatusIcon } from "./GameStatusIcon";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
 
@@ -29,6 +38,12 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
   const update = usePersonalLibraryState((s) => s.updateGameJournal);
+  const shelves = usePersonalLibraryState((s) => s.personalShelves);
+  const showShelves = usePersonalLibraryState(
+    (s) => s.settings.libraryShowShelves !== false,
+  );
+  // Filters fill their own shelves, and Favorites has its own item above.
+  const handShelves = shelves.filter((shelf) => !shelf.filters);
   return (
     <>
       {heading ? (
@@ -54,6 +69,35 @@ export function GameJournalMenu({
       >
         {t("Journal")}
       </ContextMenuItem>
+      <ContextMenuSubmenu label={t("Status")} icon={CircleDot}>
+        {GAME_STATUS_LIST.map((status) => (
+          <ContextMenuItem
+            key={status}
+            selected={journal.status === status}
+            onClick={() => {
+              onClose();
+              update(game, { status });
+            }}
+          >
+            <GameStatusIcon
+              status={status}
+              className="mr-2 inline-block align-middle"
+            />
+            {gameStatusLabel(status)}
+          </ContextMenuItem>
+        ))}
+        {journal.status ? (
+          <ContextMenuItem
+            icon={X}
+            onClick={() => {
+              onClose();
+              update(game, { status: null });
+            }}
+          >
+            {t("Clear status")}
+          </ContextMenuItem>
+        ) : null}
+      </ContextMenuSubmenu>
       <ContextMenuSubmenu
         label={t("Tier")}
         icon={Medal}
@@ -62,6 +106,34 @@ export function GameJournalMenu({
       >
         <GameTierMenuItems game={game} onClose={onClose} />
       </ContextMenuSubmenu>
+      {showShelves && handShelves.length ? (
+        // A game can sit on several shelves: a pick adds or removes one.
+        <ContextMenuSubmenu
+          label={t("Shelves")}
+          icon={FolderHeart}
+          menuDataTour={practice ? "demo-shelf-menu" : undefined}
+        >
+          {handShelves.map((shelf) => {
+            const member = journal.shelfIds.includes(shelf.id);
+            return (
+              <ContextMenuItem
+                key={shelf.id}
+                selected={member}
+                onClick={() => {
+                  onClose();
+                  update(game, {
+                    shelfIds: member
+                      ? journal.shelfIds.filter((id) => id !== shelf.id)
+                      : [...journal.shelfIds, shelf.id],
+                  });
+                }}
+              >
+                {shelf.name}
+              </ContextMenuItem>
+            );
+          })}
+        </ContextMenuSubmenu>
+      ) : null}
     </>
   );
 }
@@ -155,8 +227,20 @@ export function GameJournalBadges({
   if (!hasNote && !journal.favorite && !tier && !status) return null;
   return (
     <div
-      className={`absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
+      className={`status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
     >
+      {status ? (
+        // First, so it sits in the same spot on every card. The icon alone,
+        // like the other badges: a name would not fit beside them in every
+        // language. The name is in the tooltip.
+        <span
+          aria-label={statusLabel}
+          title={statusLabel}
+          className={`${badgeShell} ${compact ? "h-6 w-6" : ""}`}
+        >
+          <GameStatusIcon status={status} size={compact ? 11 : 13} />
+        </span>
+      ) : null}
       {hasNote ? (
         <button
           type="button"
@@ -190,30 +274,6 @@ export function GameJournalBadges({
         >
           {tier}
         </span>
-      ) : null}
-      {status ? (
-        compact ? (
-          <span
-            aria-label={statusLabel}
-            title={statusLabel}
-            className={`${badgeShell} h-6 w-6`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${STATUS_TONES[status].dot}`}
-            />
-          </span>
-        ) : (
-          <span
-            aria-label={statusLabel}
-            title={statusLabel}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-md"
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[status].dot}`}
-            />
-            {gameStatusLabel(status)}
-          </span>
-        )
       ) : null}
     </div>
   );

@@ -1,5 +1,396 @@
 [
   {
+    "version": "1.6.0",
+    "headline": "Bring in your PlayStation games, see how long a game takes and look back at any dates in My History.",
+    "highlights": [
+      {
+        "title": "Your PlayStation games, too",
+        "text": "Import your PS5 and PS4 games with the playtime Sony recorded. PlayCounter counts your console sessions live and shows your trophies.",
+        "hint": "Right-click My Games in the sidebar → Import from PlayStation",
+        "image": "playstation"
+      },
+      {
+        "title": "How long to beat",
+        "text": "See how long a game takes, how far you are and how much is left. Mark it finished and add your time on HowLongToBeat with the values ready to copy.",
+        "hint": "Game details → How long to beat",
+        "image": "howlongtobeat"
+      },
+      {
+        "title": "My History for any dates",
+        "text": "Step through months, weeks or days, or pick any dates. See which games you played when and how it compares with the time before.",
+        "hint": "My History → Pick dates",
+        "image": "history"
+      },
+      {
+        "title": "New games up front",
+        "text": "Games you added in the last 7 days and haven't played yet wait in a row above My Games, until you play them or mark them as seen.",
+        "image": "new-games"
+      },
+      {
+        "title": "Several accounts per launcher",
+        "text": "Each launcher account keeps its own hours of a game, and PlayCounter adds them up. Game details show each account's hours."
+      },
+      {
+        "title": "New playtime first",
+        "text": "When you import again, Already in My Games starts with the games that have new playtime, ready to update. Import stays in one spot, and each tab imports only its own games."
+      },
+      {
+        "title": "Status and shelves from the menu",
+        "text": "Right-click a game to set its status or put it on a shelf. Each status has its own icon and color on the cover."
+      },
+      {
+        "title": "Sort achievements",
+        "text": "Sort a game's achievements by unlock date, rarity or name."
+      },
+      {
+        "title": "Less memory while you play",
+        "text": "The timer on your game no longer uses more and more memory during long sessions."
+      },
+      {
+        "title": "Fixes",
+        "text": "Banner art stays sharp after it fades in, game details show Yes, No and similar values in your language, and Xbox achievements you haven't started no longer show an empty bar."
+      }
+    ],
+    "translations": {
+      "de": {
+        "headline": "Hol deine PlayStation-Spiele dazu, sieh, wie lange ein Spiel dauert, und blick in „Mein Verlauf“ auf beliebige Tage zurück.",
+        "highlights": [
+          {
+            "title": "Auch deine PlayStation-Spiele",
+            "text": "Importiere deine PS5- und PS4-Spiele mit der Spielzeit, die Sony erfasst hat. PlayCounter zählt deine Sitzungen auf der Konsole live und zeigt deine Trophäen.",
+            "hint": "Rechtsklick auf „Meine Spiele“ in der Seitenleiste → „Aus PlayStation importieren“"
+          },
+          {
+            "title": "Spieldauer",
+            "text": "Sieh, wie lange ein Spiel dauert, wie weit du bist und wie viel noch fehlt. Markier es als abgeschlossen und trag deine Zeit bei HowLongToBeat ein, die Werte liegen zum Kopieren bereit.",
+            "hint": "Spieldetails → „Spieldauer“"
+          },
+          {
+            "title": "„Mein Verlauf“ für jeden Zeitraum",
+            "text": "Blättere durch Monate, Wochen oder Tage, oder wähl einen beliebigen Zeitraum. Sieh, welche Spiele du wann gespielt hast und wie es im Vergleich zum Zeitraum davor aussieht.",
+            "hint": "„Mein Verlauf“ → „Zeitraum wählen“"
+          },
+          {
+            "title": "Neue Spiele ganz oben",
+            "text": "Spiele, die du in den letzten 7 Tagen hinzugefügt und noch nicht gespielt hast, warten in einer Reihe über „Meine Spiele“, bis du sie spielst oder als gesehen markierst."
+          },
+          {
+            "title": "Mehrere Konten pro Launcher",
+            "text": "Jedes Launcher-Konto behält seine eigenen Stunden eines Spiels, und PlayCounter zählt sie zusammen. Die Spieldetails zeigen die Stunden jedes Kontos."
+          },
+          {
+            "title": "Neue Spielzeit zuerst",
+            "text": "Beim nächsten Import beginnt Schon in „Meine Spiele“ mit den Spielen, die neue Spielzeit haben, bereit zum Aktualisieren. „Importieren“ bleibt immer an derselben Stelle, und jeder Tab importiert nur seine eigenen Spiele."
+          },
+          {
+            "title": "Status und Regale im Menü",
+            "text": "Per Rechtsklick auf ein Spiel setzt du seinen Status oder stellst es in ein Regal. Jeder Status hat sein eigenes Symbol und seine eigene Farbe auf dem Cover."
+          },
+          {
+            "title": "Erfolge sortieren",
+            "text": "Sortier die Erfolge eines Spiels nach Freischaltdatum, Seltenheit oder Name."
+          },
+          {
+            "title": "Weniger Speicher beim Spielen",
+            "text": "Der Timer im Spiel braucht bei langen Sitzungen nicht mehr immer mehr Arbeitsspeicher."
+          },
+          {
+            "title": "Behoben",
+            "text": "Banner-Bilder bleiben nach dem Einblenden scharf, die Spieldetails zeigen „Ja“, „Nein“ und ähnliche Werte in deiner Sprache, und Xbox-Erfolge, die du noch nicht begonnen hast, zeigen keinen leeren Balken mehr."
+          }
+        ]
+      },
+      "es": {
+        "headline": "Trae tus juegos de PlayStation, mira cuánto dura un juego y repasa cualquier fecha en Mi historial.",
+        "highlights": [
+          {
+            "title": "También tus juegos de PlayStation",
+            "text": "Importa tus juegos de PS5 y PS4 con el tiempo de juego que registró Sony. PlayCounter cuenta tus sesiones en la consola en directo y muestra tus trofeos.",
+            "hint": "Clic derecho en Mis juegos en la barra lateral → Importar de PlayStation"
+          },
+          {
+            "title": "Duración",
+            "text": "Mira cuánto dura un juego, cuánto llevas y cuánto te falta. Márcalo como terminado y añade tu tiempo en HowLongToBeat con los datos listos para copiar.",
+            "hint": "Detalles del juego → Duración"
+          },
+          {
+            "title": "Mi historial, en cualquier fecha",
+            "text": "Avanza y retrocede por meses, semanas o días, o elige cualquier fecha. Mira qué juegos jugaste y cuándo, y cómo se compara con el periodo anterior.",
+            "hint": "Mi historial → Elegir fechas"
+          },
+          {
+            "title": "Los juegos nuevos, primero",
+            "text": "Los juegos que añadiste en los últimos 7 días y aún no has jugado esperan en una fila encima de Mis juegos, hasta que los juegues o los marques como vistos."
+          },
+          {
+            "title": "Varias cuentas por lanzador",
+            "text": "Cada cuenta de un lanzador guarda sus propias horas de un juego, y PlayCounter las suma. Los detalles del juego muestran las horas de cada cuenta."
+          },
+          {
+            "title": "Primero el tiempo de juego nuevo",
+            "text": "Al importar de nuevo, Ya en Mis juegos empieza por los juegos con tiempo de juego nuevo, listos para actualizar. Importar se queda siempre en el mismo sitio, y cada pestaña importa solo sus juegos."
+          },
+          {
+            "title": "Estado y estantes desde el menú",
+            "text": "Haz clic derecho en un juego para cambiar su estado o ponerlo en un estante. Cada estado tiene su propio icono y color en la portada."
+          },
+          {
+            "title": "Ordena los logros",
+            "text": "Ordena los logros de un juego por fecha de desbloqueo, rareza o nombre."
+          },
+          {
+            "title": "Menos memoria mientras juegas",
+            "text": "El cronómetro de tu juego ya no usa cada vez más memoria en las sesiones largas."
+          },
+          {
+            "title": "Correcciones",
+            "text": "El arte del banner se ve nítido después de aparecer, los detalles del juego muestran Sí, No y valores parecidos en tu idioma, y los logros de Xbox que aún no has empezado ya no muestran una barra vacía."
+          }
+        ]
+      },
+      "fr": {
+        "headline": "Ajoutez vos jeux PlayStation, voyez combien de temps dure un jeu et revenez sur n'importe quelles dates dans Mon historique.",
+        "highlights": [
+          {
+            "title": "Vos jeux PlayStation aussi",
+            "text": "Importez vos jeux PS5 et PS4 avec le temps de jeu enregistré par Sony. PlayCounter compte vos sessions sur console en direct et affiche vos trophées.",
+            "hint": "Clic droit sur Mes jeux dans la barre latérale → Importer depuis PlayStation"
+          },
+          {
+            "title": "Durée de vie",
+            "text": "Voyez combien de temps dure un jeu, où vous en êtes et ce qu'il reste. Marquez-le comme terminé et ajoutez votre temps sur HowLongToBeat, avec les valeurs prêtes à copier.",
+            "hint": "Détails du jeu → Durée de vie"
+          },
+          {
+            "title": "Mon historique, à n'importe quelle date",
+            "text": "Parcourez les mois, les semaines ou les jours, ou choisissez n'importe quelles dates. Voyez à quels jeux vous avez joué et quand, et comment cela se compare à la période précédente.",
+            "hint": "Mon historique → Choisir des dates"
+          },
+          {
+            "title": "Les nouveaux jeux en premier",
+            "text": "Les jeux ajoutés ces 7 derniers jours et pas encore lancés attendent dans une rangée au-dessus de Mes jeux, jusqu'à ce que vous y jouiez ou les marquiez comme vus."
+          },
+          {
+            "title": "Plusieurs comptes par launcher",
+            "text": "Chaque compte d'un launcher garde ses propres heures sur un jeu, et PlayCounter les additionne. Les détails du jeu montrent les heures de chaque compte."
+          },
+          {
+            "title": "Le nouveau temps de jeu d'abord",
+            "text": "Lors d'un nouvel import, Déjà dans « Mes jeux » commence par les jeux qui ont du nouveau temps de jeu, prêts à être mis à jour. Importer reste toujours au même endroit, et chaque onglet n'importe que ses propres jeux."
+          },
+          {
+            "title": "Statut et étagères depuis le menu",
+            "text": "Faites un clic droit sur un jeu pour changer son statut ou le ranger sur une étagère. Chaque statut a sa propre icône et sa propre couleur sur la jaquette."
+          },
+          {
+            "title": "Trier les succès",
+            "text": "Triez les succès d'un jeu par date de déblocage, rareté ou nom."
+          },
+          {
+            "title": "Moins de mémoire pendant le jeu",
+            "text": "Le chrono sur votre jeu n'utilise plus de plus en plus de mémoire pendant les longues sessions."
+          },
+          {
+            "title": "Corrections",
+            "text": "Les images de bannière restent nettes après leur apparition, les détails du jeu affichent Oui, Non et les valeurs similaires dans votre langue, et les succès Xbox pas encore commencés n'affichent plus de barre vide."
+          }
+        ]
+      },
+      "pl": {
+        "headline": "Gry z PlayStation, czas przejścia gier i Moja historia za dowolne daty.",
+        "highlights": [
+          {
+            "title": "Także gry z PlayStation",
+            "text": "Importuj gry z PS5 i PS4 z czasem gry zapisanym przez Sony. PlayCounter liczy sesje na konsoli na żywo i pokazuje twoje trofea.",
+            "hint": "Kliknij prawym przyciskiem Moje gry na pasku bocznym → Importuj z PlayStation"
+          },
+          {
+            "title": "Czas przejścia",
+            "text": "Zobacz, ile trwa gra, jak daleko jesteś i ile jeszcze zostało. Oznacz ją jako ukończoną i dodaj swój czas w HowLongToBeat, z wartościami gotowymi do skopiowania.",
+            "hint": "Szczegóły gry → Czas przejścia"
+          },
+          {
+            "title": "Moja historia za dowolne daty",
+            "text": "Przechodź między miesiącami, tygodniami i dniami albo wybierz dowolne daty. Zobacz swoje gry dzień po dniu i porównanie z poprzednim okresem.",
+            "hint": "Moja historia → Wybierz daty"
+          },
+          {
+            "title": "Nowe gry na górze",
+            "text": "Gry dodane w ciągu ostatnich 7 dni i jeszcze nieuruchomione czekają w rzędzie nad Moimi grami, dopóki w nie nie zagrasz albo nie oznaczysz ich jako widzianych."
+          },
+          {
+            "title": "Kilka kont w jednym launcherze",
+            "text": "Każde konto launchera zachowuje własne godziny gry, a PlayCounter je sumuje. Szczegóły gry pokazują godziny każdego konta."
+          },
+          {
+            "title": "Najpierw nowy czas gry",
+            "text": "Przy ponownym imporcie sekcja Już w Moich grach zaczyna się od gier z nowym czasem gry, gotowych do aktualizacji. Importuj jest zawsze w tym samym miejscu, a każda karta importuje tylko swoje gry."
+          },
+          {
+            "title": "Status i półki z menu",
+            "text": "Kliknij grę prawym przyciskiem, aby ustawić jej status albo odłożyć ją na półkę. Każdy status ma własną ikonę i kolor na okładce."
+          },
+          {
+            "title": "Sortowanie osiągnięć",
+            "text": "Sortuj osiągnięcia gry według daty odblokowania, rzadkości albo nazwy."
+          },
+          {
+            "title": "Mniej pamięci podczas gry",
+            "text": "Licznik w grze nie zużywa już coraz więcej pamięci podczas długich sesji."
+          },
+          {
+            "title": "Poprawki",
+            "text": "Grafiki banerów pozostają ostre po pojawieniu się, szczegóły gry pokazują Tak, Nie i podobne wartości w twoim języku, a nierozpoczęte osiągnięcia Xbox nie pokazują już pustego paska."
+          }
+        ]
+      },
+      "pt-BR": {
+        "headline": "Traga seus jogos de PlayStation, veja quanto tempo um jogo dura e reveja qualquer período em Meu histórico.",
+        "highlights": [
+          {
+            "title": "Seus jogos de PlayStation também",
+            "text": "Importe seus jogos de PS5 e PS4 com o tempo de jogo que a Sony registrou. O PlayCounter conta suas sessões no console ao vivo e mostra seus troféus.",
+            "hint": "Clique com o botão direito em Meus jogos na barra lateral → Importar do PlayStation"
+          },
+          {
+            "title": "Duração",
+            "text": "Veja quanto tempo um jogo dura, onde você está e quanto falta. Marque-o como concluído e adicione seu tempo no HowLongToBeat com os valores prontos para copiar.",
+            "hint": "Detalhes do jogo → Duração"
+          },
+          {
+            "title": "Meu histórico em qualquer período",
+            "text": "Navegue por meses, semanas ou dias, ou escolha quaisquer datas. Veja quais jogos você jogou e quando, e como isso se compara ao período anterior.",
+            "hint": "Meu histórico → Escolher datas"
+          },
+          {
+            "title": "Jogos novos em destaque",
+            "text": "Jogos que você adicionou nos últimos 7 dias e ainda não jogou esperam em uma fileira acima de Meus jogos, até você jogá-los ou marcá-los como vistos."
+          },
+          {
+            "title": "Várias contas por launcher",
+            "text": "Cada conta de um launcher guarda as próprias horas de um jogo, e o PlayCounter soma tudo. Os detalhes do jogo mostram as horas de cada conta."
+          },
+          {
+            "title": "Tempo de jogo novo primeiro",
+            "text": "Ao importar de novo, Já em Meus jogos começa pelos jogos com tempo de jogo novo, prontos para atualizar. Importar fica sempre no mesmo lugar, e cada aba importa só os próprios jogos."
+          },
+          {
+            "title": "Status e prateleiras pelo menu",
+            "text": "Clique com o botão direito em um jogo para definir o status ou colocá-lo em uma prateleira. Cada status tem ícone e cor próprios na capa."
+          },
+          {
+            "title": "Ordene as conquistas",
+            "text": "Ordene as conquistas de um jogo por data de desbloqueio, raridade ou nome."
+          },
+          {
+            "title": "Menos memória enquanto você joga",
+            "text": "O cronômetro no seu jogo não usa mais cada vez mais memória em sessões longas."
+          },
+          {
+            "title": "Correções",
+            "text": "A arte do banner continua nítida depois de aparecer, os detalhes do jogo mostram Sim, Não e valores parecidos no seu idioma, e conquistas do Xbox que você ainda não começou não mostram mais uma barra vazia."
+          }
+        ]
+      },
+      "ru": {
+        "headline": "Добавьте игры с PlayStation, узнайте, сколько длится игра, и посмотрите любые даты в «Моей истории».",
+        "highlights": [
+          {
+            "title": "И ваши игры с PlayStation",
+            "text": "Импортируйте игры с PS5 и PS4 вместе со временем в игре, которое записала Sony. PlayCounter считает ваши сессии на консоли в реальном времени и показывает трофеи.",
+            "hint": "Правый клик по «Мои игры» на боковой панели → «Импорт из PlayStation»"
+          },
+          {
+            "title": "Время прохождения",
+            "text": "Узнайте, сколько длится игра, где вы сейчас и сколько осталось. Отметьте её завершённой и добавьте своё время на HowLongToBeat — значения уже готовы для копирования.",
+            "hint": "«Об игре» → «Время прохождения»"
+          },
+          {
+            "title": "«Моя история» за любые даты",
+            "text": "Листайте месяцы, недели или дни либо выберите любые даты. Смотрите, в какие игры и когда вы играли и как это выглядит по сравнению с прошлым периодом.",
+            "hint": "«Моя история» → «Выбрать даты»"
+          },
+          {
+            "title": "Новые игры наверху",
+            "text": "Игры, добавленные за последние 7 дней и ещё не запущенные, ждут в ряду над «Мои игры», пока вы в них не сыграете или не отметите их как просмотренные."
+          },
+          {
+            "title": "Несколько аккаунтов в одном лаунчере",
+            "text": "Каждый аккаунт лаунчера хранит свои часы в игре, а PlayCounter их складывает. В «Об игре» видны часы каждого аккаунта."
+          },
+          {
+            "title": "Сначала новое время в игре",
+            "text": "При повторном импорте вкладка «Уже в разделе „Мои игры“» начинается с игр, у которых есть новое время в игре, — их можно сразу обновить. «Импорт» всегда на одном месте, а каждая вкладка импортирует только свои игры."
+          },
+          {
+            "title": "Статус и полки из меню",
+            "text": "Нажмите правой кнопкой на игру, чтобы задать ей статус или поставить её на полку. У каждого статуса свой значок и цвет на обложке."
+          },
+          {
+            "title": "Сортировка достижений",
+            "text": "Сортируйте достижения игры по дате получения, редкости или названию."
+          },
+          {
+            "title": "Меньше памяти во время игры",
+            "text": "Таймер в игре больше не занимает всё больше памяти во время долгих сессий."
+          },
+          {
+            "title": "Исправления",
+            "text": "Изображения баннера остаются чёткими после появления, в «Об игре» значения «Да», «Нет» и подобные показаны на вашем языке, а у неначатых достижений Xbox больше нет пустой полосы."
+          }
+        ]
+      },
+      "zh-CN": {
+        "headline": "导入你的 PlayStation 游戏，查看一款游戏要玩多久，并在“我的历史”中回看任意日期。",
+        "highlights": [
+          {
+            "title": "PlayStation 游戏也来了",
+            "text": "导入你的 PS5 和 PS4 游戏，以及 Sony 记录的游戏时长。PlayCounter 会实时记录你在主机上的游玩记录，并显示你的奖杯。",
+            "hint": "在侧边栏右键点击“我的游戏” → “从 PlayStation 导入”"
+          },
+          {
+            "title": "通关时长",
+            "text": "查看一款游戏要玩多久、你玩到了哪里、还剩多少。可直接标记为已完成，并把你的时长添加到 HowLongToBeat，所需数值都已备好可复制。",
+            "hint": "游戏详情 → “通关时长”"
+          },
+          {
+            "title": "任意日期的“我的历史”",
+            "text": "按月、周或天前后翻看，或选择任意日期。看看你在什么时候玩了哪些游戏，以及与之前相比如何。",
+            "hint": "“我的历史” → “选择日期”"
+          },
+          {
+            "title": "新游戏放在最前面",
+            "text": "最近 7 天添加且还没玩过的游戏会排在“我的游戏”上方的一行里，直到你玩了它们或将它们标为已看。"
+          },
+          {
+            "title": "一个启动器多个账户",
+            "text": "启动器的每个账户都会单独保留一款游戏的时长，PlayCounter 会把它们加在一起。游戏详情会显示每个账户的时长。"
+          },
+          {
+            "title": "新的游戏时长优先",
+            "text": "再次导入时，“已在‘我的游戏’中”会先列出有新游戏时长的游戏，可直接更新。“导入”按钮始终在同一位置，每个标签页只导入自己的游戏。"
+          },
+          {
+            "title": "从菜单设置状态和分类架",
+            "text": "右键点击游戏即可设置状态或放到分类架上。每种状态在封面上都有自己的图标和颜色。"
+          },
+          {
+            "title": "成就排序",
+            "text": "按解锁日期、稀有度或名称对游戏的成就排序。"
+          },
+          {
+            "title": "游玩时占用更少内存",
+            "text": "游戏上的计时器在长时间游玩时不再越占越多内存。"
+          },
+          {
+            "title": "修复",
+            "text": "横幅图片淡入后保持清晰；游戏详情中的“是”“否”等值现在以你的语言显示；尚未开始的 Xbox 成就不再显示空进度条。"
+          }
+        ]
+      }
+    }
+  },
+  {
     "version": "1.5.0",
     "headline": "See your achievements, stay signed in to your launchers and close games right from PlayCounter.",
     "highlights": [

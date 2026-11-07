@@ -22,10 +22,11 @@ import {
 import {
   getSessionGameKey,
   groupSessionsByDay,
+  historySelectionFromDays,
   sessionMarkers,
   withLifetimeTotals,
-  type HistoryFilter,
   type HistoryHighlight,
+  type HistorySelection,
 } from "../../historyStats";
 import { providerFloorKey, providerFloors } from "../../library/playtimeFloor";
 import { gameLifetimeTotals } from "../../milestones";
@@ -62,6 +63,10 @@ import {
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
 import { HistoryHero, type HeroArtworkGame } from "./history/HistoryHero";
+import {
+  historySelectionLabel,
+  historySpanLabel,
+} from "./history/historyRangeLabels";
 import {
   getHistoryAnalytics,
   hasCachedHistoryInsights,
@@ -161,7 +166,6 @@ export function HistoryView() {
   const query = practice ? sampleQuery : realQuery;
   const setQuery = practice ? setSampleQuery : setRealQuery;
   const selectedGameKey = practice ? sampleGameKey : realGameKey;
-  const setSelectedGameKey = practice ? setSampleGameKey : setRealGameKey;
   const sessions = usePersonalLibraryState((state) => state.recentSessions);
   const exeCache = usePersonalLibraryState((state) => state.exeCache);
   const hydratedGameMetadata = usePersonalLibraryState(
@@ -173,6 +177,9 @@ export function HistoryView() {
   const archivedGameSeconds = usePersonalLibraryState(
     (state) => state.archivedGameSeconds,
   );
+  const archivedConsoleSeconds = usePersonalLibraryState(
+    (state) => state.archivedConsoleSeconds,
+  );
   const playtimeAdjustments = usePersonalLibraryState(
     (state) => state.playtimeAdjustments,
   );
@@ -180,16 +187,24 @@ export function HistoryView() {
     (state) => state.settings.showDurationDays,
   );
   const addToast = usePersonalLibraryState((state) => state.addToast);
-  // The tour's chart step points at the Insights tab; open it for the tour.
-  const tourWantsInsights = useAppStore((state) => {
+  // The stats guide opens the tab its step talks about: Sessions for the
+  // session step, Insights for the chart step.
+  const tourTab = useAppStore((state): HistoryTab | null => {
     const active = state.activeTour;
-    if (!active) return false;
+    if (!active || active.tourId !== "stats") return null;
     const step = findTour(active.tourId)?.steps[active.stepIndex];
-    return active.tourId === "stats" && step?.id === "charts";
+    if (step?.id === "sessions") return "sessions";
+    if (step?.id === "charts") return "insights";
+    return null;
   });
-  const [filter, setFilter] = useState<HistoryFilter>("all");
+  const [selection, setSelection] = useState<HistorySelection>({
+    kind: "all",
+  });
   const [sort, setSort] = useState<HistorySort>("newest");
-  const [tab, setTab] = useState<HistoryTab>("sessions");
+  // My History opens on Insights; a game picked elsewhere opens its sessions.
+  const [tab, setTab] = useState<HistoryTab>(() =>
+    selectedGameKey ? "sessions" : "insights",
+  );
   const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
@@ -227,8 +242,8 @@ export function HistoryView() {
   }, [insightsReady]);
 
   useEffect(() => {
-    if (tourWantsInsights) setTab("insights");
-  }, [tourWantsInsights]);
+    if (tourTab) setTab(tourTab);
+  }, [tourTab]);
 
   // A game filter set from elsewhere (banner menu, game details) lands on
   // the journal, which is where it applies.
@@ -317,6 +332,16 @@ export function HistoryView() {
     }
     return games;
   }, [resolveGame, resolveIgdbId, sessions]);
+  // The real filter carries the game's name for its chip in the search box;
+  // the practice has no search box and keeps its own filter.
+  const setSelectedGameKey = useCallback(
+    (key: string | null) => {
+      if (practice) setSampleGameKey(key);
+      else
+        setRealGameKey(key, key ? (gamesByKey.get(key)?.name ?? null) : null);
+    },
+    [gamesByKey, practice, setRealGameKey],
+  );
   const pickedCovers = usePickedCovers();
   const resolveGameCover = useCallback(
     (key: string | null) =>
@@ -343,13 +368,17 @@ export function HistoryView() {
     () =>
       getHistoryAnalytics(
         gameFilteredSessions,
-        filter,
+        selection,
         nowMs,
         resolveIgdbId,
         resolveGame,
       ),
-    [filter, gameFilteredSessions, nowMs, resolveGame, resolveIgdbId],
+    [gameFilteredSessions, nowMs, resolveGame, resolveIgdbId, selection],
   );
+  const rangeLabel = historySelectionLabel(selection, nowMs);
+  const comparisonLabel = analytics.previousRange
+    ? historySpanLabel(analytics.previousRange, nowMs)
+    : null;
   const markers = useMemo(
     () => sessionMarkers(sessions, resolveIgdbId),
     [resolveIgdbId, sessions],
@@ -374,21 +403,23 @@ export function HistoryView() {
 
   const lifetime = useMemo(
     () =>
-      filter === "all"
+      selection.kind === "all"
         ? gameLifetimeTotals({
             sessions,
             archivedGameSeconds,
+            archivedConsoleSeconds,
             playtimeAdjustments,
             providerFloors: providerFloors(libraryImports.values()),
             resolveIgdbId,
           })
         : null,
     [
+      archivedConsoleSeconds,
       archivedGameSeconds,
-      filter,
       libraryImports,
       playtimeAdjustments,
       resolveIgdbId,
+      selection.kind,
       sessions,
     ],
   );
@@ -497,7 +528,7 @@ export function HistoryView() {
 
   useEffect(
     () => setVisibleCount(25),
-    [deferredQuery, filter, selectedGameKey, sort],
+    [deferredQuery, selection, selectedGameKey, sort],
   );
   const visibleSessions = useMemo(
     () => sortedSessions.slice(0, visibleCount),
@@ -593,13 +624,42 @@ export function HistoryView() {
           setSort("newest");
           setTab("sessions");
           break;
+        // Both open their days: the whole page shows just those.
         case "bestStreak":
+          setSelection(
+            historySelectionFromDays(
+              highlight.fromKey,
+              highlight.toKey,
+              nowMs,
+              analytics.firstSessionMs,
+            ),
+          );
+          break;
         case "busiestDay":
-          setTab("insights");
+          setSelection(
+            historySelectionFromDays(
+              highlight.dateKey,
+              highlight.dateKey,
+              nowMs,
+              analytics.firstSessionMs,
+            ),
+          );
           break;
       }
     },
-    [setSelectedGameKey],
+    [analytics.firstSessionMs, nowMs, setSelectedGameKey],
+  );
+  const selectDay = useCallback(
+    (dateKey: string) =>
+      setSelection(
+        historySelectionFromDays(
+          dateKey,
+          dateKey,
+          nowMs,
+          analytics.firstSessionMs,
+        ),
+      ),
+    [analytics.firstSessionMs, nowMs],
   );
   const selectedGameName = selectedGameKey
     ? (gamesByKey.get(selectedGameKey)?.name ?? query)
@@ -781,8 +841,21 @@ export function HistoryView() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <HistoryHero
-        filter={filter}
-        onFilterChange={setFilter}
+        selection={selection}
+        onSelectionChange={setSelection}
+        rangeLabel={rangeLabel}
+        range={analytics.selectedRange}
+        nowMs={nowMs}
+        comparison={
+          comparisonLabel
+            ? {
+                previousSeconds: analytics.previousSeconds,
+                label: comparisonLabel,
+              }
+            : null
+        }
+        historyDaily={analytics.historyDaily}
+        practice={practice}
         rangeStats={analytics.rangeStats}
         allTimeStats={analytics.allTimeStats}
         lifetimeSeconds={lifetimeSeconds}
@@ -845,7 +918,7 @@ export function HistoryView() {
         </div>
         {tab === "sessions" ? (
           <div className="flex flex-wrap items-center gap-2 pb-2">
-            {selectedGameKey ? (
+            {practice && selectedGameKey ? (
               <span className="inline-flex max-w-[280px] items-center gap-1.5 rounded-lg border border-accent/45 bg-accent/10 py-1 pl-2.5 pr-1 text-[13px] font-semibold text-text">
                 <span className="truncate">{selectedGameName}</span>
                 <button
@@ -999,7 +1072,11 @@ export function HistoryView() {
           {insightsReady ? (
             <HistoryInsights
               sessions={gameFilteredSessions}
-              filter={filter}
+              selection={selection}
+              rangeLabel={rangeLabel}
+              comparisonLabel={comparisonLabel}
+              onSelectDay={selectDay}
+              onSelectGame={selectGame}
               nowMs={nowMs}
               showDurationDays={showDurationDays}
               resolveGame={resolveGame}

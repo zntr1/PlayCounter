@@ -6,9 +6,10 @@ import { saveAchievementLists } from "../achievements/achievementLists";
 import { getT } from "../i18n";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
 import { nativeText } from "../nativeText";
-import { STORAGE_KEY } from "../persistence";
+import { readPersistedText } from "../persistence";
 import { useAppStore, type GameMetadata } from "../store";
 import { importExeCandidates } from "./exeCandidates";
+import { readAgain } from "./accountReadings";
 import {
   librarySearchQuery,
   reverseResolveLibraryGame,
@@ -104,6 +105,8 @@ export type ImportSession = {
   waitingForServer: boolean;
   group: ImportGroupKey;
   current: string | null;
+  /** The game an Import moved on to, and when. */
+  movedOn: { externalId: string; at: number } | null;
   busy: string | null;
   browsing: string | null;
   /** `notImported`: picked games the server could not be asked about. */
@@ -147,6 +150,7 @@ export function createImportSession(
     waitingForServer: false,
     group: "ready",
     current: null,
+    movedOn: null,
     busy: null,
     browsing: null,
     lastImport: null,
@@ -280,6 +284,7 @@ const clearedReview = {
   authorizeUrl: null,
   waitingForServer: false,
   current: null,
+  movedOn: null,
   busy: null,
   browsing: null,
   lastImport: null,
@@ -567,12 +572,24 @@ export async function startImportScan(
       result.games
         .filter((game) => {
           const key = libraryEntryKey(providerId, game.externalId);
+          const existing = existingImports.get(key);
+          // D3 (docs/import-accounts-plan.md), widened 2026-11-02: a game in
+          // My Games starts checked when the read brings new playtime.
+          if (existing)
+            return (
+              canImportScannedGame({
+                game,
+                resolved: saved.get(key),
+                alreadyImported: true,
+                ignoredProcesses,
+              }) && readAgain(existing, game, result).newPlaytime
+            );
           return (
             importGroupForGame({
               game,
               provider: providerId,
               resolved: byKey.get(key),
-              alreadyImported: existingImports.has(key),
+              alreadyImported: false,
               ignoredProcesses,
             }) === "ready" && !startsUnchecked(game)
           );
@@ -705,10 +722,12 @@ export function notImportedText(name: string) {
   return t("{{name}} could not be imported. Please try again.", { name });
 }
 
-export async function importSelectedGames() {
+/** Imports the checked games the bar counts: the open tab's. */
+export async function importSelectedGames(externalIds: readonly string[]) {
   const start = session();
   const { providerId, scan } = start;
   if (!scan) return;
+  const chosen = new Set(externalIds);
   const profile = importProfile(providerId);
   const providerName = LIBRARY_PROVIDER_LABELS[providerId];
   const app = useAppStore.getState();
@@ -723,10 +742,7 @@ export async function importSelectedGames() {
     const imported = new Map<string, ResolvedLibraryGame>();
     const notImported: string[] = [];
     for (const game of scan.games) {
-      if (
-        !start.selected.has(game.externalId) ||
-        !selectable.has(game.externalId)
-      )
+      if (!chosen.has(game.externalId) || !selectable.has(game.externalId))
         continue;
       const key = libraryEntryKey(providerId, game.externalId);
       const inLibrary = app.libraryImports.has(key);
@@ -763,6 +779,8 @@ export async function importSelectedGames() {
           ? undefined
           : selectedExecutableFor(start, game),
         ignoredProcesses: app.ignoredProcesses,
+        account: scan.account,
+        partialRead: scan.totalsCutShort,
       });
       if (!commit) continue;
       if (inLibrary) updated += 1;
@@ -818,8 +836,11 @@ export async function importSelectedGames() {
 }
 
 /** Imports one game that needed the player: the game they picked, or the
- *  matched one, with the file they picked. */
-export async function importOneGame(externalId: string) {
+ *  matched one, with the file they picked. Then shows `next`, as Skip does. */
+export async function importOneGame(
+  externalId: string,
+  next: string | null = null,
+) {
   const start = session();
   const { providerId } = start;
   const profile = importProfile(providerId);
@@ -863,6 +884,8 @@ export async function importOneGame(externalId: string) {
       resolved: resolvedGame,
       selectedExecutable: selectedExecutableFor(start, scanned),
       ignoredProcesses: app.ignoredProcesses,
+      account: start.scan?.account,
+      partialRead: start.scan?.totalsCutShort,
     });
     if (!commit)
       throw new Error(
@@ -887,11 +910,18 @@ export async function importOneGame(externalId: string) {
     update((current) => {
       const selected = new Set(current.selected);
       selected.delete(externalId);
+      // Another game opened while this one was imported stays open.
+      const movesOn =
+        current.current === externalId || current.current === null;
       return {
         saved: new Map(current.saved).set(key, done),
         completed: new Set(current.completed).add(externalId),
         selected,
-        current: null,
+        current: movesOn ? next : current.current,
+        movedOn:
+          movesOn && next !== null
+            ? { externalId: next, at: Date.now() }
+            : current.movedOn,
       };
     });
     const linkedCount =
@@ -906,22 +936,25 @@ export async function importOneGame(externalId: string) {
           ? importShareDetail(
               result.shareOutcomes.map(({ outcome }) => outcome.kind),
             )
-          : profile.linksFilesPerInstall
-            ? scanned.installed
-              ? t(
-                  "The game file is linked to this installation for future tracking.",
-                )
-              : t(
-                  "Added to My Games. After installing it, scan again to link its game file.",
-                )
-            : linkedCount > 0
-              ? t(
-                  "{{count}} known game files were linked, so PlayCounter tracks this game once it is installed.",
-                  { count: linkedCount },
-                )
-              : t(
-                  "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
-                ),
+          : profile.consoleOnly
+            ? // A console game has no file on this PC to tell about.
+              undefined
+            : profile.linksFilesPerInstall
+              ? scanned.installed
+                ? t(
+                    "The game file is linked to this installation for future tracking.",
+                  )
+                : t(
+                    "Added to My Games. After installing it, scan again to link its game file.",
+                  )
+              : linkedCount > 0
+                ? t(
+                    "{{count}} known game files were linked, so PlayCounter tracks this game once it is installed.",
+                    { count: linkedCount },
+                  )
+                : t(
+                    "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
+                  ),
     });
   } catch (cause) {
     if (!isCurrent(signal, providerId)) return;
@@ -1105,6 +1138,11 @@ export function showImportList() {
   update({ phase: "ready" });
 }
 
+/** From the done screen to the games in My Games with new playtime. */
+export function showImportUpdates() {
+  update({ phase: "ready", group: "imported", current: null });
+}
+
 /** From the done screen back to the games that still need the player. */
 export function reviewRemainingGames() {
   update({
@@ -1187,7 +1225,7 @@ async function backupOnce(signal: AbortSignal) {
   signal.throwIfAborted();
   if (backedUp) return;
   await invoke("backup_local_data", {
-    contents: localStorage.getItem(STORAGE_KEY) ?? "{}",
+    contents: readPersistedText() ?? "{}",
   });
   signal.throwIfAborted();
   backedUp = true;

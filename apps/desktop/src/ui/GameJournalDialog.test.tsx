@@ -1,14 +1,27 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore, type ActiveSession } from "../store";
+import { gameStatusLabel, type GameStatus } from "../personalLibrary";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
 import { ContextMenu } from "./ContextMenu";
+import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
+/** The icon each status shows: on the cover, in every status menu, and on
+ *  the filter pills. */
+const STATUS_ICONS: Record<GameStatus, string> = {
+  playing: "lucide-play",
+  "on-hold": "lucide-pause",
+  finished: "lucide-check",
+  "want-to-play": "lucide-bookmark",
+  "want-to-replay": "lucide-rotate-ccw",
+  "not-planned": "lucide-ban",
+};
 let root: Root;
 let container: HTMLDivElement;
 let first: string;
@@ -236,6 +249,241 @@ it("rates a game from the card menu, shows the tier on the cover, and hides it b
   expect(getGameJournal(useAppStore.getState(), game).tier).toBeUndefined();
 });
 
+it("sets the status from the card menu in one click, ticks the current one, and clears it", async () => {
+  const onClose = vi.fn();
+  await act(() =>
+    root.render(
+      <>
+        <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+          <GameJournalMenu game={game} onClose={onClose} />
+        </ContextMenu>
+        <GameJournalBadges game={game} />
+      </>,
+    ),
+  );
+  const menuLabels = [
+    ...document.querySelectorAll("[data-context-menu-item]"),
+  ].map((item) => item.textContent?.trim());
+  expect(menuLabels.indexOf("Status")).toBe(menuLabels.indexOf("Tier") - 1);
+  expect(document.querySelector('[aria-label^="Status:"]')).toBeNull();
+  const statusItems = () => {
+    const trigger = [
+      ...document.querySelectorAll("[data-context-menu-item]"),
+    ].find((item) => item.textContent?.trim() === "Status")!;
+    return [
+      ...document
+        .getElementById(trigger.getAttribute("aria-controls")!)!
+        .querySelectorAll("[data-context-menu-item]"),
+    ];
+  };
+
+  await click("Status");
+  expect(statusItems().map((item) => item.textContent?.trim())).toEqual([
+    "In progress",
+    "On hold",
+    "Finished",
+    "Want to play",
+    "Want to replay",
+    "Not planned",
+  ]);
+  // Each status shows the icon it has on covers and filter pills.
+  GAME_STATUS_LIST.forEach((status, index) =>
+    expect(
+      statusItems()[index].querySelector(`svg.${STATUS_ICONS[status]}`),
+      status,
+    ).not.toBeNull(),
+  );
+  expect(
+    statusItems().every(
+      (item) => item.getAttribute("aria-checked") === "false",
+    ),
+  ).toBe(true);
+
+  await click("Finished");
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(getGameJournal(useAppStore.getState(), game).status).toBe("finished");
+  expect(
+    document.querySelector('[aria-label="Status: Finished"]'),
+  ).not.toBeNull();
+
+  await click("Status");
+  expect(
+    statusItems()
+      .filter((item) => item.getAttribute("aria-checked") === "true")
+      .map((item) => item.textContent?.trim()),
+  ).toEqual(["Finished"]);
+  expect(statusItems().at(-1)?.textContent?.trim()).toBe("Clear status");
+
+  await click("Clear status");
+  expect(onClose).toHaveBeenCalledTimes(2);
+  expect(getGameJournal(useAppStore.getState(), game).status).toBeNull();
+  expect(document.querySelector('[aria-label^="Status:"]')).toBeNull();
+});
+
+function menuLabels() {
+  return [...document.querySelectorAll("[data-context-menu-item]")].map(
+    (item) => item.textContent?.trim(),
+  );
+}
+
+/** The items of an open submenu, found from its trigger. */
+function submenuItems(label: string) {
+  const trigger = [
+    ...document.querySelectorAll("[data-context-menu-item]"),
+  ].find((item) => item.textContent?.trim() === label)!;
+  return [
+    ...document
+      .getElementById(trigger.getAttribute("aria-controls")!)!
+      .querySelectorAll("[data-context-menu-item]"),
+  ];
+}
+
+it("puts a game on another shelf from the card menu, keeps it on its shelves, and takes it off a ticked one", async () => {
+  const state = () => useAppStore.getState();
+  const rpgs = state().savePersonalShelf({ name: "RPGs" })!;
+  const backlog = state().savePersonalShelf({ name: "Backlog" })!;
+  // Filters fill this shelf; a pick by hand can't put a game on it.
+  state().savePersonalShelf({
+    name: "Unplayed",
+    filters: { played: "unplayed" },
+  });
+  state().updateGameJournal(game, { shelfIds: [rpgs] });
+  const onClose = vi.fn();
+  await act(() =>
+    root.render(
+      <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+        <GameJournalMenu game={game} onClose={onClose} />
+      </ContextMenu>,
+    ),
+  );
+  // Right under Tier, the way Status sits right above it.
+  expect(menuLabels().indexOf("Shelves")).toBe(
+    menuLabels().indexOf("Tier") + 1,
+  );
+  const ticked = () =>
+    submenuItems("Shelves")
+      .filter((item) => item.getAttribute("aria-checked") === "true")
+      .map((item) => item.textContent?.trim());
+
+  await click("Shelves");
+  // Favorites keeps its own item in the menu.
+  expect(
+    submenuItems("Shelves").map((item) => item.textContent?.trim()),
+  ).toEqual(["RPGs", "Backlog"]);
+  expect(ticked()).toEqual(["RPGs"]);
+
+  await click("Backlog");
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(getGameJournal(state(), game).shelfIds).toEqual([rpgs, backlog]);
+
+  await click("Shelves");
+  expect(ticked()).toEqual(["RPGs", "Backlog"]);
+  await click("RPGs");
+  expect(onClose).toHaveBeenCalledTimes(2);
+  expect(getGameJournal(state(), game).shelfIds).toEqual([backlog]);
+});
+
+it("leaves Shelves out of the card menu until a shelf takes games by hand, and while shelves are switched off", async () => {
+  const state = () => useAppStore.getState();
+  await act(() =>
+    root.render(
+      <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+        <GameJournalMenu game={game} onClose={() => {}} />
+      </ContextMenu>,
+    ),
+  );
+  expect(menuLabels()).toContain("Tier");
+  expect(menuLabels()).not.toContain("Shelves");
+
+  await act(() => {
+    state().savePersonalShelf({
+      name: "Unplayed",
+      filters: { played: "unplayed" },
+    });
+  });
+  expect(menuLabels()).not.toContain("Shelves");
+
+  await act(() => {
+    state().savePersonalShelf({ name: "Backlog" });
+  });
+  expect(menuLabels()).toContain("Shelves");
+
+  // Appearance → Shelves off hides the shelf row and the Journal's shelf
+  // buttons; the card menu follows.
+  await act(() => state().setMyGamesShowShelves(false));
+  expect(menuLabels()).not.toContain("Shelves");
+  await act(() => state().setMyGamesShowShelves(true));
+  expect(menuLabels()).toContain("Shelves");
+});
+
+it.each(GAME_STATUS_LIST)(
+  "shows %s on the cover as its icon, with the name only in the tooltip",
+  async (status) => {
+    useAppStore.getState().updateGameJournal(game, { status });
+    await act(() => root.render(<GameJournalBadges game={game} />));
+    const label = `Status: ${gameStatusLabel(status)}`;
+    const badge = document.querySelector(`[aria-label="${label}"]`);
+    expect(badge).not.toBeNull();
+    expect(badge!.getAttribute("title")).toBe(label);
+    expect(badge!.querySelector(`svg.${STATUS_ICONS[status]}`)).not.toBeNull();
+    // The name never sits on the cover, so long names ("Will ich nochmal
+    // spielen") can't push the other badges off it.
+    expect(container.textContent).not.toContain(gameStatusLabel(status));
+  },
+);
+
+it("puts the status first on the cover, before the note, favorite and tier badges", async () => {
+  useAppStore.getState().updateGameJournal(game, {
+    status: "on-hold",
+    note: "Boss at the bridge",
+    favorite: true,
+  });
+  useAppStore.getState().setGameTier(game, "S");
+  await act(() => root.render(<GameJournalBadges game={game} />));
+  // The status always sits in the same spot, whatever other badges a card has.
+  const row = document.querySelector(
+    '[aria-label="Status: On hold"]',
+  )!.parentElement!;
+  expect([...row.children].map((badge) => badge.getAttribute("title"))).toEqual(
+    ["Status: On hold", "Read note", "Favorite", "Tier: S"],
+  );
+});
+
+it("shows the status icon on the journal's progress button and in its menu", async () => {
+  useAppStore.getState().updateGameJournal(game, { status: "on-hold" });
+  useAppStore.getState().openGameJournal({ game, tab: "note" });
+  await act(() => root.render(<GameJournalHost />));
+  const progress = document.querySelector('[aria-label="Progress status"]')!;
+  expect(progress.textContent).toContain("On hold");
+  expect(progress.querySelector("svg.lucide-pause")).not.toBeNull();
+
+  await clickLabel("Progress status");
+  const items = [...document.querySelectorAll("[data-context-menu-item]")];
+  for (const status of GAME_STATUS_LIST) {
+    const item = items.find(
+      (element) => element.textContent?.trim() === gameStatusLabel(status),
+    );
+    expect(item, `no menu item for ${status}`).toBeDefined();
+    expect(
+      item!.querySelector(`svg.${STATUS_ICONS[status]}`),
+      status,
+    ).not.toBeNull();
+  }
+});
+
+it("gives every status its own colour, never the accent colour, and keeps green away from In progress", () => {
+  const colours = GAME_STATUS_LIST.map((status) => STATUS_TONES[status].text);
+  expect(new Set(colours).size).toBe(GAME_STATUS_LIST.length);
+  for (const colour of colours) expect(colour).not.toMatch(/accent/);
+  // A running game's card turns green ("Running"), so a green In progress
+  // badge would read as running. The dark theme block comes first.
+  const styles = readFileSync("src/styles.css", "utf8");
+  const value = (name: string) =>
+    styles.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1];
+  expect(value("--color-status-playing")).toBeDefined();
+  expect(value("--color-status-playing")).not.toBe(value("--color-success"));
+});
+
 it("shows only the running session's playthrough note when switching assignments in Now Playing", async () => {
   const session: ActiveSession = {
     ...game,
@@ -442,4 +690,27 @@ it("offers the playthrough menu in Now Playing even before a game has playthroug
   expect(
     document.querySelector('[aria-label="New playthrough name"]'),
   ).not.toBeNull();
+});
+
+// docs/history-ranges-plan.md 34: the game goes to the search box as a chip.
+it("opens My History filtered to the game, as a chip rather than search text", async () => {
+  const session = {
+    ...game,
+    id: 9,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  useAppStore.setState({ recentSessions: [session] });
+  useAppStore
+    .getState()
+    .openGameJournal({ game, tab: "playthroughs", playthroughId: null });
+  await act(() => root.render(<GameJournalHost />));
+  await click("Show full history");
+  const state = useAppStore.getState();
+  expect(state.activeView).toBe("history");
+  expect(state.historyGameKey).not.toBeNull();
+  expect(state.historyGameName).toBe("Campaign");
+  expect(state.historyQuery).toBe("");
 });

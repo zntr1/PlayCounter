@@ -15,5 +15,7 @@ export async function loadLibraryProvider(
       return (await import("./steam")).steamProvider;
     case "xbox":
       return (await import("./xbox")).xboxProvider;
+    case "playstation":
+      return (await import("./playstation")).playStationProvider;
   }
 }

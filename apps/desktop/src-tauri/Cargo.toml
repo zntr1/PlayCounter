@@ -1,6 +1,6 @@
 [package]
 name = "playcounter"
-version = "1.5.0"
+version = "1.6.0"
 description = "Launcher-agnostic game play tracker"
 authors = ["PlayCounter"]
 edition = "2021"

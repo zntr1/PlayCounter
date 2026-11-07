@@ -18,6 +18,10 @@ import {
   disposePlaytimeReminder,
 } from "./playtimeReminder";
 import {
+  initializePlayStationLive,
+  disposePlayStationLive,
+} from "./playstationLive";
+import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
 } from "./automaticBackups";
@@ -231,6 +235,7 @@ import {
   moveGenericNameLinksToFolders,
 } from "./library/genericExeLinks";
 import type {
+  AccountReading,
   IgnoredExeFolder,
   LibraryImportEntry,
   LibraryInstallEntry,
@@ -238,6 +243,7 @@ import type {
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
+import { playsOnConsole } from "./library/importProfiles";
 import { forgetLauncherAutoAdd } from "./library/libraryAutoAddState";
 import {
   syncLibraryInstalls,
@@ -349,6 +355,7 @@ type PersistedState = {
   milestonesInitializedAt?: string;
   archivedSeconds?: number;
   archivedGameSeconds?: Record<string, number>;
+  archivedConsoleSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
   customHeroArt?: unknown;
   customCoverArt?: unknown;
@@ -529,6 +536,11 @@ export async function initializeTracker() {
   initializeHotkeys();
   initializeQuickNotes();
   initializeLiveTimer(runningGamePids);
+  initializePlayStationLive({
+    start: startConsoleSession,
+    see: seeConsoleSession,
+    end: endConsoleSession,
+  });
   initializePlaytimeReminder();
   initializeControllerBridge();
   syncTrayNowPlaying();
@@ -578,6 +590,7 @@ export async function stopTrackerForReset() {
   disposeHotkeys();
   disposeQuickNotes();
   disposeLiveTimer();
+  disposePlayStationLive();
   disposePlaytimeReminder();
   disposeControllerBridge();
   await scanInFlight;
@@ -656,6 +669,7 @@ async function finishTrackerStartup() {
     disposeHotkeys();
     disposeQuickNotes();
     disposeLiveTimer();
+    disposePlayStationLive();
     disposePlaytimeReminder();
     disposeAutomaticBackups();
     disposeControllerBridge();
@@ -755,8 +769,15 @@ export function normalizePersistedLibraryImport(
   if (linkedExeNames.length > 0 && linkedExeSources.length === 0) {
     linkedExeSources.push(entry.source);
   }
+  const { accounts: savedAccounts, ...saved } = entry;
+  const accounts = Array.isArray(savedAccounts)
+    ? savedAccounts.flatMap((item) => {
+        const reading = normalizeAccountReading(item);
+        return reading ? [reading] : [];
+      })
+    : [];
   return {
-    ...entry,
+    ...saved,
     providerSeconds:
       entry.providerSeconds === null
         ? null
@@ -769,7 +790,46 @@ export function normalizePersistedLibraryImport(
         : undefined,
     linkedExeNames,
     linkedExeSources: [...new Set(linkedExeSources)],
+    // A broken reading is dropped; the game and its total stay.
+    ...(accounts.length > 0 ? { accounts } : {}),
   } as LibraryImportEntry;
+}
+
+/** One saved account reading, or null when it isn't one. */
+function normalizeAccountReading(value: unknown): AccountReading | null {
+  if (!value || typeof value !== "object") return null;
+  const reading = value as Partial<Record<keyof AccountReading, unknown>>;
+  const validDate = (date: unknown): date is string =>
+    typeof date === "string" && Number.isFinite(Date.parse(date));
+  if (
+    typeof reading.key !== "string" ||
+    reading.key.length === 0 ||
+    reading.key.length > 64 ||
+    (reading.name !== undefined &&
+      reading.name !== null &&
+      typeof reading.name !== "string") ||
+    (reading.seconds !== null &&
+      (typeof reading.seconds !== "number" ||
+        !Number.isFinite(reading.seconds) ||
+        reading.seconds < 0)) ||
+    !validDate(reading.readAt)
+  ) {
+    return null;
+  }
+  const name =
+    typeof reading.name === "string" ? reading.name.trim().slice(0, 64) : "";
+  return {
+    key: reading.key,
+    name: name || null,
+    seconds: reading.seconds === null ? null : Math.round(reading.seconds),
+    ...(validDate(reading.lastPlayedAt)
+      ? { lastPlayedAt: reading.lastPlayedAt }
+      : {}),
+    ...(typeof reading.hasPlayedEvidence === "boolean"
+      ? { hasPlayedEvidence: reading.hasPlayedEvidence }
+      : {}),
+    readAt: reading.readAt,
+  };
 }
 
 /**
@@ -816,6 +876,8 @@ export function backfillLibraryExecutableCache(
     // A Battle.net product/variant is identified by its folder. Backups may
     // omit local paths; never reconstruct a basename-only match from them.
     if (entry.provider === "battlenet") continue;
+    // A console copy has no PC file to rebuild.
+    if (playsOnConsole(entry.provider)) continue;
     const identifierSource = entry.linkedExeSources.includes("igdb")
       ? "igdb"
       : entry.linkedExeSources.includes("community")
@@ -845,6 +907,43 @@ export function backfillLibraryExecutableCache(
       });
       changed = true;
     }
+  }
+  return changed;
+}
+
+/**
+ * PlayStation imports before 2026-11-02 linked the PC version's files from
+ * the database. A console copy has none: those links go. A file that ran
+ * here stays, PlayCounter linked it itself. Returns whether anything changed.
+ */
+export function unlinkConsoleImportFiles(
+  exeCache: Map<string, ExeCacheEntry>,
+  libraryImports: Map<string, LibraryImportEntry>,
+) {
+  let changed = false;
+  for (const [key, entry] of exeCache) {
+    if (entry.libraryProvider && playsOnConsole(entry.libraryProvider)) {
+      exeCache.delete(key);
+      changed = true;
+    }
+  }
+  for (const [key, imported] of libraryImports) {
+    if (!playsOnConsole(imported.provider)) continue;
+    const kept = imported.linkedExeNames.filter(
+      (exeName) => exeCache.get(exeName.toLowerCase())?.state === "matched",
+    );
+    if (kept.length === imported.linkedExeNames.length) continue;
+    const sources = new Set<GameSource>();
+    for (const exeName of kept) {
+      const source = fileMatchSource(exeCache.get(exeName.toLowerCase())!);
+      if (source) sources.add(source);
+    }
+    libraryImports.set(key, {
+      ...imported,
+      linkedExeNames: kept,
+      linkedExeSources: [...sources],
+    });
+    changed = true;
   }
   return changed;
 }
@@ -1205,6 +1304,10 @@ export function hydrate() {
   ) {
     shouldPersistAchievementMigration = true;
   }
+  const unlinkedConsoleImportFiles = unlinkConsoleImportFiles(
+    exeCacheMap,
+    libraryImports,
+  );
   const backfilledLibraryExecutableCache = backfillLibraryExecutableCache(
     exeCacheMap,
     libraryImports.values(),
@@ -1228,6 +1331,9 @@ export function hydrate() {
     sanitizeGameSecondsRecord(persisted.archivedGameSeconds, { signed: false }),
     hydratedOverflow,
     sanitizePlaythroughSeconds(persisted.archivedPlaythroughSeconds),
+    sanitizeGameSecondsRecord(persisted.archivedConsoleSeconds, {
+      signed: false,
+    }),
   );
   const hydratedResolver = createGameIdentityResolver(
     gameMetadataMap,
@@ -1239,6 +1345,7 @@ export function hydrate() {
     recordedSecondsByGame({
       sessions: hydratedSessions,
       archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+      archivedConsoleSeconds: hydratedArchive.archivedConsoleSeconds,
       resolveIgdbId: hydratedResolver,
     }),
   );
@@ -1250,6 +1357,7 @@ export function hydrate() {
     moveAdjustmentsOnTop(playtimeAdjustments, gamesReadBeforeSnapshots, {
       sessions: hydratedSessions,
       archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+      archivedConsoleSeconds: hydratedArchive.archivedConsoleSeconds,
       providerFloors: providerFloors(libraryImports.values()),
       resolveIgdbId: hydratedResolver,
     }) ||
@@ -1458,6 +1566,7 @@ export function hydrate() {
     milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
     archivedSeconds: hydratedArchive.archivedSeconds,
     archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+    archivedConsoleSeconds: hydratedArchive.archivedConsoleSeconds,
     playtimeAdjustments,
     customHeroArt: sanitizeCustomHeroArt(persisted.customHeroArt),
     customCoverArt: sanitizeCustomCoverArt(persisted.customCoverArt),
@@ -1493,6 +1602,7 @@ export function hydrate() {
     shouldPersistAchievementMigration ||
     shouldPersistLaunchPathOptOut ||
     backfilledLibraryExecutableCache ||
+    unlinkedConsoleImportFiles ||
     movedGenericNameLinks
   ) {
     persist();
@@ -2350,8 +2460,10 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   for (const current of currentSessions) {
     // A timer counts play away from this PC: no process ends it, only Stop.
     // A running exe of the same game joins it instead of opening a session.
-    if (current.timer) {
-      checkpointActiveSessionIfDue(current);
+    if (current.timer || current.console) {
+      // A console session's checkpoint is its last sighting at Sony
+      // (playstationLive.ts); only a timer counts on by itself.
+      if (current.timer) checkpointActiveSessionIfDue(current);
       continue;
     }
     const continuingGroup = matchesByGame.get(sessionIdentityKey(current));
@@ -5322,7 +5434,7 @@ function moveGameTimeToSoftware(exeName: string) {
   const until = lastToolTickAt ?? Date.now();
   // A timer only borrows the file name; its time is the game's.
   for (const session of state.activeSessions.filter(
-    (session) => isThisExe(session) && !session.timer,
+    (session) => isThisExe(session) && !session.timer && !session.console,
   )) {
     intervals.push({ fromMs: Date.parse(session.startedAt), toMs: until });
     removeActiveSession(session);
@@ -5381,7 +5493,8 @@ export async function markExecutableAsSoftware(
   });
   persist();
   void requestProcessScan("after marking software");
-  if (!input.share) return { kind: "local" };
+  // Game.exe names no app for anyone else: it is never shared.
+  if (!input.share || isGenericExeName(exeName)) return { kind: "local" };
 
   const state = useAppStore.getState();
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions`;
@@ -6468,7 +6581,10 @@ async function ignoreProcessLocally(
   state.toggleBlacklist(exeName, true);
   // A timer only borrows the file name; no copy of the file runs for it.
   for (const session of state.activeSessions.filter(
-    (candidate) => candidate.exeName.toLowerCase() === key && !candidate.timer,
+    (candidate) =>
+      candidate.exeName.toLowerCase() === key &&
+      !candidate.timer &&
+      !candidate.console,
   )) {
     removeActiveSession(session);
   }
@@ -6527,6 +6643,7 @@ function ignoreExeFoldersLocally(
         (active) =>
           active.exeName.toLowerCase() === key &&
           !active.timer &&
+          !active.console &&
           active.gameId === link.gameId &&
           (active.source ?? "igdb") === link.source,
       )) {
@@ -6762,7 +6879,8 @@ type SessionEndReason =
   | "settings-change"
   | "route-change"
   | "timer-stopped"
-  | "closed-in-app";
+  | "closed-in-app"
+  | "console-ended";
 
 async function endSession(
   session: ActiveSession,
@@ -6801,19 +6919,26 @@ async function endSession(
     startedAt: session.startedAt,
     endedAt,
     durationSeconds,
-    origin: session.timer ? "manual" : undefined,
+    origin: session.timer
+      ? "manual"
+      : session.console
+        ? "playstation"
+        : undefined,
+    ...(session.console ? { console: session.console } : {}),
     emulator: session.emulator,
     note: session.note,
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
   // Every end of play: a game that exited, was closed from My Games or ended
-  // while PlayCounter was closed, and a timer for play on a console.
+  // while PlayCounter was closed, a timer for play on a console, and a PS5 or
+  // PS4 game Sony no longer shows running.
   if (
     reason === "process-ended" ||
     reason === "closed-in-app" ||
     reason === "recovered-checkpoint" ||
-    reason === "timer-stopped"
+    reason === "timer-stopped" ||
+    reason === "console-ended"
   ) {
     schedulePostGameAchievementRefresh(session);
   }
@@ -7011,6 +7136,12 @@ export function persist() {
       )
         ? current.archivedGameSeconds
         : result.archivedGameSeconds;
+      const archivedConsoleSeconds = sameNumberRecord(
+        current.archivedConsoleSeconds,
+        result.archivedConsoleSeconds,
+      )
+        ? current.archivedConsoleSeconds
+        : result.archivedConsoleSeconds;
       if (
         recentSessions === current.recentSessions &&
         notifications === current.notifications &&
@@ -7019,7 +7150,8 @@ export function persist() {
           current.archivedPlaythroughSeconds,
           result.archivedPlaythroughSeconds,
         ) &&
-        archivedGameSeconds === current.archivedGameSeconds
+        archivedGameSeconds === current.archivedGameSeconds &&
+        archivedConsoleSeconds === current.archivedConsoleSeconds
       ) {
         return current;
       }
@@ -7029,6 +7161,7 @@ export function persist() {
         archivedSeconds: result.archivedSeconds,
         archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
+        archivedConsoleSeconds,
       };
     });
   }
@@ -7375,6 +7508,7 @@ export function evaluateAndStoreMilestones(
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    archivedConsoleSeconds: state.archivedConsoleSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     providerFloors: providerFloors(state.libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
@@ -7428,6 +7562,7 @@ function currentGameTotalSeconds(session: ActiveSession) {
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    archivedConsoleSeconds: state.archivedConsoleSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     providerFloors: providerFloors(state.libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
@@ -7947,7 +8082,9 @@ export async function submitLocalLinkToCommunity(
   if (
     link?.source !== "custom" ||
     link.communitySuggestionId !== undefined ||
-    !link.gameName
+    !link.gameName ||
+    // Game.exe names no game for anyone else: it is never shared.
+    isGenericExeName(link.exeName)
   ) {
     return { kind: "not-applicable" };
   }
@@ -8455,6 +8592,74 @@ export async function stopGameTimer(sessionId: number) {
   persist();
 }
 
+/** A PS5 or PS4 game Sony shows running (playstationLive.ts). Nothing opens
+ *  when the game already has a session here: a PC process or a timer of the
+ *  same game counts once. */
+export function startConsoleSession(params: {
+  gameId: number;
+  igdbId?: number;
+  gameName: string;
+  coverUrl: string;
+  source: Game["source"] | null;
+  titleId: string;
+  platform: "PS5" | "PS4";
+}) {
+  const state = useAppStore.getState();
+  const source = params.source ?? undefined;
+  const key = activeSessionKey(params.gameId, source, params.igdbId);
+  if (
+    state.activeSessions.some((session) => sessionIdentityKey(session) === key)
+  ) {
+    return undefined;
+  }
+  const startedAt = new Date().toISOString();
+  const session: ActiveSession = {
+    id: createSessionId(),
+    playthroughId:
+      getGameJournal(state, params).activePlaythroughId ?? undefined,
+    gameId: params.gameId,
+    igdbId: params.igdbId,
+    gameName: params.gameName,
+    exeName: params.titleId,
+    coverUrl: params.coverUrl,
+    source,
+    startedAt,
+    checkpointedAt: startedAt,
+    console: params.platform,
+  };
+  useAppStore.setState((current) => ({
+    activeSessions: [...current.activeSessions, session],
+  }));
+  logRuntime(`console session started ${params.gameName} (${params.titleId})`);
+  persist();
+  return session.id;
+}
+
+/** Sony still shows it: the session lasts at least until now. */
+export function seeConsoleSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId && active.console);
+  if (!session) return;
+  updateActiveSession({
+    ...session,
+    checkpointedAt: new Date().toISOString(),
+    recoveredFromCheckpoint: false,
+  });
+  persist();
+}
+
+/** Sony no longer shows it, or PlayCounter lost sight of Sony: the session
+ *  ends at its last sighting, never later. */
+export async function endConsoleSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId && active.console);
+  if (!session) return;
+  await endSession(session, session.checkpointedAt, "console-ended");
+  persist();
+}
+
 export type CloseGameOutcome = "closed" | "stillRunning" | "blocked";
 
 /** Closes a running game from My Games: politely (its windows get the ✕),
@@ -8468,7 +8673,7 @@ export async function closeRunningGame(
     useAppStore
       .getState()
       .activeSessions.find(
-        (active) => active.id === sessionId && !active.timer,
+        (active) => active.id === sessionId && !active.timer && !active.console,
       );
   const session = findSession();
   if (!session) return "closed";
@@ -8570,6 +8775,7 @@ export function setGamePlaytime(params: {
     recordedSecondsByGame({
       sessions: state.recentSessions,
       archivedGameSeconds: state.archivedGameSeconds,
+      archivedConsoleSeconds: state.archivedConsoleSeconds,
       resolveIgdbId: createGameIdentityResolver(
         state.gameMetadata,
         state.exeCache,
@@ -8620,6 +8826,7 @@ function changeHistorySessions(
         state.archivedGameSeconds,
         removed,
         state.archivedPlaythroughSeconds,
+        state.archivedConsoleSeconds,
       ),
     };
   });
@@ -8872,6 +9079,7 @@ export function clearLocalLibrary() {
     emulatorLaunchCandidates: new Map(),
     archivedSeconds: 0,
     archivedGameSeconds: {},
+    archivedConsoleSeconds: {},
     gameJournals: {},
     personalShelves: [],
     archivedPlaythroughSeconds: {},

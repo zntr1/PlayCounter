@@ -47,7 +47,8 @@ import {
   Pill,
   useAnchoredMenu,
 } from "./primitives";
-import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST } from "./journalStyles";
+import { GameStatusIcon } from "./GameStatusIcon";
 import { formatDuration } from "./components";
 import { GameCover } from "./GameCover";
 import { SessionNote } from "./SessionNote";
@@ -924,8 +925,12 @@ function ShowHistoryLink({
       className="!px-2 !py-1 text-[13px]"
       onClick={() => {
         onNavigate();
-        setHistoryQuery(target.game.gameName ?? "");
-        setHistoryGameKey(getSessionGameKey(session, resolveIgdbId));
+        // The game shows as a chip in the search box, so no search text.
+        setHistoryQuery("");
+        setHistoryGameKey(
+          getSessionGameKey(session, resolveIgdbId),
+          target.game.gameName ?? session.gameName ?? null,
+        );
         setActiveView("history");
       }}
     >
@@ -1084,9 +1089,11 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         selected={Boolean(status)}
         onClick={statusMenu.toggle}
       >
-        <span
-          className={`h-2 w-2 rounded-full ${status ? STATUS_TONES[status].dot : "bg-text-faint"}`}
-        />
+        {status ? (
+          <GameStatusIcon status={status} />
+        ) : (
+          <span className="h-2 w-2 rounded-full bg-text-faint" />
+        )}
         {status ? gameStatusLabel(status) : t("Set progress")}
         <ChevronDown size={12} className="opacity-70" />
       </Pill>
@@ -1109,6 +1116,10 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
               statusMenu.close();
             }}
           >
+            <GameStatusIcon
+              status={value}
+              className="mr-2 inline-block align-middle"
+            />
             {gameStatusLabel(value)}
           </ContextMenuItem>
         ))}

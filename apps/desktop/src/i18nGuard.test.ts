@@ -253,6 +253,10 @@ const BRANDS = new Set([
   "Battle.net",
   "Epic Games",
   "GOG",
+  "PlayStation",
+  "PS5",
+  "PS4",
+  "Sony",
   "IGDB",
   "Discord",
   "Spotify",
@@ -304,6 +308,25 @@ const UI_ATTRIBUTES = new Set([
   "ariaLabel",
   "unit",
 ]);
+
+// A form control's value is data. Anywhere else (Row, Figure, …) `value` is
+// what the user reads.
+const FORM_CONTROLS = new Set([
+  "option",
+  "select",
+  "Select",
+  "input",
+  "Input",
+  "textarea",
+  "NumberInput",
+]);
+
+function showsValue(attribute: ts.JsxAttribute) {
+  return (
+    attribute.name.getText() === "value" &&
+    !FORM_CONTROLS.has(attribute.parent.parent.tagName.getText())
+  );
+}
 
 const UI_PROPERTIES = new Set([
   "title",
@@ -529,7 +552,7 @@ describe("UI code", () => {
           shown(node.expression);
         } else if (
           ts.isJsxAttribute(node) &&
-          UI_ATTRIBUTES.has(node.name.getText())
+          (UI_ATTRIBUTES.has(node.name.getText()) || showsValue(node))
         ) {
           const value = node.initializer;
           if (value && ts.isStringLiteral(value)) {
@@ -609,6 +632,12 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Epic Games/Launcher/Portal/Binaries/{arch}/EpicGamesLauncher.exe",
   "Executable not found.",
   "GOG sign-in must be cancelled from PlayCounter.",
+  "PlayStation sign-in must be cancelled from PlayCounter.",
+  "PlayStation games are read from PlayCounter.",
+  "PlayStation status is read from PlayCounter.",
+  "PlayStation trophies are read from PlayCounter.",
+  // The PlayStation App's public client id, as psn-api sends it.
+  "Basic MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A=",
   "Icon extraction failed: {error:?}",
   "Install UUID cache is unavailable.",
   "Invalid Battle.net database field.",
@@ -622,6 +651,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Invalid GOG game id.",
   "Invalid GOG launch mode.",
   "Invalid GOG sign-in request.",
+  "Invalid PlayStation sign-in request.",
   "Invalid Steam AppID.",
   "Invalid Steam launch mode.",
   "Invalid Xbox launch mode.",

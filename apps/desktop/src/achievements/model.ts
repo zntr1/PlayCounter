@@ -1,6 +1,17 @@
-import type { AchievementList, GameAchievement } from "@playcounter/shared";
+import type {
+  AchievementList,
+  GameAchievement,
+  TrophyType,
+} from "@playcounter/shared";
 
 export type AchievementFilter = "all" | "unlocked" | "locked";
+
+export type AchievementSort =
+  | "newest"
+  | "oldest"
+  | "rarest"
+  | "common"
+  | "name";
 
 /** One entry of Steam's public list (see achievements.rs). */
 export type SteamCatalogAchievement = {
@@ -25,6 +36,16 @@ const ICON_HOSTS = [
   "epicgames.com",
   "gog.com",
   "gog-statics.com",
+  "playstation.com",
+  "playstation.net",
+];
+
+/** PlayStation's cups, best first, as Sony lists them. */
+export const TROPHY_TYPES: readonly TrophyType[] = [
+  "platinum",
+  "gold",
+  "silver",
+  "bronze",
 ];
 
 /** Unlocked of all points, for the achievements that carry any. */
@@ -44,11 +65,26 @@ function points(
     : undefined;
 }
 
+/** Earned of all per cup, for lists with cups (PlayStation). */
+function trophyCounts(achievements: readonly GameAchievement[]) {
+  if (!achievements.some((a) => a.trophyType)) return undefined;
+  const counts = {} as Record<TrophyType, { earned: number; total: number }>;
+  for (const type of TROPHY_TYPES) {
+    const cups = achievements.filter((a) => a.trophyType === type);
+    counts[type] = {
+      earned: cups.filter((a) => a.unlocked).length,
+      total: cups.length,
+    };
+  }
+  return counts;
+}
+
 export function achievementSummary(achievements: readonly GameAchievement[]) {
   const unlocked = achievements.filter((a) => a.unlocked).length;
   const total = achievements.length;
   const gamerscore = points(achievements, (a) => a.gamerscore);
   const xp = points(achievements, (a) => a.xp);
+  const trophies = trophyCounts(achievements);
   return {
     total,
     unlocked,
@@ -56,6 +92,7 @@ export function achievementSummary(achievements: readonly GameAchievement[]) {
     percent: total ? Math.floor((unlocked / total) * 100) : 0,
     ...(gamerscore ? { gamerscore } : {}),
     ...(xp ? { xp } : {}),
+    ...(trophies ? { trophies } : {}),
   };
 }
 
@@ -79,6 +116,43 @@ export function orderAchievements(achievements: readonly GameAchievement[]) {
       a.name.localeCompare(b.name)
     );
   });
+}
+
+/** Newest unlock is the order above; the other sorts keep it for ties.
+ *  Without a value (no unlock date, no share of players) goes last. A–Z puts
+ *  hidden locked ones last: their names are not shown. */
+export function sortAchievements(
+  achievements: readonly GameAchievement[],
+  sort: AchievementSort,
+) {
+  const ordered = orderAchievements(achievements);
+  const by = (value: (a: GameAchievement) => number | undefined) =>
+    ordered.sort((a, b) => {
+      const left = value(a);
+      const right = value(b);
+      if (left === undefined || right === undefined)
+        return Number(left === undefined) - Number(right === undefined);
+      return left - right;
+    });
+  const concealable = (a: GameAchievement) => Number(a.hidden && !a.unlocked);
+  switch (sort) {
+    case "newest":
+      return ordered;
+    case "oldest":
+      return by((a) => (a.unlocked ? a.unlockedAt : undefined));
+    case "rarest":
+      return by((a) => a.globalPercent);
+    case "common":
+      return by((a) =>
+        a.globalPercent === undefined ? undefined : -a.globalPercent,
+      );
+    case "name":
+      return ordered.sort(
+        (a, b) =>
+          concealable(a) - concealable(b) ||
+          a.name.localeCompare(b.name, undefined, { numeric: true }),
+      );
+  }
 }
 
 export function filterAchievements(
@@ -198,6 +272,12 @@ function parseAchievement(value: unknown): GameAchievement | null {
       ? { gamerscore: raw.gamerscore }
       : {}),
     ...(finite(raw.xp) && raw.xp >= 0 ? { xp: raw.xp } : {}),
+    ...(TROPHY_TYPES.includes(raw.trophyType as TrophyType)
+      ? { trophyType: raw.trophyType as TrophyType }
+      : {}),
+    ...(raw.platform === "PS5" || raw.platform === "PS4"
+      ? { platform: raw.platform }
+      : {}),
     ...(finite(raw.globalPercent) &&
     raw.globalPercent >= 0 &&
     raw.globalPercent <= 100
@@ -213,22 +293,25 @@ function parseAchievement(value: unknown): GameAchievement | null {
   };
 }
 
-/** Steam app ids, Xbox title ids and GOG product ids are numbers (GOG's rule
- *  is `valid_id` in gog.rs); Epic app names follow the launcher's own rule
- *  (`valid_id` in epic.rs). */
+/** Steam app ids, Xbox title ids, GOG product ids and PlayStation Store
+ *  concept ids are numbers (GOG's rule is `valid_id` in gog.rs, PlayStation's
+ *  `valid_concept_id` in playstation_account.rs); Epic app names follow the
+ *  launcher's own rule (`valid_id` in epic.rs). */
 const EXTERNAL_IDS = {
   steam: /^[1-9][0-9]{0,9}$/,
   xbox: /^[1-9][0-9]{0,9}$/,
   epic: /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/,
   gog: /^[1-9][0-9]{0,9}$/,
+  playstation: /^[1-9][0-9]{0,9}$/,
 } as const;
 
 function isProvider(value: unknown): value is keyof typeof EXTERNAL_IDS {
   return typeof value === "string" && Object.hasOwn(EXTERNAL_IDS, value);
 }
 
-/** A list from the backend, Epic, GOG or this PC's storage. Fields that can't be
- *  trusted are dropped; a list that isn't one is rejected. */
+/** A list from the backend, Epic, GOG, PlayStation or this PC's storage.
+ *  Fields that can't be trusted are dropped; a list that isn't one is
+ *  rejected. */
 export function parseAchievementList(value: unknown): AchievementList | null {
   const raw = record(value);
   if (

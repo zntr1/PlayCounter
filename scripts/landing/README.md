@@ -42,7 +42,8 @@ before the deployment action runs.
   the next one adds the Epic Games import and mGBA; the one after adds Cemu,
   RPCS3, PPSSPP, DuckStation, Ryujinx and Eden; the next adds Azahar, melonDS
   (which also reads its recent-games list from `melonDS.toml`) and Xenia; the
-  next adds the GOG import.
+  next adds the GOG import; the next adds the PlayStation import, its live
+  console status and the PS5 playtime guide.
 
 `site.reviewed` is the explicit date of the full September 2026 content review;
 it is not the build date. Do not bump it on every build or ordinary release.
@@ -63,6 +64,11 @@ public UI. Change the filenames when replacing them: versioned images are cached
 for a year. Game art comes from the existing landing covers and Steam's public
 store CDN; the launcher and emulator marks come from the repository's `assets/`.
 The older `*-v1-1-16` files stay because the repository README still uses them.
+The `*-v1-6-0` window shots (My History, game achievements, How long to beat,
+PlayStation in Now Playing) show the 1.6.0 interface. They come from the
+What's new fixture in `docs/whats-new/capture.cjs`; Cyberpunk 2077's
+time-to-beat numbers in them are samples, not IGDB's. The 1.2.0
+`playcounter-history-v1-2-0` files stay for the repository README.
 
 The homepage hero is a video frame (`site.trailer` in `site.mjs`, files in
 `landing/videos/`): `site.js` plays a silent preview loop while it is on screen

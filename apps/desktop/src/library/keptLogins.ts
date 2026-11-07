@@ -1,20 +1,33 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect } from "react";
 import { create } from "zustand";
+import type { LibraryAccount } from "./types";
 
 /* Launcher sign-ins PlayCounter keeps on this PC. The Rust part holds them,
    encrypted with Windows' own data protection. This side only ever learns
    which service, the name to show and when: never a token. */
-export type KeptLoginService = "xbox" | "epic" | "battlenet" | "gog";
+export type KeptLoginService =
+  | "xbox"
+  | "epic"
+  | "battlenet"
+  | "gog"
+  | "playstation";
 
 export type KeptLogin = {
   service: KeptLoginService;
-  /** Xbox gamertag, Epic display name or GOG user name. Battle.net has none. */
+  /** Xbox gamertag, Epic display name, GOG user name or PSN online id.
+   *  Battle.net has none. */
   name: string | null;
   savedAt: number;
 };
 
-const SERVICES: readonly string[] = ["xbox", "epic", "battlenet", "gog"];
+const SERVICES: readonly string[] = [
+  "xbox",
+  "epic",
+  "battlenet",
+  "gog",
+  "playstation",
+];
 
 export const useKeptLogins = create<{ logins: readonly KeptLogin[] }>(() => ({
   logins: [],
@@ -46,6 +59,19 @@ export async function refreshKeptLogins() {
   }
   useKeptLogins.setState({ logins });
   return logins;
+}
+
+/** A read's account, named as "Signed in as" shows it when the read had no
+ *  name (GOG and PlayStation send theirs only with the sign-in). */
+export function namedAccount(
+  service: KeptLoginService,
+  account: LibraryAccount | undefined,
+): LibraryAccount | undefined {
+  if (!account || account.name) return account;
+  const name =
+    useKeptLogins.getState().logins.find((login) => login.service === service)
+      ?.name ?? null;
+  return { ...account, name };
 }
 
 /** Deletes the kept sign-in. Epic's session also ends at Epic. */

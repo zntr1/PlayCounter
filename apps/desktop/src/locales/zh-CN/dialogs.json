@@ -241,6 +241,8 @@
   "{{count}} sessions_other": "{{count}} 次游玩",
   "{{count}} available": "{{count}} 个可用",
   "Status: {{status}}": "状态：{{status}}",
+  "Status": "状态",
+  "Clear status": "清除状态",
   "Tier": "评级",
   "Clear tier": "清除评级",
   "Tier: {{tier}}": "评级：{{tier}}",

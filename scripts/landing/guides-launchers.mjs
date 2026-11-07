@@ -259,6 +259,75 @@ export const launcherGuides = [
     related: ["playtime-tracker-for-emulators", "track-playtime-outside-steam"],
   },
   {
+    slug: "check-playtime-ps5",
+    category: "Launcher guides",
+    title: "Check your PS5 playtime and see it on your PC",
+    description:
+      "Find hours played on your PS5, bring your PS5 and PS4 playtime into PlayCounter with your PlayStation account, and see what you play on the console while PlayCounter runs.",
+    answer:
+      "On your PS5, open your profile and select Games: each game shows the hours you played, PS4 games included. To bring those hours into PlayCounter, open My Games, choose PlayStation and select Import from PlayStation.",
+    glance: [
+      ["Find hours on the PS5", "#console"],
+      ["Import into PlayCounter", "#import"],
+      ["See PS5 sessions live", "#live"],
+      ["See your trophies", "#trophies"],
+    ],
+    sections: [
+      {
+        id: "console",
+        title: "Find hours played on the PS5",
+        html: "<ol><li>On the home screen, select your profile picture in the top-right corner, then <strong>Profile</strong>.</li><li>Open <strong>Games</strong>.</li><li>Each game shows its hours played and when you last played it.</li></ol><p>The PS5 shows whole hours. Games you played on a PS4 with the same account are listed too.</p>",
+      },
+      {
+        id: "import",
+        title: "Import your PS5 and PS4 hours into PlayCounter",
+        intro:
+          "<p>Worth doing once: signing in brings in the playtime Sony recorded for every PS5 and PS4 game you played, and PlayCounter keeps it up to date by itself.</p>",
+        steps: [
+          {
+            title: "Open PlayStation in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>PlayStation</strong>, then <strong>Import from PlayStation</strong>. After your first import, the button says <strong>Import more from PlayStation</strong>.</p>",
+          },
+          {
+            title: "Sign in",
+            html: "<p>Select <strong>Sign in and find games</strong> and sign in with Sony in the window that opens. If Sony’s page does not work there, select <strong>Sign in with a code</strong> on the <strong>Launcher accounts</strong> page: sign in at playstation.com in your browser, open Sony’s sign-in code page and paste what it shows.</p>",
+          },
+          {
+            title: "Review and import",
+            html: "<p>Recognized games wait in <strong>Ready to import</strong>. Games under <strong>Needs you</strong> ask you to pick the right game first. Then select <strong>Import</strong>.</p>",
+          },
+        ],
+        html: '<p>You sign in directly with Sony; PlayCounter does not see your password. The app keeps the sign-in on your PC, encrypted for your Windows account; <strong>Sign out</strong> on the <strong>Launcher accounts</strong> page deletes it. Sony asks for a new sign-in about every two months. Only your game list, Sony’s playtime, your trophies, the game running on the console and your online ID reach the app, and the PlayCounter API only receives PlayStation Store concept IDs, plus the titles of games it does not recognize, to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+      },
+      {
+        id: "live",
+        title: "See PS5 sessions live on your PC",
+        html: "<ol><li>Leave PlayCounter running on your PC.</li><li>Start a game on your PS5 or PS4.</li><li>Within about a minute it shows in <strong>Now Playing</strong>, marked with the console.</li><li>Quit the game: the session ends and appears in <strong>My History</strong>.</li></ol><p>This needs <strong>Live from PlayStation</strong> on the PlayStation card under <strong>Launcher accounts</strong>, which is on by default. PlayCounter asks Sony about once a minute. Play while your PC is off still arrives with Sony’s next total.</p>",
+      },
+      {
+        id: "history",
+        title: "How PS5 hours add up",
+        html: '<p>Sony’s total is console play, so it never overlaps the sessions PlayCounter records on your PC: it is added to your PC time instead of compared with it. 10 hours on PS5 and 2 hours PlayCounter tracked on your PC show 12 hours. PlayCounter reads Sony’s list again by itself at start, every hour and a few minutes after a console session, and new games you play on PlayStation show up in My Games on their own. <a href="/total-playtime-across-all-launchers/#totals">How launcher totals combine</a>.</p>',
+      },
+      {
+        id: "trophies",
+        title: "See your PS5 and PS4 trophies on your PC",
+        html: "<ol><li>In <strong>My Games</strong>, right-click a PlayStation game and select <strong>Achievements</strong>.</li><li>Each trophy shows its cup, when you earned it and how many players have it. Above the list you see your platinum, gold, silver and bronze trophies.</li><li>Hidden trophies stay hidden until you earn them or select <strong>Show</strong>.</li></ol><p>A game with a PS5 and a PS4 trophy list gets a <strong>PS5</strong> and a <strong>PS4</strong> button. PlayCounter reads your trophies with the same PlayStation sign-in, each time you open them and a little after a console session ends. They are kept only on your PC.</p>",
+      },
+    ],
+    sources: [
+      {
+        label: "Tom’s Guide: How to show play time on PS5",
+        url: "https://www.tomsguide.com/how-to/how-to-show-play-time-on-ps5",
+      },
+      {
+        label: "PlayCounter: PlayStation importer",
+        url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/playstation.ts`,
+      },
+    ],
+    related: ["total-playtime-across-all-launchers", "track-playtime-outside-steam"],
+  },
+  {
     slug: "check-playtime-ea-app",
     category: "Launcher guides",
     title: "Check EA app playtime and record PC sessions",

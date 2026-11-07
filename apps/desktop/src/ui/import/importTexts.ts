@@ -28,6 +28,8 @@ export function launcherIdLabel(id: BuiltinImportProviderId) {
       return t("App name");
     case "gog":
       return t("GOG ID");
+    case "playstation":
+      return t("Concept ID");
   }
 }
 
@@ -51,6 +53,7 @@ export function launcherNote(id: BuiltinImportProviderId) {
     case "battlenet":
     case "epic":
     case "gog":
+    case "playstation":
       return t(
         "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.",
         { providerName },
@@ -62,9 +65,11 @@ export function launcherNote(id: BuiltinImportProviderId) {
 export function launcherDetectingText(id: BuiltinImportProviderId) {
   return id === "xbox"
     ? t("Preparing the Xbox import…")
-    : t("Looking for {{providerName}} on this PC…", {
-        providerName: launcherName(id),
-      });
+    : id === "playstation"
+      ? t("Preparing the PlayStation import…")
+      : t("Looking for {{providerName}} on this PC…", {
+          providerName: launcherName(id),
+        });
 }
 
 /** Why the launcher can't be imported here. */
@@ -81,19 +86,23 @@ export function launcherMissingText(id: BuiltinImportProviderId) {
     case "battlenet":
     case "epic":
     case "gog":
+    case "playstation":
       return t("{{providerName}} import is available on Windows.", {
         providerName: launcherName(id),
       });
   }
 }
 
-/** Said when a launcher that lists accounts lists none. */
+/** Said when the launcher is here but has no account to import from. */
 export function launcherNoAccountsText(id: BuiltinImportProviderId) {
   return id === "steam"
     ? t(
         "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here.",
       )
-    : t("The Xbox import could not be prepared. Please try again later.");
+    : t(
+        "The {{providerName}} import could not be prepared. Please try again later.",
+        { providerName: launcherName(id) },
+      );
 }
 
 /** The loader's text: the step the player waits on. */
