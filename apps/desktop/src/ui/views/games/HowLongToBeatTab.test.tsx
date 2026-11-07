@@ -17,7 +17,7 @@ vi.mock("../../../gameDetails", () => ({
 
 import { commitLibraryImports } from "../../../library/commit";
 import { appLocale } from "../../../i18n";
-import { useAppStore } from "../../../store";
+import { getGameJournal, useAppStore } from "../../../store";
 import { MyGamesView } from "../MyGamesView";
 
 /* docs/howlongtobeat-plan.md, route A, with Phil's picks of 2026-11-06: its
@@ -71,6 +71,7 @@ afterEach(async () => {
   invokeMock.mockReset();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 function details(fields: Partial<GameDetails> = {}) {
@@ -212,7 +213,9 @@ describe("its own tab", () => {
     await openTab();
 
     // 52h - 42h 13m = 9h 47m, said in whole hours.
-    expect(panelText()).toContain("42h 13m played · about 10h to Main story");
+    expect(panelText()).toContain("About 10h to Main story");
+    // The bubble on the bar has the played time, so the line leaves it out.
+    expect(panelText()).not.toContain("played ·");
     expect(panel().querySelectorAll("[data-hltb-mark]")).toHaveLength(3);
   });
 
@@ -302,9 +305,93 @@ describe("adding your time", () => {
     useAppStore.getState().updateGameJournal(GAME, { status: "finished" });
     await openTab();
 
-    expect(panelText()).toContain("Finished in 90h 0m · average 85h");
+    expect(panelText()).toContain("Finished · average 85h");
     expect(value("finished")).toContain(day(last.endedAt!));
     expect(value("finished")).toContain("Your last session");
+  });
+});
+
+/* Phil's pick 2026-11-07 (docs/howlongtobeat-finish-mockups.html, A): a
+   "Mark finished" toggle in the "Finished on" row that does what the journal
+   does. A second click undoes it. */
+describe("marking it finished", () => {
+  const journal = () => getGameJournal(useAppStore.getState(), GAME);
+
+  it("finishes the default playthrough by setting the game's status, dated by its last session", async () => {
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    const last = played("2026-10-30T18:00:00.000Z", 2 * H);
+    useAppStore.setState({
+      recentSessions: [played("2026-10-01T18:00:00.000Z", 40 * H), last],
+    });
+    await openTab();
+    expect(value("finished")).toContain("Not finished yet");
+
+    await act(() => button("Mark finished")!.click());
+
+    expect(journal().status).toBe("finished");
+    expect(value("finished")).toContain(day(last.endedAt!));
+    expect(panelText()).toContain("Finished · average 85h");
+    expect(button("Finished")?.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("a second click puts back the status the game had before", async () => {
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    useAppStore.setState({
+      recentSessions: [played("2026-10-30T18:00:00.000Z", 42 * H)],
+    });
+    useAppStore.getState().updateGameJournal(GAME, { status: "on-hold" });
+    await openTab();
+
+    await act(() => button("Mark finished")!.click());
+    await act(() => button("Finished")!.click());
+
+    expect(journal().status).toBe("on-hold");
+    expect(value("finished")).toContain("Not finished yet");
+  });
+
+  it("undoing a finish from before the tab opened sets In progress", async () => {
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    useAppStore.setState({
+      recentSessions: [played("2026-10-30T18:00:00.000Z", 42 * H)],
+    });
+    useAppStore.getState().updateGameJournal(GAME, { status: "finished" });
+    await openTab();
+
+    await act(() => button("Finished")!.click());
+
+    expect(journal().status).toBe("playing");
+  });
+
+  it("finishes a named playthrough today, as the journal does, and a second click reopens it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T15:00:00.000Z"));
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    const ngPlus = useAppStore.getState().createPlaythrough(GAME, "NG+")!;
+    useAppStore.setState({
+      recentSessions: [played("2026-11-04T18:00:00.000Z", 5 * H, ngPlus)],
+    });
+    await openTab();
+    // NG+ is the only playthrough with hours, so the tab is about it.
+    expect(value("time")).toContain("5 h 0 min 0 s");
+
+    await act(() => button("Mark finished")!.click());
+
+    const finished = journal().playthroughs.find(({ id }) => id === ngPlus);
+    expect(finished?.completedAt).toBe("2026-11-07T15:00:00.000Z");
+    // The journal's rule: finishing a playthrough makes the default one active.
+    expect(journal().activePlaythroughId).toBeNull();
+    expect(journal().status).toBeNull();
+    expect(value("finished")).toContain(day("2026-11-07T15:00:00.000Z"));
+
+    await act(() => button("Finished")!.click());
+
+    expect(
+      journal().playthroughs.find(({ id }) => id === ngPlus)?.completedAt,
+    ).toBeNull();
   });
 });
 
@@ -327,7 +414,7 @@ describe("picking the playthrough", () => {
 
     expect(picker()).not.toBeNull();
     expect(runButton("NG+")?.getAttribute("aria-checked")).toBe("true");
-    expect(panelText()).toContain("5h 0m played · about 47h to Main story");
+    expect(panelText()).toContain("About 47h to Main story");
     expect(value("time")).toContain("5 h 0 min 0 s");
 
     await act(() => runButton("Default playthrough")!.click());
@@ -335,7 +422,7 @@ describe("picking the playthrough", () => {
     expect(runButton("Default playthrough")?.getAttribute("aria-checked")).toBe(
       "true",
     );
-    expect(panelText()).toContain("Finished in 90h 0m · average 85h");
+    expect(panelText()).toContain("Finished · average 85h");
     expect(value("time")).toContain("90 h 0 min 0 s");
     expect(value("started")).toContain(day("2026-09-01T18:00:00.000Z"));
   });
@@ -356,7 +443,7 @@ describe("picking the playthrough", () => {
     await openTab();
 
     expect(runButton("First run")?.getAttribute("aria-checked")).toBe("true");
-    expect(panelText()).toContain("Finished in 60h 0m · average 85h");
+    expect(panelText()).toContain("Finished · average 85h");
     expect(value("finished")).toContain(day("2026-10-23T12:00:00.000Z"));
   });
 });

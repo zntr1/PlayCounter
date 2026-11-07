@@ -32,14 +32,17 @@ import {
   type TimeToBeatProgress,
 } from "../../../howLongToBeat";
 import { appLocale, getT } from "../../../i18n";
-import { defaultPlaythroughName } from "../../../personalLibrary";
+import {
+  defaultPlaythroughName,
+  type GameStatus,
+} from "../../../personalLibrary";
 import { personalGameIdentity, useAppStore } from "../../../store";
 import { formatDuration } from "../../components";
 import {
   usePersonalLibraryApi,
   usePersonalLibraryState,
 } from "../../PersonalLibraryContext";
-import { Button } from "../../primitives";
+import { Button, Pill } from "../../primitives";
 import { emitTourEvent } from "../../tour/TourUI";
 import { useGameJournal } from "../../useGameJournal";
 import type { GameSummary } from "../MyGamesView";
@@ -84,29 +87,22 @@ function roughDuration(seconds: number, showDays: boolean) {
     : t("{{hours}}h", { hours });
 }
 
+/** The line above the bar. The bar's bubble has the played time, so the
+ *  line only says what the bubble does not (Phil, 2026-11-07). */
 function progressLine(progress: TimeToBeatProgress, showDays: boolean) {
-  const played = formatDuration(progress.playedSeconds, showDays);
   if (progress.state === "finished")
     return progress.averageSeconds
-      ? t("Finished in {{played}} · average {{average}}", {
-          played,
+      ? t("Finished · average {{average}}", {
           average: roughDuration(progress.averageSeconds, showDays),
         })
-      : t("Finished in {{played}}", { played });
-  if (progress.state === "past-all")
-    return t("{{played}} played · past every average", { played });
+      : t("Finished");
+  if (progress.state === "past-all") return t("Past every average");
   const left = roughDuration(progress.leftSeconds, showDays);
   return progress.nextPace === "hastily"
-    ? t("{{played}} played · about {{left}} to Main story", { played, left })
+    ? t("About {{left}} to Main story", { left })
     : progress.nextPace === "normally"
-      ? t("{{played}} played · about {{left}} to Main + extras", {
-          played,
-          left,
-        })
-      : t("{{played}} played · about {{left}} to Completionist", {
-          played,
-          left,
-        });
+      ? t("About {{left}} to Main + extras", { left })
+      : t("About {{left}} to Completionist", { left });
 }
 
 const formatDay = (iso: string) =>
@@ -156,6 +152,39 @@ export function HowLongToBeatTab({
   const progress = run
     ? timeToBeatProgress(time, run.seconds, run.finished)
     : null;
+
+  // The status before "Mark finished" on the default playthrough, which its
+  // second click puts back. Undefined: not finished here since the tab opened.
+  const [statusBefore, setStatusBefore] = useState<GameStatus | null>();
+
+  /** What the journal does: a named playthrough gets today's date (and the
+   *  default one becomes active again), the default playthrough finishes
+   *  with the game's status. A second click undoes it. */
+  function toggleFinished(entry: HltbRun) {
+    if (demo) {
+      emitTourEvent(
+        "demo.action-completed",
+        t(
+          "This is a sample. For a real game, this marks the playthrough finished.",
+        ),
+      );
+      return;
+    }
+    const api = libraryApi.getState();
+    if (entry.id) {
+      api.updatePlaythrough(gameRef, entry.id, {
+        completedAt: entry.finished ? null : new Date().toISOString(),
+      });
+    } else if (entry.finished) {
+      api.updateGameJournal(gameRef, {
+        status: statusBefore === undefined ? "playing" : statusBefore,
+      });
+      setStatusBefore(undefined);
+    } else {
+      setStatusBefore(journal.status);
+      api.updateGameJournal(gameRef, { status: "finished" });
+    }
+  }
 
   const [copied, setCopied] = useState<string | null>(null);
   useEffect(() => {
@@ -288,6 +317,7 @@ export function HowLongToBeatTab({
             providers={game.libraryImports.map(({ provider }) => provider)}
             copied={copied}
             onCopy={(name, text) => void copy(name, text)}
+            onToggleFinished={() => toggleFinished(run)}
           />
           <p className="mt-3 text-xs leading-5 text-text-muted">
             {run.finished
@@ -550,17 +580,20 @@ function MarksBar({
   );
 }
 
-/** What HowLongToBeat's form asks for, about the picked playthrough. */
+/** What HowLongToBeat's form asks for, about the picked playthrough, with
+ *  the "Mark finished" toggle in the "Finished on" row. */
 function RunValues({
   run,
   providers,
   copied,
   onCopy,
+  onToggleFinished,
 }: {
   run: HltbRun;
   providers: Parameters<typeof hltbStorefront>[0];
   copied: string | null;
   onCopy: (name: string, text: string) => void;
+  onToggleFinished: () => void;
 }) {
   const platform = hltbPlatform(run.sessions);
   const store = hltbStorefront(providers);
@@ -634,23 +667,32 @@ function RunValues({
               </span>
             ) : null}
           </span>
-          {row.copy ? (
-            <button
-              type="button"
-              onClick={() => onCopy(row.name, row.value)}
-              className={clsx(
-                "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-                copied === row.name
-                  ? "text-success"
-                  : "text-text-muted hover:text-text",
-              )}
-            >
-              {copied === row.name ? <Check size={14} /> : <Copy size={14} />}
-              {copied === row.name ? t("Copied") : t("Copy")}
-            </button>
-          ) : (
-            <span />
-          )}
+          <span className="flex items-center gap-2">
+            {row.name === "finished" ? (
+              <Pill
+                icon={Flag}
+                selected={run.finished}
+                onClick={onToggleFinished}
+              >
+                {run.finished ? t("Finished") : t("Mark finished")}
+              </Pill>
+            ) : null}
+            {row.copy ? (
+              <button
+                type="button"
+                onClick={() => onCopy(row.name, row.value)}
+                className={clsx(
+                  "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  copied === row.name
+                    ? "text-success"
+                    : "text-text-muted hover:text-text",
+                )}
+              >
+                {copied === row.name ? <Check size={14} /> : <Copy size={14} />}
+                {copied === row.name ? t("Copied") : t("Copy")}
+              </button>
+            ) : null}
+          </span>
         </div>
       ))}
     </div>
