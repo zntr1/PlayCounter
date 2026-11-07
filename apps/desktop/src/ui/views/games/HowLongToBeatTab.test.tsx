@@ -216,6 +216,20 @@ describe("its own tab", () => {
     expect(panel().querySelectorAll("[data-hltb-mark]")).toHaveLength(3);
   });
 
+  it("puts a bobble head at the end of the bar with the time on top (Phil's pick A, 2026-11-07)", async () => {
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    useAppStore.setState({
+      recentSessions: [played("2026-10-30T18:00:00.000Z", 42 * H + 13 * 60)],
+    });
+    await openTab();
+
+    expect(panel().querySelector("[data-hltb-knob]")).not.toBeNull();
+    expect(panel().querySelector("[data-hltb-played]")?.textContent).toBe(
+      "42h 13m",
+    );
+  });
+
   it("says so without numbers and still opens HowLongToBeat, by name", async () => {
     importFromSteam();
     details();

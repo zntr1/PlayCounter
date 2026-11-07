@@ -440,7 +440,8 @@ function RunPicker({
 }
 
 /** The track with a mark at each of IGDB's times. Labels that would run into
- *  the one before move to a second line. */
+ *  the one before move to a second line. A bobble head ends the fill, with
+ *  the played time on top (docs/howlongtobeat-bobble-mockups.html, A). */
 function MarksBar({
   marks,
   playedSeconds,
@@ -463,8 +464,18 @@ function MarksBar({
         : Number.POSITIVE_INFINITY;
     rows.push(gap < 16 && rows[index - 1] === 0 ? 1 : 0);
   });
+  const played = percent(playedSeconds);
+  // The head stays fully on the track; near either end the bubble hangs
+  // inward from it, its tip still on the head.
+  const head = `clamp(10px, ${played}%, calc(100% - 10px))`;
+  const bubble =
+    played < 6
+      ? { shift: "translateX(-10px)", tip: "10px" }
+      : played > 94
+        ? { shift: "translateX(calc(-100% + 10px))", tip: "calc(100% - 10px)" }
+        : { shift: "translateX(-50%)", tip: "50%" };
   return (
-    <div aria-hidden>
+    <div aria-hidden className="pt-8">
       <div className="relative h-2.5 rounded-full bg-surface-hover">
         <div
           className={clsx(
@@ -486,6 +497,31 @@ function MarksBar({
             style={{ left: `${percent(mark.seconds)}%` }}
           />
         ))}
+        <span
+          data-hltb-knob
+          className={clsx(
+            "absolute top-1/2 z-[2] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-md ring-4",
+            finished ? "bg-success ring-success/25" : "bg-accent ring-accent/25",
+          )}
+          style={{ left: head }}
+        />
+        <span
+          data-hltb-played
+          className={clsx(
+            "absolute bottom-[calc(100%+11px)] z-[3] whitespace-nowrap rounded-md px-[7px] font-mono text-[11px] font-bold leading-[18px] shadow",
+            finished ? "bg-success text-bg" : "bg-accent text-accent-fg",
+          )}
+          style={{ left: head, transform: bubble.shift }}
+        >
+          {formatDuration(playedSeconds, showDays)}
+          <span
+            className={clsx(
+              "absolute top-full h-0 w-0 -translate-x-1/2 border-[5px] border-transparent",
+              finished ? "border-t-success" : "border-t-accent",
+            )}
+            style={{ left: bubble.tip }}
+          />
+        </span>
       </div>
       <div
         className={clsx(
