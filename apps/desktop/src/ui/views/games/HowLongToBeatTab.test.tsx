@@ -173,6 +173,22 @@ const button = (text: string) =>
   );
 
 describe("its own tab", () => {
+  it("sits after Achievements and before Files (Phil, 2026-11-07)", async () => {
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    await openTab();
+
+    const tabs = [...document.querySelectorAll('[role="tab"]')].map(
+      (tab) => tab.id,
+    );
+    expect(tabs).toEqual([
+      "game-details-tab-general",
+      "game-details-tab-achievements",
+      "game-details-tab-howLongToBeat",
+      "game-details-tab-files",
+    ]);
+  });
+
   it("shows IGDB's numbers in HowLongToBeat's words", async () => {
     importFromSteam();
     details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });

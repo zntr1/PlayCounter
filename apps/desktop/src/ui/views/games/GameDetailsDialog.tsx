@@ -460,8 +460,6 @@ export function GameDetailsDialog({
 
   const tabs: Array<{ id: DetailsTab; label: string; icon: LucideIcon }> = [
     { id: "general", label: t("General"), icon: Info },
-    { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
-    { id: "files", label: t("Files"), icon: FolderOpen },
     ...(gameAchievementSources.length
       ? [
           {
@@ -471,6 +469,8 @@ export function GameDetailsDialog({
           },
         ]
       : []),
+    { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
+    { id: "files", label: t("Files"), icon: FolderOpen },
   ];
 
   const header = (
