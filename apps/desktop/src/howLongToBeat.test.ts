@@ -5,6 +5,7 @@ import {
   hltbPlatform,
   hltbRuns,
   hltbStorefront,
+  howLongToBeatSubmitUrl,
   howLongToBeatUrl,
   preferredRun,
   runDates,
@@ -323,6 +324,19 @@ describe("HowLongToBeat links", () => {
     expect(howLongToBeatUrl("Hollow Knight: Silksong")).toBe(
       "https://howlongtobeat.com/?q=Hollow%20Knight%3A%20Silksong",
     );
+  });
+
+  it("opens HowLongToBeat's form for adding a time when the id is known", () => {
+    // The address Phil copied from HowLongToBeat's submit button, 2026-11-07.
+    expect(howLongToBeatSubmitUrl(23050)).toBe(
+      "https://howlongtobeat.com/submit/game/23050",
+    );
+  });
+
+  it("has no form link without an id: the form belongs to one game", () => {
+    expect(howLongToBeatSubmitUrl()).toBeUndefined();
+    expect(howLongToBeatSubmitUrl(0)).toBeUndefined();
+    expect(howLongToBeatSubmitUrl(Number.NaN)).toBeUndefined();
   });
 });
 

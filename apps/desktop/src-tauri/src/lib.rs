@@ -302,7 +302,8 @@ fn is_allowed_igdb_url(url: &str) -> bool {
 }
 
 /// True only for an `https://howlongtobeat.com/...` URL safe to hand to the
-/// shell: a game's HowLongToBeat page or its search.
+/// shell: a game's HowLongToBeat page, its form for adding a time, or the
+/// search.
 fn is_allowed_hltb_url(url: &str) -> bool {
     is_safe_url_under(url, "https://howlongtobeat.com/")
 }
@@ -883,6 +884,9 @@ mod tests {
     #[test]
     fn accepts_howlongtobeat_game_and_search_urls() {
         assert!(is_allowed_hltb_url("https://howlongtobeat.com/game/68151"));
+        assert!(is_allowed_hltb_url(
+            "https://howlongtobeat.com/submit/game/23050"
+        ));
         assert!(is_allowed_hltb_url(
             "https://howlongtobeat.com/?q=Hollow%20Knight"
         ));

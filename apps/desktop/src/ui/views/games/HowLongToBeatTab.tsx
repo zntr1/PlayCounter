@@ -19,6 +19,7 @@ import {
   hltbPlatform,
   hltbRuns,
   hltbStorefront,
+  howLongToBeatSubmitUrl,
   howLongToBeatUrl,
   PACES,
   preferredRun,
@@ -49,8 +50,9 @@ const t = getT("games");
 /* The "How long to beat" tab ─────────────────────────────────────────────────
    IGDB's three times under HowLongToBeat's names, a bar with a mark for each,
    and the values for adding your own time on howlongtobeat.com. PlayCounter
-   never talks to HowLongToBeat itself: the button opens the game's page there
-   (its id comes from Wikidata through the API), or HowLongToBeat's search.
+   never talks to HowLongToBeat itself: the buttons open HowLongToBeat's form
+   for the game and the game's page there (its id comes from Wikidata through
+   the API). Without that id only HowLongToBeat's search is left.
 
    One playthrough picker drives both halves, so the time left and the values
    can never be about different runs. It starts on the playthrough played or
@@ -175,18 +177,15 @@ export function HowLongToBeatTab({
     }
   }
 
-  async function openHowLongToBeat() {
+  const submitUrl = howLongToBeatSubmitUrl(resolved?.hltbId);
+
+  async function openHowLongToBeat(url: string, demoMessage: string) {
     if (demo) {
-      emitTourEvent(
-        "demo.action-completed",
-        t("This is a sample. A real game's HowLongToBeat link opens its page."),
-      );
+      emitTourEvent("demo.action-completed", demoMessage);
       return;
     }
     try {
-      await invoke("open_external_url", {
-        url: howLongToBeatUrl(game.name, resolved?.hltbId),
-      });
+      await invoke("open_external_url", { url });
     } catch (error) {
       addToast({
         tone: "error",
@@ -299,11 +298,35 @@ export function HowLongToBeatTab({
                   "Still playing? On HowLongToBeat, add it to “Playing” with this time as your progress.",
                 )}
           </p>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
+            {submitUrl ? (
+              <Button
+                variant="primary"
+                icon={ExternalLink}
+                onClick={() =>
+                  void openHowLongToBeat(
+                    submitUrl,
+                    t(
+                      "This is a sample. For a real game, this opens HowLongToBeat's form for adding your time.",
+                    ),
+                  )
+                }
+                className="h-11 rounded-lg px-6 font-semibold"
+              >
+                {t("Add my time on HowLongToBeat")}
+              </Button>
+            ) : null}
             <Button
-              variant="primary"
+              variant={submitUrl ? "secondary" : "primary"}
               icon={ExternalLink}
-              onClick={() => void openHowLongToBeat()}
+              onClick={() =>
+                void openHowLongToBeat(
+                  howLongToBeatUrl(game.name, resolved?.hltbId),
+                  t(
+                    "This is a sample. A real game's HowLongToBeat link opens its page.",
+                  ),
+                )
+              }
               className="h-11 rounded-lg px-6 font-semibold"
             >
               {t("Open on HowLongToBeat")}

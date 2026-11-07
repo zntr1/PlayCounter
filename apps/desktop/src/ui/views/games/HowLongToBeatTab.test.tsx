@@ -167,6 +167,10 @@ const runButton = (name: string) =>
   );
 const value = (label: string) =>
   panel().querySelector(`[data-hltb-value="${label}"]`)?.textContent ?? "";
+const button = (text: string) =>
+  [...panel().querySelectorAll<HTMLButtonElement>("button")].find(
+    (entry) => entry.textContent === text,
+  );
 
 describe("its own tab", () => {
   it("shows IGDB's numbers in HowLongToBeat's words", async () => {
@@ -205,6 +209,8 @@ describe("its own tab", () => {
     await openTab();
 
     expect(panelText()).toContain("No time to beat known for this game yet.");
+    // Without HowLongToBeat's id there is no form to open, only the search.
+    expect(button("Add my time on HowLongToBeat")).toBeUndefined();
     await act(() =>
       [...panel().querySelectorAll<HTMLButtonElement>("button")]
         .find((button) => button.textContent === "Open on HowLongToBeat")!
@@ -236,13 +242,23 @@ describe("adding your time", () => {
     expect(value("started")).toContain(day("2026-10-01T18:00:00.000Z"));
     expect(value("finished")).toContain("Not finished yet");
 
-    await act(() =>
-      [...panel().querySelectorAll<HTMLButtonElement>("button")]
-        .find((button) => button.textContent === "Open on HowLongToBeat")!
-        .click(),
-    );
+    await act(() => button("Open on HowLongToBeat")!.click());
     expect(invokeMock).toHaveBeenCalledWith("open_external_url", {
       url: "https://howlongtobeat.com/game/68151",
+    });
+  });
+
+  it("opens HowLongToBeat's form for the game to add the time there", async () => {
+    importFromSteam();
+    details({ timeToBeat: TIME_TO_BEAT, hltbId: 68151 });
+    useAppStore.setState({
+      recentSessions: [played("2026-10-30T18:00:00.000Z", 42 * H)],
+    });
+    await openTab();
+
+    await act(() => button("Add my time on HowLongToBeat")!.click());
+    expect(invokeMock).toHaveBeenCalledWith("open_external_url", {
+      url: "https://howlongtobeat.com/submit/game/68151",
     });
   });
 

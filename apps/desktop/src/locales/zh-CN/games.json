@@ -203,6 +203,8 @@
   "On HowLongToBeat, enter it as “Main Story”, “Main + Extras” or “Completionist”, whichever fits how you played.": "在 HowLongToBeat 上，按你的玩法填为“Main Story”、“Main + Extras”或“Completionist”。",
   "Still playing? On HowLongToBeat, add it to “Playing” with this time as your progress.": "还在玩？在 HowLongToBeat 上把它加入“Playing”，并把这个时长填为进度。",
   "Open on HowLongToBeat": "在 HowLongToBeat 上打开",
+  "Add my time on HowLongToBeat": "在 HowLongToBeat 上添加我的时长",
+  "This is a sample. For a real game, this opens HowLongToBeat's form for adding your time.": "这是示例。真实游戏会在这里打开 HowLongToBeat 的表单，用来添加你的时长。",
   "Playthrough": "周目",
   "New sessions count towards this playthrough": "新的游玩会计入此周目",
   "Active": "当前",

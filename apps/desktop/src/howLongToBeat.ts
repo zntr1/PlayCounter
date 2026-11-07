@@ -15,12 +15,21 @@ import { playthroughSeconds, type GameJournal } from "./personalLibrary";
 
 const HLTB_ORIGIN = "https://howlongtobeat.com";
 
+const isHltbId = (hltbId?: number): hltbId is number =>
+  hltbId !== undefined && Number.isSafeInteger(hltbId) && hltbId > 0;
+
 /** The game's own HowLongToBeat page when its id is known, otherwise
  *  HowLongToBeat's search for the name. Encoded: the shell refuses spaces. */
 export function howLongToBeatUrl(name: string, hltbId?: number) {
-  return hltbId !== undefined && Number.isSafeInteger(hltbId) && hltbId > 0
+  return isHltbId(hltbId)
     ? `${HLTB_ORIGIN}/game/${hltbId}`
     : `${HLTB_ORIGIN}/?q=${encodeURIComponent(name.trim())}`;
+}
+
+/** HowLongToBeat's form for adding a time to one game. Undefined without the
+ *  game's id: the form has no search. */
+export function howLongToBeatSubmitUrl(hltbId?: number) {
+  return isHltbId(hltbId) ? `${HLTB_ORIGIN}/submit/game/${hltbId}` : undefined;
 }
 
 /** The sessions of one run: a named playthrough's, or the default one's
