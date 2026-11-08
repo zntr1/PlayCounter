@@ -1,5 +1,6 @@
 import type { Session } from "@playcounter/shared";
 import { showPlaytimeReminderOverlay } from "./desktopOverlayBridge";
+import { pausedAtMs, playedMs } from "./sessionTime";
 import { useAppStore, type ActiveSession } from "./store";
 
 /** The intervals Settings offers, in minutes. */
@@ -47,12 +48,13 @@ export function todayPlaySeconds(
   for (const session of activeSessions) {
     // Restored after a crash: only the time up to the last checkpoint is
     // certain until the game is seen running again.
-    add(
-      Date.parse(session.startedAt),
-      session.recoveredFromCheckpoint
-        ? Date.parse(session.checkpointedAt)
-        : nowMs,
-    );
+    const endMs = session.recoveredFromCheckpoint
+      ? Date.parse(session.checkpointedAt)
+      : nowMs;
+    // Paused time is left out: the played time counts as one stretch up to
+    // where the clock last ran (no pause times are kept).
+    const lastCountedMs = Math.min(endMs, pausedAtMs(session) ?? endMs);
+    add(lastCountedMs - playedMs(session, endMs), lastCountedMs);
   }
   return Math.floor(totalMs / 1000);
 }

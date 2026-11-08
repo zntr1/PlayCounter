@@ -1,9 +1,10 @@
 //! The live timer: a small pill that counts the running session up, in a
 //! corner of the game's window while the game is in front, hidden otherwise.
 //! A console timer has no window and sits in a screen corner. Like the
-//! notification overlay it never takes focus or clicks, and its window exists
-//! only while a session runs, since a hidden webview still holds its own
-//! renderer process.
+//! notification overlay it never takes focus, and its window exists only while
+//! a session runs, since a hidden webview still holds its own renderer
+//! process. Clicks pass through it, except while the mouse rests on it: then
+//! its pause button can be clicked.
 
 use crate::notification_overlay::PhysRect;
 use serde::{Deserialize, Serialize};
@@ -18,9 +19,14 @@ const FOLLOW_INTERVAL: std::time::Duration = std::time::Duration::from_millis(25
 /// waits for the previous one to finish closing.
 pub const LABEL_PREFIX: &str = "live-timer-";
 pub const UPDATE_EVENT: &str = "playcounter:live-timer-update";
+/// To the pill: whether the mouse rests on it (it then takes clicks).
+pub const HOVER_EVENT: &str = "playcounter:live-timer-hover";
+/// To the main window: the pill's pause button was clicked.
+pub const TOGGLE_PAUSE_EVENT: &str = "playcounter:live-timer-toggle-pause";
 
+/// Room for the pill with its pause button at ten hours and more.
 #[cfg(not(target_os = "macos"))]
-const WINDOW_LOGICAL_WIDTH: f64 = 188.0;
+const WINDOW_LOGICAL_WIDTH: f64 = 216.0;
 #[cfg(not(target_os = "macos"))]
 const WINDOW_LOGICAL_HEIGHT: f64 = 56.0;
 const MARGIN_LOGICAL: f64 = 12.0;
@@ -30,7 +36,11 @@ const UNSUPPORTED: &str = "Desktop overlays are not supported on this platform."
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveTimerPayload {
-    started_at_ms: u64,
+    /// The start, moved later by the session's finished pauses.
+    count_from_ms: u64,
+    /// Set while paused: the pill stands at this moment.
+    #[serde(default)]
+    paused_at_ms: Option<u64>,
     corner: String,
     #[serde(default)]
     monitor: Option<String>,
@@ -38,6 +48,11 @@ pub struct LiveTimerPayload {
     /// The game's processes; the pill sits in their biggest window.
     #[serde(default)]
     target_pids: Vec<u32>,
+    /// The pause button's names, in the app's language.
+    #[serde(default)]
+    pause_label: String,
+    #[serde(default)]
+    resume_label: String,
 }
 
 #[derive(Default)]
@@ -64,7 +79,17 @@ fn sanitize(mut payload: LiveTimerPayload) -> LiveTimerPayload {
     payload.target_pids.sort_unstable();
     payload.target_pids.dedup();
     payload.target_pids.truncate(16);
+    payload.pause_label = truncate(payload.pause_label, 200);
+    payload.resume_label = truncate(payload.resume_label, 200);
     payload
+}
+
+/// Whether a screen point lies on the pill's window.
+pub fn rect_contains(rect: PhysRect, x: i32, y: i32) -> bool {
+    let (x, y) = (i64::from(x), i64::from(y));
+    let left = i64::from(rect.x);
+    let top = i64::from(rect.y);
+    x >= left && y >= top && x < left + i64::from(rect.width) && y < top + i64::from(rect.height)
 }
 
 /// The window's place in a corner of an area (the game's window or the work
@@ -165,6 +190,29 @@ mod imp {
         true
     }
 
+    /// Whether a visible mouse pointer rests on the pill. A game that hides
+    /// or locks the pointer while you play never makes the pill take clicks.
+    #[cfg(target_os = "windows")]
+    fn pointer_over(rect: PhysRect) -> bool {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetCursorInfo, CURSORINFO, CURSOR_SHOWING,
+        };
+        // SAFETY: CURSORINFO is plain data; all zeroes is a valid value.
+        let mut info: CURSORINFO = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<CURSORINFO>() as u32;
+        if unsafe { GetCursorInfo(&mut info) } == 0 {
+            return false;
+        }
+        info.flags & CURSOR_SHOWING != 0
+            && !info.hCursor.is_null()
+            && rect_contains(rect, info.ptScreenPos.x, info.ptScreenPos.y)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn pointer_over(_rect: PhysRect) -> bool {
+        false
+    }
+
     /// Where the pill goes now; None while the game is not the active
     /// window (alt-tabbed, minimized, another app clicked).
     fn target_rect(
@@ -240,10 +288,12 @@ mod imp {
     }
 
     /// Moves the pill along with the game's window, and hides it while the
-    /// game is not in front, until the pill is closed.
+    /// game is not in front, until the pill is closed. While the mouse rests
+    /// on it, it takes clicks for its pause button.
     fn follow(app: tauri::AppHandle, label: String) {
         tauri::async_runtime::spawn(async move {
             let mut applied = None;
+            let mut hovered = false;
             loop {
                 tokio::time::sleep(FOLLOW_INTERVAL).await;
                 let Some(window) = app.get_webview_window(&label) else {
@@ -261,6 +311,11 @@ mod imp {
                 };
                 if applied != Some(target) && apply(&window, target).is_ok() {
                     applied = Some(target);
+                }
+                let over = target.is_some_and(pointer_over);
+                if over != hovered && window.set_ignore_cursor_events(!over).is_ok() {
+                    hovered = over;
+                    let _ = app.emit_to(&label, HOVER_EVENT, over);
                 }
             }
         });
@@ -390,6 +445,26 @@ pub fn live_timer_hide(
     imp::hide(&app, &state)
 }
 
+/// The pill's pause button: the main window pauses or resumes the game the
+/// pill shows.
+#[tauri::command(async)]
+pub fn live_timer_toggle_pause(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, LiveTimerState>,
+) -> Result<(), String> {
+    use tauri::Emitter;
+    let label = state
+        .window_label
+        .lock()
+        .map_err(|error| error.to_string())?;
+    if label.as_deref() != Some(window.label()) {
+        return Err("unauthorized window".to_string());
+    }
+    app.emit_to(crate::notification_overlay::MAIN_LABEL, TOGGLE_PAUSE_EVENT, ())
+        .map_err(|error| error.to_string())
+}
+
 /// The timer window asks for its session once its page listens for updates.
 #[tauri::command(async)]
 pub fn live_timer_ready(
@@ -485,17 +560,59 @@ mod tests {
     #[test]
     fn cleans_what_the_main_window_sends() {
         let payload = sanitize(LiveTimerPayload {
-            started_at_ms: 0,
+            count_from_ms: 0,
+            paused_at_ms: None,
             corner: "middle".to_string(),
             monitor: Some("m".repeat(500)),
             accent_color: None,
             target_pids: vec![30, 0, 7, 30],
+            pause_label: "p".repeat(500),
+            resume_label: String::new(),
         });
         assert_eq!(payload.corner, "top-left");
+        assert_eq!(payload.pause_label.chars().count(), 200);
         assert_eq!(
             payload.monitor.map(|value| value.chars().count()),
             Some(200)
         );
         assert_eq!(payload.target_pids, vec![7, 30]);
+    }
+
+    #[test]
+    fn takes_clicks_only_with_the_pointer_on_the_pill() {
+        let pill = PhysRect {
+            x: -200,
+            y: 12,
+            width: 216,
+            height: 56,
+        };
+        assert!(rect_contains(pill, -200, 12));
+        assert!(rect_contains(pill, 15, 67));
+        assert!(!rect_contains(pill, 16, 40));
+        assert!(!rect_contains(pill, -100, 68));
+        assert!(!rect_contains(pill, -201, 40));
+    }
+
+    #[test]
+    fn reads_a_paused_session_from_the_main_window() {
+        let payload: LiveTimerPayload = serde_json::from_value(serde_json::json!({
+            "countFromMs": 1_793_185_200_000_u64,
+            "pausedAtMs": 1_793_188_800_000_u64,
+            "corner": "top-right",
+            "accentColor": null,
+            "targetPids": [4],
+            "pauseLabel": "Pause",
+            "resumeLabel": "Resume",
+        }))
+        .unwrap();
+        assert_eq!(payload.paused_at_ms, Some(1_793_188_800_000));
+        let running: LiveTimerPayload = serde_json::from_value(serde_json::json!({
+            "countFromMs": 1_793_185_200_000_u64,
+            "pausedAtMs": null,
+            "corner": "top-left",
+            "accentColor": null,
+        }))
+        .unwrap();
+        assert_eq!(running.paused_at_ms, None);
     }
 }

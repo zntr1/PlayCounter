@@ -68,5 +68,10 @@
   "What's happening in this picture?": "¿Qué pasa en esta imagen?",
   "Enter saves · Esc keeps the picture without a caption": "Intro guarda · Esc conserva la imagen sin pie de foto",
   "Skip": "Omitir",
-  "“{{caption}}”": "“{{caption}}”"
+  "“{{caption}}”": "“{{caption}}”",
+  "TIMER PAUSED": "CRONÓMETRO EN PAUSA",
+  "TIMER RESUMED": "CRONÓMETRO REANUDADO",
+  "Paused": "En pausa",
+  "Pause the timer for {{gameName}}": "Pausar el cronómetro de {{gameName}}",
+  "Resume the timer for {{gameName}}": "Reanudar el cronómetro de {{gameName}}"
 }

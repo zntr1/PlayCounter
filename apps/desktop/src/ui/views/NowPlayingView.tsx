@@ -24,7 +24,9 @@ import {
   suggestTrackedGameToCommunity,
   rejectFileForGame,
   stopGameTimer,
+  togglePauseSession,
 } from "../../tracker";
+import { pausedForSeconds, playedSeconds } from "../../sessionTime";
 import { Panel } from "../components";
 import { Button } from "../primitives";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
@@ -225,12 +227,8 @@ export function NowPlayingView() {
               <ActiveGameHero
                 key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
                 session={activeSession}
-                elapsedSeconds={Math.max(
-                  0,
-                  Math.floor(
-                    (now - Date.parse(activeSession.startedAt)) / 1000,
-                  ),
-                )}
+                elapsedSeconds={playedSeconds(activeSession, now)}
+                pausedForSeconds={pausedForSeconds(activeSession, now)}
                 recentSessions={isTourSession ? [] : recentSessions}
                 showDurationDays={showDurationDays}
                 exeCache={isTourSession ? EMPTY_EXE_CACHE : exeCache}
@@ -256,6 +254,11 @@ export function NowPlayingView() {
                   activeSession.timer
                     ? () => void stopGameTimer(activeSession.id)
                     : undefined
+                }
+                onTogglePause={
+                  isTourSession
+                    ? undefined
+                    : () => void togglePauseSession(activeSession.id)
                 }
                 statusLabel={t("Now playing")}
                 tourAnchor={isTourSession ? "now-playing-demo" : undefined}

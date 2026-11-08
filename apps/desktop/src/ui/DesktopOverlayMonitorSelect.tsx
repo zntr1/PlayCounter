@@ -19,6 +19,7 @@ export function DesktopOverlayMonitorSelect() {
       state.settings.desktopOverlaysEnabled === true ||
       !!state.settings.currentSessionHotkey ||
       !!state.settings.quickNoteHotkey ||
+      !!state.settings.pauseTimerHotkey ||
       !!state.settings.screenshotHotkey ||
       !!state.settings.screenshotCaptionHotkey ||
       !!state.settings.quickAddHotkey,

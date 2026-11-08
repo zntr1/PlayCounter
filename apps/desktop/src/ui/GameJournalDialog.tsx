@@ -58,6 +58,7 @@ import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
 import { getSessionGameKey } from "../historyStats";
 import { usePickedCovers } from "../pickedCovers";
+import { playedSeconds } from "../sessionTime";
 import { appLocale, getT } from "../i18n";
 import { Trans } from "react-i18next";
 
@@ -253,11 +254,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const runningSecondsFor = (id: string | null) =>
     running
       .filter((s) => (s.playthroughId ?? null) === id)
-      .reduce(
-        (sum, s) =>
-          sum + Math.max(0, Math.floor((now - Date.parse(s.startedAt)) / 1000)),
-        0,
-      );
+      .reduce((sum, s) => sum + playedSeconds(s, now), 0);
   const sessionCountFor = (id: string | null) =>
     gameSessions.filter((s) => (s.playthroughId ?? null) === id).length;
   // One pass over the ledger: every row needs its own total, and the longest
@@ -805,10 +802,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                             {t("Playing now")}
                           </span>
                         }
-                        seconds={Math.max(
-                          0,
-                          Math.floor((now - Date.parse(s.startedAt)) / 1000),
-                        )}
+                        seconds={playedSeconds(s, now)}
                         showDays={showDays}
                       />
                     ))}

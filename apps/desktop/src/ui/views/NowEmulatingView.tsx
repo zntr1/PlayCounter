@@ -17,6 +17,8 @@ import {
   providerFloors as collectProviderFloors,
 } from "../../library/playtimeFloor";
 import { resolvedCanonicalGameKey } from "../../store";
+import { pausedForSeconds, playedSeconds } from "../../sessionTime";
+import { togglePauseSession } from "../../tracker";
 import { getT } from "../../i18n";
 
 const t = getT("nowPlaying");
@@ -149,10 +151,9 @@ export function NowEmulatingView() {
         <ActiveGameHero
           key={session.id}
           session={session}
-          elapsedSeconds={Math.max(
-            0,
-            Math.floor((now - Date.parse(session.startedAt)) / 1000),
-          )}
+          elapsedSeconds={playedSeconds(session, now)}
+          pausedForSeconds={pausedForSeconds(session, now)}
+          onTogglePause={() => void togglePauseSession(session.id)}
           recentSessions={recentSessions}
           showDurationDays={showDurationDays}
           exeCache={exeCache}

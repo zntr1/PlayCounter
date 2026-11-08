@@ -46,6 +46,23 @@ describe("today's playtime", () => {
     ).toBe(2 * 3600);
   });
 
+  // docs/pause-timer-plan.md: paused time never counts.
+  it("leaves out the paused parts of a running game", () => {
+    // Started 10:00, paused 10:30-11:00, paused again since 11:30.
+    expect(
+      todayPlaySeconds(
+        [],
+        [
+          running(at(10), {
+            pausedMs: 30 * 60_000,
+            pausedAt: iso(at(11, 30)),
+          }),
+        ],
+        at(12),
+      ),
+    ).toBe(3600);
+  });
+
   it("counts only the part of a session after midnight", () => {
     expect(
       todayPlaySeconds([finished(at(23) - 86_400_000, 120)], [], at(9)),

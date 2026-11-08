@@ -16,7 +16,8 @@ import {
 import { pickedCover } from "./pickedCovers";
 import { openQuickNote } from "./quickNote";
 import { currentPlatform } from "./platform";
-import { useAppStore } from "./store";
+import { playedSeconds } from "./sessionTime";
+import { useAppStore, type ActiveSession } from "./store";
 import { appLocale, getT } from "./i18n";
 
 const t = getT("overlays");
@@ -46,7 +47,6 @@ export function showCurrentSessionOverlay() {
   const session = sessions[index];
   lastRequestedSessionId = session?.id ?? null;
   const context = renderContext();
-  const startedAt = session ? Date.parse(session.startedAt) : context.nowMs;
   const message = buildOverlayMessage(
     "current-session",
     {
@@ -54,9 +54,7 @@ export function showCurrentSessionOverlay() {
       gameName: session?.gameName,
       coverUrl:
         pickedCover(useAppStore.getState(), session) ?? session?.coverUrl,
-      durationSeconds: Number.isFinite(startedAt)
-        ? Math.max(0, Math.floor((context.nowMs - startedAt) / 1000))
-        : 0,
+      durationSeconds: session ? playedSeconds(session, context.nowMs) : 0,
       sessionIndex: index + 1,
       sessionCount: sessions.length,
       showClock: useAppStore.getState().settings.overlayShowClock === true,
@@ -83,6 +81,31 @@ export function showPlaytimeReminderOverlay(todaySeconds: number) {
     renderContext(),
   );
   state.queue.push(message);
+}
+
+/** The pause hotkey's answer while no live timer shows the change. Shown at
+ *  once, also with automatic popups off: it answers a key press. */
+export function showPauseToggledOverlay(
+  session: ActiveSession,
+  paused: boolean,
+  durationSeconds: number,
+) {
+  const state = bridge;
+  if (!state || state.disposed) return;
+  state.queue.showImmediately(
+    buildOverlayMessage(
+      "current-session",
+      {
+        type: "pause-toggled",
+        paused,
+        gameName: session.gameName,
+        coverUrl:
+          pickedCover(useAppStore.getState(), session) ?? session.coverUrl,
+        durationSeconds,
+      },
+      renderContext(),
+    ),
+  );
 }
 
 /** Without a running game the hotkey has nothing to move or hide, so it says

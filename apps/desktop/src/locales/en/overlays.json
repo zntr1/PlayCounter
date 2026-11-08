@@ -68,5 +68,10 @@
   "What's happening in this picture?": "What's happening in this picture?",
   "Enter saves · Esc keeps the picture without a caption": "Enter saves · Esc keeps the picture without a caption",
   "Skip": "Skip",
-  "“{{caption}}”": "“{{caption}}”"
+  "“{{caption}}”": "“{{caption}}”",
+  "TIMER PAUSED": "TIMER PAUSED",
+  "TIMER RESUMED": "TIMER RESUMED",
+  "Paused": "Paused",
+  "Pause the timer for {{gameName}}": "Pause the timer for {{gameName}}",
+  "Resume the timer for {{gameName}}": "Resume the timer for {{gameName}}"
 }

@@ -969,6 +969,45 @@ html[data-window="live-timer"] #live-timer-root {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
 }
 
+/* Paused: an amber pause mark in place of the logo, the digits dimmed. Same
+   size, so the pill does not jump. */
+.live-timer-paused {
+  border-color: rgb(var(--color-warning) / 0.5);
+}
+
+.live-timer-paused time {
+  opacity: 0.55;
+}
+
+.live-timer-pause-mark {
+  width: 20px;
+  height: 20px;
+  color: rgb(var(--color-warning));
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+}
+
+/* Shown while the mouse rests on the pill, and while paused (Resume). */
+.live-timer-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  margin: -2px -9px -2px 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+  cursor: pointer;
+  text-shadow: none;
+}
+
+.live-timer-button:hover,
+.live-timer-paused .live-timer-button {
+  border-color: rgb(var(--color-accent));
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-fg));
+}
+
 .desktop-overlay-glints i {
   position: absolute;
   width: 4px;

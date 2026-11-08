@@ -140,6 +140,7 @@ import {
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { formatClock } from "./ActiveGameHero";
+import { playedMs, playedSeconds } from "../../sessionTime";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
@@ -739,13 +740,8 @@ function playButtonState(
 }
 
 function activeDurationSeconds(activeSession: ActiveSession) {
-  return Math.max(
-    0,
-    Math.round(
-      (Date.parse(activeSession.checkpointedAt) -
-        Date.parse(activeSession.startedAt)) /
-        1000,
-    ),
+  return Math.round(
+    playedMs(activeSession, Date.parse(activeSession.checkpointedAt)) / 1000,
   );
 }
 
@@ -5654,7 +5650,7 @@ export function GameLibraryCard({
           </ContextMenuItem>
           {demo ? null : timerSession ? (
             <StopTimerMenuItem
-              startedAt={timerSession.startedAt}
+              session={timerSession}
               onClick={() => {
                 contextMenu.close();
                 void stopGameTimer(timerSession.id);
@@ -7358,10 +7354,10 @@ const MemoizedGameLibraryCard = memo(GameLibraryCard);
 
 // Counts while the Playtime menu is open; menus only render while open.
 function StopTimerMenuItem({
-  startedAt,
+  session,
   onClick,
 }: {
-  startedAt: string;
+  session: ActiveSession;
   onClick: () => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
@@ -7376,9 +7372,7 @@ function StopTimerMenuItem({
       onClick={onClick}
     >
       {t("Stop timer · {{time}}", {
-        time: formatClock(
-          Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000)),
-        ),
+        time: formatClock(playedSeconds(session, now)),
       })}
     </ContextMenuItem>
   );

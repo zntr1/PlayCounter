@@ -333,6 +333,7 @@ const settings = object({}, {
   currentSessionHotkey: nullable(string),
   quickNoteHotkey: nullable(string),
   liveTimerHotkey: nullable(string),
+  pauseTimerHotkey: nullable(string),
   screenshotHotkey: nullable(string),
   screenshotCaptionHotkey: nullable(string),
   quickAddHotkey: nullable(string),
