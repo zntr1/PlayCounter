@@ -260,7 +260,7 @@ export function GameJournalBadges({
   if (!hasNote && !journal.favorite && !tier && !status) return null;
   return (
     <div
-      className={`status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
+      className={`game-card-journal-badges status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
     >
       {status ? (
         // First, so it sits in the same spot on every card. The icon alone,

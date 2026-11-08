@@ -159,6 +159,26 @@ export function providerFloorsForProvider(
   return providerFloors(scopedEntries);
 }
 
+/**
+ * One game's playtime per launcher, as its total counts it (the higher copy
+ * on a PC launcher, PlayStation copies added up). Null: the launcher reports
+ * no playtime. Most time first, unknown last (docs/shift-hover-plan.md).
+ */
+export function launcherPlaytimes(
+  entries: readonly LibraryImportEntry[],
+): { provider: LibraryProviderId; seconds: number | null }[] {
+  const providers = [...new Set(entries.map((entry) => entry.provider))];
+  return providers
+    .map((provider) => {
+      const own = entries.filter((entry) => entry.provider === provider);
+      const seconds = own.every((entry) => entry.providerSeconds === null)
+        ? null
+        : (providerFloorsForProvider(own, provider)[0]?.seconds ?? 0);
+      return { provider, seconds };
+    })
+    .sort((left, right) => (right.seconds ?? -1) - (left.seconds ?? -1));
+}
+
 export function providerFloorsByKey(
   floors: Iterable<ProviderFloor>,
 ): Record<string, ProviderFloor> {
