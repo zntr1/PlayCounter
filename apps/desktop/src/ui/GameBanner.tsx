@@ -266,7 +266,7 @@ export function GameBanner({
                 aria-label={`${playLabel}: ${game.name}`}
                 onClick={() => void launcher.launch()}
                 className={clsx(
-                  "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
+                  "library-hero-play rounded-lg font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
                   compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
                 )}
               >
@@ -283,7 +283,7 @@ export function GameBanner({
                 aria-label={t("Install {{name}} in Steam", { name: game.name })}
                 onClick={() => void launcher.install()}
                 className={clsx(
-                  "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
+                  "library-hero-play rounded-lg font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
                   compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
                 )}
               >
@@ -295,7 +295,7 @@ export function GameBanner({
               icon={Info}
               onClick={() => setShowDetails(true)}
               className={clsx(
-                "rounded-lg border-2 border-text/25 bg-bg/40 font-semibold backdrop-blur hover:border-text/50 hover:bg-bg/60",
+                "rounded-lg border-2 border-text/25 bg-bg/40 font-normal backdrop-blur hover:border-text/50 hover:bg-bg/60",
                 compact ? "h-9 px-4 text-sm" : "h-12 px-5 text-[15px]",
               )}
             >
