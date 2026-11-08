@@ -36,6 +36,7 @@ pub mod screenshot;
 mod session;
 mod shell_open;
 mod webview_args;
+mod window_fit;
 
 // English defaults until the main window sends the texts in its language.
 const TRAY_STATUS_IDLE: &str = "No game active";
@@ -649,6 +650,11 @@ pub fn run() {
             if window.label() != notification_overlay::MAIN_LABEL {
                 return;
             }
+            // Restore button, title-bar double-click, Win+Down, leaving
+            // fullscreen: a normal window must fit on its screen.
+            if let tauri::WindowEvent::Resized(_) = event {
+                window_fit::keep_on_screen(window);
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
@@ -730,6 +736,8 @@ fn show_main_window(app: &tauri::AppHandle) {
         set_main_window_in_tray(&window, false);
         let _ = window.unminimize();
         let _ = window.show();
+        // A saved normal size can be the whole screen.
+        window_fit::keep_on_screen(&window.as_ref().window());
         let _ = window.set_focus();
     }
 }
