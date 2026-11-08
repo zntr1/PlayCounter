@@ -63,6 +63,15 @@ export default {
           "want-to-replay": rgb("--color-status-want-to-replay"),
           "not-planned": rgb("--color-status-not-planned"),
         },
+        tier: {
+          s: rgb("--color-tier-s"),
+          a: rgb("--color-tier-a"),
+          b: rgb("--color-tier-b"),
+          c: rgb("--color-tier-c"),
+          d: rgb("--color-tier-d"),
+          f: rgb("--color-tier-f"),
+        },
+        favorite: rgb("--color-favorite"),
       },
       fontFamily: {
         sans: ["Inter", "Segoe UI", "system-ui", "sans-serif"],

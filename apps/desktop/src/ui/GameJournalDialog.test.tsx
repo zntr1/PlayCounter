@@ -4,11 +4,15 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore, type ActiveSession } from "../store";
-import { gameStatusLabel, type GameStatus } from "../personalLibrary";
+import {
+  GAME_TIERS,
+  gameStatusLabel,
+  type GameStatus,
+} from "../personalLibrary";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
 import { ContextMenu } from "./ContextMenu";
-import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST, STATUS_TONES, TIER_TONES } from "./journalStyles";
 import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
@@ -414,6 +418,233 @@ it("leaves Shelves out of the card menu until a shelf takes games by hand, and w
   expect(menuLabels()).not.toContain("Shelves");
   await act(() => state().setMyGamesShowShelves(true));
   expect(menuLabels()).toContain("Shelves");
+});
+
+/** A card menu row, found by the words it shows. */
+function menuRow(label: string) {
+  const row = [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-context-menu-item]"),
+  ].find((item) => item.textContent?.trim() === label);
+  expect(row, `no menu row labelled ${label}`).toBeDefined();
+  return row!;
+}
+
+it("shows the game's status as the Status group's icon in the card menu, and the plain icon while it has none", async () => {
+  await act(() =>
+    root.render(
+      <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+        <GameJournalMenu game={game} onClose={() => {}} />
+      </ContextMenu>,
+    ),
+  );
+  expect(
+    menuRow("Status").querySelector("svg.lucide-circle-dot"),
+  ).not.toBeNull();
+
+  for (const status of GAME_STATUS_LIST) {
+    await act(() => useAppStore.getState().updateGameJournal(game, { status }));
+    // On hold: the pause icon, in the colour it has on the cover.
+    const icon = menuRow("Status").querySelector(`svg.${STATUS_ICONS[status]}`);
+    expect(icon, status).not.toBeNull();
+    expect(icon!.getAttribute("class"), status).toContain(
+      STATUS_TONES[status].text,
+    );
+    expect(
+      menuRow("Status").querySelector("svg.lucide-circle-dot"),
+      status,
+    ).toBeNull();
+  }
+
+  await act(() =>
+    useAppStore.getState().updateGameJournal(game, { status: null }),
+  );
+  expect(
+    menuRow("Status").querySelector("svg.lucide-circle-dot"),
+  ).not.toBeNull();
+});
+
+it("shows the picked tier's letter as the Tier group's icon in the card menu, in its cover colour, and the medal while there is none", async () => {
+  await act(() =>
+    root.render(
+      <>
+        <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+          <GameJournalMenu game={game} onClose={() => {}} />
+        </ContextMenu>
+        <GameJournalBadges game={game} />
+      </>,
+    ),
+  );
+  expect(menuRow("Tier").querySelector("svg.lucide-medal")).not.toBeNull();
+
+  for (const tier of GAME_TIERS) {
+    await act(() => useAppStore.getState().setGameTier(game, tier));
+    // S tier: the S, in the colour the cover badge gives it.
+    const letter = menuRow("Tier").querySelector("[data-tier]");
+    expect(letter?.getAttribute("data-tier"), tier).toBe(tier);
+    expect(letter!.className, tier).toContain(TIER_TONES[tier]);
+    expect(
+      document.querySelector(`[aria-label="Tier: ${tier}"]`)!.className,
+      tier,
+    ).toContain(TIER_TONES[tier]);
+    expect(menuRow("Tier").querySelector("svg.lucide-medal"), tier).toBeNull();
+  }
+
+  // The letter is not part of the row's text: typing T still finds Tier.
+  await act(() => menuRow("Add to Favorites").focus());
+  await act(() =>
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "t", bubbles: true, cancelable: true }),
+    ),
+  );
+  expect(document.activeElement).toBe(menuRow("Tier"));
+
+  await act(() => useAppStore.getState().setGameTier(game, null));
+  expect(menuRow("Tier").querySelector("svg.lucide-medal")).not.toBeNull();
+});
+
+it("shows the cover's yellow star on the card menu's favourite item while the game is a favourite, and the plain star otherwise", async () => {
+  await act(() =>
+    root.render(
+      <>
+        <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+          <GameJournalMenu game={game} onClose={() => {}} />
+        </ContextMenu>
+        <GameJournalBadges game={game} />
+      </>,
+    ),
+  );
+  const plain = () =>
+    menuRow("Add to Favorites").querySelector("svg.lucide-star")!;
+  expect(plain().getAttribute("fill")).toBe("none");
+  expect(textColours(plain())).toEqual(["text-text-muted"]);
+
+  await act(() =>
+    useAppStore.getState().updateGameJournal(game, { favorite: true }),
+  );
+  const star = menuRow("Remove from Favorites").querySelector(
+    "svg.lucide-star",
+  )!;
+  // Filled, in the yellow of the cover's star.
+  expect(star.getAttribute("fill")).toBe("currentColor");
+  expect(textColours(star)).toEqual(
+    textColours(document.querySelector('[aria-label="Favorite"]')!),
+  );
+
+  await act(() =>
+    useAppStore.getState().updateGameJournal(game, { favorite: false }),
+  );
+  expect(plain().getAttribute("fill")).toBe("none");
+});
+
+/** Text colour utilities on an element; sizes and alignment don't count. */
+function textColours(element: Element) {
+  return [...element.classList].filter(
+    (name) =>
+      name.startsWith("text-") &&
+      !/^text-(xs|sm|base|lg|\d?xl|left|center|right|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip|\[\d+(\.\d+)?(px|rem|em)\])$/.test(
+        name,
+      ),
+  );
+}
+
+it("colours the cover's favourite star amber and each tier letter in its tier colour, with no second text colour that could win over it", async () => {
+  useAppStore.getState().updateGameJournal(game, {
+    status: "on-hold",
+    favorite: true,
+  });
+  await act(() => root.render(<GameJournalBadges game={game} />));
+  for (const tier of GAME_TIERS) {
+    await act(() => useAppStore.getState().setGameTier(game, tier));
+    // Tailwind orders same-kind classes alphabetically, not by their place in
+    // the class list: a second colour, like the white "text-white", would
+    // beat "text-amber-300" and "text-tier-s" alike.
+    expect(
+      textColours(document.querySelector('[aria-label="Favorite"]')!),
+    ).toEqual(["text-favorite"]);
+    expect(
+      textColours(document.querySelector(`[aria-label="Tier: ${tier}"]`)!),
+      tier,
+    ).toEqual([TIER_TONES[tier]]);
+  }
+  // Every other badge has at most one colour of its own as well.
+  const row = document.querySelector('[aria-label="Status: On hold"]')!
+    .parentElement!;
+  for (const badge of row.children)
+    expect(
+      textColours(badge).length,
+      badge.getAttribute("title") ?? "",
+    ).toBeLessThanOrEqual(1);
+});
+
+/** The colour a styles.css variable holds for the black cover badge (it keeps
+ *  the dark theme's in both themes), for the light theme, and the light
+ *  theme's menu surface. */
+function journalColours(name: string) {
+  const styles = readFileSync("src/styles.css", "utf8").replace(
+    /\/\*[\s\S]*?\*\//g,
+    "",
+  );
+  const rules = [...styles.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+    ([, selector, body]) => ({
+      selectors: selector.split(",").map((part) => part.trim()),
+      body,
+    }),
+  );
+  const rgb = (body: string | undefined, variable: string) =>
+    body
+      ?.match(new RegExp(`${variable}:\\s*(\\d+) (\\d+) (\\d+);`))
+      ?.slice(1)
+      .map(Number);
+  const badge = rules.find(
+    (rule) =>
+      rule.selectors.includes(".status-on-dark") && rule.body.includes(name),
+  );
+  const paper = rules.find(
+    (rule) =>
+      rule.selectors.includes(':root[data-theme="light"]') &&
+      rule.body.includes("--color-surface:"),
+  );
+  return {
+    onBadge: rgb(badge?.body, name),
+    onPaper: rgb(paper?.body, name),
+    paper: rgb(paper?.body, "--color-surface")!,
+  };
+}
+
+/** WCAG contrast ratio between two sRGB colours. */
+function contrast(a: number[], b: number[]) {
+  const luminance = (colour: number[]) => {
+    const [r, g, bl] = colour.map((value) => {
+      const channel = value / 255;
+      return channel <= 0.03928
+        ? channel / 12.92
+        : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+it("keeps each tier's cover colour on the black cover badge in both themes, and gives the light theme darker ones that read on its menus", () => {
+  for (const tier of GAME_TIERS) {
+    const colours = journalColours(`--color-tier-${tier.toLowerCase()}`);
+    expect(colours.onBadge, tier).toBeDefined();
+    expect(colours.onPaper, tier).toBeDefined();
+    // Text contrast (WCAG AA) on the light theme's menus.
+    expect(
+      contrast(colours.onPaper!, colours.paper),
+      tier,
+    ).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+it("keeps the cover's yellow star in both themes, and gives the light theme a deeper yellow that stands out on its menus", () => {
+  const colours = journalColours("--color-favorite");
+  expect(colours.onBadge).toBeDefined();
+  expect(colours.onPaper).toBeDefined();
+  // An icon, not text: WCAG asks 3:1 against what is next to it.
+  expect(contrast(colours.onPaper!, colours.paper)).toBeGreaterThanOrEqual(3);
 });
 
 it.each(GAME_STATUS_LIST)(

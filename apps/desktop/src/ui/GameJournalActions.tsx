@@ -52,6 +52,17 @@ export function GameJournalMenu({
       <ContextMenuItem
         dataTour={practice ? "demo-menu-favorite" : undefined}
         icon={Star}
+        // A favourite shows the cover's yellow star.
+        mark={
+          journal.favorite ? (
+            <Star
+              size={14}
+              aria-hidden="true"
+              fill="currentColor"
+              className="shrink-0 text-favorite"
+            />
+          ) : undefined
+        }
         onClick={() => {
           onClose();
           update(game, { favorite: !journal.favorite });
@@ -69,7 +80,13 @@ export function GameJournalMenu({
       >
         {t("Journal")}
       </ContextMenuItem>
-      <ContextMenuSubmenu label={t("Status")} icon={CircleDot}>
+      <ContextMenuSubmenu
+        label={t("Status")}
+        icon={CircleDot}
+        mark={
+          journal.status ? <GameStatusIcon status={journal.status} /> : undefined
+        }
+      >
         {GAME_STATUS_LIST.map((status) => (
           <ContextMenuItem
             key={status}
@@ -101,6 +118,7 @@ export function GameJournalMenu({
       <ContextMenuSubmenu
         label={t("Tier")}
         icon={Medal}
+        mark={journal.tier ? <TierMark tier={journal.tier} /> : undefined}
         dataTour={practice ? "demo-menu-tier" : undefined}
         menuDataTour={practice ? "demo-tier-menu" : undefined}
       >
@@ -135,6 +153,18 @@ export function GameJournalMenu({
         </ContextMenuSubmenu>
       ) : null}
     </>
+  );
+}
+
+/** The picked tier in its cover colour, where a menu row draws its icon. CSS
+ *  draws the letter, so the row's text stays "Tier" and typing T finds it. */
+function TierMark({ tier }: { tier: GameTier }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-tier={tier}
+      className={`w-3.5 shrink-0 text-center font-mono text-[13px] font-bold leading-none before:content-[attr(data-tier)] ${TIER_TONES[tier]}`}
+    />
   );
 }
 
@@ -187,8 +217,11 @@ export function GameTierMenuItems({
   );
 }
 
+// No text colour here: each badge sets its own. Tailwind orders same-kind
+// classes alphabetically, so a shared "text-white" would beat "text-amber-300"
+// and the tier colours whatever their place in the class list.
 const badgeShell =
-  "grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-md";
+  "grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 shadow-md";
 
 /** What the journal knows about a game, read from its cover: a note to pick up,
  *  a favorite, your tier, and where the game stands. Nothing else earns cover
@@ -252,7 +285,7 @@ export function GameJournalBadges({
             event.stopPropagation();
             open({ game, tab: "note", playthroughId: notePlaythroughId });
           }}
-          className={`${badgeShell} transition hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${compact ? "h-6 w-6" : ""}`}
+          className={`${badgeShell} text-white transition hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${compact ? "h-6 w-6" : ""}`}
         >
           <StickyNote size={compact ? 12 : 14} />
         </button>
@@ -261,7 +294,7 @@ export function GameJournalBadges({
         <span
           aria-label={t("Favorite")}
           title={t("Favorite")}
-          className={`${badgeShell} text-amber-300 ${compact ? "h-6 w-6" : ""}`}
+          className={`${badgeShell} text-favorite ${compact ? "h-6 w-6" : ""}`}
         >
           <Star size={compact ? 11 : 13} fill="currentColor" />
         </span>

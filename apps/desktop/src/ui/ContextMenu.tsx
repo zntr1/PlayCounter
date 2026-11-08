@@ -362,6 +362,8 @@ function MenuPanel({
 
 type ItemProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: LucideIcon;
+  /** Drawn in the icon's place: what a group holds right now. */
+  mark?: ReactNode;
   danger?: boolean;
   selected?: boolean;
   dataTour?: string;
@@ -372,6 +374,7 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
   function MenuItemButton(
     {
       icon: Icon,
+      mark,
       danger,
       selected,
       dataTour,
@@ -399,16 +402,17 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
           className,
         )}
       >
-        {Icon ? (
-          <Icon
-            size={14}
-            aria-hidden="true"
-            className={clsx(
-              "shrink-0",
-              danger ? "text-danger" : "text-text-muted",
-            )}
-          />
-        ) : null}
+        {mark ??
+          (Icon ? (
+            <Icon
+              size={14}
+              aria-hidden="true"
+              className={clsx(
+                "shrink-0",
+                danger ? "text-danger" : "text-text-muted",
+              )}
+            />
+          ) : null)}
         <span className="min-w-0 flex-1 truncate">{children}</span>
         {suffix ??
           (selected ? (
@@ -443,6 +447,7 @@ export function ContextMenuItem(props: Omit<ItemProps, "suffix">) {
 export function ContextMenuSubmenu({
   label,
   icon,
+  mark,
   children,
   dataTour,
   menuDataTour,
@@ -450,6 +455,7 @@ export function ContextMenuSubmenu({
 }: {
   label: string;
   icon?: LucideIcon;
+  mark?: ReactNode;
   children: ReactNode;
   dataTour?: string;
   menuDataTour?: string;
@@ -479,6 +485,7 @@ export function ContextMenuSubmenu({
         ref={triggerRef}
         id={id}
         icon={icon}
+        mark={mark}
         dataTour={dataTour}
         aria-haspopup="menu"
         aria-expanded={open}

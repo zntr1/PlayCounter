@@ -70,6 +70,21 @@
   --color-status-not-planned: 113 113 122;
 }
 
+/* Tier colours (journalStyles.ts), hot to cold: S rose, A orange, B yellow,
+   C lime, D sky, F grey; then the favourite star's yellow. The black cover
+   badge keeps them in the light theme too (.status-on-dark), like the status
+   colours. */
+:root,
+.status-on-dark {
+  --color-tier-s: 253 164 175;
+  --color-tier-a: 253 186 116;
+  --color-tier-b: 253 230 138;
+  --color-tier-c: 190 242 100;
+  --color-tier-d: 125 211 252;
+  --color-tier-f: 161 161 170;
+  --color-favorite: 252 211 77;
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 
@@ -122,6 +137,15 @@
   --color-status-want-to-play: 39 39 42;
   --color-status-want-to-replay: 29 78 216;
   --color-status-not-planned: 113 113 122;
+  /* Tier and favourite colours dark enough to stand out on the paper menus;
+     the cover badge's light ones would fade there. */
+  --color-tier-s: 190 18 60;
+  --color-tier-a: 194 65 12;
+  --color-tier-b: 161 98 7;
+  --color-tier-c: 77 124 15;
+  --color-tier-d: 3 105 161;
+  --color-tier-f: 113 113 122;
+  --color-favorite: 217 119 6;
 
   --shadow-raised:
     0 1px 2px rgba(60, 44, 20, 0.06), 0 4px 16px rgba(60, 44, 20, 0.1);
