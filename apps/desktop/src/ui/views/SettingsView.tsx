@@ -711,6 +711,22 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
+          title={t("Quick add game")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Open a small search box from anywhere and add a game to My Games, for the ones you want to remember. Enter searches, Enter again adds it and takes you back. In exclusive fullscreen games, the game may minimize while the box is open.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="quickAddHotkey"
+            label={t("Quick add game")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
+        <SettingsRow
           title={t("Show or hide live timer")}
           description={
             currentPlatform() === "macos"

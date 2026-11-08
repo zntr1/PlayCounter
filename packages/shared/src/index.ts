@@ -705,6 +705,7 @@ export interface Settings {
   screenshotHotkey?: string | null;
   /** Takes the picture, then opens a box for its caption. */
   screenshotCaptionHotkey?: string | null;
+  quickAddHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";

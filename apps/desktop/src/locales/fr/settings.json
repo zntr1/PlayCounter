@@ -325,6 +325,8 @@
   "{{downloaded}} of {{total}}": "{{downloaded}} sur {{total}}",
   "Quick session note": "Note de session rapide",
   "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Ouvre une petite zone de note par-dessus votre jeu pour noter ce qui s'est passé pendant cette session. Entrée enregistre et vous ramène au jeu. Les jeux en plein écran exclusif peuvent se réduire tant que la zone est ouverte.",
+  "Quick add game": "Ajout rapide de jeu",
+  "Open a small search box from anywhere and add a game to My Games, for the ones you want to remember. Enter searches, Enter again adds it and takes you back. In exclusive fullscreen games, the game may minimize while the box is open.": "Ouvre une petite zone de recherche depuis n'importe où pour ajouter à Mes jeux ceux dont vous voulez vous souvenir. Entrée lance la recherche, un second Entrée ajoute le jeu et vous ramène où vous étiez. Les jeux en plein écran exclusif peuvent se réduire tant que la zone est ouverte.",
   "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Affiche un bouton « Ajouter une note de session » dans les fenêtres de session enregistrée. Il ouvre une petite zone où noter ce qui s'est passé pendant cette session.",
   "Session notes in popups": "Notes de session dans les fenêtres",
   "Show or hide live timer": "Afficher ou masquer le chrono à l'écran",

@@ -38,6 +38,8 @@
   "Session saved": "Sitzung gespeichert",
   "What happened? Where did you stop?": "Was ist passiert? Wo hast du aufgehört?",
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter speichert · Umschalt+Enter für neue Zeile · Esc bricht ab",
+  "Enter searches · Enter again adds · ↑↓ picks · Esc closes": "Enter sucht · nochmal Enter fügt hinzu · ↑↓ wählt · Esc schließt",
+  "It's in My Games now.": "Es ist jetzt in „Meine Spiele“.",
   "Save": "Speichern",
   "Cancel": "Abbrechen",
   "Add session note": "Sitzungsnotiz hinzufügen",

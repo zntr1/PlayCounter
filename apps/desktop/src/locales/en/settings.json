@@ -320,6 +320,8 @@
   "{{downloaded}} of {{total}}": "{{downloaded}} of {{total}}",
   "Quick session note": "Quick session note",
   "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.",
+  "Quick add game": "Quick add game",
+  "Open a small search box from anywhere and add a game to My Games, for the ones you want to remember. Enter searches, Enter again adds it and takes you back. In exclusive fullscreen games, the game may minimize while the box is open.": "Open a small search box from anywhere and add a game to My Games, for the ones you want to remember. Enter searches, Enter again adds it and takes you back. In exclusive fullscreen games, the game may minimize while the box is open.",
   "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.",
   "Session notes in popups": "Session notes in popups",
   "Show or hide live timer": "Show or hide live timer",

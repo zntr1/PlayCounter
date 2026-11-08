@@ -13,6 +13,7 @@ import {
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
+import { openQuickAdd } from "./quickAdd";
 import { takeScreenshot } from "./screenshots";
 import { useAppStore } from "./store";
 
@@ -24,6 +25,7 @@ vi.mock("./desktopOverlayBridge", () => ({
 vi.mock("./quickNote", () => ({
   openQuickNoteForCurrentSession: vi.fn(),
 }));
+vi.mock("./quickAdd", () => ({ openQuickAdd: vi.fn() }));
 vi.mock("./liveTimer", () => ({ cycleLiveTimer: vi.fn() }));
 vi.mock("./screenshots", () => ({ takeScreenshot: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
@@ -48,6 +50,7 @@ beforeEach(() => {
       liveTimerHotkey: null,
       screenshotHotkey: null,
       screenshotCaptionHotkey: null,
+      quickAddHotkey: null,
     },
   }));
 });
@@ -68,6 +71,7 @@ describe("global hotkeys", () => {
         liveTimerHotkey: "Alt+F10",
         screenshotHotkey: "Alt+F11",
         screenshotCaptionHotkey: "Alt+F12",
+        quickAddHotkey: "Alt+F7",
       },
     }));
     initializeHotkeys();
@@ -79,6 +83,7 @@ describe("global hotkeys", () => {
       "playcounter:live-timer-hotkey",
       "playcounter:screenshot-hotkey",
       "playcounter:screenshot-caption-hotkey",
+      "playcounter:quick-add-hotkey",
     ]);
     expect(invokeMock.mock.calls).toEqual([
       [
@@ -93,6 +98,7 @@ describe("global hotkeys", () => {
         "set_global_hotkey",
         { action: "screenshot-caption", shortcut: "Alt+F12" },
       ],
+      ["set_global_hotkey", { action: "quick-add", shortcut: "Alt+F7" }],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
@@ -114,6 +120,25 @@ describe("global hotkeys", () => {
     listenMock.mock.calls[4][1]({ payload: null } as never);
     expect(takeScreenshot).toHaveBeenCalledTimes(2);
     expect(takeScreenshot).toHaveBeenLastCalledWith({ caption: true });
+  });
+
+  it("opens the quick add box from its hotkey, with no game running", async () => {
+    await saveHotkey("quickAddHotkey", "Control+Alt+KeyA");
+    expect(invokeMock).toHaveBeenCalledWith("set_global_hotkey", {
+      action: "quick-add",
+      shortcut: "Control+Alt+KeyA",
+    });
+    expect(useAppStore.getState().settings.quickAddHotkey).toBe(
+      "Control+Alt+KeyA",
+    );
+    const quickAdd = listenMock.mock.calls.find(
+      ([event]) => event === "playcounter:quick-add-hotkey",
+    );
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    quickAdd![1]({ payload: null } as never);
+    expect(openQuickAdd).toHaveBeenCalledOnce();
+    expect(openQuickNoteForCurrentSession).not.toHaveBeenCalled();
+    expect(showCurrentSessionOverlay).not.toHaveBeenCalled();
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {
@@ -172,6 +197,7 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "live-timer", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot-caption", shortcut: null }],
+      ["set_global_hotkey", { action: "quick-add", shortcut: null }],
     ]);
   });
 });

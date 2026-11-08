@@ -325,6 +325,8 @@
   "{{downloaded}} of {{total}}": "{{downloaded}} de {{total}}",
   "Quick session note": "Nota rápida da sessão",
   "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Abre uma pequena caixa de nota sobre o jogo para você anotar o que aconteceu nesta sessão. Enter salva e leva você de volta ao jogo. Em jogos em tela cheia exclusiva, o jogo pode ser minimizado enquanto a caixa está aberta.",
+  "Quick add game": "Adicionar jogo rápido",
+  "Open a small search box from anywhere and add a game to My Games, for the ones you want to remember. Enter searches, Enter again adds it and takes you back. In exclusive fullscreen games, the game may minimize while the box is open.": "Abre de qualquer lugar uma pequena caixa de busca para você adicionar a Meus jogos os jogos que quer lembrar. Enter busca, outro Enter adiciona o jogo e leva você de volta. Em jogos em tela cheia exclusiva, o jogo pode ser minimizado enquanto a caixa está aberta.",
   "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Mostra um botão “Adicionar nota da sessão” nos pop-ups de sessão salva. Ele abre uma pequena caixa para você anotar o que aconteceu nessa sessão.",
   "Session notes in popups": "Notas da sessão nos pop-ups",
   "Show or hide live timer": "Mostrar ou ocultar o cronômetro na tela",

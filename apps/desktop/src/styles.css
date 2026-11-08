@@ -839,6 +839,12 @@ html[data-window="live-timer"] #live-timer-root {
   animation: quick-note-in 160ms ease-out;
 }
 
+/* The quick add box is as high as what it shows; its window follows. */
+.quick-note-card.quick-add-card {
+  height: auto;
+  max-height: 432px;
+}
+
 @keyframes quick-note-in {
   from {
     opacity: 0;

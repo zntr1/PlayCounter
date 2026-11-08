@@ -1119,6 +1119,8 @@ export function MyGamesView({
     return () => window.clearTimeout(timer);
   }, [activeSessions, recentSortNow]);
 
+  // The quick add box reads the same places through myGamesKeys
+  // (library/myGamesKeys.ts): a new place here goes there too.
   const games = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
     const isIgnored = (exeName: string) =>

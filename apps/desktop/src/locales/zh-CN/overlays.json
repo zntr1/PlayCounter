@@ -38,6 +38,8 @@
   "Session saved": "游玩记录已保存",
   "What happened? Where did you stop?": "发生了什么？玩到哪里了？",
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter 保存 · Shift+Enter 换行 · Esc 取消",
+  "Enter searches · Enter again adds · ↑↓ picks · Esc closes": "Enter 搜索 · 再按 Enter 添加 · ↑↓ 选择 · Esc 关闭",
+  "It's in My Games now.": "它现在在“我的游戏”中。",
   "Save": "保存",
   "Cancel": "取消",
   "Add session note": "添加游玩记录笔记",

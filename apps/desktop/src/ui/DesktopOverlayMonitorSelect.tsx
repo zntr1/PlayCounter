@@ -20,7 +20,8 @@ export function DesktopOverlayMonitorSelect() {
       !!state.settings.currentSessionHotkey ||
       !!state.settings.quickNoteHotkey ||
       !!state.settings.screenshotHotkey ||
-      !!state.settings.screenshotCaptionHotkey,
+      !!state.settings.screenshotCaptionHotkey ||
+      !!state.settings.quickAddHotkey,
   );
   const setMonitor = useAppStore((state) => state.setOverlayMonitor);
   const [monitors, setMonitors] = useState<DesktopOverlayMonitor[]>([]);

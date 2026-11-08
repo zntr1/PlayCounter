@@ -38,6 +38,8 @@
   "Session saved": "Session enregistrée",
   "What happened? Where did you stop?": "Que s'est-il passé ? Où en êtes-vous ?",
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Entrée enregistre · Maj+Entrée ajoute une ligne · Échap annule",
+  "Enter searches · Enter again adds · ↑↓ picks · Esc closes": "Entrée cherche · Entrée à nouveau ajoute · ↑↓ choisit · Échap ferme",
+  "It's in My Games now.": "Il est maintenant dans Mes jeux.",
   "Save": "Enregistrer",
   "Cancel": "Annuler",
   "Add session note": "Ajouter une note de session",

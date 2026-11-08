@@ -12,13 +12,14 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
 /// What a hotkey can do.
-const ACTIONS: [&str; 6] = [
+const ACTIONS: [&str; 7] = [
     "show-window",
     "current-session",
     "quick-note",
     "live-timer",
     "screenshot",
     "screenshot-caption",
+    "quick-add",
 ];
 
 fn is_known_action(action: &str) -> bool {
@@ -72,6 +73,12 @@ pub fn set_global_hotkey(
                         crate::quick_note::remember_foreground(app);
                         let _ = app.emit_to("main", "playcounter:quick-note-hotkey", ());
                     }
+                    "quick-add" => {
+                        // As for the note: focus goes back to the window in
+                        // front when the box closes.
+                        crate::quick_note::remember_foreground(app);
+                        let _ = app.emit_to("main", "playcounter:quick-add-hotkey", ());
+                    }
                     "live-timer" => {
                         let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
                     }
@@ -124,6 +131,7 @@ mod tests {
             "live-timer",
             "screenshot",
             "screenshot-caption",
+            "quick-add",
         ] {
             assert!(is_known_action(action), "{action}");
         }

@@ -330,6 +330,8 @@
   "{{downloaded}} of {{total}}": "{{downloaded}} из {{total}}",
   "Quick session note": "Быстрая заметка о сессии",
   "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Открывает поверх игры небольшое поле для заметки, чтобы записать, что произошло в этой сессии. Enter сохраняет и возвращает в игру. Игры в эксклюзивном полноэкранном режиме могут свернуться, пока поле открыто.",
+  "Quick add game": "Быстро добавить игру",
+  "Open a small search box from anywhere and add a game to My Games, for the ones you want to remember. Enter searches, Enter again adds it and takes you back. In exclusive fullscreen games, the game may minimize while the box is open.": "Открывает из любого места небольшое поле поиска, чтобы добавить в «Мои игры» игры, о которых вы не хотите забыть. Enter ищет, повторный Enter добавляет игру и возвращает вас обратно. Игры в эксклюзивном полноэкранном режиме могут свернуться, пока поле открыто.",
   "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Показывает кнопку «Добавить заметку о сессии» в окнах сохранения сессии. Она открывает небольшое поле, где можно записать, что произошло в этой сессии.",
   "Session notes in popups": "Заметки о сессии в окнах",
   "Show or hide live timer": "Показать или скрыть таймер на экране",

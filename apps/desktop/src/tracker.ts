@@ -8,6 +8,7 @@ import {
 } from "./achievements/backgroundRefresh";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
+import { initializeQuickAdd, disposeQuickAdd } from "./quickAdd";
 import { initializeScreenshots, disposeScreenshots } from "./screenshots";
 import {
   initializeLiveTimer,
@@ -536,6 +537,7 @@ export async function initializeTracker() {
   initializeDesktopOverlays();
   initializeHotkeys();
   initializeQuickNotes();
+  initializeQuickAdd();
   initializeLiveTimer(runningGamePids);
   initializeScreenshots(runningGamePids);
   initializePlayStationLive({
@@ -591,6 +593,7 @@ export async function stopTrackerForReset() {
   disposeDesktopOverlays();
   disposeHotkeys();
   disposeQuickNotes();
+  disposeQuickAdd();
   disposeLiveTimer();
   disposeScreenshots();
   disposePlayStationLive();
@@ -671,6 +674,7 @@ async function finishTrackerStartup() {
     disposeDesktopOverlays();
     disposeHotkeys();
     disposeQuickNotes();
+    disposeQuickAdd();
     disposeLiveTimer();
     disposeScreenshots();
     disposePlayStationLive();

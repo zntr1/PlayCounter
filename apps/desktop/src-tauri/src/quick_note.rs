@@ -1,7 +1,8 @@
 //! The quick note box: a small window over the game for writing a note to a
-//! session, or a caption to a screenshot just taken. Unlike the notification
-//! overlay it takes keyboard focus, and it hands focus back to the window that
-//! had it (usually the game) when it closes.
+//! session, a caption to a screenshot just taken, or (quick add) searching a
+//! game to add to My Games. Unlike the notification overlay it takes keyboard
+//! focus, and it hands focus back to the window that had it (usually the game)
+//! when it closes.
 
 use crate::screenshot::caption::CAPTION_LIMIT;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,22 @@ const WINDOW_LOGICAL_HEIGHT: f64 = 236.0;
 const CAPTION_WINDOW_LOGICAL_WIDTH: f64 = 488.0;
 #[cfg(not(target_os = "macos"))]
 const CAPTION_WINDOW_LOGICAL_HEIGHT: f64 = 430.0;
+/// The quick add box is as wide as the note box. It starts with the field and
+/// the buttons, grows with the search results up to its full height, and is
+/// placed as if it had that height, so its top edge never moves.
+#[cfg(not(target_os = "macos"))]
+const QUICK_ADD_WIDTH: f64 = 560.0;
+#[cfg(not(target_os = "macos"))]
+const QUICK_ADD_START_HEIGHT: f64 = 140.0;
+const QUICK_ADD_MIN_HEIGHT: f64 = 96.0;
+const QUICK_ADD_MAX_HEIGHT: f64 = 440.0;
+/// The quick add box asks the main window to search, and to add a picked game.
+pub const QUICK_ADD_SEARCH_EVENT: &str = "playcounter:quick-add-search";
+pub const QUICK_ADD_PICK_EVENT: &str = "playcounter:quick-add-pick";
+/// The main window's answer to the quick add box.
+pub const QUICK_ADD_REPLY_EVENT: &str = "playcounter:quick-add-reply";
+const QUERY_LIMIT: usize = 200;
+const RESULT_LIMIT: usize = 20;
 #[cfg(target_os = "macos")]
 const UNSUPPORTED: &str = "Desktop overlays are not supported on this platform.";
 
@@ -40,9 +57,13 @@ pub struct CaptionTarget {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuickNotePayload {
+    /// The session fields are absent for the quick add box.
+    #[serde(default)]
     session_id: i64,
+    #[serde(default)]
     game_name: String,
     cover_url: Option<String>,
+    #[serde(default)]
     note: String,
     /// Running sessions count up from here.
     started_at: Option<String>,
@@ -60,6 +81,57 @@ pub struct QuickNotePayload {
     /// Set for a screenshot caption.
     #[serde(default)]
     caption: Option<CaptionTarget>,
+    /// Set for the quick add box.
+    #[serde(default)]
+    quick_add: bool,
+}
+
+/// A search result as the quick add box shows it.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuickAddGame {
+    igdb_id: i64,
+    name: String,
+    cover_url: Option<String>,
+    release_year: Option<i32>,
+    /// Already in My Games: the box says so instead of adding it.
+    in_library: bool,
+}
+
+/// What the main window tells the quick add box: the results of a search (or
+/// why it failed), and what a pick did.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum QuickAddReply {
+    Results {
+        query: String,
+        games: Vec<QuickAddGame>,
+    },
+    Error {
+        query: String,
+        message: String,
+    },
+    Added {
+        igdb_id: i64,
+    },
+    Already {
+        igdb_id: i64,
+    },
+}
+
+#[derive(Serialize, Clone)]
+struct QuickAddSearch {
+    query: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct QuickAddPick {
+    igdb_id: i64,
 }
 
 #[derive(Serialize, Clone)]
@@ -85,6 +157,8 @@ pub struct QuickNoteState {
     foreground: Mutex<Option<isize>>,
     /// The picture the open box writes a caption for.
     caption_path: Mutex<Option<String>>,
+    /// The open box is the quick add box.
+    quick_add: Mutex<bool>,
 }
 
 fn truncate(value: String, max_chars: usize) -> String {
@@ -115,13 +189,62 @@ fn sanitize(mut payload: QuickNotePayload) -> QuickNotePayload {
     payload
 }
 
-/// The box's size in logical pixels.
+fn sanitize_reply(reply: QuickAddReply) -> QuickAddReply {
+    match reply {
+        QuickAddReply::Results { query, games } => QuickAddReply::Results {
+            query: truncate(query, QUERY_LIMIT),
+            games: games
+                .into_iter()
+                .take(RESULT_LIMIT)
+                .map(|game| QuickAddGame {
+                    name: truncate(game.name, 200),
+                    cover_url: game.cover_url.map(|url| truncate(url, 2048)),
+                    ..game
+                })
+                .collect(),
+        },
+        QuickAddReply::Error { query, message } => QuickAddReply::Error {
+            query: truncate(query, QUERY_LIMIT),
+            message: truncate(message, 500),
+        },
+        other => other,
+    }
+}
+
+/// The session a note box writes to. The quick add box has none, so nothing it
+/// closes with can land on a session.
+fn session_of(payload: &QuickNotePayload) -> Option<i64> {
+    (!payload.quick_add).then_some(payload.session_id)
+}
+
+/// The quick add box's height in logical pixels, within its limits. None for a
+/// height that isn't a number.
+fn fit_height(height: f64) -> Option<f64> {
+    height
+        .is_finite()
+        .then(|| height.clamp(QUICK_ADD_MIN_HEIGHT, QUICK_ADD_MAX_HEIGHT))
+}
+
+/// The box's size in logical pixels when it opens.
 #[cfg(not(target_os = "macos"))]
 fn window_size(payload: &QuickNotePayload) -> (f64, f64) {
-    if payload.caption.is_some() {
+    if payload.quick_add {
+        (QUICK_ADD_WIDTH, QUICK_ADD_START_HEIGHT)
+    } else if payload.caption.is_some() {
         (CAPTION_WINDOW_LOGICAL_WIDTH, CAPTION_WINDOW_LOGICAL_HEIGHT)
     } else {
         (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT)
+    }
+}
+
+/// The height the box is placed for. The quick add box grows downwards, so it
+/// is placed for its full height from the start.
+#[cfg(not(target_os = "macos"))]
+fn placement_height(payload: &QuickNotePayload) -> f64 {
+    if payload.quick_add {
+        QUICK_ADD_MAX_HEIGHT
+    } else {
+        window_size(payload).1
     }
 }
 
@@ -164,12 +287,14 @@ mod imp {
         }
         let monitor = crate::notification_overlay::popup_monitor(app, payload.monitor.as_deref())?;
         let (logical_width, logical_height) = window_size(&payload);
-        *state.session_id.lock().map_err(|error| error.to_string())? = Some(payload.session_id);
+        let logical_placement = placement_height(&payload);
+        *state.session_id.lock().map_err(|error| error.to_string())? = session_of(&payload);
         *state
             .caption_path
             .lock()
             .map_err(|error| error.to_string())? =
             payload.caption.as_ref().map(|target| target.path.clone());
+        *state.quick_add.lock().map_err(|error| error.to_string())? = payload.quick_add;
         *state.pending.lock().map_err(|error| error.to_string())? = Some(payload);
         let window = tauri::WebviewWindowBuilder::new(
             app,
@@ -195,9 +320,10 @@ mod imp {
         let scale = monitor.scale_factor();
         let width = ((logical_width * scale).round() as u32).min(area.size.width);
         let height = ((logical_height * scale).round() as u32).min(area.size.height);
+        let placed = ((logical_placement * scale).round() as u32).min(area.size.height);
         let x = area.position.x + ((area.size.width - width) / 2) as i32;
         // High enough to stay clear of subtitles and HUDs at the bottom.
-        let y = area.position.y + ((area.size.height - height) / 5) as i32;
+        let y = area.position.y + ((area.size.height - placed) / 5) as i32;
         window
             .set_size(tauri::PhysicalSize::new(width, height))
             .map_err(|error| error.to_string())?;
@@ -229,6 +355,7 @@ mod imp {
             .lock()
             .map_err(|error| error.to_string())?
             .take();
+        *state.quick_add.lock().map_err(|error| error.to_string())? = false;
         let foreground = state
             .foreground
             .lock()
@@ -243,6 +370,19 @@ mod imp {
             }
         }
         Ok(())
+    }
+
+    /// Sets the box's height, keeping its width and its top edge.
+    pub fn fit(window: &tauri::Window, logical_height: f64) -> Result<(), String> {
+        let scale = window.scale_factor().map_err(|error| error.to_string())?;
+        let size = window.inner_size().map_err(|error| error.to_string())?;
+        let height = (logical_height * scale).round() as u32;
+        if size.height == height {
+            return Ok(());
+        }
+        window
+            .set_size(tauri::PhysicalSize::new(size.width, height))
+            .map_err(|error| error.to_string())
     }
 
     #[cfg(target_os = "windows")]
@@ -290,6 +430,9 @@ mod imp {
     ) -> Result<(), String> {
         Ok(())
     }
+    pub fn fit(_window: &tauri::Window, _logical_height: f64) -> Result<(), String> {
+        Ok(())
+    }
     pub fn foreground_window() -> Option<isize> {
         None
     }
@@ -308,6 +451,20 @@ fn note_window_only(window: &tauri::Window) -> Result<(), String> {
         Ok(())
     } else {
         Err("unauthorized window".to_string())
+    }
+}
+
+fn quick_add_open(state: &QuickNoteState) -> Result<bool, String> {
+    Ok(*state.quick_add.lock().map_err(|error| error.to_string())?)
+}
+
+/// Only the quick add box searches, picks and fits itself.
+fn quick_add_box_only(window: &tauri::Window, state: &QuickNoteState) -> Result<(), String> {
+    note_window_only(window)?;
+    if quick_add_open(state)? {
+        Ok(())
+    } else {
+        Err("no quick add box is open".to_string())
     }
 }
 
@@ -381,6 +538,74 @@ pub fn quick_note_close(
     imp::close(&app, &state, restore_focus)
 }
 
+/// The quick add box asks the main window to search for a game.
+#[tauri::command(async)]
+pub fn quick_add_search(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    query: String,
+) -> Result<(), String> {
+    quick_add_box_only(&window, &state)?;
+    use tauri::Emitter;
+    app.emit_to(
+        crate::notification_overlay::MAIN_LABEL,
+        QUICK_ADD_SEARCH_EVENT,
+        QuickAddSearch {
+            query: truncate(query, QUERY_LIMIT),
+        },
+    )
+    .map_err(|error| error.to_string())
+}
+
+/// The quick add box asks the main window to add the game it marked.
+#[tauri::command(async)]
+pub fn quick_add_pick(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    igdb_id: i64,
+) -> Result<(), String> {
+    quick_add_box_only(&window, &state)?;
+    use tauri::Emitter;
+    app.emit_to(
+        crate::notification_overlay::MAIN_LABEL,
+        QUICK_ADD_PICK_EVENT,
+        QuickAddPick { igdb_id },
+    )
+    .map_err(|error| error.to_string())
+}
+
+/// The main window answers the quick add box. Dropped when the box closed in
+/// the meantime.
+#[tauri::command(async)]
+pub fn quick_add_reply(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    reply: QuickAddReply,
+) -> Result<(), String> {
+    main_only(&window)?;
+    if !quick_add_open(&state)? {
+        return Ok(());
+    }
+    use tauri::Emitter;
+    app.emit_to(LABEL, QUICK_ADD_REPLY_EVENT, sanitize_reply(reply))
+        .map_err(|error| error.to_string())
+}
+
+/// The quick add box grows and shrinks with what it shows.
+#[tauri::command(async)]
+pub fn quick_add_fit(
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    height: f64,
+) -> Result<(), String> {
+    quick_add_box_only(&window, &state)?;
+    let height = fit_height(height).ok_or_else(|| "invalid box height".to_string())?;
+    imp::fit(&window, height)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -402,7 +627,128 @@ mod tests {
             accent_color: None,
             reduced_motion: false,
             caption: None,
+            quick_add: false,
         }
+    }
+
+    /// What the main window sends for the quick add box: no session at all.
+    fn quick_add_payload() -> QuickNotePayload {
+        serde_json::from_value(serde_json::json!({
+            "quickAdd": true,
+            "labels": { "Quick add game": "Spiel schnell hinzufügen" },
+            "monitor": "primary",
+            "locale": "de",
+            "theme": "dark",
+            "accentColor": null,
+            "reducedMotion": false
+        }))
+        .expect("a quick add payload needs no session")
+    }
+
+    fn found(igdb_id: i64) -> QuickAddGame {
+        QuickAddGame {
+            igdb_id,
+            name: "n".repeat(300),
+            cover_url: Some("u".repeat(3000)),
+            release_year: Some(2020),
+            in_library: false,
+        }
+    }
+
+    #[test]
+    fn a_quick_add_box_needs_and_keeps_no_session() {
+        let quick_add = quick_add_payload();
+        assert!(quick_add.quick_add);
+        assert_eq!(session_of(&quick_add), None);
+        assert_eq!(session_of(&payload()), Some(1));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn the_quick_add_box_starts_small_and_is_placed_for_its_full_height() {
+        let quick_add = quick_add_payload();
+        assert_eq!(
+            window_size(&quick_add),
+            (QUICK_ADD_WIDTH, QUICK_ADD_START_HEIGHT)
+        );
+        assert!(QUICK_ADD_START_HEIGHT < QUICK_ADD_MAX_HEIGHT);
+        assert_eq!(placement_height(&quick_add), QUICK_ADD_MAX_HEIGHT);
+        // The note box is placed for the size it has.
+        assert_eq!(placement_height(&payload()), WINDOW_LOGICAL_HEIGHT);
+    }
+
+    #[test]
+    fn the_quick_add_box_grows_and_shrinks_within_its_limits() {
+        assert_eq!(fit_height(300.0), Some(300.0));
+        assert_eq!(fit_height(10.0), Some(QUICK_ADD_MIN_HEIGHT));
+        assert_eq!(fit_height(5000.0), Some(QUICK_ADD_MAX_HEIGHT));
+        assert_eq!(fit_height(f64::NAN), None);
+        assert_eq!(fit_height(f64::INFINITY), None);
+    }
+
+    #[test]
+    fn caps_what_the_main_window_replies() {
+        let QuickAddReply::Results { query, games } = sanitize_reply(QuickAddReply::Results {
+            query: "q".repeat(300),
+            games: (0..30).map(found).collect(),
+        }) else {
+            panic!("results stay results");
+        };
+        assert_eq!(query.chars().count(), QUERY_LIMIT);
+        assert_eq!(games.len(), RESULT_LIMIT);
+        assert!(games.iter().all(|game| game.name.chars().count() == 200
+            && game.cover_url.as_ref().map(|url| url.chars().count()) == Some(2048)));
+        let QuickAddReply::Error { message, .. } = sanitize_reply(QuickAddReply::Error {
+            query: String::new(),
+            message: "m".repeat(2000),
+        }) else {
+            panic!("errors stay errors");
+        };
+        assert_eq!(message.chars().count(), 500);
+    }
+
+    #[test]
+    fn reads_the_replies_the_way_the_main_window_writes_them() {
+        let added: QuickAddReply =
+            serde_json::from_value(serde_json::json!({ "kind": "added", "igdbId": 100 })).unwrap();
+        assert_eq!(added, QuickAddReply::Added { igdb_id: 100 });
+        let already: QuickAddReply =
+            serde_json::from_value(serde_json::json!({ "kind": "already", "igdbId": 100 }))
+                .unwrap();
+        assert_eq!(already, QuickAddReply::Already { igdb_id: 100 });
+        let results: QuickAddReply = serde_json::from_value(serde_json::json!({
+            "kind": "results",
+            "query": "hades",
+            "games": [{
+                "igdbId": 100,
+                "name": "Hades",
+                "coverUrl": null,
+                "releaseYear": 2020,
+                "inLibrary": true
+            }]
+        }))
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(&results).unwrap(),
+            serde_json::json!({
+                "kind": "results",
+                "query": "hades",
+                "games": [{
+                    "igdbId": 100,
+                    "name": "Hades",
+                    "coverUrl": null,
+                    "releaseYear": 2020,
+                    "inLibrary": true
+                }]
+            })
+        );
+        let error: QuickAddReply = serde_json::from_value(serde_json::json!({
+            "kind": "error",
+            "query": "hades",
+            "message": "Game search failed (503)."
+        }))
+        .unwrap();
+        assert!(matches!(error, QuickAddReply::Error { .. }));
     }
 
     #[test]

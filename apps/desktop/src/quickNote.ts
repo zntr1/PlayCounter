@@ -69,7 +69,7 @@ function quickNoteLabels(): Record<QuickNoteLabel, string> {
 }
 
 /** Where and how the box shows: the popups' screen, the app's look. */
-function boxLook() {
+export function boxLook() {
   const state = useAppStore.getState();
   const media = (
     globalThis as typeof globalThis & {

@@ -31,5 +31,6 @@ export async function resetSettings() {
     "screenshotCaptionHotkey",
     defaults.screenshotCaptionHotkey ?? null,
   );
+  await saveHotkey("quickAddHotkey", defaults.quickAddHotkey ?? null);
   useAppStore.getState().restoreDefaultSettings();
 }

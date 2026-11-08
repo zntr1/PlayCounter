@@ -38,6 +38,8 @@
   "Session saved": "Сессия сохранена",
   "What happened? Where did you stop?": "Что произошло? Где вы остановились?",
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter — сохранить · Shift+Enter — новая строка · Esc — отмена",
+  "Enter searches · Enter again adds · ↑↓ picks · Esc closes": "Enter — поиск · ещё раз Enter — добавить · ↑↓ — выбор · Esc — закрыть",
+  "It's in My Games now.": "Игра теперь в «Моих играх».",
   "Save": "Сохранить",
   "Cancel": "Отмена",
   "Add session note": "Добавить заметку о сессии",

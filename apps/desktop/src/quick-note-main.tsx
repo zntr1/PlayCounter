@@ -1,18 +1,32 @@
 import "./disableBrowserContextMenu";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { QuickAddPayload, QuickAddReply } from "./quickAdd";
 import type { QuickNotePayload } from "./quickNote";
 import "./styles.css";
 import { applyTheme } from "./theme";
+import { QuickAddWindow } from "./ui/QuickAddWindow";
 import { QuickNoteWindow } from "./ui/QuickNoteWindow";
 import { ScreenshotCaptionWindow } from "./ui/ScreenshotCaptionWindow";
 
+/** quick_note.rs QUICK_ADD_REPLY_EVENT: the main window's answers. */
+const QUICK_ADD_REPLY_EVENT = "playcounter:quick-add-reply";
+
+type BoxPayload = QuickNotePayload | QuickAddPayload;
+
+const isQuickAdd = (payload: BoxPayload): payload is QuickAddPayload =>
+  "quickAdd" in payload && payload.quickAdd === true;
+
+const logged = (what: string) => (error: unknown) =>
+  console.error(`quick add ${what} failed`, error);
+
 function QuickNoteRoot() {
-  const [payload, setPayload] = useState<QuickNotePayload | null>(null);
+  const [payload, setPayload] = useState<BoxPayload | null>(null);
 
   useEffect(() => {
-    invoke<QuickNotePayload | null>("quick_note_ready")
+    invoke<BoxPayload | null>("quick_note_ready")
       .then((next) => {
         if (!next) return;
         // Chinese text only gets Chinese glyph shapes with the right lang.
@@ -27,6 +41,30 @@ function QuickNoteRoot() {
   const close = (note: string | null, restoreFocus: boolean) =>
     void invoke("quick_note_close", { note, restoreFocus }).catch((error) =>
       console.error("quick note failed to close", error),
+    );
+  // The same window searches a game to add when the quick add key opened it.
+  if (isQuickAdd(payload))
+    return (
+      <QuickAddWindow
+        payload={payload}
+        onSearch={(query) =>
+          void invoke("quick_add_search", { query }).catch(logged("search"))
+        }
+        onPick={(igdbId) =>
+          void invoke("quick_add_pick", { igdbId }).catch(logged("pick"))
+        }
+        onFit={(height) =>
+          void invoke("quick_add_fit", { height }).catch(logged("fit"))
+        }
+        onClose={(restoreFocus) => close(null, restoreFocus)}
+        subscribe={(listener) => {
+          const unlisten = listen<QuickAddReply>(
+            QUICK_ADD_REPLY_EVENT,
+            ({ payload: reply }) => listener(reply),
+          );
+          return () => void unlisten.then((stop) => stop());
+        }}
+      />
     );
   // The same window writes a screenshot's caption when one is set.
   if (payload.caption)
