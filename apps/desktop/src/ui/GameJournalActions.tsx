@@ -22,6 +22,7 @@ import { GAME_STATUS_LIST, TIER_TONES } from "./journalStyles";
 import { GameStatusIcon } from "./GameStatusIcon";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
+import { Trans } from "react-i18next";
 
 const t = getT("dialogs");
 
@@ -168,11 +169,27 @@ function TierMark({ tier }: { tier: GameTier }) {
   );
 }
 
-/** The ends say which way the scale runs; the letters between need no words. */
+/** The ends say which way the scale runs; the letters between need no words.
+ *  The letter wears its cover colour, the words keep the row's. */
 function tierMenuLabel(tier: GameTier) {
-  if (tier === "S") return t("S – Best");
-  if (tier === "F") return t("F – Worst");
-  return tier;
+  const letter = <span className={TIER_TONES[tier]} />;
+  if (tier === "S")
+    return (
+      <Trans
+        t={t}
+        i18nKey="<tier>S</tier> – Best"
+        components={{ tier: letter }}
+      />
+    );
+  if (tier === "F")
+    return (
+      <Trans
+        t={t}
+        i18nKey="<tier>F</tier> – Worst"
+        components={{ tier: letter }}
+      />
+    );
+  return <span className={TIER_TONES[tier]}>{tier}</span>;
 }
 
 /** S to F, the current one checked, and Clear once there is one. Shared by

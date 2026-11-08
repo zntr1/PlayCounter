@@ -8,6 +8,7 @@ import {
   GAME_TIERS,
   gameStatusLabel,
   type GameStatus,
+  type GameTier,
 } from "../personalLibrary";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
@@ -500,6 +501,38 @@ it("shows the picked tier's letter as the Tier group's icon in the card menu, in
 
   await act(() => useAppStore.getState().setGameTier(game, null));
   expect(menuRow("Tier").querySelector("svg.lucide-medal")).not.toBeNull();
+});
+
+it("colours each letter in the card menu's Tier submenu in its cover colour, and only the letter", async () => {
+  await act(() =>
+    root.render(
+      <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+        <GameJournalMenu game={game} onClose={() => {}} />
+      </ContextMenu>,
+    ),
+  );
+  await click("Tier");
+  const rows: Record<GameTier, string> = {
+    S: "S – Best",
+    A: "A",
+    B: "B",
+    C: "C",
+    D: "D",
+    F: "F – Worst",
+  };
+  for (const tier of GAME_TIERS) {
+    const row = menuRow(rows[tier]);
+    const coloured = [row, ...row.querySelectorAll("*")].filter((element) =>
+      textColours(element).includes(TIER_TONES[tier]),
+    );
+    // "S" in the S colour; "– Best" keeps the row's own text colour.
+    expect(
+      coloured.map((element) => element.textContent),
+      tier,
+    ).toEqual([tier]);
+    // No second colour on the letter that could win over it.
+    expect(textColours(coloured[0]), tier).toEqual([TIER_TONES[tier]]);
+  }
 });
 
 it("shows the cover's yellow star on the card menu's favourite item while the game is a favourite, and the plain star otherwise", async () => {
