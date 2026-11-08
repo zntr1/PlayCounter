@@ -665,5 +665,8 @@
   "Back to all new games": "返回全部新游戏",
   "Mark all as seen": "全部标为已看",
   "Takes them out of this row and removes their New badge. Games added later still show up here.": "将它们移出此行并去掉“新”徽章。之后添加的游戏仍会显示在这里。",
-  "Mark as seen": "标为已看"
+  "Mark as seen": "标为已看",
+  "Added": "添加于",
+  "Not available": "无法获取",
+  "Not reported": "未提供"
 }

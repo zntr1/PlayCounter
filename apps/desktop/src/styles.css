@@ -1679,25 +1679,18 @@ select {
   transform: translateX(0.5rem);
 }
 
-.game-library-card:has(.level-up-cta:hover) .game-card-name-default {
-  display: inline;
-}
-
-.game-library-card:has(.level-up-cta:hover) .game-card-name-exe {
-  display: none;
-}
-
-/* The card title only swaps to the .exe names while Shift is held. */
+/* Shift + hover shows the card's playtime panel (CardShiftPanel), and the
+   panel hides the badges under it. */
 body.shift-held
   .game-library-card:not(:has(.level-up-cta:hover)):hover
-  .game-card-name-default {
-  display: none;
+  .game-card-shift-view {
+  display: flex;
 }
 
 body.shift-held
   .game-library-card:not(:has(.level-up-cta:hover)):hover
-  .game-card-name-exe {
-  display: inline;
+  .game-card-journal-badges:has(~ .game-card-shift-view) {
+  visibility: hidden;
 }
 
 .level-up-arrow {

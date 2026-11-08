@@ -740,5 +740,8 @@
   "Back to all new games": "Назад ко всем новым играм",
   "Mark all as seen": "Отметить все как просмотренные",
   "Takes them out of this row and removes their New badge. Games added later still show up here.": "Убирает их из этого ряда и снимает значок «Новая». Игры, добавленные позже, по-прежнему появятся здесь.",
-  "Mark as seen": "Отметить как просмотренное"
+  "Mark as seen": "Отметить как просмотренное",
+  "Added": "Добавлена",
+  "Not available": "Недоступно",
+  "Not reported": "Нет данных"
 }

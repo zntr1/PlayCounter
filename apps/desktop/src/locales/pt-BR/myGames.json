@@ -715,5 +715,8 @@
   "Back to all new games": "Voltar para todos os jogos novos",
   "Mark all as seen": "Marcar todos como vistos",
   "Takes them out of this row and removes their New badge. Games added later still show up here.": "Tira os jogos desta fileira e remove o selo Novo deles. Jogos adicionados depois continuam aparecendo aqui.",
-  "Mark as seen": "Marcar como visto"
+  "Mark as seen": "Marcar como visto",
+  "Added": "Adicionado",
+  "Not available": "Indisponível",
+  "Not reported": "Não informado"
 }

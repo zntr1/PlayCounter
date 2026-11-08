@@ -149,6 +149,7 @@ import {
 } from "../../playtimeAdjustments";
 import { recordedSecondsByGame } from "../../milestones";
 import {
+  launcherPlaytimes,
   providerFloorKey,
   providerFloorRecord,
   providerFloors,
@@ -1054,7 +1055,7 @@ export function MyGamesView({
     setLibraryTab("all");
   }, [renderContent, tourDemo.active, tourDemo.resetToken]);
 
-  // Hovering a card reveals its .exe names only while Shift is held.
+  // Hovering a card with Shift held shows its CardShiftPanel.
   useEffect(() => {
     const setShiftHeld = (held: boolean) => {
       document.body.classList.toggle("shift-held", held);
@@ -3909,7 +3910,7 @@ export function GameLibraryCard({
   // for it waits for review (cancel that first).
   const canChangeGame =
     !demo && primaryLocalLink !== undefined && !pendingCommunitySuggestion;
-  // Shown in place of the title while hovering the card with Shift held.
+  // The game's files, in the name's tooltip.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
   const newGamesSeenAt = useAppStore(
@@ -6241,6 +6242,11 @@ export function GameLibraryCard({
               />
             </div>
           ) : null}
+          <CardShiftPanel
+            game={game}
+            compact={compact}
+            showDurationDays={showDurationDays}
+          />
         </div>
         <input
           ref={coverInputRef}
@@ -6283,16 +6289,7 @@ export function GameLibraryCard({
               )}
               title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
             >
-              {exeLabel ? (
-                <>
-                  <span className="game-card-name-default">{game.name}</span>
-                  <span className="game-card-name-exe hidden font-mono text-[13px]">
-                    {exeLabel}
-                  </span>
-                </>
-              ) : (
-                game.name
-              )}
+              {game.name}
             </NameHeading>
             {/* Everything in the New row is new: no badge there. */}
             {isNew && !compact ? <NewGameBadge /> : null}
@@ -6909,16 +6906,7 @@ export function GameLibraryCard({
               className="truncate text-base font-semibold text-text"
               title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
             >
-              {exeLabel ? (
-                <>
-                  <span className="game-card-name-default">{game.name}</span>
-                  <span className="game-card-name-exe hidden font-mono text-sm">
-                    {exeLabel}
-                  </span>
-                </>
-              ) : (
-                game.name
-              )}
+              {game.name}
             </h2>
             {isNew ? <NewGameBadge /> : null}
             {matchVisible ? (
@@ -7402,6 +7390,97 @@ function NewGameBadge() {
     >
       {t("New")}
     </span>
+  );
+}
+
+/* Shift + hover on a card (docs/shift-hover-plan.md): each launcher's
+   playtime for a game from two or more launchers, otherwise when it was last
+   played. Always rendered; styles.css shows it while Shift is held. */
+function CardShiftPanel({
+  game,
+  compact,
+  showDurationDays,
+}: {
+  game: GameSummary;
+  /** The New row's small card: a 12-hour time would wrap at 13px. */
+  compact: boolean;
+  showDurationDays: boolean;
+}) {
+  const launchers = launcherPlaytimes(
+    game.libraryImports.map((item) => item.entry),
+  );
+  const shell = clsx(
+    "game-card-shift-view pointer-events-none absolute z-40 hidden flex-col rounded-[10px] border border-white/10 bg-bg/90 py-1 shadow-[0_8px_24px_rgb(0_0_0/0.45)] backdrop-blur-sm",
+    compact ? "inset-x-1.5 bottom-1.5 px-2" : "inset-x-2 bottom-2 px-2.5",
+  );
+  if (launchers.length < 2) {
+    // The list view's rule and format ("Last played …" / "Added …").
+    const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
+    return (
+      <div className={shell}>
+        <div className="py-1">
+          <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
+            <Clock3 size={12} aria-hidden="true" />
+            {played ? t("Last played") : t("Added")}
+          </div>
+          <div
+            className={clsx(
+              "font-mono font-semibold text-text",
+              compact ? "text-xs" : "text-[13px]",
+            )}
+          >
+            {formatLastPlayed(game.lastPlayedAt)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // What PlayCounter adds on top of the launchers, so the rows add up to the
+  // card's total (before Set total).
+  const onTopSeconds =
+    effectiveTotalSeconds(
+      game.recordedSeconds,
+      0,
+      game.providerFloorSeconds,
+      game.trackedSinceImportSeconds,
+    ) - game.providerFloorSeconds;
+  const row =
+    "flex min-h-[28px] items-center gap-2 border-t border-white/10 text-[12.5px] first:border-t-0";
+  return (
+    <div className={shell}>
+      {launchers.map(({ provider, seconds }) => (
+        <div key={provider} className={row}>
+          <ProviderBadge provider={provider} variant="mark" />
+          <span className="min-w-0 flex-1 truncate text-text/85">
+            {LIBRARY_PROVIDER_LABELS[provider]}
+          </span>
+          {seconds === null ? (
+            <span className="shrink-0 text-xs text-text-faint">
+              {provider === "battlenet" ? t("Not available") : t("Not reported")}
+            </span>
+          ) : (
+            <span className="shrink-0 font-mono font-semibold text-text">
+              {formatDuration(seconds, showDurationDays)}
+            </span>
+          )}
+        </div>
+      ))}
+      {onTopSeconds >= 60 ? (
+        <div className={row}>
+          <img
+            src="/brand/playcounter-mark-small.svg"
+            alt=""
+            className="h-[22px] w-[22px] shrink-0 object-contain"
+          />
+          <span className="min-w-0 flex-1 truncate text-text-muted">
+            PlayCounter
+          </span>
+          <span className="shrink-0 font-mono font-semibold text-text-muted">
+            +{formatDuration(onTopSeconds, showDurationDays)}
+          </span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

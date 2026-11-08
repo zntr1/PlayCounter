@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { milestoneMetrics } from "../milestones";
 import { effectiveTotalSeconds } from "../playtimeAdjustments";
 import {
+  launcherPlaytimes,
   providerFloorRecord,
   providerFloors,
   providerFloorsForProvider,
@@ -130,4 +131,54 @@ describe("combined launcher playtime", () => {
       expect(metrics.monthHours).toBe(0);
     },
   );
+});
+
+// docs/shift-hover-plan.md, "What the panel shows" 2–4.
+describe("each launcher's playtime for the Shift panel", () => {
+  it("gives each launcher the time the total counts: the higher PC copy, PlayStation copies added up", () => {
+    const entries: LibraryImportEntry[] = [
+      steam,
+      { ...steam, externalId: "101", providerSeconds: 4 * 3600 },
+      xbox,
+      {
+        ...steam,
+        provider: "playstation",
+        externalId: "PPSA01",
+        providerSeconds: 3600,
+      },
+      {
+        ...steam,
+        provider: "playstation",
+        externalId: "CUSA01",
+        providerSeconds: 1.5 * 3600,
+      },
+    ];
+    const rows = launcherPlaytimes(entries);
+    expect(rows).toEqual([
+      { provider: "steam", seconds: 4 * 3600 },
+      { provider: "xbox", seconds: 3 * 3600 },
+      { provider: "playstation", seconds: 2.5 * 3600 },
+    ]);
+    // The rows are the launchers' part of the card's total, nothing else.
+    expect(rows.reduce((sum, row) => sum + (row.seconds ?? 0), 0)).toBe(
+      providerFloors(entries)[0].seconds,
+    );
+  });
+
+  it("keeps a launcher that reports nothing as unknown, last, and one at 0 as 0", () => {
+    expect(
+      launcherPlaytimes([
+        { ...steam, provider: "battlenet", providerSeconds: null },
+        { ...steam, provider: "epic", providerSeconds: 0 },
+        { ...xbox, providerSeconds: null },
+        { ...xbox, externalId: "201", providerSeconds: 3 * 3600 },
+        steam,
+      ]),
+    ).toEqual([
+      { provider: "xbox", seconds: 3 * 3600 },
+      { provider: "steam", seconds: 2 * 3600 },
+      { provider: "epic", seconds: 0 },
+      { provider: "battlenet", seconds: null },
+    ]);
+  });
 });

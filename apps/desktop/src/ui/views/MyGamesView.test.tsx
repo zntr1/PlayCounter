@@ -187,6 +187,137 @@ it.each([
   },
 );
 
+// docs/shift-hover-plan.md: Shift + hover on a card shows each launcher's
+// playtime, or when the game was last played. CSS shows the panel; here it
+// is read from the DOM.
+function shiftPanel(card: HTMLElement) {
+  return card.querySelector<HTMLElement>(".game-card-shift-view");
+}
+
+function panelRows(card: HTMLElement) {
+  return [...(shiftPanel(card)?.children ?? [])].map((row) => row.textContent);
+}
+
+function seedTwoLaunchers(atReadHours: number, nowHours: number) {
+  useAppStore.setState({
+    exeCache: new Map(),
+    archivedSeconds: nowHours * 3600,
+    archivedGameSeconds: { "igdb:1": nowHours * 3600 },
+    libraryImports: new Map([
+      [
+        "steam:100",
+        {
+          ...steam,
+          providerSeconds: 2 * 3600,
+          recordedSecondsAtRead: atReadHours * 3600,
+        },
+      ],
+      [
+        "xbox:200",
+        {
+          ...steam,
+          provider: "xbox",
+          externalId: "200",
+          gameId: 2,
+          providerSeconds: 3 * 3600,
+          recordedSecondsAtRead: atReadHours * 3600,
+        },
+      ],
+    ]),
+  });
+}
+
+it.each([
+  { atReadHours: 4, nowHours: 4, onTop: null, expectedHours: 5 },
+  { atReadHours: 4, nowHours: 6, onTop: "+2h 0m", expectedHours: 7 },
+  { atReadHours: 6, nowHours: 6, onTop: "+1h 0m", expectedHours: 6 },
+  { atReadHours: 6, nowHours: 8, onTop: "+3h 0m", expectedHours: 8 },
+])(
+  "lists each launcher's playtime and what PlayCounter adds on top, adding up to the card's total ($atReadHours h at import, $nowHours h now)",
+  async ({ atReadHours, nowHours, onTop, expectedHours }) => {
+    seedTwoLaunchers(atReadHours, nowHours);
+    useAppStore.getState().setMyGamesCardSize("grid");
+    await act(() => root.render(<LibraryTestShell />));
+
+    const card = gameCard(steam.name);
+    expect(
+      card.querySelector('[title^="Launchers combined:"]')?.textContent,
+    ).toBe(`${expectedHours}h 0m`);
+    // Xbox 3h + Steam 2h + PlayCounter's part = the total above.
+    expect(panelRows(card)).toEqual([
+      "Xbox3h 0m",
+      "Steam2h 0m",
+      ...(onTop ? [`PlayCounter${onTop}`] : []),
+    ]);
+  },
+);
+
+it.each(["grid", "large"] as const)(
+  "shows when a one-launcher game was last played, as the list view says it (%s cards)",
+  async (size) => {
+    useAppStore.setState({
+      exeCache: new Map(),
+      libraryImports: new Map([
+        [
+          "steam:100",
+          {
+            ...steam,
+            providerSeconds: 2 * 3600,
+            providerLastPlayedAt: "2026-11-07T20:14:00Z",
+          },
+        ],
+      ]),
+    });
+    useAppStore.getState().setMyGamesCardSize(size);
+    await act(() => root.render(<LibraryTestShell />));
+
+    const text = shiftPanel(gameCard(steam.name))?.textContent ?? "";
+    expect(text).toMatch(/^Last played\d/);
+    const when = text.slice("Last played".length);
+    await act(() => useAppStore.getState().setMyGamesCardSize("list"));
+    expect(gameCard(steam.name).textContent).toContain(`Last played ${when}`);
+  },
+);
+
+it("shows when a game that was never played was added", async () => {
+  useAppStore.setState({
+    exeCache: new Map(),
+    libraryImports: new Map([["steam:100", steam]]),
+  });
+  useAppStore.getState().setMyGamesCardSize("grid");
+  await act(() => root.render(<LibraryTestShell />));
+
+  const text = shiftPanel(gameCard(steam.name))?.textContent ?? "";
+  expect(text).toMatch(/^Added\d/);
+  const when = text.slice("Added".length);
+  await act(() => useAppStore.getState().setMyGamesCardSize("list"));
+  expect(gameCard(steam.name).textContent).toContain(`Added ${when}`);
+});
+
+it.each(["grid", "large", "list"] as const)(
+  "keeps the name on Shift and lists the files only in the name's tooltip (%s)",
+  async (size) => {
+    useAppStore.getState().setMyGamesCardSize(size);
+    await act(() => root.render(<LibraryTestShell />));
+
+    const heading = [...container.querySelectorAll("h2")].find(
+      (element) =>
+        element.getAttribute("title") === "Local favorite (game-1.exe)",
+    );
+    expect(heading?.textContent).toBe("Local favorite");
+    expect(container.querySelector(".game-card-name-exe")).toBeNull();
+  },
+);
+
+it("has no Shift panel in the list view", async () => {
+  seedTwoLaunchers(4, 6);
+  useAppStore.getState().setMyGamesCardSize("list");
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(gameCard(steam.name)).toBeDefined();
+  expect(container.querySelector(".game-card-shift-view")).toBeNull();
+});
+
 async function openMatchReview(offered = true) {
   await act(() => root.render(<LibraryTestShell />));
   if (offered)
