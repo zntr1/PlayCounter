@@ -1,6 +1,7 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { pickedCover } from "./pickedCovers";
+import { countFromMs } from "./sessionTime";
 import { currentPlatform } from "./platform";
 import type { Screenshot } from "./screenshots";
 import { useAppStore } from "./store";
@@ -27,8 +28,11 @@ export type QuickNotePayload = {
   gameName: string;
   coverUrl: string | null;
   note: string;
-  /** Running sessions count up from here. */
+  /** Running sessions count up from here: the start, moved later by the
+   *  session's finished pauses. */
   startedAt: string | null;
+  /** Set while the session is paused: its clock stands at this moment. */
+  pausedAt?: string | null;
   /** Finished sessions show their length instead. */
   duration: string | null;
   labels: Record<string, string>;
@@ -46,6 +50,7 @@ export type CaptionPayload = QuickNotePayload & { caption: CaptionTarget };
 export type QuickNoteLabel =
   | "Session note"
   | "Playing now"
+  | "Paused"
   | "Session saved"
   | "What happened? Where did you stop?"
   | "Enter saves · Shift+Enter starts a new line · Esc cancels"
@@ -56,6 +61,7 @@ function quickNoteLabels(): Record<QuickNoteLabel, string> {
   return {
     "Session note": t("Session note"),
     "Playing now": t("Playing now"),
+    Paused: t("Paused"),
     "Session saved": t("Session saved"),
     "What happened? Where did you stop?": t(
       "What happened? Where did you stop?",
@@ -100,7 +106,8 @@ export function openQuickNote(sessionId: number) {
     gameName: session.gameName ?? session.exeName.replace(/\.exe$/i, ""),
     coverUrl: pickedCover(state, session) ?? session.coverUrl ?? null,
     note: session.note ?? "",
-    startedAt: active ? active.startedAt : null,
+    startedAt: active ? new Date(countFromMs(active)).toISOString() : null,
+    pausedAt: active?.pausedAt ?? null,
     duration: active
       ? null
       : formatDuration(

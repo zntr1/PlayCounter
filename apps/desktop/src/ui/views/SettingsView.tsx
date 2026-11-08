@@ -743,6 +743,22 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
+          title={t("Pause or resume timer")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="pauseTimerHotkey"
+            label={t("Pause or resume timer")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
+        <SettingsRow
           title={t("Take a screenshot")}
           description={
             currentPlatform() === "macos"

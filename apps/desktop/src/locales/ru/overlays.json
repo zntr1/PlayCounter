@@ -68,5 +68,10 @@
   "What's happening in this picture?": "Что происходит на этом снимке?",
   "Enter saves · Esc keeps the picture without a caption": "Enter — сохранить · Esc — оставить снимок без подписи",
   "Skip": "Пропустить",
-  "“{{caption}}”": "«{{caption}}»"
+  "“{{caption}}”": "«{{caption}}»",
+  "TIMER PAUSED": "ТАЙМЕР НА ПАУЗЕ",
+  "TIMER RESUMED": "ТАЙМЕР ВОЗОБНОВЛЁН",
+  "Paused": "На паузе",
+  "Pause the timer for {{gameName}}": "Приостановить таймер для {{gameName}}",
+  "Resume the timer for {{gameName}}": "Возобновить таймер для {{gameName}}"
 }

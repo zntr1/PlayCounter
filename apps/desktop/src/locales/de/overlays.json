@@ -68,5 +68,10 @@
   "What's happening in this picture?": "Was passiert auf diesem Bild?",
   "Enter saves · Esc keeps the picture without a caption": "Enter speichert · Esc behält das Bild ohne Bildunterschrift",
   "Skip": "Überspringen",
-  "“{{caption}}”": "„{{caption}}“"
+  "“{{caption}}”": "„{{caption}}“",
+  "TIMER PAUSED": "TIMER PAUSIERT",
+  "TIMER RESUMED": "TIMER LÄUFT WEITER",
+  "Paused": "Pausiert",
+  "Pause the timer for {{gameName}}": "Timer für {{gameName}} pausieren",
+  "Resume the timer for {{gameName}}": "Timer für {{gameName}} fortsetzen"
 }

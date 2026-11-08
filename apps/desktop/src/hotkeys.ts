@@ -6,6 +6,7 @@ import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
 import { openQuickAdd } from "./quickAdd";
 import { takeScreenshot } from "./screenshots";
+import { togglePauseFromHotkey } from "./tracker";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
 import { nativeText } from "./nativeText";
@@ -17,6 +18,7 @@ export type HotkeySetting =
   | "currentSessionHotkey"
   | "quickNoteHotkey"
   | "liveTimerHotkey"
+  | "pauseTimerHotkey"
   | "screenshotHotkey"
   | "screenshotCaptionHotkey"
   | "quickAddHotkey";
@@ -25,6 +27,7 @@ const actions: Record<HotkeySetting, string> = {
   currentSessionHotkey: "current-session",
   quickNoteHotkey: "quick-note",
   liveTimerHotkey: "live-timer",
+  pauseTimerHotkey: "pause-timer",
   screenshotHotkey: "screenshot",
   screenshotCaptionHotkey: "screenshot-caption",
   quickAddHotkey: "quick-add",
@@ -37,6 +40,8 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
     if (!openQuickNoteForCurrentSession()) showCurrentSessionOverlay();
   },
   liveTimerHotkey: () => cycleLiveTimer(),
+  // With nothing running, the session popup says so.
+  pauseTimerHotkey: () => togglePauseFromHotkey(),
   screenshotHotkey: () => void takeScreenshot(),
   screenshotCaptionHotkey: () => void takeScreenshot({ caption: true }),
   // A game doesn't have to be running.
@@ -46,6 +51,7 @@ const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   currentSessionHotkey: "playcounter:current-session-hotkey",
   quickNoteHotkey: "playcounter:quick-note-hotkey",
   liveTimerHotkey: "playcounter:live-timer-hotkey",
+  pauseTimerHotkey: "playcounter:pause-timer-hotkey",
   screenshotHotkey: "playcounter:screenshot-hotkey",
   screenshotCaptionHotkey: "playcounter:screenshot-caption-hotkey",
   quickAddHotkey: "playcounter:quick-add-hotkey",

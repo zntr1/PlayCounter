@@ -639,7 +639,8 @@ pub fn run() {
             screenshot::commands::screenshot_open_folder,
             live_timer::live_timer_show,
             live_timer::live_timer_hide,
-            live_timer::live_timer_ready
+            live_timer::live_timer_ready,
+            live_timer::live_timer_toggle_pause
         ])
         .setup(|app| {
             setup_tray(app.handle())?;

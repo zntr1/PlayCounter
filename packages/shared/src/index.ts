@@ -702,6 +702,8 @@ export interface Settings {
   currentSessionHotkey?: string | null;
   quickNoteHotkey?: string | null;
   liveTimerHotkey?: string | null;
+  /** Pauses or resumes the running game's clock. */
+  pauseTimerHotkey?: string | null;
   screenshotHotkey?: string | null;
   /** Takes the picture, then opens a box for its caption. */
   screenshotCaptionHotkey?: string | null;

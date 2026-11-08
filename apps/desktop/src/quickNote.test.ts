@@ -58,9 +58,29 @@ it("opens the note box for the game started last, with its note", () => {
       sessionId: 2,
       gameName: "Game 2",
       note: "Chapter 3",
-      startedAt: "2026-10-14T11:00:00Z",
+      startedAt: "2026-10-14T11:00:00.000Z",
       duration: null,
       labels: expect.objectContaining({ Save: "Save" }),
+    }),
+  });
+});
+
+// docs/pause-timer-plan.md: paused time never counts.
+it("hands the note box a paused game's played time, standing still", () => {
+  useAppStore.setState({
+    activeSessions: [
+      session(2, "2026-10-14T11:00:00Z", {
+        pausedMs: 10 * 60_000,
+        pausedAt: "2026-10-14T12:00:00Z",
+      }),
+    ],
+  });
+  expect(openQuickNoteForCurrentSession()).toBe(true);
+  expect(invokeMock).toHaveBeenCalledWith("quick_note_open", {
+    payload: expect.objectContaining({
+      // Counts up from 11:10 and stands at 12:00: 50 minutes.
+      startedAt: "2026-10-14T11:10:00.000Z",
+      pausedAt: "2026-10-14T12:00:00Z",
     }),
   });
 });

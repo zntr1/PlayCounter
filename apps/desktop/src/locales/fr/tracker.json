@@ -48,5 +48,6 @@
   "{{status}} (+{{count}} more)": "{{status}} (+{{count}} autres)",
   "{{hours}}h {{minutes}}m": "{{hours}} h {{minutes}} min",
   "{{minutes}}m": "{{minutes}} min",
-  "<1m": "<1 min"
+  "<1m": "<1 min",
+  "Paused {{game}} - {{duration}}": "En pause : {{game}} - {{duration}}"
 }

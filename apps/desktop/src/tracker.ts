@@ -194,8 +194,12 @@ import {
   disposeDesktopOverlays,
   emitOverlayEvent,
   initializeDesktopOverlays,
+  newestSession,
   noteDiscoveredExecutable,
+  showCurrentSessionOverlay,
+  showPauseToggledOverlay,
 } from "./desktopOverlayBridge";
+import { playedMs, playedSeconds } from "./sessionTime";
 import { milestoneMetricLabel, pickTopMilestone } from "./desktopOverlays";
 import {
   armControllerBridge,
@@ -538,7 +542,9 @@ export async function initializeTracker() {
   initializeHotkeys();
   initializeQuickNotes();
   initializeQuickAdd();
-  initializeLiveTimer(runningGamePids);
+  initializeLiveTimer(runningGamePids, (sessionId) => {
+    togglePauseSession(sessionId);
+  });
   initializeScreenshots(runningGamePids);
   initializePlayStationLive({
     start: startConsoleSession,
@@ -6907,9 +6913,10 @@ async function endSession(
     session = { ...session, playthroughId: undefined };
   logRuntime(`session ending ${session.gameName} (${session.exeName})`);
   const endedAt = endedAtOverride ?? new Date().toISOString();
+  // Paused time is not played time; a pause still open ends here too.
   const durationSeconds = Math.max(
     1,
-    Math.round((Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000),
+    Math.round(playedMs(session, Date.parse(endedAt)) / 1000),
   );
   useAppStore.getState().addSession({
     id: session.id,
@@ -8600,6 +8607,79 @@ export async function stopGameTimer(sessionId: number) {
   persist();
 }
 
+// Pause: the player stepped away. The game may keep running, its session
+// stays open, and nothing counts until Resume (sessionTime.ts). Any running
+// session can pause: a detected game, an emulator game, a timer, a console.
+function changeActiveSession(
+  sessionId: number,
+  change: (session: ActiveSession) => ActiveSession,
+) {
+  useAppStore.setState((state) => ({
+    activeSessions: state.activeSessions.map((session) =>
+      session.id === sessionId ? change(session) : session,
+    ),
+  }));
+  persist();
+  syncTrayNowPlaying();
+}
+
+export function pauseSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId);
+  if (!session || session.pausedAt) return;
+  const pausedAt = new Date().toISOString();
+  changeActiveSession(sessionId, (active) => ({ ...active, pausedAt }));
+  logRuntime(`session paused ${session.gameName} (${session.exeName})`);
+}
+
+export function resumeSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId);
+  if (!session?.pausedAt) return;
+  const pauseMs = Date.now() - Date.parse(session.pausedAt);
+  changeActiveSession(sessionId, ({ pausedAt: _, ...active }) => ({
+    ...active,
+    pausedMs:
+      (active.pausedMs ?? 0) +
+      (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
+  }));
+  logRuntime(`session resumed ${session.gameName} (${session.exeName})`);
+}
+
+/** Pauses a counting session, resumes a paused one. Returns whether it is
+ *  paused now, or null when the session is gone. */
+export function togglePauseSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId);
+  if (!session) return null;
+  if (session.pausedAt) resumeSession(sessionId);
+  else pauseSession(sessionId);
+  return !session.pausedAt;
+}
+
+/** The pause hotkey: the game the live timer shows (started last, a
+ *  PlayStation session only when nothing runs here). The pill shows the
+ *  change itself; without it a popup says what happened. */
+export function togglePauseFromHotkey() {
+  const state = useAppStore.getState();
+  const session =
+    newestSession(state.activeSessions.filter((active) => !active.console)) ??
+    newestSession(state.activeSessions);
+  if (!session) {
+    showCurrentSessionOverlay();
+    return;
+  }
+  const paused = togglePauseSession(session.id);
+  if (paused === null || state.settings.liveTimerEnabled === true) return;
+  const now = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === session.id);
+  if (now) showPauseToggledOverlay(now, paused, playedSeconds(now, Date.now()));
+}
+
 /** A PS5 or PS4 game Sony shows running (playstationLive.ts). Nothing opens
  *  when the game already has a session here: a PC process or a timer of the
  *  same game counts once. */
@@ -9552,12 +9632,10 @@ function checkpointActiveSessionIfDue(session: ActiveSession) {
     recoveredFromCheckpoint: false,
   });
   verboseRuntime(
-    `session checkpoint ${session.gameName} durationSeconds=${Math.max(
-      0,
-      Math.round(
-        (Date.parse(checkpointedAt) - Date.parse(session.startedAt)) / 1000,
-      ),
-    )}`,
+    `session checkpoint ${session.gameName} durationSeconds=${playedSeconds(
+      session,
+      Date.parse(checkpointedAt),
+    )}${session.pausedAt ? " paused" : ""}`,
   );
 }
 
@@ -9598,10 +9676,15 @@ function updateActiveSession(session: ActiveSession) {
   const key = sessionIdentityKey(session);
   useAppStore.setState((state) => ({
     activeSessions: state.activeSessions.map((active) =>
-      // The caller's copy can predate a note written meanwhile; the tracker
-      // never changes notes itself.
+      // The caller's copy can predate a note written or a pause pressed
+      // meanwhile; the tracker never changes either itself.
       sessionIdentityKey(active) === key
-        ? { ...session, note: active.note }
+        ? {
+            ...session,
+            note: active.note,
+            pausedAt: active.pausedAt,
+            pausedMs: active.pausedMs,
+          }
         : active,
     ),
   }));
@@ -9643,14 +9726,13 @@ function trayStatus() {
     .activeSessions.filter((session) => session.gameName.trim());
   const first = named[0];
   if (!first) return t("No game active");
-  const elapsed = Math.max(
-    0,
-    Math.floor((Date.now() - Date.parse(first.startedAt)) / 1000),
-  );
-  const status = t("Playing {{game}} - {{duration}}", {
+  const values = {
     game: first.gameName.trim(),
-    duration: trayDuration(elapsed),
-  });
+    duration: trayDuration(playedSeconds(first, Date.now())),
+  };
+  const status = first.pausedAt
+    ? t("Paused {{game}} - {{duration}}", values)
+    : t("Playing {{game}} - {{duration}}", values);
   return named.length > 1
     ? t("{{status}} (+{{count}} more)", { status, count: named.length - 1 })
     : status;

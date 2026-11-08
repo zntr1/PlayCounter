@@ -121,6 +121,14 @@ export type OverlayEvent =
     }
   /** Null = switched off. */
   | { type: "live-timer"; corner: LiveTimerCorner | null }
+  /** The pause hotkey's answer while the live timer is off. */
+  | {
+      type: "pause-toggled";
+      paused: boolean;
+      gameName: string;
+      coverUrl?: string;
+      durationSeconds: number;
+    }
   | {
       type: "screenshot";
       outcome: ScreenshotOutcome;
@@ -141,7 +149,12 @@ export type ScreenshotOutcome =
 export type TrackerOverlayEvent = Exclude<
   OverlayEvent,
   {
-    type: "discovery-burst" | "playtime-reminder" | "live-timer" | "screenshot";
+    type:
+      | "discovery-burst"
+      | "playtime-reminder"
+      | "live-timer"
+      | "screenshot"
+      | "pause-toggled";
   }
 >;
 
@@ -157,6 +170,8 @@ export function overlayGate(
 ): DesktopOverlayKind | null {
   // Requested explicitly by a hotkey; automatic notification preferences do not apply.
   if (event.type === "current-session") return "current-session";
+  // A hotkey's answer, shown like the current session card.
+  if (event.type === "pause-toggled") return "current-session";
   // Switched on by the player for themselves, apart from the popup settings.
   if (event.type === "playtime-reminder") return "playtime-reminder";
   if (event.type === "live-timer") return "live-timer";
@@ -244,6 +259,14 @@ function overlayCopy(
             )
           : undefined,
       showClock: event.showClock,
+    };
+  }
+  if (event.type === "pause-toggled") {
+    return {
+      kicker: event.paused ? t("TIMER PAUSED") : t("TIMER RESUMED"),
+      title: event.gameName,
+      metric: formatDuration(event.durationSeconds),
+      coverUrl: event.coverUrl,
     };
   }
   if (event.type === "playtime-reminder") {

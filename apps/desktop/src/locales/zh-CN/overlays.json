@@ -68,5 +68,10 @@
   "What's happening in this picture?": "这张图里发生了什么？",
   "Enter saves · Esc keeps the picture without a caption": "Enter 保存 · Esc 保留图片，不加说明",
   "Skip": "跳过",
-  "“{{caption}}”": "“{{caption}}”"
+  "“{{caption}}”": "“{{caption}}”",
+  "TIMER PAUSED": "计时已暂停",
+  "TIMER RESUMED": "计时已继续",
+  "Paused": "已暂停",
+  "Pause the timer for {{gameName}}": "暂停 {{gameName}} 的计时",
+  "Resume the timer for {{gameName}}": "继续 {{gameName}} 的计时"
 }

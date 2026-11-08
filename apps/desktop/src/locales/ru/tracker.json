@@ -50,5 +50,6 @@
   "{{status}} (+{{count}} more)": "{{status}} (+{{count}} ещё)",
   "{{hours}}h {{minutes}}m": "{{hours}} ч {{minutes}} мин",
   "{{minutes}}m": "{{minutes}} мин",
-  "<1m": "<1 мин"
+  "<1m": "<1 мин",
+  "Paused {{game}} - {{duration}}": "На паузе {{game}} - {{duration}}"
 }

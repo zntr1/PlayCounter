@@ -12,11 +12,12 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
 /// What a hotkey can do.
-const ACTIONS: [&str; 7] = [
+const ACTIONS: [&str; 8] = [
     "show-window",
     "current-session",
     "quick-note",
     "live-timer",
+    "pause-timer",
     "screenshot",
     "screenshot-caption",
     "quick-add",
@@ -82,6 +83,9 @@ pub fn set_global_hotkey(
                     "live-timer" => {
                         let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
                     }
+                    "pause-timer" => {
+                        let _ = app.emit_to("main", "playcounter:pause-timer-hotkey", ());
+                    }
                     "screenshot" => {
                         // The picture is taken right here, before the main
                         // window says which session it belongs to.
@@ -129,6 +133,7 @@ mod tests {
             "current-session",
             "quick-note",
             "live-timer",
+            "pause-timer",
             "screenshot",
             "screenshot-caption",
             "quick-add",

@@ -99,5 +99,11 @@
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.": "D'autres joueurs ont signalé que ce fichier n'est pas un jeu, donc PlayCounter ne l'associe plus de lui-même.",
   "{{hours}}h {{minutes}}m ago": "il y a {{hours}} h {{minutes}} min",
   "{{minutes}}m ago": "il y a {{minutes}} min",
-  "Playing on {{console}}": "En jeu sur {{console}}"
+  "Playing on {{console}}": "En jeu sur {{console}}",
+  "Paused": "En pause",
+  "Pause": "Mettre en pause",
+  "Resume": "Reprendre",
+  "Pause the timer for {{gameName}}": "Mettre en pause le chronomètre pour {{gameName}}",
+  "Resume the timer for {{gameName}}": "Reprendre le chronomètre pour {{gameName}}",
+  "paused {{time}}": "en pause depuis {{time}}"
 }

@@ -3,11 +3,10 @@ import type { QuickNoteLabel, QuickNotePayload } from "../quickNote";
 
 const NOTE_LIMIT = 1000;
 
-function elapsed(startedAt: string, nowMs: number) {
-  const seconds = Math.max(
-    0,
-    Math.floor((nowMs - Date.parse(startedAt)) / 1000),
-  );
+/** The clock counts up from `fromMs` (pauses already left out by the main
+ *  window) and stands still at `untilMs`. */
+function elapsed(fromMs: number, untilMs: number) {
+  const seconds = Math.max(0, Math.floor((untilMs - fromMs) / 1000));
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const rest = seconds % 60;
@@ -57,11 +56,12 @@ export function QuickNoteWindow({
     // Runs once: the box closes with whatever is typed at that moment.
   }, []);
 
+  const pausedAtMs = payload.pausedAt ? Date.parse(payload.pausedAt) : null;
   useEffect(() => {
-    if (!payload.startedAt) return;
+    if (!payload.startedAt || payload.pausedAt) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [payload.startedAt]);
+  }, [payload.startedAt, payload.pausedAt]);
 
   return (
     <div className="h-full w-full p-1">
@@ -92,10 +92,12 @@ export function QuickNoteWindow({
           <div className="shrink-0 text-right text-[11px] text-text-muted">
             {payload.startedAt ? (
               <span className="inline-flex items-center gap-1.5">
-                <i className="h-1.5 w-1.5 rounded-full bg-success" />
-                {label("Playing now")}
+                <i
+                  className={`h-1.5 w-1.5 rounded-full ${pausedAtMs === null ? "bg-success" : "bg-warning"}`}
+                />
+                {label(pausedAtMs === null ? "Playing now" : "Paused")}
                 <strong className="font-mono tabular-nums text-text">
-                  {elapsed(payload.startedAt, now)}
+                  {elapsed(Date.parse(payload.startedAt), pausedAtMs ?? now)}
                 </strong>
               </span>
             ) : (

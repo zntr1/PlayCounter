@@ -161,6 +161,40 @@ describe("desktop overlay policy", () => {
     });
   });
 
+  // docs/pause-timer-plan.md: with the live timer off, the pause hotkey
+  // answers with a card, also when automatic popups are off.
+  it("answers the pause hotkey with the game and its session time", () => {
+    const off = { ...settings, desktopOverlaysEnabled: false };
+    const event = {
+      type: "pause-toggled" as const,
+      paused: true,
+      gameName: "Elden Ring",
+      durationSeconds: 4_360,
+    };
+    expect(overlayGate(event, off)).toBe("current-session");
+    const context = {
+      nowMs: 0,
+      theme: "dark" as const,
+      accentColor: null,
+      reducedMotion: false,
+    };
+    expect(
+      buildOverlayMessage("current-session", event, context),
+    ).toMatchObject({
+      kicker: "TIMER PAUSED",
+      title: "Elden Ring",
+      metric: "1h 12m",
+      sessionTimeLabel: "SESSION TIME",
+    });
+    expect(
+      buildOverlayMessage(
+        "current-session",
+        { ...event, paused: false },
+        context,
+      ),
+    ).toMatchObject({ kicker: "TIMER RESUMED" });
+  });
+
   it("shows a screenshot's caption in the popup, quoted", () => {
     const context = {
       nowMs: 0,

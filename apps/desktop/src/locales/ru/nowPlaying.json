@@ -100,5 +100,11 @@
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.": "Другие игроки отметили этот файл как не игру, поэтому PlayCounter больше не привязывает его сам.",
   "{{hours}}h {{minutes}}m ago": "{{hours}} ч {{minutes}} мин назад",
   "{{minutes}}m ago": "{{minutes}} мин назад",
-  "Playing on {{console}}": "Игра на {{console}}"
+  "Playing on {{console}}": "Игра на {{console}}",
+  "Paused": "На паузе",
+  "Pause": "Пауза",
+  "Resume": "Продолжить",
+  "Pause the timer for {{gameName}}": "Приостановить таймер для {{gameName}}",
+  "Resume the timer for {{gameName}}": "Возобновить таймер для {{gameName}}",
+  "paused {{time}}": "пауза {{time}}"
 }

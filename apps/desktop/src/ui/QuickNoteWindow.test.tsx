@@ -94,3 +94,23 @@ it("keeps what was typed when the player clicks elsewhere, without stealing focu
   await act(() => window.dispatchEvent(new Event("blur")));
   expect(onClose).toHaveBeenCalledExactlyOnceWith("Changed", false);
 });
+
+// docs/pause-timer-plan.md: paused time never counts.
+it("shows a paused game's time standing still", async () => {
+  const startedAt = new Date(Date.now() - 2 * 3600_000).toISOString();
+  await act(() =>
+    root.render(
+      <QuickNoteWindow
+        payload={{
+          ...payload,
+          startedAt,
+          pausedAt: new Date(Date.parse(startedAt) + 50 * 60_000).toISOString(),
+          labels: { Paused: "Pausiert" },
+        }}
+        onClose={onClose}
+      />,
+    ),
+  );
+  expect(container.textContent).toContain("Pausiert");
+  expect(container.textContent).toContain("50:00");
+});

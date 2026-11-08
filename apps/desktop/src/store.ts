@@ -145,6 +145,11 @@ export type ActiveSession = {
   /** Started by hand for play away from this PC (a console). No process
    *  starts or ends it, only Stop; it is saved as a manual session. */
   timer?: true;
+  /** Set while paused by the player: the game may still run, but nothing
+   *  counts until Resume (sessionTime.ts). */
+  pausedAt?: string;
+  /** Earlier pauses of this session, added up. */
+  pausedMs?: number;
   /** Seen running on a PlayStation console through Sony's presence. No
    *  process starts or ends it; its checkpoint is the last sighting, and it is
    *  saved as a "playstation" session (playstationLive.ts). */
@@ -709,6 +714,7 @@ export type AppState = {
       | "currentSessionHotkey"
       | "quickNoteHotkey"
       | "liveTimerHotkey"
+      | "pauseTimerHotkey"
       | "screenshotHotkey"
       | "screenshotCaptionHotkey"
       | "quickAddHotkey",
