@@ -356,5 +356,7 @@
   "Screenshots": "Capturas de tela",
   "The folder could not be opened.": "Não foi possível abrir a pasta.",
   "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "As imagens do atalho de captura vão para {{folder}}, uma pasta por jogo. Elas continuam lá se você desinstalar o PlayCounter.",
-  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "As imagens do atalho de captura vão para a sua pasta Imagens, uma pasta por jogo."
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "As imagens do atalho de captura vão para a sua pasta Imagens, uma pasta por jogo.",
+  "Screenshot with caption": "Captura de tela com legenda",
+  "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "Tira a imagem na hora e depois abre uma pequena caixa sobre o jogo para uma legenda. Enter salva e leva você de volta ao jogo. Esc mantém a imagem sem legenda. Em jogos em tela cheia exclusiva, o jogo pode ser minimizado enquanto a caixa estiver aberta."
 }

@@ -4,6 +4,7 @@
 //! added in Explorer is gone or there the next time PlayCounter looks.
 
 use super::{
+    caption::{clean_caption, read_captions, write_caption},
     capture_window,
     files::{
         clean_file_name, is_picture, picture_inside, preview_name, screenshot_stem, unique_path,
@@ -15,7 +16,7 @@ use super::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
     sync::Mutex,
@@ -36,6 +37,13 @@ const MAX_CANDIDATES: usize = 16;
 /// One picture at a time: two presses within a second would otherwise both
 /// find "… 19-14-03.jpg" free and write the same file.
 static TAKING: Mutex<()> = Mutex::new(());
+/// The captions PlayCounter last read, by preview name (the picture's path,
+/// size and time), in the previews folder. Reading one from its picture
+/// takes about 4 ms, too slow for a long list at every start.
+const CAPTIONS: &str = "captions.json";
+static CAPTIONS_FILE: Mutex<()> = Mutex::new(());
+
+type CaptionCache = HashMap<String, Option<String>>;
 
 #[derive(Default)]
 pub struct ScreenshotState {
@@ -96,6 +104,8 @@ pub struct ScreenshotFile {
     pub bytes: u64,
     pub modified_ms: i64,
     pub preview_path: Option<String>,
+    /// Kept in the picture file itself (caption.rs).
+    pub caption: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -198,7 +208,66 @@ fn describe(
         bytes: metadata.len(),
         modified_ms: modified_ms(metadata),
         preview_path: has_preview(&preview).then(|| path_text(&preview)),
+        caption: None,
     }
+}
+
+/// The name the picture's preview and cached caption go by.
+fn picture_key(root: &Path, previews: &Path, path: &Path, metadata: &fs::Metadata) -> String {
+    preview_path_for(root, previews, path, metadata)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+fn load_captions(previews: &Path) -> CaptionCache {
+    fs::read(previews.join(CAPTIONS))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+/// Best effort: without the file, captions are just read again.
+fn save_captions(previews: &Path, cache: &CaptionCache) {
+    let Ok(json) = serde_json::to_vec(cache) else {
+        return;
+    };
+    let temp = previews.join(format!("{CAPTIONS}.tmp"));
+    if fs::create_dir_all(previews).is_ok() && fs::write(&temp, json).is_ok() {
+        let _ = fs::rename(&temp, previews.join(CAPTIONS));
+    }
+}
+
+/// The captions for these pictures: from the cache where it knows them, the
+/// rest read by `read`, which gets their positions. Also the cache to keep:
+/// just these pictures, so deleted and changed ones drop out.
+fn captions_for(
+    keys: &[String],
+    cache: &CaptionCache,
+    read: impl FnOnce(&[usize]) -> Vec<Option<String>>,
+) -> (Vec<Option<String>>, CaptionCache) {
+    let missing: Vec<usize> = (0..keys.len())
+        .filter(|&index| !cache.contains_key(&keys[index]))
+        .collect();
+    let mut read_now = if missing.is_empty() {
+        Vec::new()
+    } else {
+        read(&missing)
+    }
+    .into_iter();
+    let mut next = CaptionCache::with_capacity(keys.len());
+    let captions = keys
+        .iter()
+        .map(|key| {
+            let caption = match cache.get(key) {
+                Some(caption) => caption.clone(),
+                None => read_now.next().flatten(),
+            };
+            next.insert(key.clone(), caption.clone());
+            caption
+        })
+        .collect();
+    (captions, next)
 }
 
 #[tauri::command]
@@ -306,32 +375,52 @@ fn list(root: &Path, previews: &Path) -> Vec<ScreenshotFile> {
     let existing: HashSet<PathBuf> = fs::read_dir(previews)
         .map(|entries| entries.flatten().map(|entry| entry.path()).collect())
         .unwrap_or_default();
-    let mut files = Vec::new();
-    add_pictures(root, previews, root, "", &existing, &mut files);
+    let mut found = Vec::new();
+    add_pictures(root, previews, root, "", &existing, &mut found);
     if let Ok(entries) = fs::read_dir(root) {
         for entry in entries.flatten() {
             if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
                 let name = entry.file_name().to_string_lossy().into_owned();
-                add_pictures(root, previews, &entry.path(), &name, &existing, &mut files);
+                add_pictures(root, previews, &entry.path(), &name, &existing, &mut found);
             }
         }
     }
-    files
+    let keys: Vec<String> = found.iter().map(|(_, _, key)| key.clone()).collect();
+    let _one_at_a_time = CAPTIONS_FILE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let cache = load_captions(previews);
+    let (captions, next) = captions_for(&keys, &cache, |missing| {
+        let paths: Vec<PathBuf> = missing.iter().map(|&at| found[at].1.clone()).collect();
+        read_captions(&paths)
+    });
+    if next != cache {
+        save_captions(previews, &next);
+    }
+    found
+        .into_iter()
+        .zip(captions)
+        .map(|((mut file, _, _), caption)| {
+            file.caption = caption;
+            file
+        })
+        .collect()
 }
 
+/// The pictures in `folder`, each with its path and its cache key.
 fn add_pictures(
     root: &Path,
     previews: &Path,
     folder: &Path,
     folder_name: &str,
     existing: &HashSet<PathBuf>,
-    files: &mut Vec<ScreenshotFile>,
+    found: &mut Vec<(ScreenshotFile, PathBuf, String)>,
 ) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
     };
     for entry in entries.flatten() {
-        if files.len() >= MAX_LISTED {
+        if found.len() >= MAX_LISTED {
             return;
         }
         let path = entry.path();
@@ -339,14 +428,11 @@ fn add_pictures(
             continue;
         };
         if metadata.is_file() && is_picture(&path) {
-            files.push(describe(
-                root,
-                previews,
-                &path,
-                folder_name,
-                &metadata,
-                |preview| existing.contains(preview),
-            ));
+            let file = describe(root, previews, &path, folder_name, &metadata, |preview| {
+                existing.contains(preview)
+            });
+            let key = picture_key(root, previews, &path, &metadata);
+            found.push((file, path, key));
         }
     }
 }
@@ -378,6 +464,68 @@ pub async fn screenshot_preview(
     })
     .await
     .map_err(text)?
+}
+
+/// Saves a caption into the picture, or removes it with None. Answers with
+/// the picture as the list shows it now.
+#[tauri::command]
+pub async fn screenshot_caption(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    path: String,
+    caption: Option<String>,
+) -> Result<ScreenshotFile, String> {
+    main_only(&window)?;
+    let picture = own_picture(&app, &path)?;
+    let (root, previews) = (root(&app)?, previews(&app)?);
+    tauri::async_runtime::spawn_blocking(move || {
+        set_caption(&root, &previews, &picture, caption.as_deref())
+    })
+    .await
+    .map_err(text)?
+}
+
+fn set_caption(
+    root: &Path,
+    previews: &Path,
+    picture: &Path,
+    caption: Option<&str>,
+) -> Result<ScreenshotFile, String> {
+    let root = fs::canonicalize(root).map_err(text)?;
+    let caption = caption.and_then(clean_caption);
+    let before = fs::metadata(picture).map_err(text)?;
+    let old_preview = preview_path_for(&root, previews, picture, &before);
+    let old_key = picture_key(&root, previews, picture, &before);
+    write_caption(picture, caption.as_deref())?;
+    // Writing the caption changes the file's size and time, not its picture:
+    // the preview still fits under its new name.
+    let after = fs::metadata(picture).map_err(text)?;
+    let new_preview = preview_path_for(&root, previews, picture, &after);
+    if new_preview != old_preview && old_preview.is_file() {
+        let _ = fs::rename(&old_preview, &new_preview);
+    }
+    {
+        let _one_at_a_time = CAPTIONS_FILE
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut cache = load_captions(previews);
+        cache.remove(&old_key);
+        cache.insert(
+            picture_key(&root, previews, picture, &after),
+            caption.clone(),
+        );
+        save_captions(previews, &cache);
+    }
+    let folder = picture
+        .parent()
+        .and_then(|parent| parent.strip_prefix(&root).ok())
+        .map(path_text)
+        .unwrap_or_default();
+    let mut file = describe(&root, previews, picture, &folder, &after, |preview| {
+        preview.is_file()
+    });
+    file.caption = caption;
+    Ok(file)
 }
 
 /// Opens the picture in the app Windows uses for pictures.
@@ -587,5 +735,109 @@ mod window {
 
     pub fn recycle(_path: &Path) -> Result<(), String> {
         Err(UNSUPPORTED.into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn keys(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn reads_only_the_pictures_the_cache_doesnt_know() {
+        let cache = CaptionCache::from([
+            ("a".to_string(), Some("Boss arena".to_string())),
+            ("b".to_string(), None),
+        ]);
+        let mut asked = Vec::new();
+        let (captions, _) = captions_for(&keys(&["a", "b", "c", "d"]), &cache, |missing| {
+            asked = missing.to_vec();
+            vec![Some("New one".into()), None]
+        });
+        assert_eq!(asked, vec![2, 3]);
+        assert_eq!(
+            captions,
+            vec![
+                Some("Boss arena".into()),
+                None,
+                Some("New one".into()),
+                None
+            ]
+        );
+    }
+
+    #[test]
+    fn a_picture_without_a_caption_is_not_read_again() {
+        let cache = CaptionCache::from([("a".to_string(), None)]);
+        let (captions, next) = captions_for(&keys(&["a"]), &cache, |_| {
+            panic!("the cache knew this picture")
+        });
+        assert_eq!(captions, vec![None]);
+        assert_eq!(next, cache);
+    }
+
+    /// What the viewer and the caption box ask for: the picture's resolved
+    /// path (\\?\C:\…), as `own_picture` hands it on.
+    #[cfg(windows)]
+    #[test]
+    fn saves_a_caption_the_way_the_app_asks_for_it() {
+        let base = std::env::temp_dir().join(format!(
+            "playcounter-caption-command-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let (root, previews) = (base.join("PlayCounter"), base.join("previews"));
+        let path = root
+            .join("Elden Ring")
+            .join("Elden Ring 2026-11-08 21-44-07.jpg");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let picture = crate::screenshot::Picture {
+            width: 64,
+            height: 36,
+            bgra: vec![90; 64 * 36 * 4],
+        };
+        save_jpeg(&picture, &path, QUALITY).unwrap();
+        assert_eq!(list(&root, &previews)[0].caption, None);
+        let old_preview = preview_path_for(&root, &previews, &path, &fs::metadata(&path).unwrap());
+        fs::create_dir_all(&previews).unwrap();
+        fs::write(&old_preview, b"preview").unwrap();
+
+        let resolved = fs::canonicalize(&path).unwrap();
+        let file = set_caption(&root, &previews, &resolved, Some("  Boss arena  ")).unwrap();
+        assert_eq!(file.caption.as_deref(), Some("Boss arena"));
+        assert_eq!(file.folder, "Elden Ring");
+        assert!(!file.path.starts_with(r"\\?\"));
+        // The preview moved to the picture's new name instead of being made again.
+        assert!(!old_preview.exists());
+        assert!(Path::new(file.preview_path.as_deref().unwrap()).is_file());
+        // The next list knows the caption without reading the picture again.
+        assert_eq!(
+            list(&root, &previews)[0].caption.as_deref(),
+            Some("Boss arena")
+        );
+
+        // An empty caption removes it.
+        let file = set_caption(&root, &previews, &resolved, Some("   ")).unwrap();
+        assert_eq!(file.caption, None);
+        assert_eq!(list(&root, &previews)[0].caption, None);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn forgets_pictures_that_are_gone_or_changed() {
+        let cache = CaptionCache::from([
+            ("kept".to_string(), Some("Still here".to_string())),
+            ("deleted".to_string(), Some("Gone".to_string())),
+        ]);
+        let (_, next) = captions_for(&keys(&["kept", "added"]), &cache, |_| vec![None]);
+        assert_eq!(
+            next,
+            CaptionCache::from([
+                ("kept".to_string(), Some("Still here".to_string())),
+                ("added".to_string(), None),
+            ])
+        );
     }
 }

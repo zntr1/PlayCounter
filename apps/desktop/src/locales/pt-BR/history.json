@@ -214,5 +214,12 @@
   "Close": "Fechar",
   "Screenshot from {{takenAt}}": "Captura de tela de {{takenAt}}",
   "Previous screenshot": "Captura de tela anterior",
-  "Next screenshot": "Próxima captura de tela"
+  "Next screenshot": "Próxima captura de tela",
+  "“{{caption}}”": "“{{caption}}”",
+  "Change the caption": "Alterar a legenda",
+  "Add a caption": "Adicionar uma legenda",
+  "Caption": "Legenda",
+  "What's happening in this picture?": "O que está acontecendo nesta imagem?",
+  "Enter saves · Esc cancels": "Enter salva · Esc cancela",
+  "The caption couldn't be saved.": "Não foi possível salvar a legenda."
 }

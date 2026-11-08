@@ -198,5 +198,12 @@
   "Close": "关闭",
   "Screenshot from {{takenAt}}": "{{takenAt}} 的截图",
   "Previous screenshot": "上一张截图",
-  "Next screenshot": "下一张截图"
+  "Next screenshot": "下一张截图",
+  "“{{caption}}”": "“{{caption}}”",
+  "Change the caption": "修改说明",
+  "Add a caption": "添加说明",
+  "Caption": "说明",
+  "What's happening in this picture?": "这张图里发生了什么？",
+  "Enter saves · Esc cancels": "Enter 保存 · Esc 取消",
+  "The caption couldn't be saved.": "无法保存说明。"
 }

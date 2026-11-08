@@ -59,5 +59,12 @@
   "PlayCounter couldn't take the screenshot.": "PlayCounter n'a pas pu prendre la capture d'écran.",
   "SCREENSHOT SAVED": "CAPTURE ENREGISTRÉE",
   "NO SCREENSHOT": "AUCUNE CAPTURE",
-  "Screenshot": "Capture d'écran"
+  "Screenshot": "Capture d'écran",
+  "SCREENSHOT": "CAPTURE D'ÉCRAN",
+  "Picture saved · {{time}}": "Image enregistrée · {{time}}",
+  "Caption": "Légende",
+  "What's happening in this picture?": "Que se passe-t-il sur cette image ?",
+  "Enter saves · Esc keeps the picture without a caption": "Entrée enregistre · Échap garde l'image sans légende",
+  "Skip": "Passer",
+  "“{{caption}}”": "« {{caption}} »"
 }

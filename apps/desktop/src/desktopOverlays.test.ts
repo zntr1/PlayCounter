@@ -161,6 +161,36 @@ describe("desktop overlay policy", () => {
     });
   });
 
+  it("shows a screenshot's caption in the popup, quoted", () => {
+    const context = {
+      nowMs: 0,
+      theme: "dark" as const,
+      accentColor: null,
+      reducedMotion: false,
+    };
+    const withCaption = buildOverlayMessage(
+      "screenshot",
+      {
+        type: "screenshot",
+        outcome: "saved",
+        gameName: "Elden Ring",
+        caption: "Finally beat Malenia",
+      },
+      context,
+    );
+    expect(withCaption).toMatchObject({
+      kicker: "SCREENSHOT SAVED",
+      title: "Elden Ring",
+      body: "“Finally beat Malenia”",
+    });
+    const without = buildOverlayMessage(
+      "screenshot",
+      { type: "screenshot", outcome: "saved", gameName: "Elden Ring" },
+      context,
+    );
+    expect(without.body).toBe("Added to this session.");
+  });
+
   it("keeps the launched process on session-start cards for monitor targeting", () => {
     const card = buildOverlayMessage(
       "session-start",

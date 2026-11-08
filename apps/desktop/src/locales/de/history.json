@@ -206,5 +206,12 @@
   "Close": "Schließen",
   "Screenshot from {{takenAt}}": "Screenshot vom {{takenAt}}",
   "Previous screenshot": "Vorheriger Screenshot",
-  "Next screenshot": "Nächster Screenshot"
+  "Next screenshot": "Nächster Screenshot",
+  "“{{caption}}”": "„{{caption}}“",
+  "Change the caption": "Bildunterschrift ändern",
+  "Add a caption": "Bildunterschrift hinzufügen",
+  "Caption": "Bildunterschrift",
+  "What's happening in this picture?": "Was passiert auf diesem Bild?",
+  "Enter saves · Esc cancels": "Enter speichert · Esc bricht ab",
+  "The caption couldn't be saved.": "Die Bildunterschrift konnte nicht gespeichert werden."
 }

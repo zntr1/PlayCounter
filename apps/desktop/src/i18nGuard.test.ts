@@ -631,6 +631,10 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Not a PlayCounter picture.",
   "The Recycle Bin did not take the picture ({result}).",
   "The capture took too long.",
+  // Captions: the viewer says "The caption couldn't be saved." itself.
+  "Captions are not supported on this platform.",
+  "The caption thread stopped.",
+  "Out of memory.",
   "A PlayCounter data path points outside its app folder.",
   "Battle.net sign-in must be cancelled from PlayCounter.",
   "Closing games is only supported on Windows.",

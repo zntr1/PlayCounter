@@ -49,7 +49,8 @@ webview2-com = "0.38.2"
 windows-core = "0.61"
 windows-sys = { version = "0.59", features = ["Wdk_System_Threading", "Win32_Foundation", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Input_XboxController", "Win32_UI_WindowsAndMessaging"] }
 # Screenshots (screenshot.rs): Windows Graphics Capture for one frame of the
-# game window, Direct3D 11 to read it back, WIC to write the JPEG.
+# game window, Direct3D 11 to read it back, WIC to write the JPEG, and the
+# property system for its caption.
 windows = { version = "0.59", features = [
     "Foundation",
     "Graphics_Capture",
@@ -64,6 +65,7 @@ windows = { version = "0.59", features = [
     "Win32_Graphics_Gdi",
     "Win32_Graphics_Imaging",
     "Win32_Media_Audio",
+    "Win32_Storage_EnhancedStorage",
     "Win32_System_Com",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Ole",
@@ -72,6 +74,7 @@ windows = { version = "0.59", features = [
     "Win32_System_WinRT_Direct3D11",
     "Win32_System_WinRT_Graphics_Capture",
     "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
     "Win32_UI_WindowsAndMessaging",
 ] }
 

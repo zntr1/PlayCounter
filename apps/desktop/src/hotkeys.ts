@@ -16,13 +16,15 @@ export type HotkeySetting =
   | "currentSessionHotkey"
   | "quickNoteHotkey"
   | "liveTimerHotkey"
-  | "screenshotHotkey";
+  | "screenshotHotkey"
+  | "screenshotCaptionHotkey";
 const actions: Record<HotkeySetting, string> = {
   showWindowHotkey: "show-window",
   currentSessionHotkey: "current-session",
   quickNoteHotkey: "quick-note",
   liveTimerHotkey: "live-timer",
   screenshotHotkey: "screenshot",
+  screenshotCaptionHotkey: "screenshot-caption",
 };
 /** Hotkeys the main window handles itself; they need its event listeners. */
 const listened: Partial<Record<HotkeySetting, () => void>> = {
@@ -33,12 +35,14 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
   },
   liveTimerHotkey: () => cycleLiveTimer(),
   screenshotHotkey: () => void takeScreenshot(),
+  screenshotCaptionHotkey: () => void takeScreenshot({ caption: true }),
 };
 const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   currentSessionHotkey: "playcounter:current-session-hotkey",
   quickNoteHotkey: "playcounter:quick-note-hotkey",
   liveTimerHotkey: "playcounter:live-timer-hotkey",
   screenshotHotkey: "playcounter:screenshot-hotkey",
+  screenshotCaptionHotkey: "playcounter:screenshot-caption-hotkey",
 };
 export const useHotkeyStatus = create<{
   errors: Partial<Record<HotkeySetting, string>>;

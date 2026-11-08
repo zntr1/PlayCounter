@@ -12,12 +12,13 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
 /// What a hotkey can do.
-const ACTIONS: [&str; 5] = [
+const ACTIONS: [&str; 6] = [
     "show-window",
     "current-session",
     "quick-note",
     "live-timer",
     "screenshot",
+    "screenshot-caption",
 ];
 
 fn is_known_action(action: &str) -> bool {
@@ -80,6 +81,12 @@ pub fn set_global_hotkey(
                         crate::screenshot::commands::key_pressed(app);
                         let _ = app.emit_to("main", "playcounter:screenshot-hotkey", ());
                     }
+                    "screenshot-caption" => {
+                        // The same picture; the main window then opens the
+                        // caption box over the game.
+                        crate::screenshot::commands::key_pressed(app);
+                        let _ = app.emit_to("main", "playcounter:screenshot-caption-hotkey", ());
+                    }
                     _ => {
                         let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
                     }
@@ -109,13 +116,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn knows_the_screenshot_action_and_nothing_made_up() {
+    fn knows_the_screenshot_actions_and_nothing_made_up() {
         for action in [
             "show-window",
             "current-session",
             "quick-note",
             "live-timer",
             "screenshot",
+            "screenshot-caption",
         ] {
             assert!(is_known_action(action), "{action}");
         }

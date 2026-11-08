@@ -342,5 +342,7 @@
   "Screenshots": "截图",
   "The folder could not be opened.": "无法打开该文件夹。",
   "Pictures from the screenshot key go to {{folder}}, one folder per game. They stay there if you uninstall PlayCounter.": "截图快捷键拍下的图片保存在 {{folder}}，每个游戏一个文件夹。卸载 PlayCounter 后它们仍会保留。",
-  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "截图快捷键拍下的图片保存在你的“图片”文件夹中，每个游戏一个文件夹。"
+  "Pictures from the screenshot key go to your Pictures folder, one folder per game.": "截图快捷键拍下的图片保存在你的“图片”文件夹中，每个游戏一个文件夹。",
+  "Screenshot with caption": "带说明的截图",
+  "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "立即截图，然后在游戏上方打开一个小框来写说明。按 Enter 保存并回到游戏。按 Esc 保留图片，不加说明。在独占全屏的游戏中，小框打开时游戏可能会最小化。"
 }

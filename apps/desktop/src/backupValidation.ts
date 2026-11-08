@@ -334,6 +334,7 @@ const settings = object({}, {
   quickNoteHotkey: nullable(string),
   liveTimerHotkey: nullable(string),
   screenshotHotkey: nullable(string),
+  screenshotCaptionHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
   language: string,

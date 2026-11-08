@@ -741,6 +741,22 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        <SettingsRow
+          title={t("Screenshot with caption")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Screenshots are not supported on macOS yet.")
+              : t(
+                  "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="screenshotCaptionHotkey"
+            label={t("Screenshot with caption")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
         {currentPlatform() !== "macos" ? (
           <SettingsRow
             title={t("Show clock in session popup")}

@@ -214,5 +214,12 @@
   "Close": "Fermer",
   "Screenshot from {{takenAt}}": "Capture d'écran du {{takenAt}}",
   "Previous screenshot": "Capture d'écran précédente",
-  "Next screenshot": "Capture d'écran suivante"
+  "Next screenshot": "Capture d'écran suivante",
+  "“{{caption}}”": "« {{caption}} »",
+  "Change the caption": "Modifier la légende",
+  "Add a caption": "Ajouter une légende",
+  "Caption": "Légende",
+  "What's happening in this picture?": "Que se passe-t-il sur cette image ?",
+  "Enter saves · Esc cancels": "Entrée enregistre · Échap annule",
+  "The caption couldn't be saved.": "La légende n'a pas pu être enregistrée."
 }

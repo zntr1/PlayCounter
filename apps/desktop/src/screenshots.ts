@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Session } from "@playcounter/shared";
 import { create } from "zustand";
 import {
@@ -7,6 +8,7 @@ import {
 } from "./desktopOverlayBridge";
 import { screenshotBlackNotification } from "./notifications";
 import { pickedCover } from "./pickedCovers";
+import { openScreenshotCaptionBox } from "./quickNote";
 import { useAppStore, type ActiveSession } from "./store";
 
 /* Screenshots (docs/memory-book-plan.md). The screenshot key saves a picture
@@ -24,7 +26,13 @@ export type ScreenshotFile = {
   bytes: number;
   modifiedMs: number;
   previewPath: string | null;
+  /** Kept in the picture file itself. */
+  caption: string | null;
 };
+
+/** Sent by Rust when the caption box closes, with or without a caption. */
+export const SCREENSHOT_CAPTION_CLOSE_EVENT =
+  "playcounter:screenshot-caption-close";
 
 /** With the moment it was taken: the time in its name, else the file's. */
 export type Screenshot = ScreenshotFile & { takenAtMs: number };
@@ -180,7 +188,11 @@ export function useSessionScreenshots(sessionId: number): Screenshot[] {
 }
 
 let pidsOf: ((session: ActiveSession) => number[]) | null = null;
-let lifecycle: { disposed: boolean } | null = null;
+let lifecycle: { disposed: boolean; unlisten?: UnlistenFn } | null = null;
+
+type PopupGame = { gameName?: string; coverUrl?: string };
+/** Pictures whose caption box is open, with the game for the popup after. */
+const captionBoxes = new Map<string, PopupGame>();
 
 /** A game on this PC. Console and hand-timed sessions have no window here. */
 function onThisPc(session: ActiveSession) {
@@ -193,14 +205,72 @@ export function initializeScreenshots(
 ) {
   pidsOf = pids;
   if (lifecycle) return;
-  lifecycle = { disposed: false };
+  const state: { disposed: boolean; unlisten?: UnlistenFn } = {
+    disposed: false,
+  };
+  lifecycle = state;
   void loadScreenshots();
+  void listen<{ path: string; caption: string | null }>(
+    SCREENSHOT_CAPTION_CLOSE_EVENT,
+    ({ payload }) => {
+      if (!state.disposed) void captionBoxClosed(payload.path, payload.caption);
+    },
+  )
+    .then((unlisten) => {
+      if (state.disposed) unlisten();
+      else state.unlisten = unlisten;
+    })
+    .catch((error) => console.error("caption listener failed", error));
 }
 
 export function disposeScreenshots() {
-  if (lifecycle) lifecycle.disposed = true;
+  if (lifecycle) {
+    lifecycle.disposed = true;
+    lifecycle.unlisten?.();
+  }
   lifecycle = null;
   pidsOf = null;
+  captionBoxes.clear();
+}
+
+/** The caption box closed: save what was written, then show the popup the
+ *  picture would have had at once. */
+async function captionBoxClosed(path: string, caption: string | null) {
+  const game = captionBoxes.get(path) ?? {};
+  captionBoxes.delete(path);
+  if (caption?.trim()) {
+    try {
+      const shot = await setScreenshotCaption(path, caption);
+      showScreenshotOverlay({
+        outcome: "saved",
+        ...game,
+        caption: shot.caption ?? undefined,
+      });
+      return;
+    } catch (error) {
+      // The picture is saved anyway; the popup just has no caption.
+      console.error("screenshot caption failed", error);
+    }
+  }
+  showScreenshotOverlay({ outcome: "saved", ...game });
+}
+
+/** Writes the caption into the picture (null removes it) and updates the
+ *  list and the viewer. */
+export async function setScreenshotCaption(
+  path: string,
+  caption: string | null,
+) {
+  const file = await invoke<ScreenshotFile>("screenshot_caption", {
+    path,
+    caption,
+  });
+  const shot = toScreenshot({ ...file, path });
+  const swap = (shots: Screenshot[]) =>
+    shots.map((entry) => (entry.path === path ? shot : entry));
+  useScreenshots.setState((current) => ({ files: swap(current.files) }));
+  useScreenshotViewer.setState((current) => ({ shots: swap(current.shots) }));
+  return shot;
 }
 
 /** Reads Pictures\PlayCounter again: pictures added or deleted in Explorer
@@ -217,8 +287,9 @@ export async function loadScreenshots() {
 }
 
 /** The screenshot key: a picture of the game in front, or of the game
- *  started last, added to its running session. */
-export async function takeScreenshot() {
+ *  started last, added to its running session. With `caption`, the caption
+ *  box opens over the game first and the popup comes when it closes. */
+export async function takeScreenshot({ caption = false } = {}) {
   const state = useAppStore.getState();
   const sessions = state.activeSessions
     .filter(onThisPc)
@@ -261,6 +332,18 @@ export async function takeScreenshot() {
           shot,
         ],
       }));
+      if (caption) {
+        captionBoxes.set(shot.path, game(session));
+        const opened = await openScreenshotCaptionBox(shot, {
+          sessionId: session.id,
+          ...game(session),
+        }).catch((error) => {
+          console.error("caption box failed", error);
+          return false;
+        });
+        if (opened) return;
+        captionBoxes.delete(shot.path);
+      }
       showScreenshotOverlay({ outcome: "saved", ...game(session) });
       return;
     }

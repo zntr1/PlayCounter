@@ -59,5 +59,12 @@
   "PlayCounter couldn't take the screenshot.": "PlayCounter konnte den Screenshot nicht aufnehmen.",
   "SCREENSHOT SAVED": "SCREENSHOT GESPEICHERT",
   "NO SCREENSHOT": "KEIN SCREENSHOT",
-  "Screenshot": "Screenshot"
+  "Screenshot": "Screenshot",
+  "SCREENSHOT": "SCREENSHOT",
+  "Picture saved · {{time}}": "Bild gespeichert · {{time}}",
+  "Caption": "Bildunterschrift",
+  "What's happening in this picture?": "Was passiert auf diesem Bild?",
+  "Enter saves · Esc keeps the picture without a caption": "Enter speichert · Esc behält das Bild ohne Bildunterschrift",
+  "Skip": "Überspringen",
+  "“{{caption}}”": "„{{caption}}“"
 }

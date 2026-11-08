@@ -47,6 +47,7 @@ beforeEach(() => {
       quickNoteHotkey: null,
       liveTimerHotkey: null,
       screenshotHotkey: null,
+      screenshotCaptionHotkey: null,
     },
   }));
 });
@@ -66,6 +67,7 @@ describe("global hotkeys", () => {
         quickNoteHotkey: "Alt+F9",
         liveTimerHotkey: "Alt+F10",
         screenshotHotkey: "Alt+F11",
+        screenshotCaptionHotkey: "Alt+F12",
       },
     }));
     initializeHotkeys();
@@ -76,6 +78,7 @@ describe("global hotkeys", () => {
       "playcounter:quick-note-hotkey",
       "playcounter:live-timer-hotkey",
       "playcounter:screenshot-hotkey",
+      "playcounter:screenshot-caption-hotkey",
     ]);
     expect(invokeMock.mock.calls).toEqual([
       [
@@ -86,6 +89,10 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "quick-note", shortcut: "Alt+F9" }],
       ["set_global_hotkey", { action: "live-timer", shortcut: "Alt+F10" }],
       ["set_global_hotkey", { action: "screenshot", shortcut: "Alt+F11" }],
+      [
+        "set_global_hotkey",
+        { action: "screenshot-caption", shortcut: "Alt+F12" },
+      ],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
@@ -102,6 +109,11 @@ describe("global hotkeys", () => {
     expect(cycleLiveTimer).toHaveBeenCalledOnce();
     listenMock.mock.calls[3][1]({ payload: null } as never);
     expect(takeScreenshot).toHaveBeenCalledOnce();
+    expect(takeScreenshot).toHaveBeenLastCalledWith();
+    // The caption key takes the same picture, then asks for a caption.
+    listenMock.mock.calls[4][1]({ payload: null } as never);
+    expect(takeScreenshot).toHaveBeenCalledTimes(2);
+    expect(takeScreenshot).toHaveBeenLastCalledWith({ caption: true });
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {
@@ -159,6 +171,7 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "quick-note", shortcut: null }],
       ["set_global_hotkey", { action: "live-timer", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot", shortcut: null }],
+      ["set_global_hotkey", { action: "screenshot-caption", shortcut: null }],
     ]);
   });
 });

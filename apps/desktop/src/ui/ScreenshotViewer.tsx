@@ -4,6 +4,7 @@ import {
   ExternalLink,
   FolderOpen,
   ImageOff,
+  Pencil,
   Trash2,
   X,
 } from "lucide-react";
@@ -15,7 +16,9 @@ import {
   openScreenshot,
   revealScreenshot,
   screenshotSource,
+  setScreenshotCaption,
   useScreenshotViewer,
+  type Screenshot,
 } from "../screenshots";
 import { useAppStore } from "../store";
 import { IconButton, useDialogFocus, useEscapeKey } from "./primitives";
@@ -23,6 +26,9 @@ import { ModalWindowDragRegion } from "./shell/ModalWindowDragRegion";
 import { appLocale, getT } from "../i18n";
 
 const t = getT("history");
+
+/** One line, like a photo caption (screenshot/caption.rs). */
+const CAPTION_LIMIT = 150;
 
 /** A session's screenshots, one at a time, over the whole window. */
 export function ScreenshotViewer() {
@@ -51,6 +57,12 @@ function OpenViewer() {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
+      // Arrows in the caption field move the text cursor.
+      if (
+        event.target instanceof Element &&
+        event.target.closest("input, textarea")
+      )
+        return;
       if (event.key === "ArrowLeft") go(-1);
       else if (event.key === "ArrowRight") go(1);
       else return;
@@ -131,45 +143,49 @@ function OpenViewer() {
                 : takenAt}
             </p>
           </div>
-          <IconButton
-            icon={ExternalLink}
-            aria-label={t("Open in your picture app")}
-            title={t("Open in your picture app")}
-            onClick={() =>
-              void openScreenshot(shot.path).catch((error) => {
-                console.error("screenshot open failed", error);
-                failed();
-              })
-            }
-          />
-          <IconButton
-            icon={FolderOpen}
-            aria-label={t("Show in folder")}
-            title={t("Show in folder")}
-            onClick={() =>
-              void revealScreenshot(shot.path).catch((error) => {
-                console.error("screenshot reveal failed", error);
-                failed();
-              })
-            }
-          />
-          <IconButton
-            icon={Trash2}
-            intent="danger"
-            disabled={deleting}
-            aria-label={t("Move to the Recycle Bin")}
-            title={t("Move to the Recycle Bin")}
-            onClick={() => void remove()}
-          />
-          <IconButton
-            icon={X}
-            aria-label={t("Close")}
-            title={t("Close")}
-            data-autofocus
-            onClick={closeScreenshotViewer}
-          />
+          {/* Above the window's drag region, which reaches as far down as
+              the app's title bar; the title stays draggable. */}
+          <div className="relative z-10 flex items-center gap-3">
+            <IconButton
+              icon={ExternalLink}
+              aria-label={t("Open in your picture app")}
+              title={t("Open in your picture app")}
+              onClick={() =>
+                void openScreenshot(shot.path).catch((error) => {
+                  console.error("screenshot open failed", error);
+                  failed();
+                })
+              }
+            />
+            <IconButton
+              icon={FolderOpen}
+              aria-label={t("Show in folder")}
+              title={t("Show in folder")}
+              onClick={() =>
+                void revealScreenshot(shot.path).catch((error) => {
+                  console.error("screenshot reveal failed", error);
+                  failed();
+                })
+              }
+            />
+            <IconButton
+              icon={Trash2}
+              intent="danger"
+              disabled={deleting}
+              aria-label={t("Move to the Recycle Bin")}
+              title={t("Move to the Recycle Bin")}
+              onClick={() => void remove()}
+            />
+            <IconButton
+              icon={X}
+              aria-label={t("Close")}
+              title={t("Close")}
+              data-autofocus
+              onClick={closeScreenshotViewer}
+            />
+          </div>
         </div>
-        <div className="relative flex min-h-0 flex-1 items-center justify-center px-16 pb-8">
+        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-16 pb-6">
           {missing ? (
             <div className="flex flex-col items-center gap-3 text-center text-white/70">
               <ImageOff size={32} />
@@ -178,15 +194,21 @@ function OpenViewer() {
               </p>
             </div>
           ) : (
-            <img
-              key={shot.path}
-              src={screenshotSource(shot.path)}
-              alt={t("Screenshot from {{takenAt}}", { takenAt })}
-              decoding="async"
-              draggable={false}
-              onError={() => setMissing(true)}
-              className="max-h-full max-w-full rounded-lg object-contain shadow-raised"
-            />
+            <>
+              {/* Leaves room for the caption right under the picture. */}
+              <img
+                key={shot.path}
+                src={screenshotSource(shot.path)}
+                alt={t("Screenshot from {{takenAt}}", { takenAt })}
+                decoding="async"
+                draggable={false}
+                onError={() => setMissing(true)}
+                className="max-h-[calc(100%-4.75rem)] min-h-0 max-w-full rounded-lg object-contain shadow-raised"
+              />
+              <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+                <CaptionLine key={shot.path} shot={shot} />
+              </div>
+            </>
           )}
           {shots.length > 1 ? (
             <>
@@ -210,5 +232,105 @@ function OpenViewer() {
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** The picture's caption under it: click it to change it. */
+function CaptionLine({ shot }: { shot: Screenshot }) {
+  const [editing, setEditing] = useState(false);
+  if (editing)
+    return <CaptionEditor shot={shot} onDone={() => setEditing(false)} />;
+  if (shot.caption)
+    return (
+      <button
+        type="button"
+        title={t("Change the caption")}
+        onClick={() => setEditing(true)}
+        className="group inline-flex max-w-3xl items-center gap-2 rounded-lg px-3 py-1.5 text-[15px] text-white/90 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <span className="min-w-0 break-words">
+          {t("“{{caption}}”", { caption: shot.caption })}
+        </span>
+        <Pencil
+          size={14}
+          aria-hidden
+          className="shrink-0 text-white/55 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+        />
+      </button>
+    );
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="inline-flex items-center gap-2 rounded-lg border border-dashed border-white/25 px-3 py-1.5 text-sm text-white/60 transition hover:border-white/45 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+    >
+      <Pencil size={14} aria-hidden />
+      {t("Add a caption")}
+    </button>
+  );
+}
+
+/** Enter saves, Escape keeps the old caption, clicking elsewhere saves too.
+ *  An empty caption removes it. */
+function CaptionEditor({
+  shot,
+  onDone,
+}: {
+  shot: Screenshot;
+  onDone: () => void;
+}) {
+  const [draft, setDraft] = useState(shot.caption ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const finished = useRef(false);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }, []);
+
+  function finish(save: boolean) {
+    if (finished.current) return;
+    finished.current = true;
+    onDone();
+    const caption = draft.trim() || null;
+    if (!save || caption === (shot.caption ?? null)) return;
+    void setScreenshotCaption(shot.path, caption).catch((error) => {
+      console.error("screenshot caption failed", error);
+      useAppStore.getState().addToast({
+        tone: "error",
+        title: t("That didn't work"),
+        detail: t("The caption couldn't be saved."),
+      });
+    });
+  }
+
+  return (
+    <div className="grid w-full max-w-xl gap-1.5">
+      <input
+        ref={inputRef}
+        aria-label={t("Caption")}
+        value={draft}
+        maxLength={CAPTION_LIMIT}
+        placeholder={t("What's happening in this picture?")}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            finish(true);
+          } else if (event.key === "Escape") {
+            // Only the editor closes, not the viewer.
+            event.preventDefault();
+            finish(false);
+          }
+        }}
+        onBlur={() => finish(true)}
+        className="w-full rounded-lg border border-accent bg-white/5 px-3 py-2 text-center text-[15px] text-white outline-none ring-2 ring-accent/30 placeholder:text-white/40"
+      />
+      <p className="text-center text-[11px] text-white/50">
+        {t("Enter saves · Esc cancels")}
+      </p>
+    </div>
   );
 }

@@ -626,6 +626,7 @@ pub fn run() {
             screenshot::commands::screenshot_take,
             screenshot::commands::screenshot_list,
             screenshot::commands::screenshot_preview,
+            screenshot::commands::screenshot_caption,
             screenshot::commands::screenshot_open,
             screenshot::commands::screenshot_reveal,
             screenshot::commands::screenshot_delete,

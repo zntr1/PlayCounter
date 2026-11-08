@@ -222,5 +222,12 @@
   "Close": "Закрыть",
   "Screenshot from {{takenAt}}": "Скриншот от {{takenAt}}",
   "Previous screenshot": "Предыдущий скриншот",
-  "Next screenshot": "Следующий скриншот"
+  "Next screenshot": "Следующий скриншот",
+  "“{{caption}}”": "«{{caption}}»",
+  "Change the caption": "Изменить подпись",
+  "Add a caption": "Добавить подпись",
+  "Caption": "Подпись",
+  "What's happening in this picture?": "Что происходит на этом снимке?",
+  "Enter saves · Esc cancels": "Enter — сохранить · Esc — отмена",
+  "The caption couldn't be saved.": "Не удалось сохранить подпись."
 }

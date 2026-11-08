@@ -126,6 +126,8 @@ export type OverlayEvent =
       outcome: ScreenshotOutcome;
       gameName?: string;
       coverUrl?: string;
+      /** Written in the caption box. */
+      caption?: string;
     };
 
 /** How the screenshot key went. */
@@ -268,7 +270,9 @@ function overlayCopy(
   }
   if (event.type === "screenshot") {
     const bodies: Record<ScreenshotOutcome, string> = {
-      saved: t("Added to this session."),
+      saved: event.caption
+        ? t("“{{caption}}”", { caption: event.caption })
+        : t("Added to this session."),
       black: t(
         "The picture came out black. Switch the game to borderless or windowed, then try again.",
       ),

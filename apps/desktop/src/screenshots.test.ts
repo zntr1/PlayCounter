@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { Session } from "@playcounter/shared";
 import {
   disposeScreenshots,
   initializeScreenshots,
+  SCREENSHOT_CAPTION_CLOSE_EVENT,
   screenshotTimeFromName,
   screenshotsBySession,
+  setScreenshotCaption,
   takeScreenshot,
   toScreenshot,
   useScreenshots,
@@ -16,17 +19,22 @@ import {
   showCurrentSessionOverlay,
   showScreenshotOverlay,
 } from "./desktopOverlayBridge";
+import { openScreenshotCaptionBox } from "./quickNote";
 import { useAppStore, type ActiveSession } from "./store";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   convertFileSrc: (path: string) => `asset://${path}`,
 }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 vi.mock("./desktopOverlayBridge", () => ({
   showCurrentSessionOverlay: vi.fn(),
   showScreenshotOverlay: vi.fn(),
 }));
+vi.mock("./quickNote", () => ({ openScreenshotCaptionBox: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
+const listenMock = vi.mocked(listen);
+const openBoxMock = vi.mocked(openScreenshotCaptionBox);
 
 const local = (
   year: number,
@@ -49,6 +57,7 @@ function file(
     bytes: 1000,
     modifiedMs,
     previewPath: null,
+    caption: null,
   };
 }
 
@@ -219,9 +228,21 @@ describe("the screenshot key", () => {
   }
   const pidsOf = (session: ActiveSession) => [session.id * 100];
 
+  /** The caption box closing, as Rust tells the main window. */
+  let closeBox: (path: string, caption: string | null) => Promise<void>;
+
   beforeEach(async () => {
     vi.clearAllMocks();
     invokeMock.mockReset().mockResolvedValue([]);
+    openBoxMock.mockReset().mockResolvedValue(true);
+    listenMock.mockReset().mockImplementation((event, handler) => {
+      if (event === SCREENSHOT_CAPTION_CLOSE_EVENT)
+        closeBox = async (path, caption) => {
+          handler({ payload: { path, caption } } as never);
+          for (let i = 0; i < 10; i++) await Promise.resolve();
+        };
+      return Promise.resolve(vi.fn());
+    });
     useAppStore.setState((state) => ({
       activeSessions: [],
       notifications: [],
@@ -315,5 +336,121 @@ describe("the screenshot key", () => {
       expect.objectContaining({ outcome: "failed", gameName: "Game 1" }),
     );
     error.mockRestore();
+  });
+
+  describe("with a caption", () => {
+    const saved = file("Game 1 2026-11-07 19-14-03.jpg", "Game 1", 5);
+
+    async function takeWithCaption() {
+      useAppStore.setState({
+        activeSessions: [active(1, "2026-11-07T18:00:00.000Z")],
+      });
+      invokeMock.mockResolvedValueOnce({
+        status: "saved",
+        sessionId: 1,
+        file: saved,
+      });
+      await takeScreenshot({ caption: true });
+    }
+
+    it("opens the caption box with the picture instead of the popup", async () => {
+      await takeWithCaption();
+      expect(useScreenshots.getState().files).toEqual([toScreenshot(saved)]);
+      expect(openBoxMock).toHaveBeenCalledWith(
+        toScreenshot(saved),
+        expect.objectContaining({ gameName: "Game 1" }),
+      );
+      expect(showScreenshotOverlay).not.toHaveBeenCalled();
+    });
+
+    it("saves the caption into the picture, then the popup shows it", async () => {
+      await takeWithCaption();
+      invokeMock.mockResolvedValueOnce({
+        ...saved,
+        bytes: 1200,
+        caption: "Finally beat Malenia",
+      });
+      await closeBox(saved.path, "Finally beat Malenia");
+      expect(invokeMock).toHaveBeenLastCalledWith("screenshot_caption", {
+        path: saved.path,
+        caption: "Finally beat Malenia",
+      });
+      expect(useScreenshots.getState().files[0].caption).toBe(
+        "Finally beat Malenia",
+      );
+      expect(showScreenshotOverlay).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: "saved",
+          gameName: "Game 1",
+          caption: "Finally beat Malenia",
+        }),
+      );
+    });
+
+    it("keeps the picture without a caption when the box is skipped", async () => {
+      await takeWithCaption();
+      invokeMock.mockClear();
+      await closeBox(saved.path, null);
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "screenshot_caption",
+        expect.anything(),
+      );
+      expect(useScreenshots.getState().files).toEqual([toScreenshot(saved)]);
+      const [[popup]] = vi.mocked(showScreenshotOverlay).mock.calls;
+      expect(popup).toMatchObject({ outcome: "saved", gameName: "Game 1" });
+      expect(popup.caption).toBeUndefined();
+    });
+
+    it("still says the picture is saved when the caption can't be", async () => {
+      await takeWithCaption();
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      invokeMock.mockRejectedValueOnce("The file is in use.");
+      await closeBox(saved.path, "Finally beat Malenia");
+      const [[popup]] = vi.mocked(showScreenshotOverlay).mock.calls;
+      expect(popup).toMatchObject({ outcome: "saved", gameName: "Game 1" });
+      expect(popup.caption).toBeUndefined();
+      error.mockRestore();
+    });
+
+    it("shows the popup at once when a box is already open", async () => {
+      openBoxMock.mockResolvedValueOnce(false);
+      await takeWithCaption();
+      expect(showScreenshotOverlay).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: "saved", gameName: "Game 1" }),
+      );
+    });
+
+    it("opens no box when there is no picture", async () => {
+      useAppStore.setState({
+        activeSessions: [active(1, "2026-11-07T18:00:00.000Z")],
+      });
+      invokeMock.mockResolvedValueOnce({ status: "black", sessionId: 1 });
+      await takeScreenshot({ caption: true });
+      expect(openBoxMock).not.toHaveBeenCalled();
+      expect(showScreenshotOverlay).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: "black" }),
+      );
+    });
+
+    it("changes a caption later, from the viewer", async () => {
+      useScreenshots.setState({ files: [toScreenshot(saved)] });
+      invokeMock.mockResolvedValueOnce({
+        ...saved,
+        bytes: 1200,
+        caption: "Boss arena",
+      });
+      await setScreenshotCaption(saved.path, "Boss arena");
+      expect(invokeMock).toHaveBeenLastCalledWith("screenshot_caption", {
+        path: saved.path,
+        caption: "Boss arena",
+      });
+      const [shot] = useScreenshots.getState().files;
+      expect(shot).toMatchObject({
+        path: saved.path,
+        caption: "Boss arena",
+        bytes: 1200,
+      });
+      expect(shot.takenAtMs).toBe(toScreenshot(saved).takenAtMs);
+    });
   });
 });

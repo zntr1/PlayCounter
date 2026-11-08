@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Camera } from "lucide-react";
+import { Camera, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   makeScreenshotPreview,
@@ -80,9 +80,18 @@ function ScreenshotStrip({
               index: index + 1,
               total: shots.length,
             })}
+            title={shot.caption ?? undefined}
             onClick={() => openScreenshotViewer(shots, index, gameName)}
           >
             <ScreenshotThumb shot={shot} />
+            {shot.caption ? (
+              <span
+                data-caption-mark
+                className="absolute bottom-1 left-1 grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-black/70 text-accent"
+              >
+                <MessageSquare size={11} aria-hidden />
+              </span>
+            ) : null}
           </button>
         </li>
       ))}

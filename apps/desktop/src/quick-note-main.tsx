@@ -6,6 +6,7 @@ import type { QuickNotePayload } from "./quickNote";
 import "./styles.css";
 import { applyTheme } from "./theme";
 import { QuickNoteWindow } from "./ui/QuickNoteWindow";
+import { ScreenshotCaptionWindow } from "./ui/ScreenshotCaptionWindow";
 
 function QuickNoteRoot() {
   const [payload, setPayload] = useState<QuickNotePayload | null>(null);
@@ -23,16 +24,19 @@ function QuickNoteRoot() {
   }, []);
 
   if (!payload) return null;
-  return (
-    <QuickNoteWindow
-      payload={payload}
-      onClose={(note, restoreFocus) =>
-        void invoke("quick_note_close", { note, restoreFocus }).catch((error) =>
-          console.error("quick note failed to close", error),
-        )
-      }
-    />
-  );
+  const close = (note: string | null, restoreFocus: boolean) =>
+    void invoke("quick_note_close", { note, restoreFocus }).catch((error) =>
+      console.error("quick note failed to close", error),
+    );
+  // The same window writes a screenshot's caption when one is set.
+  if (payload.caption)
+    return (
+      <ScreenshotCaptionWindow
+        payload={{ ...payload, caption: payload.caption }}
+        onClose={close}
+      />
+    );
+  return <QuickNoteWindow payload={payload} onClose={close} />;
 }
 
 createRoot(document.getElementById("quick-note-root")!).render(

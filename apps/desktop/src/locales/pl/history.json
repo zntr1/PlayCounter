@@ -222,5 +222,12 @@
   "Close": "Zamknij",
   "Screenshot from {{takenAt}}": "Zrzut ekranu z {{takenAt}}",
   "Previous screenshot": "Poprzedni zrzut ekranu",
-  "Next screenshot": "Następny zrzut ekranu"
+  "Next screenshot": "Następny zrzut ekranu",
+  "“{{caption}}”": "„{{caption}}”",
+  "Change the caption": "Zmień podpis",
+  "Add a caption": "Dodaj podpis",
+  "Caption": "Podpis",
+  "What's happening in this picture?": "Co dzieje się na tym obrazie?",
+  "Enter saves · Esc cancels": "Enter zapisuje · Esc anuluje",
+  "The caption couldn't be saved.": "Nie udało się zapisać podpisu."
 }

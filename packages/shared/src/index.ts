@@ -703,6 +703,8 @@ export interface Settings {
   quickNoteHotkey?: string | null;
   liveTimerHotkey?: string | null;
   screenshotHotkey?: string | null;
+  /** Takes the picture, then opens a box for its caption. */
+  screenshotCaptionHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";
