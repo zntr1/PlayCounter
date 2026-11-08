@@ -8,7 +8,14 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import clsx from "clsx";
 import { createPortal } from "react-dom";
 import {
   closeScreenshotViewer,
@@ -54,6 +61,25 @@ function OpenViewer() {
     [],
   );
   useEffect(() => setMissing(false), [shot.path]);
+
+  // The title and buttons line up with the picture's edges, so they take
+  // its width as shown.
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [pictureWidth, setPictureWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const image = imageRef.current;
+    if (!image || typeof ResizeObserver === "undefined") {
+      setPictureWidth(null);
+      return;
+    }
+    const measure = () =>
+      setPictureWidth(image.getBoundingClientRect().width || null);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(image);
+    return () => observer.disconnect();
+  }, [shot.path, missing]);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
@@ -123,9 +149,18 @@ function OpenViewer() {
         aria-modal="true"
         aria-labelledby="screenshot-viewer-title"
         tabIndex={-1}
-        className="flex min-h-0 flex-1 flex-col outline-none"
+        className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-16 pb-6 pt-14 outline-none"
       >
-        <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-12">
+        {/* Lined up with the picture's edges; full width until it shows. */}
+        <div
+          style={
+            pictureWidth ? { width: Math.max(pictureWidth, 360) } : undefined
+          }
+          className={clsx(
+            "flex max-w-full shrink-0 items-center gap-3 pb-3",
+            !pictureWidth && "w-full max-w-3xl",
+          )}
+        >
           <div className="min-w-0 flex-1">
             <h2
               id="screenshot-viewer-title"
@@ -185,50 +220,49 @@ function OpenViewer() {
             />
           </div>
         </div>
-        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-16 pb-6">
-          {missing ? (
-            <div className="flex flex-col items-center gap-3 text-center text-white/70">
-              <ImageOff size={32} />
-              <p className="max-w-sm text-sm">
-                {t("The picture may have been moved or deleted.")}
-              </p>
+        {missing ? (
+          <div className="flex flex-col items-center gap-3 text-center text-white/70">
+            <ImageOff size={32} />
+            <p className="max-w-sm text-sm">
+              {t("The picture may have been moved or deleted.")}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Leaves room for the title above and the caption below. */}
+            <img
+              key={shot.path}
+              ref={imageRef}
+              src={screenshotSource(shot.path)}
+              alt={t("Screenshot from {{takenAt}}", { takenAt })}
+              decoding="async"
+              draggable={false}
+              onError={() => setMissing(true)}
+              className="max-h-[calc(100%-8.5rem)] min-h-0 max-w-full rounded-lg object-contain shadow-raised"
+            />
+            <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+              <CaptionLine key={shot.path} shot={shot} />
             </div>
-          ) : (
-            <>
-              {/* Leaves room for the caption right under the picture. */}
-              <img
-                key={shot.path}
-                src={screenshotSource(shot.path)}
-                alt={t("Screenshot from {{takenAt}}", { takenAt })}
-                decoding="async"
-                draggable={false}
-                onError={() => setMissing(true)}
-                className="max-h-[calc(100%-4.75rem)] min-h-0 max-w-full rounded-lg object-contain shadow-raised"
-              />
-              <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
-                <CaptionLine key={shot.path} shot={shot} />
-              </div>
-            </>
-          )}
-          {shots.length > 1 ? (
-            <>
-              <IconButton
-                icon={ChevronLeft}
-                aria-label={t("Previous screenshot")}
-                title={t("Previous screenshot")}
-                onClick={() => go(-1)}
-                className="absolute left-4 top-1/2 h-11 w-11 -translate-y-1/2 bg-black/40"
-              />
-              <IconButton
-                icon={ChevronRight}
-                aria-label={t("Next screenshot")}
-                title={t("Next screenshot")}
-                onClick={() => go(1)}
-                className="absolute right-4 top-1/2 h-11 w-11 -translate-y-1/2 bg-black/40"
-              />
-            </>
-          ) : null}
-        </div>
+          </>
+        )}
+        {shots.length > 1 ? (
+          <>
+            <IconButton
+              icon={ChevronLeft}
+              aria-label={t("Previous screenshot")}
+              title={t("Previous screenshot")}
+              onClick={() => go(-1)}
+              className="absolute left-4 top-1/2 h-11 w-11 -translate-y-1/2 bg-black/40"
+            />
+            <IconButton
+              icon={ChevronRight}
+              aria-label={t("Next screenshot")}
+              title={t("Next screenshot")}
+              onClick={() => go(1)}
+              className="absolute right-4 top-1/2 h-11 w-11 -translate-y-1/2 bg-black/40"
+            />
+          </>
+        ) : null}
       </div>
     </div>,
     document.body,
