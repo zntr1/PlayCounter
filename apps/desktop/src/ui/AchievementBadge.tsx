@@ -16,6 +16,7 @@ import { useState } from "react";
 import { achievementArt, type AchievementIconName } from "../achievementArt";
 import type { AppNotification } from "../notifications";
 import { getT } from "../i18n";
+import { cn } from "./cn";
 
 const t = getT("achievements");
 
@@ -50,7 +51,10 @@ export function AchievementBadge({
     <div
       role="img"
       aria-label={art.label}
-      className={`grid h-12 w-9 shrink-0 place-items-center rounded ${art.frameClassName}`}
+      className={cn(
+        "grid h-12 w-9 shrink-0 place-items-center rounded",
+        art.frameClassName,
+      )}
     >
       <Icon aria-hidden="true" size={18} strokeWidth={2} />
     </div>
@@ -80,7 +84,12 @@ export function AchievementMedal({
       aria-label={
         locked ? t("{{label}} (locked)", { label: art.label }) : art.label
       }
-      className={`grid shrink-0 place-items-center rounded-full ${dimensions.frame} ${art.frameClassName} ${locked ? "achievement-badge-locked" : ""}`}
+      className={cn(
+        "grid shrink-0 place-items-center rounded-full",
+        dimensions.frame,
+        art.frameClassName,
+        locked && "achievement-badge-locked",
+      )}
     >
       <Icon aria-hidden="true" size={dimensions.icon} strokeWidth={2.25} />
     </div>
@@ -114,7 +123,10 @@ export function NotificationArt({
       {isMilestone ? (
         <span
           aria-hidden="true"
-          className={`absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full ${art.frameClassName}`}
+          className={cn(
+            "absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full",
+            art.frameClassName,
+          )}
         >
           <TierIcon size={10} strokeWidth={2.5} />
         </span>

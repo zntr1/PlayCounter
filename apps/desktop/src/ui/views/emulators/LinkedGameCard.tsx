@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cn } from "../../cn";
 import {
   Check,
   FileCode2,
@@ -301,7 +302,7 @@ function FooterAction({
   return (
     <button
       type="button"
-      className={clsx(
+      className={cn(
         "flex min-h-9 min-w-0 items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-semibold text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text-muted",
         className,
       )}

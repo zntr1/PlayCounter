@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import "./wordmark.css";
+import { cn } from "../ui/cn";
 
 export type BrandSurface = "auto" | "dark" | "light";
 export type PlayCounterWordmarkProps = {
@@ -21,7 +22,7 @@ export function PlayCounterWordmark({
 }: PlayCounterWordmarkProps) {
   return (
     <span
-      className={`pc-wordmark ${className}`}
+      className={cn("pc-wordmark", className)}
       data-surface={surface}
       style={{ "--pc-wordmark-size": `${size}px` } as CSSProperties}
       role={decorative ? undefined : "img"}

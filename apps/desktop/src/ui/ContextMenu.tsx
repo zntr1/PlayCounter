@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cn } from "./cn";
 import {
   createContext,
   forwardRef,
@@ -262,7 +263,7 @@ function MenuPanel({
         tabIndex={-1}
         data-context-menu-tree={tree.id}
         data-tour={dataTour}
-        className={clsx(
+        className={cn(
           "fixed z-50 max-h-[calc(100vh-1rem)] min-w-40 max-w-[calc(100vw-1rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface py-1 shadow-raised outline-none",
           className,
         )}
@@ -394,7 +395,7 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
         type="button"
         role={selected === undefined ? "menuitem" : "menuitemradio"}
         aria-checked={selected}
-        className={clsx(
+        className={cn(
           "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50",
           danger
             ? "text-danger hover:bg-danger-tint focus-visible:bg-danger-tint"

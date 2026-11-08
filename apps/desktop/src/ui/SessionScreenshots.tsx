@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cn } from "./cn";
 import { Camera, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -69,7 +70,7 @@ function ScreenshotStrip({
   return (
     <ul
       aria-label={t("Screenshots")}
-      className={clsx("flex flex-wrap items-center gap-1.5", className)}
+      className={cn("flex flex-wrap items-center gap-1.5", className)}
     >
       {shown.map((shot, index) => (
         <li key={shot.path}>

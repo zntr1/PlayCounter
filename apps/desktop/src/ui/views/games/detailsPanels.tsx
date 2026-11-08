@@ -1,5 +1,6 @@
 import { ExternalLink, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { cn } from "../../cn";
 
 /* Building blocks of the game details tabs, shared by GameDetailsDialog and
    the tabs that live in their own files. */
@@ -60,7 +61,10 @@ export function SkeletonBar({ className }: { className: string }) {
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse rounded bg-surface-hover motion-reduce:animate-none ${className}`}
+      className={cn(
+        "animate-pulse rounded bg-surface-hover motion-reduce:animate-none",
+        className,
+      )}
     />
   );
 }

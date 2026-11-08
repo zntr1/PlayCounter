@@ -1,4 +1,5 @@
 import "./animatedIcon.css";
+import { cn } from "../ui/cn";
 
 type PlayCounterAnimatedIconProps = {
   size?: number;
@@ -23,7 +24,7 @@ export function PlayCounterAnimatedIcon({
 
   return (
     <picture
-      className={`pc-animated-icon ${className}`}
+      className={cn("pc-animated-icon", className)}
       style={{ width: size }}
       aria-hidden="true"
     >

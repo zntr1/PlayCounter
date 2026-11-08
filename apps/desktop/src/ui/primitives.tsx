@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cn } from "./cn";
 import {
   forwardRef,
   useEffect,
@@ -63,7 +64,7 @@ export function Button({
     <button
       type={type}
       disabled={disabled || loading}
-      className={clsx(buttonBase, buttonVariants[variant], className)}
+      className={cn(buttonBase, buttonVariants[variant], className)}
       {...rest}
     >
       {loading ? (
@@ -106,7 +107,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
       <button
         ref={ref}
         type={type}
-        className={clsx(
+        className={cn(
           "inline-grid h-8 w-8 shrink-0 place-items-center rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
           iconButtonIntents[intent],
           className,
@@ -140,7 +141,7 @@ export function AnimatedCount({
   }, [value]);
 
   return (
-    <span className={clsx("inline-block", animate && "animate-pop", className)}>
+    <span className={cn("inline-block", animate && "animate-pop", className)}>
       {value}
     </span>
   );
@@ -149,7 +150,7 @@ export function AnimatedCount({
 export function Input({ className, ...rest }: InputProps) {
   return (
     <input
-      className={clsx(
+      className={cn(
         "pc-input min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-faint outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30",
         className,
       )}
@@ -166,7 +167,7 @@ export const Switch = forwardRef<HTMLInputElement, Omit<InputProps, "type">>(
         {...rest}
         ref={ref}
         type="checkbox"
-        className={clsx("pc-switch", className)}
+        className={cn("pc-switch", className)}
       />
     );
   },
@@ -182,14 +183,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     ref,
   ) {
     return (
-      <span
-        className={clsx("relative inline-flex min-w-0", containerClassName)}
-      >
+      <span className={cn("relative inline-flex min-w-0", containerClassName)}>
         <select
           {...rest}
           ref={ref}
           disabled={disabled}
-          className={clsx(
+          className={cn(
             "pc-select min-w-0 w-full appearance-none rounded-md border border-border bg-surface py-2 pl-3 pr-9 text-sm text-text outline-none transition hover:border-text-faint focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-50",
             className,
           )}
@@ -235,7 +234,7 @@ export const Pill = forwardRef<HTMLButtonElement, PillProps>(function Pill(
       ref={ref}
       type="button"
       aria-pressed={ariaPressed ?? selected}
-      className={clsx(
+      className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
         selected
           ? "border-accent/70 bg-accent-tint text-accent-ink"
@@ -410,7 +409,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={labelId}
         tabIndex={-1}
-        className={clsx(
+        className={cn(
           "relative flex max-h-[90vh] w-full animate-modal-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none motion-reduce:animate-none",
           modalSizes[size],
           className,
@@ -459,7 +458,7 @@ export function Modal({
         )}
         <div
           data-controller-scroll
-          className={clsx(
+          className={cn(
             "min-h-0 flex-1 overflow-y-auto p-5 sm:p-6",
             bodyClassName,
           )}

@@ -1,5 +1,6 @@
 import type { Game, GameSource } from "@playcounter/shared";
 import clsx from "clsx";
+import { cn } from "../../cn";
 import {
   ChevronDown,
   ChevronUp,
@@ -444,7 +445,7 @@ function GameGrid({
               contentDisplay,
               name: game.name,
             })}
-            className={clsx(
+            className={cn(
               className,
               "hover:border-accent/50 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
             )}

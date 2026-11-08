@@ -47,6 +47,7 @@ import {
 } from "../../updater";
 import { Panel, ProviderBadge } from "../components";
 import { Button, Modal, Select, Switch } from "../primitives";
+import { cn } from "../cn";
 import {
   DEFAULT_CONTENT_SCALE,
   DEFAULT_MENU_SCALE,
@@ -2091,7 +2092,7 @@ function SettingsRow({
   return (
     <div
       data-tour={dataTour}
-      className={`flex items-start justify-between gap-5 ${className ?? ""}`}
+      className={cn("flex items-start justify-between gap-5", className)}
     >
       <div className="min-w-0">
         <h3 className="font-medium text-text">{title}</h3>

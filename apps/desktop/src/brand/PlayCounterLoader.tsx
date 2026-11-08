@@ -2,6 +2,7 @@ import "./loader.css";
 import { PlayCounterAnimatedIcon } from "./PlayCounterAnimatedIcon";
 import { PlayCounterWordmark, type BrandSurface } from "./PlayCounterWordmark";
 import { getT } from "../i18n";
+import { cn } from "../ui/cn";
 
 const t = getT("common");
 
@@ -21,7 +22,7 @@ export function PlayCounterLoader({
 }: PlayCounterLoaderProps) {
   return (
     <div
-      className={`pc-loader ${className}`}
+      className={cn("pc-loader", className)}
       role="status"
       aria-live="polite"
       aria-atomic="true"
