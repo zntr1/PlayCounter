@@ -762,7 +762,7 @@ export function GameDetailsDialog({
               title={launchTitle}
               aria-label={`${launcher.launchLabel}: ${game.name}`}
               onClick={() => void launcher.launch()}
-              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
             >
               {launcher.hasActiveSession
                 ? t("Running")
@@ -776,7 +776,7 @@ export function GameDetailsDialog({
               icon={Download}
               aria-label={t("Install {{name}} in Steam", { name: game.name })}
               onClick={() => void launcher.install()}
-              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
             >
               {t("Install in Steam")}
             </Button>
@@ -784,7 +784,7 @@ export function GameDetailsDialog({
           <Button
             icon={ExternalLink}
             onClick={() => void openOnIgdb()}
-            className="h-12 rounded-lg px-5 font-semibold"
+            className="h-12 rounded-lg px-5 font-normal"
           >
             {t("Open on IGDB")}
           </Button>
@@ -792,7 +792,7 @@ export function GameDetailsDialog({
             <Button
               icon={BarChart3}
               onClick={showHistory}
-              className="ml-auto h-12 rounded-lg px-5 font-semibold"
+              className="ml-auto h-12 rounded-lg px-5 font-normal"
             >
               {t("Show in History")}
             </Button>
