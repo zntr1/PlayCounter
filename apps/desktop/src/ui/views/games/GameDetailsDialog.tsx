@@ -1121,7 +1121,9 @@ export function GameDetailsDialog({
     <Modal
       dataTour={demo ? "demo-game-details" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
-      className="game-details-dialog"
+      // One height for every tab: a centered dialog that grows or shrinks
+      // with its content jumps up and down while a tab loads.
+      className="game-details-dialog h-[90vh]"
       size="xl"
       labelId="game-details-title"
       title={game.name}
