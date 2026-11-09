@@ -52,6 +52,7 @@ import { Button, IconButton, Modal } from "../../primitives";
 import { ContextMenu, useAnchoredMenu } from "../../ContextMenu";
 import { GameTierMenuItems } from "../../GameJournalActions";
 import { useGameJournal } from "../../useGameJournal";
+import { TIER_TONES } from "../../journalStyles";
 import {
   formatDuration,
   GameProvenanceBadges,
@@ -167,7 +168,7 @@ function Chips({ values }: { values: readonly string[] }) {
 }
 
 /** Your own tier beside IGDB's rating, so the two never read as one. */
-function TierTile({ game }: { game: GameIdentityRef }) {
+export function TierTile({ game }: { game: GameIdentityRef }) {
   const journal = useGameJournal(game);
   const menu = useAnchoredMenu();
   return (
@@ -185,7 +186,9 @@ function TierTile({ game }: { game: GameIdentityRef }) {
             <span className="max-w-[4.5rem] text-left text-[11px] leading-tight text-text-muted">
               {t("Your tier")}
             </span>
-            <span className="font-mono text-2xl font-bold text-text">
+            <span
+              className={`font-mono text-2xl font-bold ${TIER_TONES[journal.tier]}`}
+            >
               {journal.tier}
             </span>
           </>
