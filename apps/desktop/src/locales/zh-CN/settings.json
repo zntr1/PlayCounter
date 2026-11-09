@@ -382,5 +382,13 @@
   "Copy": "复制",
   "Copied": "已复制",
   "{{count}} games_other": "{{count}} 款游戏",
-  "{{count}} settings for “{{query}}”_other": "“{{query}}”：{{count}} 项设置"
+  "{{count}} settings for “{{query}}”_other": "“{{query}}”：{{count}} 项设置",
+  "Format region": "区域格式",
+  "Dates, times and numbers the way this country writes them, in the app's language. Automatic follows your language and computer.": "按此国家/地区的写法显示日期、时间和数字，文字仍使用应用的语言。“自动”会跟随你的语言和电脑设置。",
+  "Automatic": "自动",
+  "Example: {{example}}": "示例：{{example}}",
+  "Clock": "时间格式",
+  "Show times with 24 hours or with AM and PM. Automatic follows the format region.": "以 24 小时制或上午/下午显示时间。“自动”会跟随区域格式。",
+  "24-hour": "24 小时制",
+  "12-hour": "12 小时制"
 }

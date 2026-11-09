@@ -32,6 +32,9 @@ function check(test: (value: unknown) => boolean): Validator {
 }
 
 const string = check((value) => typeof value === "string");
+// A country code such as "DE", for the Format region setting.
+const isRegionCode = (value: unknown) =>
+  typeof value === "string" && /^[A-Z]{2}$/.test(value);
 const nonempty = check(
   (value) => typeof value === "string" && value.trim().length > 0,
 );
@@ -343,6 +346,8 @@ const settings = object({}, {
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
   language: string,
+  formatRegion: nullable(check(isRegionCode)),
+  clockFormat: oneOf("auto", "24h", "12h"),
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),

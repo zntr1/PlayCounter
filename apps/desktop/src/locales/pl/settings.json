@@ -409,5 +409,13 @@
   "{{count}} settings for “{{query}}”_one": "{{count}} ustawienie dla „{{query}}”",
   "{{count}} settings for “{{query}}”_few": "{{count}} ustawienia dla „{{query}}”",
   "{{count}} settings for “{{query}}”_many": "{{count}} ustawień dla „{{query}}”",
-  "{{count}} settings for “{{query}}”_other": "{{count}} ustawienia dla „{{query}}”"
+  "{{count}} settings for “{{query}}”_other": "{{count}} ustawienia dla „{{query}}”",
+  "Format region": "Format regionalny",
+  "Dates, times and numbers the way this country writes them, in the app's language. Automatic follows your language and computer.": "Daty, godziny i liczby zapisane tak jak w tym kraju, w języku aplikacji. „Automatycznie” bierze je z języka i komputera.",
+  "Automatic": "Automatycznie",
+  "Example: {{example}}": "Przykład: {{example}}",
+  "Clock": "Format godziny",
+  "Show times with 24 hours or with AM and PM. Automatic follows the format region.": "Pokazuje godziny w formacie 24-godzinnym albo z AM i PM. „Automatycznie” bierze go z formatu regionalnego.",
+  "24-hour": "24-godzinny",
+  "12-hour": "12-godzinny"
 }

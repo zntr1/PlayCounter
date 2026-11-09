@@ -3,12 +3,17 @@ import { resolveLanguage } from "./appLanguages";
 import {
   appLanguage,
   appLocale,
+  applyFormats,
   applyLanguage,
+  formatRegions,
   formattingLocale,
   getT,
 } from "./i18n";
 
-afterEach(() => applyLanguage("en"));
+afterEach(() => {
+  applyFormats(null, "auto");
+  applyLanguage("en");
+});
 
 describe("language selection", () => {
   it.each([
@@ -110,5 +115,73 @@ describe("registered translations", () => {
         t("{{count}} sessions", { count }),
       ),
     ).toEqual(expected);
+  });
+});
+
+describe("format region and clock, regardless of language", () => {
+  // Saturday, 7 November 2026, 21:14.
+  const sample = new Date(2026, 10, 7, 21, 14);
+  const show = () =>
+    [
+      sample.toLocaleDateString(appLocale(), {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }),
+      sample.toLocaleTimeString(appLocale(), {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      (1234.5).toLocaleString(appLocale()),
+    ].join(" · ");
+
+  it("writes dates and numbers the way the picked country does, in the app's language", () => {
+    applyLanguage("en");
+    applyFormats("DE", "auto");
+    expect(appLocale()).toBe("en-DE");
+    expect(show()).toBe("Sat, 7 Nov · 21:14 · 1.234,5");
+    applyFormats("US", "auto");
+    expect(show()).toMatch(/^Sat, Nov 7 · 9:14\sPM · 1,234\.5$/);
+  });
+
+  it("switches between 24-hour and 12-hour times in every language", () => {
+    applyLanguage("de");
+    applyFormats(null, "12h");
+    expect(show()).toMatch(/9:14\sPM/);
+    applyLanguage("en");
+    applyFormats("US", "24h");
+    expect(show()).toContain("21:14");
+    // Switching the language keeps the clock.
+    applyLanguage("fr");
+    expect(show()).toContain("21:14");
+    applyFormats(null, "12h");
+    expect(show()).toMatch(/9:14\sPM/);
+  });
+
+  it("falls back to automatic when the language has no such country", () => {
+    // Windows' engine knows no German written the American way.
+    expect(
+      formattingLocale("de", "en-US", { region: "US", clock: "auto" }),
+    ).toBe(formattingLocale("de", "en-US"));
+    expect(
+      formattingLocale("en", "de-DE", { region: "US", clock: "auto" }),
+    ).toBe("en-US");
+  });
+
+  it("offers only the countries a language can write dates for", () => {
+    expect(formatRegions("de")).toEqual(
+      expect.arrayContaining(["DE", "AT", "CH"]),
+    );
+    expect(formatRegions("de")).not.toContain("US");
+    expect(formatRegions("en")).toEqual(
+      expect.arrayContaining(["US", "GB", "DE", "AU", "CA"]),
+    );
+    expect(formatRegions("pt-BR")).toEqual(
+      expect.arrayContaining(["BR", "PT"]),
+    );
+    // Simplified Chinese never gets Traditional characters in its dates.
+    expect(formatRegions("zh-CN")).toContain("CN");
+    expect(formatRegions("zh-CN")).not.toContain("TW");
+    expect(formatRegions("zh-CN")).not.toContain("HK");
   });
 });

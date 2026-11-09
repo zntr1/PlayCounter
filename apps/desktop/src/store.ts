@@ -14,6 +14,7 @@ import type {
   Session,
   Settings,
   Theme,
+  ClockFormat,
 } from "@playcounter/shared";
 import { create } from "zustand";
 import {
@@ -46,7 +47,13 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
-import { appLocale, applyLanguage, type LanguageSetting, getT } from "./i18n";
+import {
+  appLocale,
+  applyFormats,
+  applyLanguage,
+  type LanguageSetting,
+  getT,
+} from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -717,6 +724,9 @@ export type AppState = {
   setLaunchOnStartup: (enabled: boolean) => void;
   setStartView: (view: "now" | "games") => void;
   setLanguage: (language: LanguageSetting) => void;
+  /** A country code, or null for automatic. */
+  setFormatRegion: (region: string | null) => void;
+  setClockFormat: (clock: ClockFormat) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -813,6 +823,8 @@ const defaultSettings: Settings = {
   launchOnStartup: true,
   startView: "now",
   language: "system",
+  formatRegion: null,
+  clockFormat: "auto",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -1901,6 +1913,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // A settings reset must never trim history to make room. Save the current
     // durable data with only its settings replaced, or report the write failure.
     writePersistedRecord(createPersistedPayload({ ...get(), settings }));
+    applyFormats(settings.formatRegion, settings.clockFormat);
     applyLanguage(settings.language);
     set({ settings });
     applyTheme(settings.theme, settings.accentColor);
@@ -1922,6 +1935,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     applyLanguage(language);
     set((state) => ({
       settings: { ...state.settings, language },
+    }));
+    persistSoon();
+  },
+  setFormatRegion: (formatRegion) => {
+    // Like the language: switch first, then re-render.
+    applyFormats(formatRegion, get().settings.clockFormat);
+    set((state) => ({
+      settings: { ...state.settings, formatRegion },
+    }));
+    persistSoon();
+  },
+  setClockFormat: (clockFormat) => {
+    applyFormats(get().settings.formatRegion, clockFormat);
+    set((state) => ({
+      settings: { ...state.settings, clockFormat },
     }));
     persistSoon();
   },

@@ -38,7 +38,9 @@ import {
 import {
   AccentColorRow,
   AdultArtRow,
+  ClockFormatRow,
   ContentSizeRow,
+  FormatRegionRow,
   LanguageRow,
   LaunchOnStartupRow,
   MenuSizeRow,
@@ -187,6 +189,25 @@ const GROUPS: SettingsGroupDef[] = [
                 "System uses your computer's language when PlayCounter has it, otherwise English.",
               ),
             Row: LanguageRow,
+          },
+          {
+            id: "formatRegion",
+            title: () => t("Format region"),
+            description: () =>
+              t(
+                "Dates, times and numbers the way this country writes them, in the app's language. Automatic follows your language and computer.",
+              ),
+            Row: FormatRegionRow,
+          },
+          {
+            id: "clockFormat",
+            title: () => t("Clock"),
+            description: () =>
+              t(
+                "Show times with 24 hours or with AM and PM. Automatic follows the format region.",
+              ),
+            keywords: () => [t("24-hour"), t("12-hour")],
+            Row: ClockFormatRow,
           },
           {
             id: "showDurationDays",

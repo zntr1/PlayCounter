@@ -48,7 +48,7 @@ vi.mock("../../tracker", async (importOriginal) => ({
 
 import { SettingsView } from "./SettingsView";
 import { useAppStore } from "../../store";
-import { applyLanguage } from "../../i18n";
+import { appLocale, applyFormats, applyLanguage } from "../../i18n";
 import { openKeyboardShortcuts } from "../openSettings";
 import { tours } from "../tour/tourDefinitions";
 import { nextStepIndex } from "../tour/tourNavigation";
@@ -81,9 +81,21 @@ beforeEach(() => {
 afterEach(async () => {
   await act(() => root.unmount());
   container.remove();
+  applyFormats(null, "auto");
   applyLanguage("en");
   vi.unstubAllGlobals();
 });
+
+async function choose(select: HTMLSelectElement, value: string) {
+  await act(() => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    )!.set!;
+    setter.call(select, value);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
 
 async function renderSettings(group?: SettingsGroupId) {
   if (group) useAppStore.getState().setSettingsGroup(group);
@@ -639,5 +651,62 @@ describe("Quick Tour steps open the group they point into", () => {
     expect(
       guide.steps[nextStepIndex(guide.steps, from, 1, nothingOnScreen)].id,
     ).toBe("emulators");
+  });
+});
+
+describe("formats regardless of language", () => {
+  it("picks a country for dates and numbers, named in the app's language, with an example", async () => {
+    await renderSettings();
+    const select = byLabel<HTMLSelectElement>("Format region");
+    expect(select.value).toBe("auto");
+    expect([...select.options].map((option) => option.value)).toEqual(
+      expect.arrayContaining(["auto", "DE", "US", "GB"]),
+    );
+    expect(
+      [...select.options].find((option) => option.value === "DE")?.textContent,
+    ).toBe("Germany");
+    await choose(select, "DE");
+    expect(useAppStore.getState().settings.formatRegion).toBe("DE");
+    expect(appLocale()).toBe("en-DE");
+    const example = container.querySelector('[data-row="formatRegion"]')!;
+    expect(example.textContent).toContain("1.234,5");
+    expect(example.textContent).toContain("21:14");
+  });
+
+  it("offers only the countries the language can write dates for", async () => {
+    applyLanguage("de");
+    await renderSettings();
+    const select = byLabel<HTMLSelectElement>("Regionales Format");
+    const values = [...select.options].map((option) => option.value);
+    expect(values).toEqual(expect.arrayContaining(["auto", "DE", "AT", "CH"]));
+    expect(values).not.toContain("US");
+    expect(
+      [...select.options].find((option) => option.value === "DE")?.textContent,
+    ).toBe("Deutschland");
+  });
+
+  it("sets 24-hour or 12-hour times in every language", async () => {
+    await renderSettings();
+    await click(buttonByText("12-hour"));
+    expect(useAppStore.getState().settings.clockFormat).toBe("12h");
+    expect(appLocale()).toContain("-u-hc-h12");
+    expect(
+      container.querySelector('[data-row="formatRegion"]')!.textContent,
+    ).toMatch(/9:14\sPM/);
+    await click(buttonByText("24-hour"));
+    expect(appLocale()).toContain("-u-hc-h23");
+    await click(buttonByText("Automatic"));
+    expect(appLocale()).not.toContain("-u-hc");
+  });
+
+  it("goes back to automatic when settings are reset", async () => {
+    useAppStore.getState().setFormatRegion("DE");
+    useAppStore.getState().setClockFormat("12h");
+    expect(appLocale()).toBe("en-DE-u-hc-h12");
+    useAppStore.getState().restoreDefaultSettings();
+    expect(useAppStore.getState().settings.formatRegion ?? null).toBeNull();
+    expect(useAppStore.getState().settings.clockFormat ?? "auto").toBe("auto");
+    expect(appLocale()).not.toContain("DE-u");
+    expect(appLocale()).not.toContain("-u-hc");
   });
 });

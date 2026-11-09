@@ -400,5 +400,13 @@
   "{{count}} games_other": "{{count}} juegos",
   "{{count}} settings for “{{query}}”_one": "{{count}} ajuste para “{{query}}”",
   "{{count}} settings for “{{query}}”_many": "{{count}} ajustes para “{{query}}”",
-  "{{count}} settings for “{{query}}”_other": "{{count}} ajustes para “{{query}}”"
+  "{{count}} settings for “{{query}}”_other": "{{count}} ajustes para “{{query}}”",
+  "Format region": "Formato regional",
+  "Dates, times and numbers the way this country writes them, in the app's language. Automatic follows your language and computer.": "Fechas, horas y números como los escribe este país, en el idioma de la aplicación. “Automático” sigue tu idioma y tu PC.",
+  "Automatic": "Automático",
+  "Example: {{example}}": "Ejemplo: {{example}}",
+  "Clock": "Formato de hora",
+  "Show times with 24 hours or with AM and PM. Automatic follows the format region.": "Muestra las horas en formato de 24 horas o con a. m. y p. m. “Automático” sigue el formato regional.",
+  "24-hour": "24 horas",
+  "12-hour": "12 horas"
 }

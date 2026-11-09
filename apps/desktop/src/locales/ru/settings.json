@@ -409,5 +409,13 @@
   "{{count}} settings for “{{query}}”_one": "{{count}} настройка по запросу «{{query}}»",
   "{{count}} settings for “{{query}}”_few": "{{count}} настройки по запросу «{{query}}»",
   "{{count}} settings for “{{query}}”_many": "{{count}} настроек по запросу «{{query}}»",
-  "{{count}} settings for “{{query}}”_other": "{{count}} настройки по запросу «{{query}}»"
+  "{{count}} settings for “{{query}}”_other": "{{count}} настройки по запросу «{{query}}»",
+  "Format region": "Региональный формат",
+  "Dates, times and numbers the way this country writes them, in the app's language. Automatic follows your language and computer.": "Даты, время и числа так, как их пишут в этой стране, на языке приложения. «Автоматически» — по вашему языку и компьютеру.",
+  "Automatic": "Автоматически",
+  "Example: {{example}}": "Пример: {{example}}",
+  "Clock": "Формат времени",
+  "Show times with 24 hours or with AM and PM. Automatic follows the format region.": "Показывает время в 24-часовом формате или с AM и PM. «Автоматически» — по региональному формату.",
+  "24-hour": "24 часа",
+  "12-hour": "12 часов"
 }

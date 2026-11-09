@@ -3,6 +3,9 @@ import { disable, enable } from "@tauri-apps/plugin-autostart";
 import {
   APP_LANGUAGES,
   LANGUAGE_NAMES,
+  appLanguage,
+  appLocale,
+  formatRegions,
   getT,
   isAppLanguage,
   systemLanguage,
@@ -143,6 +146,111 @@ export function LanguageRow({ level, disabled }: SettingsRowProps) {
             </option>
           ))}
         </Select>
+      }
+    />
+  );
+}
+
+/** Saturday, 7 November 2026, 21:14 and a number, the way they look now. */
+function formatExample() {
+  const sample = new Date(2026, 10, 7, 21, 14);
+  return [
+    sample.toLocaleDateString(appLocale(), {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }),
+    sample.toLocaleTimeString(appLocale(), {
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    (1234.5).toLocaleString(appLocale()),
+  ].join(" · ");
+}
+
+export function FormatRegionRow({ level, disabled }: SettingsRowProps) {
+  const region = useAppStore((state) => state.settings.formatRegion ?? null);
+  // The example follows the language and the clock too.
+  const formats = useAppStore(
+    (state) =>
+      `${state.settings.language}|${state.settings.formatRegion}|${state.settings.clockFormat}`,
+  );
+  const setFormatRegion = useAppStore((state) => state.setFormatRegion);
+  const regions = formatRegions(appLanguage());
+  const names = new Intl.DisplayNames(appLocale(), { type: "region" });
+  const collator = new Intl.Collator(appLocale());
+  const options = regions
+    .map((code) => [code, names.of(code) ?? code] as const)
+    .sort((left, right) => collator.compare(left[1], right[1]));
+  return (
+    <SettingsRow
+      id="formatRegion"
+      level={level}
+      disabled={disabled}
+      title={t("Format region")}
+      description={
+        <>
+          {t(
+            "Dates, times and numbers the way this country writes them, in the app's language. Automatic follows your language and computer.",
+          )}
+          <span
+            key={formats}
+            className="mt-1 block font-mono text-[13px] text-text"
+          >
+            {t("Example: {{example}}", { example: formatExample() })}
+          </span>
+        </>
+      }
+      control={
+        <Select
+          aria-label={t("Format region")}
+          disabled={disabled}
+          // A country the language can't take (after a language switch)
+          // shows as Automatic, which is what dates then use.
+          value={region && regions.includes(region) ? region : "auto"}
+          onChange={(event) =>
+            setFormatRegion(
+              event.target.value === "auto" ? null : event.target.value,
+            )
+          }
+        >
+          <option value="auto">{t("Automatic")}</option>
+          {options.map(([code, name]) => (
+            <option key={code} value={code}>
+              {name}
+            </option>
+          ))}
+        </Select>
+      }
+    />
+  );
+}
+
+export function ClockFormatRow({ level, disabled }: SettingsRowProps) {
+  const clock = useAppStore((state) => state.settings.clockFormat ?? "auto");
+  const setClockFormat = useAppStore((state) => state.setClockFormat);
+  return (
+    <SettingsRow
+      id="clockFormat"
+      level={level}
+      disabled={disabled}
+      title={t("Clock")}
+      description={t(
+        "Show times with 24 hours or with AM and PM. Automatic follows the format region.",
+      )}
+      control={
+        <Segmented
+          label={t("Clock")}
+          value={clock}
+          disabled={disabled}
+          options={[
+            { value: "auto", label: t("Automatic") },
+            { value: "24h", label: t("24-hour") },
+            { value: "12h", label: t("12-hour") },
+          ]}
+          onChange={setClockFormat}
+        />
       }
     />
   );

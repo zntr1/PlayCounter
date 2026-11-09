@@ -1,3 +1,4 @@
+import type { ClockFormat } from "@playcounter/shared";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import enAccounts from "./locales/en/accounts.json";
@@ -396,12 +397,29 @@ export function getT<N extends Namespace>(namespace: N) {
   return i18next.getFixedT(null, namespace);
 }
 
+/** The Format region and Clock settings: a country (ISO code) whose way of
+ *  writing dates and numbers to use, and 24-hour or 12-hour times. */
+export type FormatPreferences = { region: string | null; clock: ClockFormat };
+
+const AUTOMATIC_FORMATS: FormatPreferences = { region: null, clock: "auto" };
+let formats = AUTOMATIC_FORMATS;
 let currentLocale = formattingLocale("en", systemLocales()[0]);
 
 /** Locale for dates and numbers. Pass it to every toLocale…() and Intl call so
- *  they follow PlayCounter's language, not the computer's. */
+ *  they follow PlayCounter's language and format settings, not the
+ *  computer's. */
 export function appLocale() {
   return currentLocale;
+}
+
+/** Switches date, time and number formats to the Format region and Clock
+ *  settings, keeping the language. */
+export function applyFormats(
+  region: string | null | undefined,
+  clock: ClockFormat | undefined,
+) {
+  formats = { region: region ?? null, clock: clock ?? "auto" };
+  currentLocale = formattingLocale(appLanguage(), systemLocales()[0], formats);
 }
 
 /** The language the app's texts are in right now. */
@@ -414,10 +432,81 @@ export function systemLanguage() {
   return resolveLanguage("system", systemLocales());
 }
 
-/** The app language with the computer's region: English on a German PC is
- *  en-DE, so English words, but day first, a 24-hour clock and 1.234,5.
- *  Languages with an explicit region keep it, e.g. Brazilian Portuguese. */
+/** The locale dates and numbers use. A picked format region wins when the
+ *  language can be written that way (English + Germany = en-DE: English
+ *  words, day first, a 24-hour clock and 1.234,5); otherwise the app language
+ *  takes the computer's region. A picked clock overrides the region's. */
 export function formattingLocale(
+  language: AppLanguage,
+  systemLocale: string | undefined,
+  preferences: FormatPreferences = AUTOMATIC_FORMATS,
+) {
+  const picked = preferences.region
+    ? regionLocale(language, preferences.region)
+    : null;
+  return withClock(
+    picked ?? automaticLocale(language, systemLocale),
+    preferences.clock,
+  );
+}
+
+function regionLocale(language: AppLanguage, region: string) {
+  return formatRegions(language).includes(region)
+    ? `${new Intl.Locale(language).language}-${region}`
+    : null;
+}
+
+function withClock(locale: string, clock: ClockFormat) {
+  if (clock === "auto") return locale;
+  try {
+    return new Intl.Locale(locale, {
+      hourCycle: clock === "12h" ? "h12" : "h23",
+    }).toString();
+  } catch {
+    return locale;
+  }
+}
+
+// ISO 3166 country codes. Intl can't list regions, so they are spelled out.
+const REGION_CODES =
+  "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(
+    " ",
+  );
+const regionsByLanguage = new Map<AppLanguage, string[]>();
+
+/** The countries whose way of writing dates and numbers this language can
+ *  take, as ISO codes. The browser engine knows only some pairs: English
+ *  goes with most countries, German with Germany, Austria and Switzerland.
+ *  Same script only, so Simplified Chinese never gets Traditional dates. */
+export function formatRegions(language: AppLanguage) {
+  const known = regionsByLanguage.get(language);
+  if (known) return known;
+  let regions: string[] = [];
+  try {
+    const base = new Intl.Locale(language);
+    const script = base.maximize().script;
+    regions = REGION_CODES.filter((region) => {
+      const tag = `${base.language}-${region}`;
+      try {
+        return (
+          new Intl.DateTimeFormat(tag).resolvedOptions().locale === tag &&
+          new Intl.Locale(tag).maximize().script === script
+        );
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    regions = [];
+  }
+  regionsByLanguage.set(language, regions);
+  return regions;
+}
+
+/** The app language with the computer's region: English on a German PC is
+ *  en-DE. Languages with an explicit region keep it, e.g. Brazilian
+ *  Portuguese. */
+function automaticLocale(
   language: AppLanguage,
   systemLocale: string | undefined,
 ) {
@@ -451,7 +540,7 @@ export function weekdayNames(width: "short" | "long") {
 export function applyLanguage(setting: string | undefined) {
   const locales = systemLocales();
   const language = resolveLanguage(setting, locales);
-  currentLocale = formattingLocale(language, locales[0]);
+  currentLocale = formattingLocale(language, locales[0], formats);
   if (typeof document !== "undefined") {
     document.documentElement.lang = language;
   }
