@@ -328,6 +328,45 @@ mod imp {
         if shown { window.show() } else { window.hide() }.map_err(|error| error.to_string())
     }
 
+    /// Lets clicks pass through the pill to the game, or makes it take them
+    /// for its pause button. Set on the window itself, like set_shown: tao's
+    /// own setter re-applies all of tao's flags, and those still say hidden
+    /// because set_shown goes around tao, so the pill vanished as soon as the
+    /// mouse came onto it (tao 0.35.2 WindowState::apply_diff).
+    #[cfg(target_os = "windows")]
+    fn let_clicks_through(window: &tauri::WebviewWindow, through: bool) -> Result<(), String> {
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        set_click_through_style(hwnd.0 as windows_sys::Win32::Foundation::HWND, through);
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn let_clicks_through(window: &tauri::WebviewWindow, through: bool) -> Result<(), String> {
+        window
+            .set_ignore_cursor_events(through)
+            .map_err(|error| error.to_string())
+    }
+
+    /// The two styles tao sets for click-through, and nothing else: the pill
+    /// stays shown, on top and unable to take focus.
+    #[cfg(target_os = "windows")]
+    pub(super) fn set_click_through_style(
+        hwnd: windows_sys::Win32::Foundation::HWND,
+        through: bool,
+    ) {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT,
+        };
+        let bits = (WS_EX_TRANSPARENT | WS_EX_LAYERED) as isize;
+        unsafe {
+            let styles = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let next = if through { styles | bits } else { styles & !bits };
+            if next != styles {
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, next);
+            }
+        }
+    }
+
     fn apply(window: &tauri::WebviewWindow, target: Option<PhysRect>) -> Result<(), String> {
         let Some(rect) = target else {
             return set_shown(window, false);
@@ -368,7 +407,7 @@ mod imp {
                     applied = Some(target);
                 }
                 let over = target.is_some_and(pointer_over);
-                if over != hovered && window.set_ignore_cursor_events(!over).is_ok() {
+                if over != hovered && let_clicks_through(&window, !over).is_ok() {
                     hovered = over;
                     let _ = app.emit_to(&label, HOVER_EVENT, over);
                 }
@@ -734,5 +773,95 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(running.paused_at_ms, None);
+    }
+
+    /// The pill takes clicks while the mouse rests on it, for its pause
+    /// button, and lets them through to the game again once the mouse leaves
+    /// (docs/pause-timer-plan.md, option C). It stays shown, on top and
+    /// unable to take focus all along. On 2026-11-09 it vanished as soon as
+    /// the mouse came onto it.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn the_pill_stays_shown_and_on_top_while_the_mouse_rests_on_it() {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            CreateWindowExW, DestroyWindow, GetWindowLongPtrW, IsWindowVisible, ShowWindow,
+            GWL_EXSTYLE, SW_SHOWNOACTIVATE, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOPMOST,
+            WS_EX_TRANSPARENT, WS_POPUP,
+        };
+        let click_through = WS_EX_TRANSPARENT | WS_EX_LAYERED;
+        let class: Vec<u16> = "STATIC\0".encode_utf16().collect();
+        // The pill as it first shows: on top, never activated, clicks pass
+        // through, shown without activating as set_shown does. Off screen,
+        // so nothing flashes while the tests run.
+        let hwnd = unsafe {
+            CreateWindowExW(
+                WS_EX_TOPMOST | WS_EX_NOACTIVATE | click_through,
+                class.as_ptr(),
+                std::ptr::null(),
+                WS_POPUP,
+                -20_000,
+                -20_000,
+                216,
+                56,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null(),
+            )
+        };
+        assert!(!hwnd.is_null(), "no test window");
+        unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE) };
+        let state = || unsafe {
+            (
+                IsWindowVisible(hwnd) != 0,
+                GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32,
+            )
+        };
+
+        imp::set_click_through_style(hwnd, false);
+        let (shown_on_pill, styles_on_pill) = state();
+        imp::set_click_through_style(hwnd, true);
+        let (shown_after, styles_after) = state();
+        unsafe { DestroyWindow(hwnd) };
+
+        assert!(shown_on_pill, "the pill vanished when the mouse came onto it");
+        assert_eq!(styles_on_pill & click_through, 0, "its pause button can't be clicked");
+        assert!(shown_after, "the pill vanished when the mouse left it");
+        assert_eq!(
+            styles_after & click_through,
+            click_through,
+            "clicks no longer reach the game"
+        );
+        for styles in [styles_on_pill, styles_after] {
+            assert_ne!(styles & WS_EX_TOPMOST, 0, "the pill fell behind the game");
+            assert_ne!(styles & WS_EX_NOACTIVATE, 0, "the pill could take the game's focus");
+        }
+    }
+
+    /// Guard, not a behaviour test. set_shown shows the pill around tao, so
+    /// tao's own flags keep saying hidden, and any tao flag setter re-applies
+    /// them and hides the pill (tao 0.35.2 WindowState::apply_diff). So the
+    /// code that runs while the pill shows changes its window only through
+    /// our own Win32 calls, its size and its place.
+    #[test]
+    fn the_shown_pill_never_goes_through_tao_window_flags() {
+        let source = include_str!("live_timer.rs");
+        let start = source.find("fn apply(").expect("apply");
+        let end = source.find("pub fn show(").expect("show");
+        let while_shown = &source[start..end];
+        for (at, _) in while_shown.match_indices(".set_") {
+            let call = &while_shown[at..];
+            assert!(
+                call.starts_with(".set_size(") || call.starts_with(".set_position("),
+                "tao window setter while the pill shows: {}",
+                call.lines().next().unwrap_or_default()
+            );
+        }
+        for call in [".show()", ".hide()"] {
+            assert!(
+                !while_shown.contains(call),
+                "tao {call} while the pill shows"
+            );
+        }
     }
 }
