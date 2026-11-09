@@ -758,3 +758,68 @@ describe("close game", () => {
     expect(useAppStore.getState().activeSessions).toHaveLength(1);
   });
 });
+
+// docs/counters-plan.md, tests 7 and 8 (the tracker part).
+describe("counts on a running session", () => {
+  const at = (time: string) => `2026-09-06T${time}:00.000Z`;
+  const active = () => useAppStore.getState().activeSessions;
+  const saved = () => useAppStore.getState().recentSessions;
+
+  it("survive the scans that update the session, and go into History when the game ends", async () => {
+    processes = [runningProcess];
+    await restart(at("12:00"));
+    await scanProcessesNow();
+    const store = useAppStore.getState();
+    store.changeSessionCount(original.id, "deaths", 1);
+    store.changeSessionCount(original.id, "deaths", 1);
+
+    // A minute later the scan writes its own copy of the session back.
+    vi.setSystemTime(new Date(at("12:01")));
+    await scanProcessesNow();
+    expect(active()[0].counts).toEqual({ deaths: 2 });
+
+    await stopAt(at("12:30"));
+    expect(saved()[0]).toMatchObject({ id: original.id, counts: { deaths: 2 } });
+  });
+
+  it("survive a scan that read the session before the press (its copy is older)", async () => {
+    processes = [runningProcess];
+    await restart(at("12:00"));
+    await scanProcessesNow();
+    // The player presses while the next scan waits for the process list.
+    const scan = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (command: string, ...rest: unknown[]) => {
+      if (command === "scan_processes")
+        useAppStore.getState().changeSessionCount(original.id, "deaths", 1);
+      return scan(command, ...rest);
+    });
+    vi.setSystemTime(new Date(at("12:05")));
+    await scanProcessesNow();
+    expect(active()[0].counts).toEqual({ deaths: 1 });
+  });
+
+  it("stay with the session through an app restart", async () => {
+    await restart(at("12:30"), {
+      activeSessions: [
+        { ...original, checkpointedAt: at("12:20"), counts: { deaths: 7 } },
+      ],
+    });
+    await scanProcessesNow();
+    expect(active()).toEqual([]);
+    expect(saved()[0]).toMatchObject({ id: original.id, counts: { deaths: 7 } });
+  });
+
+  it("drop what isn't a count when the saved data loads", async () => {
+    await restart(at("12:30"), {
+      activeSessions: [
+        {
+          ...original,
+          checkpointedAt: at("12:20"),
+          counts: { deaths: 3, broken: -2, text: "7", "": 4 },
+        },
+      ],
+    });
+    await scanProcessesNow();
+    expect(saved()[0].counts).toEqual({ deaths: 3 });
+  });
+});

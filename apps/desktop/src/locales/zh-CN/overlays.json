@@ -73,5 +73,9 @@
   "TIMER RESUMED": "计时已继续",
   "Paused": "已暂停",
   "Pause the timer for {{gameName}}": "暂停 {{gameName}} 的计时",
-  "Resume the timer for {{gameName}}": "继续 {{gameName}} 的计时"
+  "Resume the timer for {{gameName}}": "继续 {{gameName}} 的计时",
+  "This playthrough": "本周目",
+  "COUNTERS": "计数器",
+  "This game has no counters yet. Add one in the counter box.": "这个游戏还没有计数器。请在计数器窗口中添加一个。",
+  "No counter has the controller icon. Click it on the counter the controller should count.": "没有计数器带手柄图标。请在手柄要计数的计数器上点击该图标。"
 }

@@ -24,9 +24,12 @@ pub const HOVER_EVENT: &str = "playcounter:live-timer-hover";
 /// To the main window: the pill's pause button was clicked.
 pub const TOGGLE_PAUSE_EVENT: &str = "playcounter:live-timer-toggle-pause";
 
-/// Room for the pill with its pause button at ten hours and more.
-#[cfg(not(target_os = "macos"))]
+/// Room for the pill with its pause button at ten hours and more. Counts make
+/// it wider: the page measures itself (live_timer_fit).
 const WINDOW_LOGICAL_WIDTH: f64 = 216.0;
+const MAX_WINDOW_LOGICAL_WIDTH: f64 = 900.0;
+/// Counts shown after the time, at most.
+const COUNT_LIMIT: usize = 8;
 #[cfg(not(target_os = "macos"))]
 const WINDOW_LOGICAL_HEIGHT: f64 = 56.0;
 const MARGIN_LOGICAL: f64 = 12.0;
@@ -53,6 +56,28 @@ pub struct LiveTimerPayload {
     pause_label: String,
     #[serde(default)]
     resume_label: String,
+    /// The game's counters shown while playing (docs/counters-plan.md).
+    #[serde(default)]
+    counts: Vec<LiveTimerCount>,
+    /// The count to pulse once; a new `seq` pulses again.
+    #[serde(default)]
+    pulse: Option<LiveTimerPulse>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveTimerCount {
+    id: String,
+    /// None for Deaths, which shows a skull instead of its name.
+    label: Option<String>,
+    value: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LiveTimerPulse {
+    id: String,
+    seq: u64,
 }
 
 #[derive(Default)]
@@ -60,6 +85,25 @@ pub struct LiveTimerState {
     payload: Mutex<Option<LiveTimerPayload>>,
     window_label: Mutex<Option<String>>,
     windows_opened: AtomicU64,
+    /// The width the page asked for; None = WINDOW_LOGICAL_WIDTH.
+    width: Mutex<Option<f64>>,
+}
+
+/// The window's width in logical pixels: what the page measured, within
+/// limits.
+fn fit_width(width: f64) -> Option<f64> {
+    width
+        .is_finite()
+        .then(|| width.clamp(WINDOW_LOGICAL_WIDTH, MAX_WINDOW_LOGICAL_WIDTH))
+}
+
+fn logical_width(state: &LiveTimerState) -> f64 {
+    state
+        .width
+        .lock()
+        .ok()
+        .and_then(|width| *width)
+        .unwrap_or(WINDOW_LOGICAL_WIDTH)
 }
 
 fn truncate(value: String, max_chars: usize) -> String {
@@ -81,6 +125,15 @@ fn sanitize(mut payload: LiveTimerPayload) -> LiveTimerPayload {
     payload.target_pids.truncate(16);
     payload.pause_label = truncate(payload.pause_label, 200);
     payload.resume_label = truncate(payload.resume_label, 200);
+    payload.counts.truncate(COUNT_LIMIT);
+    for count in &mut payload.counts {
+        count.id = truncate(std::mem::take(&mut count.id), 64);
+        count.label = count.label.take().map(|label| truncate(label, 100));
+    }
+    payload.pulse = payload.pulse.map(|pulse| LiveTimerPulse {
+        id: truncate(pulse.id, 64),
+        seq: pulse.seq,
+    });
     payload
 }
 
@@ -218,8 +271,9 @@ mod imp {
     fn target_rect(
         app: &tauri::AppHandle,
         payload: &LiveTimerPayload,
+        width: f64,
     ) -> Result<Option<PhysRect>, String> {
-        let size = (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT);
+        let size = (width, WINDOW_LOGICAL_HEIGHT);
         // A console timer has no process, so nothing to follow or hide for.
         if !payload.target_pids.is_empty() {
             if !game_in_front(&payload.target_pids) {
@@ -306,7 +360,8 @@ mod imp {
                 let Some(payload) = payload else {
                     return;
                 };
-                let Ok(target) = target_rect(&app, &payload) else {
+                let width = logical_width(&app.state::<LiveTimerState>());
+                let Ok(target) = target_rect(&app, &payload, width) else {
                     continue;
                 };
                 if applied != Some(target) && apply(&window, target).is_ok() {
@@ -376,7 +431,7 @@ mod imp {
                 window
             }
         };
-        apply(&window, target_rect(app, &payload)?)
+        apply(&window, target_rect(app, &payload, logical_width(state))?)
     }
 
     pub fn hide(app: &tauri::AppHandle, state: &LiveTimerState) -> Result<(), String> {
@@ -389,6 +444,7 @@ mod imp {
             .lock()
             .map_err(|error| error.to_string())?
             .take();
+        state.width.lock().map_err(|error| error.to_string())?.take();
         if let Some(window) = label
             .take()
             .and_then(|label| app.get_webview_window(&label))
@@ -465,6 +521,26 @@ pub fn live_timer_toggle_pause(
         .map_err(|error| error.to_string())
 }
 
+/// The pill page says how wide it needs its window: wider with counts, back
+/// to the usual width without.
+#[tauri::command(async)]
+pub fn live_timer_fit(
+    window: tauri::Window,
+    state: tauri::State<'_, LiveTimerState>,
+    width: f64,
+) -> Result<(), String> {
+    let label = state
+        .window_label
+        .lock()
+        .map_err(|error| error.to_string())?;
+    if label.as_deref() != Some(window.label()) {
+        return Err("unauthorized window".to_string());
+    }
+    let width = fit_width(width).ok_or_else(|| "invalid timer width".to_string())?;
+    *state.width.lock().map_err(|error| error.to_string())? = Some(width);
+    Ok(())
+}
+
 /// The timer window asks for its session once its page listens for updates.
 #[tauri::command(async)]
 pub fn live_timer_ready(
@@ -495,6 +571,48 @@ mod tests {
         width: 1920,
         height: 1040,
     };
+
+    #[test]
+    fn the_window_grows_with_the_counts_within_limits() {
+        assert_eq!(fit_width(330.0), Some(330.0));
+        assert_eq!(fit_width(100.0), Some(WINDOW_LOGICAL_WIDTH));
+        assert_eq!(fit_width(5000.0), Some(MAX_WINDOW_LOGICAL_WIDTH));
+        assert_eq!(fit_width(f64::NAN), None);
+    }
+
+    #[test]
+    fn reads_counts_the_way_the_main_window_writes_them_and_caps_them() {
+        let payload: LiveTimerPayload = serde_json::from_value(serde_json::json!({
+            "countFromMs": 1,
+            "pausedAtMs": null,
+            "corner": "top-left",
+            "monitor": "primary",
+            "accentColor": null,
+            "targetPids": [],
+            "pauseLabel": "Pause",
+            "resumeLabel": "Resume",
+            "counts": (0..12).map(|index| serde_json::json!({
+                "id": format!("c{index}"),
+                "label": if index == 0 { serde_json::Value::Null } else { serde_json::json!("m".repeat(300)) },
+                "value": 313
+            })).collect::<Vec<_>>(),
+            "pulse": { "id": "c0", "seq": 4 }
+        }))
+        .unwrap();
+        let clean = sanitize(payload);
+        assert_eq!(clean.counts.len(), COUNT_LIMIT);
+        assert_eq!(clean.counts[0].label, None);
+        assert_eq!(clean.counts[1].label.as_ref().unwrap().chars().count(), 100);
+        assert_eq!(clean.pulse, Some(LiveTimerPulse { id: "c0".into(), seq: 4 }));
+        // Older main windows send no counts.
+        let old: LiveTimerPayload = serde_json::from_value(serde_json::json!({
+            "countFromMs": 1,
+            "corner": "top-left",
+            "accentColor": null
+        }))
+        .unwrap();
+        assert!(old.counts.is_empty() && old.pulse.is_none());
+    }
 
     #[test]
     fn places_the_timer_in_each_corner() {
@@ -568,6 +686,8 @@ mod tests {
             target_pids: vec![30, 0, 7, 30],
             pause_label: "p".repeat(500),
             resume_label: String::new(),
+            counts: Vec::new(),
+            pulse: None,
         });
         assert_eq!(payload.corner, "top-left");
         assert_eq!(payload.pause_label.chars().count(), 200);

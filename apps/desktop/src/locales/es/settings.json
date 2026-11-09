@@ -362,5 +362,14 @@
   "Screenshot with caption": "Captura con pie de foto",
   "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "Toma la imagen al instante y luego abre un pequeño cuadro sobre tu juego para un pie de foto. Intro guarda y te devuelve al juego. Esc conserva la imagen sin pie de foto. En juegos en pantalla completa exclusiva, el juego puede minimizarse mientras el cuadro está abierto.",
   "Pause or resume timer": "Pausar o reanudar el cronómetro",
-  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Deja de contar el juego al que estás jugando mientras no estás, y sigue contando cuando la vuelves a pulsar. El juego sigue abierto."
+  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Deja de contar el juego al que estás jugando mientras no estás, y sigue contando cuando la vuelves a pulsar. El juego sigue abierto.",
+  "{{key}} is already one of PlayCounter's hotkeys.": "{{key}} ya es uno de los atajos de PlayCounter.",
+  "{{key}} already counts {{counter}}.": "{{key}} ya cuenta {{counter}}.",
+  "Take one back": "Quitar uno",
+  "Open counter box": "Abrir la caja de contadores",
+  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.": "Abre una pequeña caja sobre tu juego con todos sus contadores. Ahí añades contadores, cuentas con cualquiera y le das a uno su propia tecla. En juegos en pantalla completa exclusiva, el juego puede minimizarse mientras la caja está abierta.",
+  "Count with controller": "Contar con el mando",
+  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.": "Quita uno al último contador que contaste, si pulsaste su tecla por error. Cada contador tiene su propia tecla en la caja de contadores o en los detalles del juego.",
+  "Num": "Num",
+  "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.": "Mantén View (Create en PlayStation) y la cruceta arriba 1 segundo para sumar uno al contador con el icono del mando, y View y la cruceta abajo para quitar uno. El juego también recibe estos botones, así que púlsalos en la pantalla de muerte."
 }

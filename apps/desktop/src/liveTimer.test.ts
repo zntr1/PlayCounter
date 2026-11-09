@@ -72,6 +72,8 @@ it("times the game started last, not one waiting after a crash", () => {
     targetPids: [200],
     pauseLabel: "Pause the timer for Game 2",
     resumeLabel: "Resume the timer for Game 2",
+    counts: [],
+    pulse: null,
   });
   expect(liveTimerPayload(settings, [], pidsById)).toBeNull();
   expect(

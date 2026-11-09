@@ -73,5 +73,9 @@
   "TIMER RESUMED": "ТАЙМЕР ВОЗОБНОВЛЁН",
   "Paused": "На паузе",
   "Pause the timer for {{gameName}}": "Приостановить таймер для {{gameName}}",
-  "Resume the timer for {{gameName}}": "Возобновить таймер для {{gameName}}"
+  "Resume the timer for {{gameName}}": "Возобновить таймер для {{gameName}}",
+  "This playthrough": "Это прохождение",
+  "COUNTERS": "СЧЁТЧИКИ",
+  "This game has no counters yet. Add one in the counter box.": "У этой игры пока нет счётчиков. Добавьте его в окне счётчиков.",
+  "No counter has the controller icon. Click it on the counter the controller should count.": "Ни у одного счётчика нет значка геймпада. Нажмите его у счётчика, который должен считать геймпад."
 }

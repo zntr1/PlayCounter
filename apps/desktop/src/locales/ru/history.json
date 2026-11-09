@@ -229,5 +229,6 @@
   "Caption": "Подпись",
   "What's happening in this picture?": "Что происходит на этом снимке?",
   "Enter saves · Esc cancels": "Enter — сохранить · Esc — отмена",
-  "The caption couldn't be saved.": "Не удалось сохранить подпись."
+  "The caption couldn't be saved.": "Не удалось сохранить подпись.",
+  "{{counter}} in this session: {{value}}": "{{counter}} за эту сессию: {{value}}"
 }

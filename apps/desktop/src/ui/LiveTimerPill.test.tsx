@@ -18,6 +18,8 @@ const payload: LiveTimerPayload = {
   targetPids: [],
   pauseLabel: "Pause the timer for Elden Ring",
   resumeLabel: "Resume the timer for Elden Ring",
+  counts: [],
+  pulse: null,
 };
 
 beforeEach(() => {

@@ -628,6 +628,8 @@ pub fn run() {
             quick_note::quick_add_pick,
             quick_note::quick_add_reply,
             quick_note::quick_add_fit,
+            quick_note::counter_box_action,
+            quick_note::counter_box_update,
             screenshot::commands::screenshot_take,
             screenshot::commands::screenshot_list,
             screenshot::commands::screenshot_preview,
@@ -640,7 +642,8 @@ pub fn run() {
             live_timer::live_timer_show,
             live_timer::live_timer_hide,
             live_timer::live_timer_ready,
-            live_timer::live_timer_toggle_pause
+            live_timer::live_timer_toggle_pause,
+            live_timer::live_timer_fit
         ])
         .setup(|app| {
             setup_tray(app.handle())?;

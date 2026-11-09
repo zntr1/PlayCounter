@@ -221,5 +221,6 @@
   "Caption": "Legenda",
   "What's happening in this picture?": "O que está acontecendo nesta imagem?",
   "Enter saves · Esc cancels": "Enter salva · Esc cancela",
-  "The caption couldn't be saved.": "Não foi possível salvar a legenda."
+  "The caption couldn't be saved.": "Não foi possível salvar a legenda.",
+  "{{counter}} in this session: {{value}}": "{{counter}} nesta sessão: {{value}}"
 }

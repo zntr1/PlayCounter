@@ -187,6 +187,8 @@ describe("its own tab", () => {
       "game-details-tab-achievements",
       "game-details-tab-howLongToBeat",
       "game-details-tab-files",
+      // docs/counters-plan.md: Counters comes last.
+      "game-details-tab-counters",
     ]);
   });
 

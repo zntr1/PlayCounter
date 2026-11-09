@@ -170,6 +170,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     split.removed,
     state.archivedPlaythroughSeconds,
     state.archivedConsoleSeconds,
+    state.archivedCounts,
   );
   const recorded = recordedSecondsByGame({
     sessions: split.kept,
@@ -272,6 +273,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedGameSeconds: archive.archivedGameSeconds,
     archivedPlaythroughSeconds: archive.archivedPlaythroughSeconds,
     archivedConsoleSeconds: archive.archivedConsoleSeconds,
+    archivedCounts: archive.archivedCounts,
   };
   const result = persistAppState(candidate);
   if (result.status === "suspended")
@@ -292,6 +294,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedGameSeconds: result.archivedGameSeconds,
     archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
     archivedConsoleSeconds: result.archivedConsoleSeconds,
+    archivedCounts: result.archivedCounts,
   });
   // Importing a game again takes back an earlier removal.
   undismissLauncherGames(commits.map((commit) => commit.entry));

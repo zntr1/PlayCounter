@@ -260,6 +260,7 @@ export function NowPlayingView() {
                     ? undefined
                     : () => void togglePauseSession(activeSession.id)
                 }
+                showCounters={!isTourSession}
                 statusLabel={t("Now playing")}
                 tourAnchor={isTourSession ? "now-playing-demo" : undefined}
               />

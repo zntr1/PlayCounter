@@ -229,5 +229,6 @@
   "Caption": "Podpis",
   "What's happening in this picture?": "Co dzieje się na tym obrazie?",
   "Enter saves · Esc cancels": "Enter zapisuje · Esc anuluje",
-  "The caption couldn't be saved.": "Nie udało się zapisać podpisu."
+  "The caption couldn't be saved.": "Nie udało się zapisać podpisu.",
+  "{{counter}} in this session: {{value}}": "{{counter}} w tej sesji: {{value}}"
 }

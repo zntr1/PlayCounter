@@ -89,6 +89,8 @@ describe("global hotkeys", () => {
       "playcounter:screenshot-hotkey",
       "playcounter:screenshot-caption-hotkey",
       "playcounter:quick-add-hotkey",
+      "playcounter:counter-undo-hotkey",
+      "playcounter:counter-box-hotkey",
     ]);
     expect(invokeMock.mock.calls).toEqual([
       [
@@ -105,6 +107,8 @@ describe("global hotkeys", () => {
         { action: "screenshot-caption", shortcut: "Alt+F12" },
       ],
       ["set_global_hotkey", { action: "quick-add", shortcut: "Alt+F7" }],
+      ["set_global_hotkey", { action: "counter-undo", shortcut: null }],
+      ["set_global_hotkey", { action: "counter-box", shortcut: null }],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
@@ -208,6 +212,8 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "screenshot", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot-caption", shortcut: null }],
       ["set_global_hotkey", { action: "quick-add", shortcut: null }],
+      ["set_global_hotkey", { action: "counter-undo", shortcut: null }],
+      ["set_global_hotkey", { action: "counter-box", shortcut: null }],
     ]);
   });
 });

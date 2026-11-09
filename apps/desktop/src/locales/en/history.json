@@ -213,5 +213,6 @@
   "Caption": "Caption",
   "What's happening in this picture?": "What's happening in this picture?",
   "Enter saves · Esc cancels": "Enter saves · Esc cancels",
-  "The caption couldn't be saved.": "The caption couldn't be saved."
+  "The caption couldn't be saved.": "The caption couldn't be saved.",
+  "{{counter}} in this session: {{value}}": "{{counter}} in this session: {{value}}"
 }

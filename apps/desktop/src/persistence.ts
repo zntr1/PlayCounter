@@ -8,6 +8,7 @@ import type { AppNotification, FeedbackReplyCursor } from "./notifications";
 import type { DiscoveredReviewReminder } from "./discoveredReminder";
 import type { AwardedMilestone } from "./milestones";
 import { gameSecondsKey, isConsoleSession } from "./gameSeconds";
+import { archiveCounts, type ArchivedCounts } from "./counters";
 import {
   normalizeSessions,
   MAX_STORED_SESSIONS,
@@ -56,6 +57,7 @@ type PersistableAppState = {
   gameJournals?: Record<string, GameJournal>;
   personalShelves?: PersonalShelf[];
   archivedPlaythroughSeconds?: Record<string, number>;
+  archivedCounts?: ArchivedCounts;
   installUuid: string | null;
   contributionOwnerUuid: string | null;
   settings: Settings;
@@ -112,6 +114,8 @@ export type PersistedPayload = {
   gameJournals?: Record<string, GameJournal>;
   personalShelves?: PersonalShelf[];
   archivedPlaythroughSeconds: Record<string, number>;
+  /** Counts of sessions that left History; absent in older saves. */
+  archivedCounts?: ArchivedCounts;
   installUuid?: string;
   contributionOwnerUuid?: string;
   settings: Settings;
@@ -174,7 +178,7 @@ export type PersistedProjection = Pick<
   | "archivedGameSeconds"
   | "archivedPlaythroughSeconds"
   | "archivedConsoleSeconds"
->;
+> & { archivedCounts: ArchivedCounts };
 
 export type PersistResult =
   | ({ status: "suspended" } & PersistedProjection)
@@ -201,6 +205,10 @@ function buildPersistedPayload(
     gameJournals: state.gameJournals ?? {},
     personalShelves: state.personalShelves ?? [],
     archivedPlaythroughSeconds: state.archivedPlaythroughSeconds ?? {},
+    archivedCounts:
+      state.archivedCounts && Object.keys(state.archivedCounts).length > 0
+        ? state.archivedCounts
+        : undefined,
     contributionOwnerUuid: state.contributionOwnerUuid ?? undefined,
     settings: state.settings,
     exeCache: [...state.exeCache.values()],
@@ -315,6 +323,7 @@ function projection(payload: PersistedPayload): PersistedProjection {
     archivedGameSeconds: payload.archivedGameSeconds,
     archivedPlaythroughSeconds: payload.archivedPlaythroughSeconds,
     archivedConsoleSeconds: payload.archivedConsoleSeconds,
+    archivedCounts: payload.archivedCounts ?? {},
   };
 }
 
@@ -338,6 +347,7 @@ function archiveRemovedSessions(payload: PersistedPayload, removed: Session[]) {
       payload.archivedPlaythroughSeconds,
       removed,
     ),
+    archivedCounts: archiveCounts(payload.archivedCounts ?? {}, removed),
   };
 }
 

@@ -12,6 +12,16 @@ const UPDATE_EVENT = "playcounter:live-timer-update";
 /** Rust says whether the mouse rests on the pill (it then takes clicks). */
 const HOVER_EVENT = "playcounter:live-timer-hover";
 
+let fittedWidth = 0;
+/** Counts make the pill wider than its window; Rust resizes it. */
+function fitWindow(width: number) {
+  if (width === fittedWidth) return;
+  fittedWidth = width;
+  void invoke("live_timer_fit", { width }).catch((error) =>
+    console.error("live timer fit failed", error),
+  );
+}
+
 function LiveTimerRoot() {
   const [payload, setPayload] = useState<LiveTimerPayload | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -62,6 +72,7 @@ function LiveTimerRoot() {
     <LiveTimerPill
       payload={payload}
       hovered={hovered}
+      onFit={fitWindow}
       onTogglePause={() =>
         void invoke("live_timer_toggle_pause").catch((error) =>
           console.error("live timer pause failed", error),

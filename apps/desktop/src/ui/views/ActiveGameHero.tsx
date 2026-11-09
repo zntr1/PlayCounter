@@ -48,6 +48,7 @@ import {
 } from "../../personalLibrary";
 import { getT } from "../../i18n";
 import { igdbTerm } from "../../igdbTerms";
+import { NowPlayingCounters } from "../counters/CounterParts";
 
 const t = getT("nowPlaying");
 
@@ -72,6 +73,8 @@ type ActiveGameHeroProps = {
   onTogglePause?: () => void;
   /** How long the running pause has lasted, while paused. */
   pausedForSeconds?: number;
+  /** The game's counters under the figures; absent on tour cards. */
+  showCounters?: boolean;
   tourAnchor?: string;
 };
 
@@ -99,6 +102,7 @@ export function ActiveGameHero({
   onStopTimer,
   onTogglePause,
   pausedForSeconds = 0,
+  showCounters = false,
   tourAnchor,
 }: ActiveGameHeroProps) {
   const paused = Boolean(session.pausedAt);
@@ -494,6 +498,7 @@ export function ActiveGameHero({
           </div>
         </div>
       </div>
+      {showCounters ? <NowPlayingCounters session={session} /> : null}
     </section>
   );
 }

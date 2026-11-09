@@ -355,5 +355,14 @@
   "Screenshot with caption": "Screenshot with caption",
   "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.",
   "Pause or resume timer": "Pause or resume timer",
-  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open."
+  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.",
+  "{{key}} is already one of PlayCounter's hotkeys.": "{{key}} is already one of PlayCounter's hotkeys.",
+  "{{key}} already counts {{counter}}.": "{{key}} already counts {{counter}}.",
+  "Take one back": "Take one back",
+  "Open counter box": "Open counter box",
+  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.": "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.",
+  "Count with controller": "Count with controller",
+  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.": "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.",
+  "Num": "Num",
+  "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.": "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen."
 }

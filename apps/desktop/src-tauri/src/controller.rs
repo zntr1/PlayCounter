@@ -6,6 +6,10 @@ use std::sync::{
 use tauri::{Emitter, Manager};
 
 const REVEAL_HOLD_MS: u64 = 2_000;
+/// View + D-pad up / down held this long counts one (docs/counters-plan.md).
+const COUNT_HOLD_MS: u64 = 1_000;
+/// To the main window: a counting combo was held ("add" or "undo").
+const COUNT_EVENT: &str = "playcounter:controller-count";
 const REVEAL_COOLDOWN_MS: u64 = 3_000;
 const DIRECTION_INITIAL_REPEAT_MS: u64 = 350;
 const DIRECTION_REPEAT_MS: u64 = 120;
@@ -46,6 +50,26 @@ pub enum ControllerAction {
     Back,
     ToggleFullscreen,
     StopGame,
+    /// View + D-pad up held: one more on the running game's hotkey counter.
+    CountAdd,
+    /// View + D-pad down held: take the last count back.
+    CountUndo,
+}
+
+impl ControllerAction {
+    fn is_count(self) -> bool {
+        matches!(self, Self::CountAdd | Self::CountUndo)
+    }
+}
+
+/// Counting works with controller navigation off and the other way round:
+/// each kind of action only goes out while its setting is on.
+fn allowed(action: ControllerAction, navigation: bool, counting: bool) -> bool {
+    if action.is_count() {
+        counting
+    } else {
+        navigation
+    }
 }
 
 // Which button art the UI shows. A PlayStation pad that reaches us through
@@ -98,6 +122,9 @@ pub struct ControllerMachine {
     direction_repeat_at: u64,
     held_scroll: Option<ControllerAction>,
     scroll_repeat_at: u64,
+    /// The counting combo held, and since when.
+    count_chord: Option<(ControllerAction, u64)>,
+    count_fired: bool,
 }
 
 impl ControllerMachine {
@@ -120,6 +147,34 @@ impl ControllerMachine {
         }
         if buttons & BUTTON_RIGHT_SHOULDER != 0 {
             self.view_tap_candidate = false;
+        }
+        // View + D-pad up / down: a count once held long enough, and no
+        // View tap when let go.
+        let count_target = if !view_down {
+            None
+        } else if buttons & BUTTON_DPAD_UP != 0 {
+            Some(ControllerAction::CountAdd)
+        } else if buttons & BUTTON_DPAD_DOWN != 0 {
+            Some(ControllerAction::CountUndo)
+        } else {
+            None
+        };
+        match (count_target, self.count_chord) {
+            (None, _) => {
+                self.count_chord = None;
+                self.count_fired = false;
+            }
+            (Some(target), Some((held, started))) if held == target => {
+                if !self.count_fired && now_ms.saturating_sub(started) >= COUNT_HOLD_MS {
+                    actions.push(target);
+                    self.count_fired = true;
+                }
+            }
+            (Some(target), _) => {
+                self.view_tap_candidate = false;
+                self.count_chord = Some((target, now_ms));
+                self.count_fired = false;
+            }
         }
         if !view_down && view_was_down && self.view_tap_candidate {
             actions.push(ControllerAction::ToggleLibraryView);
@@ -156,7 +211,10 @@ impl ControllerMachine {
             actions.push(ControllerAction::StopGame);
         }
 
-        let dpad_direction = if buttons & BUTTON_DPAD_UP != 0 {
+        // With View held the D-pad belongs to the counting combo.
+        let dpad_direction = if view_down {
+            None
+        } else if buttons & BUTTON_DPAD_UP != 0 {
             Some(ControllerAction::Up)
         } else if buttons & BUTTON_DPAD_DOWN != 0 {
             Some(ControllerAction::Down)
@@ -233,12 +291,21 @@ pub struct ControllerWatcher {
     generation: Arc<AtomicU64>,
 }
 
+/// Starts (or restarts) reading pads. `navigation`: moving through the app;
+/// `counting`: the counting combos, also while the window is hidden.
 #[tauri::command]
-pub fn controller_watch_start(app: tauri::AppHandle, watcher: tauri::State<'_, ControllerWatcher>) {
+pub fn controller_watch_start(
+    app: tauri::AppHandle,
+    watcher: tauri::State<'_, ControllerWatcher>,
+    navigation: Option<bool>,
+    counting: Option<bool>,
+) {
+    let navigation = navigation.unwrap_or(true);
+    let counting = counting.unwrap_or(false);
     let generation = watcher.generation.fetch_add(1, Ordering::SeqCst) + 1;
     let current = Arc::clone(&watcher.generation);
     tauri::async_runtime::spawn(async move {
-        watch_controllers(app, current, generation).await;
+        watch_controllers(app, current, generation, navigation, counting).await;
     });
 }
 
@@ -252,6 +319,8 @@ async fn watch_controllers(
     app: tauri::AppHandle,
     current_generation: Arc<AtomicU64>,
     generation: u64,
+    navigation: bool,
+    counting: bool,
 ) {
     use windows_sys::Win32::UI::Input::XboxController::{XInputGetState, XINPUT_STATE};
 
@@ -283,17 +352,22 @@ async fn watch_controllers(
             }
             seen_connected[slot] = true;
             next_probe_at[slot] = now_ms;
-            let actions = machines[slot].update(
+            let mut actions = machines[slot].update(
                 state.Gamepad.wButtons,
                 (state.Gamepad.sThumbLX, state.Gamepad.sThumbLY),
                 state.Gamepad.sThumbRY,
                 now_ms,
             );
+            actions.retain(|action| allowed(*action, navigation, counting));
             if selected.is_none() && !actions.is_empty() && owner.accepts(slot, now_ms) {
                 selected = Some((ControllerKind::Xbox, actions));
             }
         }
-        for (source, kind, actions) in playstation_pads.poll(now_ms) {
+        for (source, kind, mut actions) in playstation_pads.poll(now_ms) {
+            actions.retain(|action| allowed(*action, navigation, counting));
+            if actions.is_empty() {
+                continue;
+            }
             if selected.is_none() && owner.accepts(source, now_ms) {
                 selected = Some((kind, actions));
             }
@@ -318,6 +392,8 @@ async fn watch_controllers(
     _app: tauri::AppHandle,
     _current_generation: Arc<AtomicU64>,
     _generation: u64,
+    _navigation: bool,
+    _counting: bool,
 ) {
 }
 
@@ -328,6 +404,16 @@ fn emit_action(
     at: u64,
     allow_focus_grace: bool,
 ) {
+    // A count goes to the main window whether it is shown or not, and
+    // never brings it to the front: the player is in a game.
+    if action.is_count() {
+        let _ = app.emit_to(
+            "main",
+            COUNT_EVENT,
+            if action == ControllerAction::CountAdd { "add" } else { "undo" },
+        );
+        return;
+    }
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
@@ -379,6 +465,61 @@ mod tests {
             machine.update(chord, (0, 0), 0, 5_000),
             vec![ControllerAction::Reveal]
         );
+    }
+
+    #[test]
+    fn view_and_dpad_up_held_one_second_counts_once() {
+        let mut machine = ControllerMachine::default();
+        let combo = BUTTON_VIEW | BUTTON_DPAD_UP;
+        assert!(machine.update(combo, (0, 0), 0, 0).is_empty());
+        assert!(machine.update(combo, (0, 0), 0, 999).is_empty());
+        assert_eq!(
+            machine.update(combo, (0, 0), 0, 1_000),
+            vec![ControllerAction::CountAdd]
+        );
+        // Held on: no second count.
+        assert!(machine.update(combo, (0, 0), 0, 3_000).is_empty());
+        // Let go: no View tap either.
+        assert!(machine.update(0, (0, 0), 0, 3_016).is_empty());
+    }
+
+    #[test]
+    fn letting_go_before_one_second_counts_nothing() {
+        let mut machine = ControllerMachine::default();
+        let combo = BUTTON_VIEW | BUTTON_DPAD_UP;
+        assert!(machine.update(combo, (0, 0), 0, 0).is_empty());
+        assert!(machine.update(combo, (0, 0), 0, 900).is_empty());
+        assert!(machine.update(BUTTON_VIEW, (0, 0), 0, 916).is_empty());
+        assert!(machine.update(combo, (0, 0), 0, 1_500).is_empty());
+        assert!(machine.update(0, (0, 0), 0, 1_516).is_empty());
+    }
+
+    #[test]
+    fn view_and_dpad_down_held_takes_one_back() {
+        let mut machine = ControllerMachine::default();
+        let combo = BUTTON_VIEW | BUTTON_DPAD_DOWN;
+        machine.update(combo, (0, 0), 0, 0);
+        assert_eq!(
+            machine.update(combo, (0, 0), 0, 1_000),
+            vec![ControllerAction::CountUndo]
+        );
+    }
+
+    #[test]
+    fn the_dpad_with_view_held_does_not_move_the_selection() {
+        let mut machine = ControllerMachine::default();
+        assert!(machine
+            .update(BUTTON_VIEW | BUTTON_DPAD_UP, (0, 0), 0, 0)
+            .is_empty());
+    }
+
+    #[test]
+    fn counting_and_navigation_each_need_their_setting() {
+        assert!(allowed(ControllerAction::CountAdd, false, true));
+        assert!(!allowed(ControllerAction::CountAdd, true, false));
+        assert!(!allowed(ControllerAction::Up, false, true));
+        assert!(!allowed(ControllerAction::Reveal, false, true));
+        assert!(allowed(ControllerAction::Up, true, false));
     }
 
     #[test]

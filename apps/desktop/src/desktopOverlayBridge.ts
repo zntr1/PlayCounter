@@ -108,6 +108,40 @@ export function showPauseToggledOverlay(
   );
 }
 
+/** A counter hotkey's answer when the live timer doesn't show the count. */
+export function showCounterOverlay(
+  session: ActiveSession,
+  counter:
+    | { name: string; count: number }
+    | "no-counters"
+    | "no-controller-counter",
+) {
+  const state = bridge;
+  if (!state || state.disposed) return;
+  const coverUrl =
+    pickedCover(useAppStore.getState(), session) ?? session.coverUrl;
+  state.queue.showImmediately(
+    buildOverlayMessage(
+      "current-session",
+      typeof counter === "object"
+        ? {
+            type: "counter-changed",
+            counterName: counter.name,
+            gameName: session.gameName,
+            coverUrl,
+            count: counter.count,
+          }
+        : {
+            type: "counter-missing",
+            reason: counter,
+            gameName: session.gameName,
+            coverUrl,
+          },
+      renderContext(),
+    ),
+  );
+}
+
 /** Without a running game the hotkey has nothing to move or hide, so it says
  *  what it did. Null = switched off. */
 export function showLiveTimerToggledOverlay(corner: LiveTimerCorner | null) {

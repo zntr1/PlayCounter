@@ -759,6 +759,38 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
+          title={t("Take one back")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="counterUndoHotkey"
+            label={t("Take one back")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
+        <SettingsRow
+          title={t("Open counter box")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="counterBoxHotkey"
+            label={t("Open counter box")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
+        <SettingsRow
           title={t("Take a screenshot")}
           description={
             currentPlatform() === "macos"
@@ -879,6 +911,25 @@ export function SettingsView() {
               ))}
             </Select>
           </SettingsRow>
+          {currentPlatform() === "windows" ? (
+            <SettingsRow
+              description={t(
+                "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.",
+              )}
+              title={t("Count with controller")}
+            >
+              <Switch
+                aria-label={t("Count with controller")}
+                checked={settings.controllerCountingEnabled === true}
+                onChange={(event) =>
+                  setDesktopOverlaySetting(
+                    "controllerCountingEnabled",
+                    event.target.checked,
+                  )
+                }
+              />
+            </SettingsRow>
+          ) : null}
           <ScreenshotFolderRow />
         </SettingsPanel>
       ) : null}

@@ -595,6 +595,9 @@ export interface Session {
   /** What the player wrote about this session. Local only, never included in
    *  tracking API payloads. */
   note?: string;
+  /** Counter id -> how often it was counted in this session (deaths, tries,
+   *  anything the player counts). Only counts above 0. Local only. */
+  counts?: Record<string, number>;
 }
 
 export type FeedbackType = "bug" | "feature" | "other";
@@ -708,6 +711,10 @@ export interface Settings {
   /** Takes the picture, then opens a box for its caption. */
   screenshotCaptionHotkey?: string | null;
   quickAddHotkey?: string | null;
+  /** Takes one off the counter counted last (docs/counters-plan.md). */
+  counterUndoHotkey?: string | null;
+  /** Opens the counter box over the game. */
+  counterBoxHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";
@@ -821,6 +828,9 @@ export interface Settings {
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
+  /** Hold View + D-pad up / down to count the top counter with a controller.
+   *  Absent = off. */
+  controllerCountingEnabled?: boolean;
   /** Hide the main window to the tray once a game started from PlayCounter
    * is running. Absent = enabled. */
   hideToTrayOnGameStart?: boolean;

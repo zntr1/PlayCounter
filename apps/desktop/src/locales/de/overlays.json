@@ -73,5 +73,9 @@
   "TIMER RESUMED": "TIMER LÄUFT WEITER",
   "Paused": "Pausiert",
   "Pause the timer for {{gameName}}": "Timer für {{gameName}} pausieren",
-  "Resume the timer for {{gameName}}": "Timer für {{gameName}} fortsetzen"
+  "Resume the timer for {{gameName}}": "Timer für {{gameName}} fortsetzen",
+  "This playthrough": "Dieser Durchgang",
+  "COUNTERS": "ZÄHLER",
+  "This game has no counters yet. Add one in the counter box.": "Dieses Spiel hat noch keine Zähler. Füg einen in der Zählerbox hinzu.",
+  "No counter has the controller icon. Click it on the counter the controller should count.": "Kein Zähler hat das Controller-Symbol. Klick es bei dem Zähler an, den der Controller zählen soll."
 }

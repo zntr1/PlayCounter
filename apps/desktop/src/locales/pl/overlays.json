@@ -73,5 +73,9 @@
   "TIMER RESUMED": "STOPER WZNOWIONY",
   "Paused": "Wstrzymano",
   "Pause the timer for {{gameName}}": "Wstrzymaj stoper dla {{gameName}}",
-  "Resume the timer for {{gameName}}": "Wznów stoper dla {{gameName}}"
+  "Resume the timer for {{gameName}}": "Wznów stoper dla {{gameName}}",
+  "This playthrough": "To przejście",
+  "COUNTERS": "LICZNIKI",
+  "This game has no counters yet. Add one in the counter box.": "Ta gra nie ma jeszcze liczników. Dodaj jeden w okienku liczników.",
+  "No counter has the controller icon. Click it on the counter the controller should count.": "Żaden licznik nie ma ikony kontrolera. Kliknij ją przy liczniku, który kontroler ma liczyć."
 }

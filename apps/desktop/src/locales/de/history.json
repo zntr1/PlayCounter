@@ -213,5 +213,6 @@
   "Caption": "Bildunterschrift",
   "What's happening in this picture?": "Was passiert auf diesem Bild?",
   "Enter saves · Esc cancels": "Enter speichert · Esc bricht ab",
-  "The caption couldn't be saved.": "Die Bildunterschrift konnte nicht gespeichert werden."
+  "The caption couldn't be saved.": "Die Bildunterschrift konnte nicht gespeichert werden.",
+  "{{counter}} in this session: {{value}}": "{{counter}} in dieser Sitzung: {{value}}"
 }

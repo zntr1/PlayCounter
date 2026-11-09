@@ -7,7 +7,7 @@ import type {
   DesktopOverlayMessage,
   OverlayRenderContext,
 } from "./desktopOverlayProtocol";
-import { getT } from "./i18n";
+import { appLocale, getT } from "./i18n";
 
 const t = getT("overlays");
 export {
@@ -129,6 +129,23 @@ export type OverlayEvent =
       coverUrl?: string;
       durationSeconds: number;
     }
+  /** A counter hotkey's answer while the live timer doesn't show it. */
+  | {
+      type: "counter-changed";
+      counterName: string;
+      gameName: string;
+      coverUrl?: string;
+      /** This playthrough's count. */
+      count: number;
+    }
+  /** A counting press with nothing to count: the game has no counters, or
+   *  none has the controller icon. */
+  | {
+      type: "counter-missing";
+      reason: "no-counters" | "no-controller-counter";
+      gameName: string;
+      coverUrl?: string;
+    }
   | {
       type: "screenshot";
       outcome: ScreenshotOutcome;
@@ -154,7 +171,9 @@ export type TrackerOverlayEvent = Exclude<
       | "playtime-reminder"
       | "live-timer"
       | "screenshot"
-      | "pause-toggled";
+      | "pause-toggled"
+      | "counter-changed"
+      | "counter-missing";
   }
 >;
 
@@ -172,6 +191,8 @@ export function overlayGate(
   if (event.type === "current-session") return "current-session";
   // A hotkey's answer, shown like the current session card.
   if (event.type === "pause-toggled") return "current-session";
+  if (event.type === "counter-changed" || event.type === "counter-missing")
+    return "current-session";
   // Switched on by the player for themselves, apart from the popup settings.
   if (event.type === "playtime-reminder") return "playtime-reminder";
   if (event.type === "live-timer") return "live-timer";
@@ -266,6 +287,28 @@ function overlayCopy(
       kicker: event.paused ? t("TIMER PAUSED") : t("TIMER RESUMED"),
       title: event.gameName,
       metric: formatDuration(event.durationSeconds),
+      coverUrl: event.coverUrl,
+    };
+  }
+  if (event.type === "counter-changed") {
+    return {
+      kicker: event.counterName.toLocaleUpperCase(appLocale()),
+      title: event.gameName,
+      body: t("This playthrough"),
+      metric: event.count.toLocaleString(appLocale()),
+      coverUrl: event.coverUrl,
+    };
+  }
+  if (event.type === "counter-missing") {
+    return {
+      kicker: t("COUNTERS"),
+      title: event.gameName,
+      body:
+        event.reason === "no-counters"
+          ? t("This game has no counters yet. Add one in the counter box.")
+          : t(
+              "No counter has the controller icon. Click it on the counter the controller should count.",
+            ),
       coverUrl: event.coverUrl,
     };
   }

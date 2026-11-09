@@ -158,6 +158,7 @@ const session = object(
     emulator: emulatorContext,
     playthroughId: nonempty,
     note: string,
+    counts: dictionary(positiveId),
   },
 );
 const exeEntry = object(
@@ -337,6 +338,8 @@ const settings = object({}, {
   screenshotHotkey: nullable(string),
   screenshotCaptionHotkey: nullable(string),
   quickAddHotkey: nullable(string),
+  counterUndoHotkey: nullable(string),
+  counterBoxHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
   language: string,
@@ -423,6 +426,7 @@ const settings = object({}, {
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
+  controllerCountingEnabled: boolean,
   hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
   loginWarningsOff: array(nonempty),
@@ -479,7 +483,17 @@ const validateBackupShape: Validator = object(
             }),
           ),
         },
-        { tier: oneOf(...GAME_TIERS), tierAt: date },
+        {
+          tier: oneOf(...GAME_TIERS),
+          tierAt: date,
+          counters: array(
+            object(
+              { id: nonempty, shown: boolean, createdAt: date },
+              { name: nonempty, key: nonempty },
+            ),
+          ),
+          controllerCounterId: nullable(nonempty),
+        },
       ),
     ),
     personalShelves: array(
@@ -514,6 +528,7 @@ const validateBackupShape: Validator = object(
       ),
     ),
     archivedPlaythroughSeconds: dictionary(nonnegative),
+    archivedCounts: dictionary(dictionary(positiveId)),
     exeCache: array(exeEntry),
     gameMetadata: array(game),
     libraryImports: array(libraryImport),

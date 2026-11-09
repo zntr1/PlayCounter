@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Gamepad2,
   Hourglass,
+  Skull,
   Info,
   Loader2,
   Medal,
@@ -69,6 +70,7 @@ import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 import { Figure, Panel, SkeletonBar, SourceTag } from "./detailsPanels";
 import { HowLongToBeatTab } from "./HowLongToBeatTab";
+import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
@@ -107,7 +109,12 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
   };
 }
 
-export type DetailsTab = "general" | "howLongToBeat" | "files" | "achievements";
+export type DetailsTab =
+  | "general"
+  | "howLongToBeat"
+  | "files"
+  | "achievements"
+  | "counters";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
@@ -300,6 +307,7 @@ export function GameDetailsDialog({
     howLongToBeat: null,
     files: null,
     achievements: null,
+    counters: null,
   });
 
   const stats = useMemo(
@@ -471,6 +479,10 @@ export function GameDetailsDialog({
       : []),
     { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
     { id: "files", label: t("Files"), icon: FolderOpen },
+    // Sample games of the tour have nothing to count.
+    ...(demo
+      ? []
+      : [{ id: "counters" as const, label: t("Counters"), icon: Skull }]),
   ];
 
   const header = (
@@ -1133,6 +1145,8 @@ export function GameDetailsDialog({
           />
         ) : tab === "files" ? (
           filesTab
+        ) : tab === "counters" ? (
+          <GameCountersTab game={game} />
         ) : (
           <GameAchievementsTab sources={gameAchievementSources} />
         )}

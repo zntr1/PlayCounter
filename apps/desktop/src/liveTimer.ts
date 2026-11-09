@@ -8,7 +8,14 @@ import {
 import { currentPlatform } from "./platform";
 import { countFromMs, pausedAtMs } from "./sessionTime";
 import { getT } from "./i18n";
-import { useAppStore, type ActiveSession } from "./store";
+import {
+  DEATHS_COUNTER_ID,
+  counterName,
+  hasCounted,
+  orderedCounters,
+} from "./counters";
+import { sessionTallies, setPillAnswer } from "./counterInput";
+import { getGameJournal, useAppStore, type ActiveSession } from "./store";
 
 export type LiveTimerPayload = {
   /** The pill counts up from here: the start, moved later by the session's
@@ -24,9 +31,42 @@ export type LiveTimerPayload = {
   /** The pill's button, in the app's language. */
   pauseLabel: string;
   resumeLabel: string;
+  /** The game's counters shown while playing, this playthrough's numbers. */
+  counts: LiveTimerCount[];
+  /** The count a press just changed: it pulses once per new seq. */
+  pulse: { id: string; seq: number } | null;
+};
+
+export type LiveTimerCount = {
+  id: string;
+  /** Null: Deaths, shown as a skull. */
+  label: string | null;
+  value: number;
 };
 
 type GamePids = (session: ActiveSession) => number[];
+type PillCounts = (session: ActiveSession) => LiveTimerCount[];
+
+const NO_COUNTS: PillCounts = () => [];
+let pulse: LiveTimerPayload["pulse"] = null;
+
+/** The counters a session's pill shows: the shown ones, once the game has
+ *  been counted at all (docs/counters-plan.md). */
+export function pillCounts(session: ActiveSession): LiveTimerCount[] {
+  const state = useAppStore.getState();
+  const tallies = sessionTallies(state, session);
+  if (!hasCounted(tallies)) return [];
+  return orderedCounters(getGameJournal(state, session))
+    .filter((counter) => counter.shown)
+    .map((counter) => ({
+      id: counter.id,
+      label:
+        counter.id === DEATHS_COUNTER_ID && counter.name === undefined
+          ? null
+          : counterName(counter),
+      value: tallies.get(counter.id)?.playthrough ?? 0,
+    }));
+}
 
 const t = getT("overlays");
 
@@ -43,6 +83,7 @@ export function liveTimerPayload(
   settings: Settings,
   activeSessions: ActiveSession[],
   gamePids: GamePids,
+  counts: PillCounts = NO_COUNTS,
 ): LiveTimerPayload | null {
   if (settings.liveTimerEnabled !== true) return null;
   const session = pillSession(activeSessions);
@@ -62,6 +103,8 @@ export function liveTimerPayload(
     resumeLabel: t("Resume the timer for {{gameName}}", {
       gameName: session.gameName,
     }),
+    counts: counts(session),
+    pulse,
   };
 }
 
@@ -80,7 +123,9 @@ function samePayload(
       left.accentColor === right.accentColor &&
       left.pauseLabel === right.pauseLabel &&
       left.resumeLabel === right.resumeLabel &&
-      left.targetPids.join() === right.targetPids.join())
+      left.targetPids.join() === right.targetPids.join() &&
+      JSON.stringify(left.counts) === JSON.stringify(right.counts) &&
+      left.pulse?.seq === right.pulse?.seq)
   );
 }
 
@@ -110,7 +155,12 @@ function send(payload: LiveTimerPayload | null) {
 export function syncLiveTimer() {
   if (!lifecycle) return;
   const { settings, activeSessions } = useAppStore.getState();
-  const next = liveTimerPayload(settings, activeSessions, lifecycle.gamePids);
+  const next = liveTimerPayload(
+    settings,
+    activeSessions,
+    lifecycle.gamePids,
+    pillCounts,
+  );
   if (samePayload(next, lifecycle.shown)) return;
   lifecycle.shown = next;
   send(next);
@@ -127,13 +177,24 @@ export function initializeLiveTimer(
     unsubscribe: useAppStore.subscribe((state, previous) => {
       if (
         state.settings !== previous.settings ||
-        state.activeSessions !== previous.activeSessions
+        state.activeSessions !== previous.activeSessions ||
+        // A counter shown, hidden or renamed.
+        state.gameJournals !== previous.gameJournals ||
+        state.archivedCounts !== previous.archivedCounts
       ) {
         syncLiveTimer();
       }
     }),
   };
   lifecycle = current;
+  // A count the pill shows: the pill pulses it, no popup needed.
+  setPillAnswer((counterId) => {
+    if (!lifecycle?.shown?.counts.some((count) => count.id === counterId))
+      return false;
+    pulse = { id: counterId, seq: (pulse?.seq ?? 0) + 1 };
+    syncLiveTimer();
+    return true;
+  });
   // The pill's button: pause or resume the game it shows right now.
   void listen(TOGGLE_PAUSE_EVENT, () => {
     const session = pillSession(useAppStore.getState().activeSessions);
@@ -149,6 +210,8 @@ export function initializeLiveTimer(
 
 export function disposeLiveTimer() {
   if (!lifecycle) return;
+  setPillAnswer(() => false);
+  pulse = null;
   lifecycle.unsubscribe();
   lifecycle.unlisten?.();
   if (lifecycle.shown) send(null);

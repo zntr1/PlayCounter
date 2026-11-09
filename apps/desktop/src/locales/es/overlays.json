@@ -73,5 +73,9 @@
   "TIMER RESUMED": "CRONÓMETRO REANUDADO",
   "Paused": "En pausa",
   "Pause the timer for {{gameName}}": "Pausar el cronómetro de {{gameName}}",
-  "Resume the timer for {{gameName}}": "Reanudar el cronómetro de {{gameName}}"
+  "Resume the timer for {{gameName}}": "Reanudar el cronómetro de {{gameName}}",
+  "This playthrough": "Esta partida",
+  "COUNTERS": "CONTADORES",
+  "This game has no counters yet. Add one in the counter box.": "Este juego aún no tiene contadores. Añade uno en la caja de contadores.",
+  "No counter has the controller icon. Click it on the counter the controller should count.": "Ningún contador tiene el icono del mando. Haz clic en él en el contador que debe contar el mando."
 }

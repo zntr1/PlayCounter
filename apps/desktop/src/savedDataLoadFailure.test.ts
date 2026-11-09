@@ -26,6 +26,9 @@ vi.mock("./desktopOverlayBridge", () => ({
   armDesktopOverlays: vi.fn(),
   emitOverlayEvent: vi.fn(),
   noteDiscoveredExecutable: vi.fn(),
+  newestSession: vi.fn(() => undefined),
+  showCounterOverlay: vi.fn(),
+  showCurrentSessionOverlay: vi.fn(),
 }));
 vi.mock("./controllerBridge", () => ({
   initializeControllerBridge: vi.fn(),

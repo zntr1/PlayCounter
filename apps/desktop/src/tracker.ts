@@ -9,6 +9,8 @@ import {
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
 import { initializeQuickAdd, disposeQuickAdd } from "./quickAdd";
+import { disposeCounterKeys, initializeCounterKeys } from "./counterInput";
+import { disposeCounterBox, initializeCounterBox } from "./counterBox";
 import { initializeScreenshots, disposeScreenshots } from "./screenshots";
 import {
   initializeLiveTimer,
@@ -183,6 +185,12 @@ import {
   type GameJournal,
   type PersonalShelf,
 } from "./personalLibrary";
+import {
+  sanitizeArchivedCounts,
+  sanitizeCounts,
+  sanitizeGameCounters,
+  withCounts,
+} from "./counters";
 import { normalizeAccentColor } from "./theme";
 import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
 import { tours } from "./ui/tour/tourDefinitions";
@@ -324,6 +332,7 @@ type PersistedState = {
   gameJournals?: Record<string, GameJournal>;
   personalShelves?: PersonalShelf[];
   archivedPlaythroughSeconds?: Record<string, number>;
+  archivedCounts?: unknown;
   installUuid?: string;
   contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
@@ -542,6 +551,8 @@ export async function initializeTracker() {
   initializeHotkeys();
   initializeQuickNotes();
   initializeQuickAdd();
+  initializeCounterKeys();
+  initializeCounterBox();
   initializeLiveTimer(runningGamePids, (sessionId) => {
     togglePauseSession(sessionId);
   });
@@ -600,6 +611,8 @@ export async function stopTrackerForReset() {
   disposeHotkeys();
   disposeQuickNotes();
   disposeQuickAdd();
+  disposeCounterKeys();
+  disposeCounterBox();
   disposeLiveTimer();
   disposeScreenshots();
   disposePlayStationLive();
@@ -681,6 +694,8 @@ async function finishTrackerStartup() {
     disposeHotkeys();
     disposeQuickNotes();
     disposeQuickAdd();
+    disposeCounterKeys();
+    disposeCounterBox();
     disposeLiveTimer();
     disposeScreenshots();
     disposePlayStationLive();
@@ -1339,7 +1354,16 @@ export function hydrate() {
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
   );
   const { kept: hydratedSessions, removed: hydratedOverflow } =
-    splitStoredSessions((persisted.sessions ?? []).map(inferSuggestionStatus));
+    splitStoredSessions(
+      (persisted.sessions ?? []).map((session) =>
+        session.counts === undefined
+          ? inferSuggestionStatus(session)
+          : withCounts(
+              inferSuggestionStatus(session),
+              sanitizeCounts(session.counts),
+            ),
+      ),
+    );
   const hydratedArchive = foldSessionsIntoArchive(
     Math.max(0, persisted.archivedSeconds ?? 0),
     sanitizeGameSecondsRecord(persisted.archivedGameSeconds, { signed: false }),
@@ -1348,6 +1372,7 @@ export function hydrate() {
     sanitizeGameSecondsRecord(persisted.archivedConsoleSeconds, {
       signed: false,
     }),
+    sanitizeArchivedCounts(persisted.archivedCounts),
   );
   const hydratedResolver = createGameIdentityResolver(
     gameMetadataMap,
@@ -1526,9 +1551,10 @@ export function hydrate() {
     ignoredExeFolders,
     rejectedGameFiles: sanitizeRejectedGameFiles(persisted.rejectedGameFiles),
     recentSessions: hydratedSessions,
-    gameJournals: persisted.gameJournals ?? {},
+    gameJournals: sanitizeJournalCounters(persisted.gameJournals ?? {}),
     personalShelves: persisted.personalShelves ?? [],
     archivedPlaythroughSeconds: hydratedArchive.archivedPlaythroughSeconds,
+    archivedCounts: hydratedArchive.archivedCounts,
     journalTarget: null,
     activeSessions: hydratedActiveSessions,
     // Pickers saved before the cap held every database candidate.
@@ -6942,6 +6968,7 @@ async function endSession(
     ...(session.console ? { console: session.console } : {}),
     emulator: session.emulator,
     note: session.note,
+    ...(session.counts ? { counts: session.counts } : {}),
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
@@ -7157,6 +7184,13 @@ export function persist() {
       )
         ? current.archivedConsoleSeconds
         : result.archivedConsoleSeconds;
+      // A new archive only when sessions really left History.
+      const archivedCounts =
+        result.archivedCounts === current.archivedCounts ||
+        JSON.stringify(result.archivedCounts) ===
+          JSON.stringify(current.archivedCounts)
+          ? current.archivedCounts
+          : result.archivedCounts;
       if (
         recentSessions === current.recentSessions &&
         notifications === current.notifications &&
@@ -7166,7 +7200,8 @@ export function persist() {
           result.archivedPlaythroughSeconds,
         ) &&
         archivedGameSeconds === current.archivedGameSeconds &&
-        archivedConsoleSeconds === current.archivedConsoleSeconds
+        archivedConsoleSeconds === current.archivedConsoleSeconds &&
+        archivedCounts === current.archivedCounts
       ) {
         return current;
       }
@@ -7177,6 +7212,7 @@ export function persist() {
         archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
         archivedConsoleSeconds,
+        archivedCounts,
       };
     });
   }
@@ -8915,6 +8951,7 @@ function changeHistorySessions(
         removed,
         state.archivedPlaythroughSeconds,
         state.archivedConsoleSeconds,
+        state.archivedCounts,
       ),
     };
   });
@@ -9171,6 +9208,7 @@ export function clearLocalLibrary() {
     gameJournals: {},
     personalShelves: [],
     archivedPlaythroughSeconds: {},
+    archivedCounts: {},
     journalTarget: null,
     playtimeAdjustments: {},
     customHeroArt: {},
@@ -9523,6 +9561,39 @@ function readPersisted(): PersistedState {
   ) as PersistedState;
 }
 
+/** A journal's counters as saved, minus anything broken (counters.ts). */
+function sanitizeJournalCounters(journals: Record<string, GameJournal>) {
+  let next: Record<string, GameJournal> | undefined;
+  for (const [key, journal] of Object.entries(journals)) {
+    if (
+      journal.counters === undefined &&
+      journal.controllerCounterId === undefined
+    )
+      continue;
+    const counters =
+      journal.counters === undefined
+        ? undefined
+        : sanitizeGameCounters(journal.counters);
+    const controller = journal.controllerCounterId;
+    const controllerCounterId =
+      typeof controller === "string" || controller === null
+        ? controller
+        : undefined;
+    const {
+      counters: _counters,
+      controllerCounterId: _controller,
+      ...rest
+    } = journal;
+    next ??= { ...journals };
+    next[key] = {
+      ...rest,
+      ...(counters ? { counters } : {}),
+      ...(controllerCounterId !== undefined ? { controllerCounterId } : {}),
+    };
+  }
+  return next ?? journals;
+}
+
 function normalizePersistedActiveSessions(persisted: PersistedState) {
   const sessions = persisted.activeSessions ?? [];
   if (persisted.activeSession) sessions.push(persisted.activeSession);
@@ -9531,7 +9602,10 @@ function normalizePersistedActiveSessions(persisted: PersistedState) {
   // executables was counted twice.
   return dedupeSessionsByGame(
     sessions.map((session) => ({
-      ...inferSuggestionStatus(session),
+      ...withCounts(
+        inferSuggestionStatus(session),
+        sanitizeCounts(session.counts),
+      ),
       checkpointedAt: session.checkpointedAt ?? session.startedAt,
       // The console kept going while PlayCounter was closed: a timer keeps
       // counting from its start.
@@ -9676,14 +9750,16 @@ function updateActiveSession(session: ActiveSession) {
   const key = sessionIdentityKey(session);
   useAppStore.setState((state) => ({
     activeSessions: state.activeSessions.map((active) =>
-      // The caller's copy can predate a note written or a pause pressed
-      // meanwhile; the tracker never changes either itself.
+      // The caller's copy can predate a note written, a pause pressed or a
+      // count meanwhile; the tracker never changes any of them itself.
       sessionIdentityKey(active) === key
         ? {
             ...session,
             note: active.note,
             pausedAt: active.pausedAt,
             pausedMs: active.pausedMs,
+            counts: active.counts,
+            lastCounterId: active.lastCounterId,
           }
         : active,
     ),

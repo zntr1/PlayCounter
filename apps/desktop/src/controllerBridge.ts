@@ -24,7 +24,8 @@ export const CONTROLLER_LIBRARY_VIEW_EVENT =
 type ControllerBridgeState = {
   armed: boolean;
   disposed: boolean;
-  watching: boolean;
+  /** What the watcher was started for: "navigation|counting", or false. */
+  watching: string | false;
   teardown: Array<() => void>;
 };
 
@@ -38,11 +39,18 @@ function controllerSupported() {
   }
 }
 
-async function setWatcher(state: ControllerBridgeState, enabled: boolean) {
-  if (state.disposed || bridge !== state || state.watching === enabled) return;
-  state.watching = enabled;
+async function setWatcher(
+  state: ControllerBridgeState,
+  flags: { navigation: boolean; counting: boolean },
+) {
+  const enabled = flags.navigation || flags.counting;
+  const watching = enabled ? `${flags.navigation}|${flags.counting}` : false;
+  if (state.disposed || bridge !== state || state.watching === watching) return;
+  state.watching = watching;
   try {
-    await invoke(enabled ? "controller_watch_start" : "controller_watch_stop");
+    // Starting again replaces a watcher started for other settings.
+    if (enabled) await invoke("controller_watch_start", flags);
+    else await invoke("controller_watch_stop");
   } catch (error) {
     state.watching = false;
     console.warn("controller watcher command failed", error);
@@ -58,13 +66,22 @@ function shouldWatch(state: ControllerBridgeState) {
   );
 }
 
+/** Counting with the controller works on its own, also with navigation off
+ *  (docs/counters-plan.md). */
+function shouldCount(state: ControllerBridgeState) {
+  return (
+    state.armed &&
+    useAppStore.getState().settings.controllerCountingEnabled === true
+  );
+}
+
 function syncWatcher(state: ControllerBridgeState) {
-  const enabled = shouldWatch(state);
-  if (!enabled) {
+  const navigation = shouldWatch(state);
+  if (!navigation) {
     clearControllerSelection();
     emitControllerMode(false);
   }
-  void setWatcher(state, enabled);
+  void setWatcher(state, { navigation, counting: shouldCount(state) });
 }
 
 function emitControllerMode(active: boolean) {
@@ -605,7 +622,9 @@ export function initializeControllerBridge() {
         current.settings.gameLaunchingEnabled !==
           previous.settings.gameLaunchingEnabled ||
         current.settings.controllerNavigationEnabled !==
-          previous.settings.controllerNavigationEnabled
+          previous.settings.controllerNavigationEnabled ||
+        current.settings.controllerCountingEnabled !==
+          previous.settings.controllerCountingEnabled
       ) {
         syncWatcher(state);
       }
@@ -651,7 +670,7 @@ export function disposeControllerBridge() {
   state.armed = false;
   clearControllerSelection();
   emitControllerMode(false);
-  void setWatcher(state, false);
+  void setWatcher(state, { navigation: false, counting: false });
   state.disposed = true;
   state.teardown.splice(0).forEach((teardown) => teardown());
   bridge = null;

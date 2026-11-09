@@ -73,5 +73,9 @@
   "TIMER RESUMED": "TIMER RESUMED",
   "Paused": "Paused",
   "Pause the timer for {{gameName}}": "Pause the timer for {{gameName}}",
-  "Resume the timer for {{gameName}}": "Resume the timer for {{gameName}}"
+  "Resume the timer for {{gameName}}": "Resume the timer for {{gameName}}",
+  "This playthrough": "This playthrough",
+  "COUNTERS": "COUNTERS",
+  "This game has no counters yet. Add one in the counter box.": "This game has no counters yet. Add one in the counter box.",
+  "No counter has the controller icon. Click it on the counter the controller should count.": "No counter has the controller icon. Click it on the counter the controller should count."
 }

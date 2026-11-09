@@ -93,6 +93,12 @@ import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
 import { NEW_GAME_WINDOW_MS, type MyGamesSortKey } from "./ui/myGamesSort";
 import type { ToolUsage } from "./toolUsage";
 import {
+  archiveCounts,
+  clearArchivedCounts,
+  rekeyArchivedCounts,
+  type ArchivedCounts,
+} from "./counters";
+import {
   archivePlaythroughSeconds,
   readJournal,
   rekeyJournal,
@@ -142,6 +148,10 @@ export type ActiveSession = {
   emulator?: EmulatorLaunchContext;
   /** Written while playing; moves to the finished session. */
   note?: string;
+  /** Counted while playing (counters.ts); moves to the finished session. */
+  counts?: Record<string, number>;
+  /** The counter counted last: "Take one back" takes from it. */
+  lastCounterId?: string;
   /** Started by hand for play away from this PC (a console). No process
    *  starts or ends it, only Stop; it is saved as a manual session. */
   timer?: true;
@@ -422,7 +432,8 @@ export type DesktopOverlaySettingKey =
   | "overlayActionRequired"
   | "overlayDiscoveries"
   | "overlayShowClock"
-  | "liveTimerEnabled";
+  | "liveTimerEnabled"
+  | "controllerCountingEnabled";
 
 export type ActiveTour = {
   tourId: string;
@@ -465,6 +476,30 @@ export type AppState = {
   assignSessionPlaythrough: (sessionId: number, id: string | null) => boolean;
   /** Empty text removes the note. False when the session is gone. */
   setSessionNote: (sessionId: number, note: string) => boolean;
+  /** Counts of sessions that left History (counters.ts). */
+  archivedCounts: ArchivedCounts;
+  /** Moves a counter on a running session, never below 0. The counter's new
+   *  count in that session; null when the session or counter is gone. */
+  changeSessionCount: (
+    sessionId: number,
+    counterId: string,
+    delta: number,
+  ) => number | null;
+  /** The new counter's id; null for an empty, taken or too many names. */
+  addGameCounter: (game: GameIdentityRef, name: string) => string | null;
+  /** False when the name is empty or taken, or the counter is gone. */
+  updateGameCounter: (
+    game: GameIdentityRef,
+    counterId: string,
+    patch: { name?: string; shown?: boolean; key?: string | null },
+  ) => boolean;
+  /** The counter View + D-pad up counts; null: none. */
+  setControllerCounter: (
+    game: GameIdentityRef,
+    counterId: string | null,
+  ) => void;
+  /** Removes the counter and every count it had, archive included. */
+  deleteGameCounter: (game: GameIdentityRef, counterId: string) => void;
   savePersonalShelf: (
     shelf: Omit<PersonalShelf, "id"> & { id?: string },
   ) => string | null;
@@ -717,7 +752,9 @@ export type AppState = {
       | "pauseTimerHotkey"
       | "screenshotHotkey"
       | "screenshotCaptionHotkey"
-      | "quickAddHotkey",
+      | "quickAddHotkey"
+      | "counterUndoHotkey"
+      | "counterBoxHotkey",
     shortcut: string | null,
   ) => void;
   setDesktopOverlaySetting: (
@@ -839,6 +876,7 @@ function addSessionsToArchive(
   sessions: Session[],
   currentPlaythroughSeconds: Record<string, number> = {},
   currentConsoleSeconds: Record<string, number> = {},
+  currentCounts: ArchivedCounts = {},
 ) {
   const archivedGameSeconds = { ...currentGameSeconds };
   const archivedConsoleSeconds = { ...currentConsoleSeconds };
@@ -858,6 +896,7 @@ function addSessionsToArchive(
       sessions,
     ),
     archivedConsoleSeconds,
+    archivedCounts: archiveCounts(currentCounts, sessions),
   };
 }
 
@@ -867,6 +906,7 @@ export function foldSessionsIntoArchive(
   sessions: Session[],
   archivedPlaythroughSeconds: Record<string, number> = {},
   archivedConsoleSeconds: Record<string, number> = {},
+  archivedCounts: ArchivedCounts = {},
 ) {
   return addSessionsToArchive(
     archivedSeconds,
@@ -874,6 +914,7 @@ export function foldSessionsIntoArchive(
     sessions,
     archivedPlaythroughSeconds,
     archivedConsoleSeconds,
+    archivedCounts,
   );
 }
 
@@ -890,6 +931,7 @@ function persistSoon() {
         archivedGameSeconds: result.archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
         archivedConsoleSeconds: result.archivedConsoleSeconds,
+        archivedCounts: result.archivedCounts,
       });
     }
     if (result.status === "trimmed") {
@@ -932,6 +974,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   gameJournals: {},
   personalShelves: [],
   archivedPlaythroughSeconds: {},
+  archivedCounts: {},
   journalTarget: null,
   ...createPersonalLibraryActions(set, get, persistSoon),
   activeView: "now",
@@ -1263,6 +1306,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         removed,
         state.archivedPlaythroughSeconds,
         state.archivedConsoleSeconds,
+        state.archivedCounts,
       );
       return { recentSessions: kept, ...archive };
     }),
@@ -1770,6 +1814,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         archivedGameSeconds,
         archivedConsoleSeconds,
         playtimeAdjustments,
+        archivedCounts: rekeyArchivedCounts(state.archivedCounts, from, to),
         gameJournals: rekeyJournal(state.gameJournals, from, to),
       };
     }),
@@ -1819,6 +1864,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         archivedConsoleSeconds,
         playtimeAdjustments,
         archivedPlaythroughSeconds,
+        archivedCounts: clearArchivedCounts(state.archivedCounts, new Set(keys)),
       };
     }),
   toggleSectionCollapsed: (sectionId) => {

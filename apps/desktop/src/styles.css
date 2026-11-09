@@ -986,6 +986,70 @@ html[data-window="live-timer"] #live-timer-root {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
 }
 
+/* Counts after the time (docs/counters-plan.md): a thin line, then a skull or
+   the counter's name, then the number. */
+.live-timer-count-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.live-timer-divider {
+  width: 1px;
+  height: 18px;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.live-timer-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-timer-count b {
+  display: inline-block;
+  font-weight: 700;
+}
+
+.live-timer-skull {
+  width: 17px;
+  height: 17px;
+  color: rgb(255 255 255 / 0.85);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+}
+
+.live-timer-count-name {
+  max-width: 110px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.62);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+/* One short pulse when a press changes a count. */
+.live-timer-pulse {
+  border-color: rgb(var(--color-accent) / 0.75);
+}
+
+.live-timer-count-pulse b {
+  animation: live-timer-bump 0.5s ease-out;
+}
+
+@keyframes live-timer-bump {
+  25% {
+    color: rgb(var(--color-accent));
+    transform: scale(1.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-timer-count-pulse b {
+    animation: none;
+    color: rgb(var(--color-accent));
+  }
+}
+
 /* Shown while the mouse rests on the pill, and while paused (Resume). */
 .live-timer-button {
   display: grid;

@@ -26,6 +26,7 @@ import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
 import { SessionNote } from "../../SessionNote";
 import { SessionScreenshots } from "../../SessionScreenshots";
+import { SessionCountChips } from "../../counters/SessionCountChips";
 import {
   useLibraryPractice,
   usePersonalLibraryApi,
@@ -444,6 +445,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
               {session.console ?? "PS5"}
             </span>
           ) : null}
+          <SessionCountChips session={session} />
         </div>
         {session.note || editingNote ? (
           <div className="mt-1.5">

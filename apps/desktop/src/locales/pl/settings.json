@@ -369,5 +369,14 @@
   "Screenshot with caption": "Zrzut ekranu z podpisem",
   "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "Od razu robi zrzut ekranu, a potem otwiera nad grą małe pole na podpis. Enter zapisuje i wraca do gry. Esc zachowuje obraz bez podpisu. Gry w wyłącznym trybie pełnoekranowym mogą się zminimalizować, gdy pole jest otwarte.",
   "Pause or resume timer": "Wstrzymaj lub wznów stoper",
-  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Przestaje liczyć grę, w którą grasz, gdy cię nie ma, i liczy dalej, gdy naciśniesz ponownie. Gra zostaje otwarta."
+  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Przestaje liczyć grę, w którą grasz, gdy cię nie ma, i liczy dalej, gdy naciśniesz ponownie. Gra zostaje otwarta.",
+  "{{key}} is already one of PlayCounter's hotkeys.": "{{key}} to już jeden ze skrótów klawiszowych PlayCounter.",
+  "{{key}} already counts {{counter}}.": "{{key}} już liczy „{{counter}}”.",
+  "Take one back": "Cofnij jeden",
+  "Open counter box": "Otwórz okienko liczników",
+  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.": "Otwiera małe okienko nad grą ze wszystkimi jej licznikami. Możesz tam dodawać liczniki, liczyć dowolnym z nich i przypisać jednemu własny klawisz. W grach w wyłącznym trybie pełnoekranowym gra może się zminimalizować, gdy okienko jest otwarte.",
+  "Count with controller": "Licz kontrolerem",
+  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.": "Odejmuje jeden od ostatnio użytego licznika, jeśli jego klawisz naciśnięto przez pomyłkę. Każdy licznik dostaje własny klawisz w okienku liczników albo w szczegółach gry.",
+  "Num": "Num",
+  "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.": "Przytrzymaj View (Create na PlayStation) i krzyżak w górę przez 1 sekundę, aby dodać jeden do licznika z ikoną kontrolera, a View i krzyżak w dół, aby cofnąć jeden. Gra też dostaje te przyciski, więc naciskaj je na ekranie śmierci."
 }

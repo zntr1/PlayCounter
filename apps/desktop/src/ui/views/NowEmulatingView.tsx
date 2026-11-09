@@ -154,6 +154,7 @@ export function NowEmulatingView() {
           elapsedSeconds={playedSeconds(session, now)}
           pausedForSeconds={pausedForSeconds(session, now)}
           onTogglePause={() => void togglePauseSession(session.id)}
+          showCounters
           recentSessions={recentSessions}
           showDurationDays={showDurationDays}
           exeCache={exeCache}

@@ -4,6 +4,7 @@ import type {
   LibraryFeaturedGame,
   Session,
 } from "@playcounter/shared";
+import { journalCounters, type GameCounter } from "./counters";
 import { getT } from "./i18n";
 
 const t = getT("myGames");
@@ -58,6 +59,10 @@ export type GameJournal = {
   /** Null selects the built-in default playthrough. */
   activePlaythroughId: string | null;
   playthroughs: Playthrough[];
+  /** Absent until the player changes them: Deaths, shown (counters.ts). */
+  counters?: GameCounter[];
+  /** The counter View + D-pad up counts. Absent = Deaths, null = none. */
+  controllerCounterId?: string | null;
 };
 export type LibraryFilters = {
   search?: string;
@@ -165,6 +170,35 @@ export function mergeJournals(
         ]),
       ).values(),
     ],
+    ...mergedCounters(target, incoming),
+  };
+}
+
+/** Both games' counters, joined by id: the sessions' counts are keyed by it,
+ *  so Deaths stays one counter with both games' counts. A journal that never
+ *  changed its counters (absent) adds nothing: its Deaths is only the
+ *  default, and must not undo a Deaths the other one hid or renamed. */
+function mergedCounters(
+  target: GameJournal,
+  incoming: GameJournal,
+): Pick<GameJournal, "counters" | "controllerCounterId"> {
+  const counters =
+    target.counters && incoming.counters
+      ? [
+          ...new Map(
+            [...journalCounters(incoming), ...journalCounters(target)].map(
+              (counter) => [counter.id, counter],
+            ),
+          ).values(),
+        ]
+      : (target.counters ?? incoming.counters);
+  const controllerCounterId =
+    target.controllerCounterId !== undefined
+      ? target.controllerCounterId
+      : incoming.controllerCounterId;
+  return {
+    ...(counters ? { counters } : {}),
+    ...(controllerCounterId !== undefined ? { controllerCounterId } : {}),
   };
 }
 

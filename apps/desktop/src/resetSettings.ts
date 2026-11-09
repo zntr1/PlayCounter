@@ -33,5 +33,7 @@ export async function resetSettings() {
     defaults.screenshotCaptionHotkey ?? null,
   );
   await saveHotkey("quickAddHotkey", defaults.quickAddHotkey ?? null);
+  await saveHotkey("counterUndoHotkey", defaults.counterUndoHotkey ?? null);
+  await saveHotkey("counterBoxHotkey", defaults.counterBoxHotkey ?? null);
   useAppStore.getState().restoreDefaultSettings();
 }

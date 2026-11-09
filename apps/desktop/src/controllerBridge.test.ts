@@ -62,7 +62,10 @@ describe("controller bridge", () => {
       .getState()
       .setLauncherSetting("controllerNavigationEnabled", true);
     await flush();
-    expect(invokeMock).toHaveBeenCalledWith("controller_watch_start");
+    expect(invokeMock).toHaveBeenCalledWith("controller_watch_start", {
+      navigation: true,
+      counting: false,
+    });
 
     useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
     await flush();

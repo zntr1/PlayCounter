@@ -1,8 +1,9 @@
 //! The quick note box: a small window over the game for writing a note to a
-//! session, a caption to a screenshot just taken, or (quick add) searching a
-//! game to add to My Games. Unlike the notification overlay it takes keyboard
-//! focus, and it hands focus back to the window that had it (usually the game)
-//! when it closes.
+//! session, a caption to a screenshot just taken, (quick add) searching a
+//! game to add to My Games, or (counter box) counting with the running game's
+//! counters. Unlike the notification overlay it takes keyboard focus, and it
+//! hands focus back to the window that had it (usually the game) when it
+//! closes.
 
 use crate::screenshot::caption::CAPTION_LIMIT;
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,22 @@ pub const QUICK_ADD_PICK_EVENT: &str = "playcounter:quick-add-pick";
 pub const QUICK_ADD_REPLY_EVENT: &str = "playcounter:quick-add-reply";
 const QUERY_LIMIT: usize = 200;
 const RESULT_LIMIT: usize = 20;
+/// The counter box is a little wider than the note box: each row has its
+/// toggles, its number and its buttons. It fits itself like quick add.
+#[cfg(not(target_os = "macos"))]
+const COUNTER_BOX_WIDTH: f64 = 600.0;
+#[cfg(not(target_os = "macos"))]
+const COUNTER_BOX_START_HEIGHT: f64 = 300.0;
+/// What the counter box asks the main window to do.
+pub const COUNTER_BOX_ACTION_EVENT: &str = "playcounter:counter-box-action";
+/// What the main window tells the counter box it shows now.
+pub const COUNTER_BOX_UPDATE_EVENT: &str = "playcounter:counter-box-update";
+/// Same limits as the main window's counters (counters.ts).
+const COUNTER_LIMIT: usize = 50;
+const COUNTER_NAME_LIMIT: usize = 60;
+const COUNT_LIMIT: u32 = 10_000_000;
+/// Texts the boxes get in the main window's language.
+const LABEL_LIMIT: usize = 48;
 #[cfg(target_os = "macos")]
 const UNSUPPORTED: &str = "Desktop overlays are not supported on this platform.";
 
@@ -84,6 +101,59 @@ pub struct QuickNotePayload {
     /// Set for the quick add box.
     #[serde(default)]
     quick_add: bool,
+    /// Set for the counter box.
+    #[serde(default)]
+    counter_box: Option<CounterBox>,
+}
+
+/// One counter as the counter box shows it.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CounterRow {
+    id: String,
+    name: String,
+    shown: bool,
+    /// View + D-pad up counts this one.
+    #[serde(default)]
+    controller: bool,
+    key: Option<String>,
+    key_label: Option<String>,
+    key_error: Option<String>,
+    session: u32,
+    playthrough: u32,
+}
+
+/// What the counter box shows: the running game's counters.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CounterBox {
+    session_id: i64,
+    game_name: String,
+    cover_url: Option<String>,
+    playthrough_name: String,
+    rows: Vec<CounterRow>,
+    notice: Option<String>,
+    /// "Ctrl+Alt+Z takes the last one back", when that key is set.
+    #[serde(default)]
+    undo_hint: Option<String>,
+    /// "Count with controller" is on: rows show the controller icon.
+    #[serde(default)]
+    controller_enabled: bool,
+}
+
+/// What the counter box asks the main window for.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum CounterBoxAction {
+    Count { counter_id: String, delta: i32 },
+    Shown { counter_id: String, shown: bool },
+    Controller { counter_id: String },
+    Add { name: String },
+    Key { counter_id: String, key: Option<String> },
 }
 
 /// A search result as the quick add box shows it.
@@ -159,6 +229,8 @@ pub struct QuickNoteState {
     caption_path: Mutex<Option<String>>,
     /// The open box is the quick add box.
     quick_add: Mutex<bool>,
+    /// The open box is the counter box.
+    counter_box: Mutex<bool>,
 }
 
 fn truncate(value: String, max_chars: usize) -> String {
@@ -174,9 +246,10 @@ fn sanitize(mut payload: QuickNotePayload) -> QuickNotePayload {
     payload.labels = payload
         .labels
         .into_iter()
-        .take(16)
+        .take(LABEL_LIMIT)
         .map(|(key, value)| (truncate(key, 200), truncate(value, 200)))
         .collect();
+    payload.counter_box = payload.counter_box.map(sanitize_counter_box);
     payload.monitor = payload.monitor.map(|value| truncate(value, 200));
     payload.locale = payload.locale.map(|value| truncate(value, 35));
     payload.theme = truncate(payload.theme, 16);
@@ -187,6 +260,49 @@ fn sanitize(mut payload: QuickNotePayload) -> QuickNotePayload {
         taken_at: truncate(target.taken_at, 64),
     });
     payload
+}
+
+fn sanitize_counter_box(mut counter_box: CounterBox) -> CounterBox {
+    counter_box.game_name = truncate(counter_box.game_name, 200);
+    counter_box.cover_url = counter_box.cover_url.map(|url| truncate(url, 2048));
+    counter_box.playthrough_name = truncate(counter_box.playthrough_name, 200);
+    counter_box.notice = counter_box.notice.map(|notice| truncate(notice, 500));
+    counter_box.undo_hint = counter_box.undo_hint.map(|hint| truncate(hint, 200));
+    counter_box.rows.truncate(COUNTER_LIMIT);
+    for row in &mut counter_box.rows {
+        row.id = truncate(std::mem::take(&mut row.id), 64);
+        row.name = truncate(std::mem::take(&mut row.name), COUNTER_NAME_LIMIT);
+        row.key = row.key.take().map(|key| truncate(key, 64));
+        row.key_label = row.key_label.take().map(|label| truncate(label, 64));
+        row.key_error = row.key_error.take().map(|error| truncate(error, 500));
+        row.session = row.session.min(COUNT_LIMIT);
+        row.playthrough = row.playthrough.min(COUNT_LIMIT);
+    }
+    counter_box
+}
+
+/// The box sends one press or one change at a time; anything bigger is cut.
+fn sanitize_action(action: CounterBoxAction) -> CounterBoxAction {
+    match action {
+        CounterBoxAction::Count { counter_id, delta } => CounterBoxAction::Count {
+            counter_id: truncate(counter_id, 64),
+            delta: delta.clamp(-1, 1),
+        },
+        CounterBoxAction::Shown { counter_id, shown } => CounterBoxAction::Shown {
+            counter_id: truncate(counter_id, 64),
+            shown,
+        },
+        CounterBoxAction::Controller { counter_id } => CounterBoxAction::Controller {
+            counter_id: truncate(counter_id, 64),
+        },
+        CounterBoxAction::Add { name } => CounterBoxAction::Add {
+            name: truncate(name, COUNTER_NAME_LIMIT),
+        },
+        CounterBoxAction::Key { counter_id, key } => CounterBoxAction::Key {
+            counter_id: truncate(counter_id, 64),
+            key: key.map(|key| truncate(key, 64)),
+        },
+    }
 }
 
 fn sanitize_reply(reply: QuickAddReply) -> QuickAddReply {
@@ -211,10 +327,10 @@ fn sanitize_reply(reply: QuickAddReply) -> QuickAddReply {
     }
 }
 
-/// The session a note box writes to. The quick add box has none, so nothing it
-/// closes with can land on a session.
+/// The session a note box writes to. The quick add box and the counter box
+/// have none, so nothing they close with can land on a session as a note.
 fn session_of(payload: &QuickNotePayload) -> Option<i64> {
-    (!payload.quick_add).then_some(payload.session_id)
+    (!payload.quick_add && payload.counter_box.is_none()).then_some(payload.session_id)
 }
 
 /// The quick add box's height in logical pixels, within its limits. None for a
@@ -230,6 +346,8 @@ fn fit_height(height: f64) -> Option<f64> {
 fn window_size(payload: &QuickNotePayload) -> (f64, f64) {
     if payload.quick_add {
         (QUICK_ADD_WIDTH, QUICK_ADD_START_HEIGHT)
+    } else if payload.counter_box.is_some() {
+        (COUNTER_BOX_WIDTH, COUNTER_BOX_START_HEIGHT)
     } else if payload.caption.is_some() {
         (CAPTION_WINDOW_LOGICAL_WIDTH, CAPTION_WINDOW_LOGICAL_HEIGHT)
     } else {
@@ -241,7 +359,7 @@ fn window_size(payload: &QuickNotePayload) -> (f64, f64) {
 /// is placed for its full height from the start.
 #[cfg(not(target_os = "macos"))]
 fn placement_height(payload: &QuickNotePayload) -> f64 {
-    if payload.quick_add {
+    if payload.quick_add || payload.counter_box.is_some() {
         QUICK_ADD_MAX_HEIGHT
     } else {
         window_size(payload).1
@@ -295,6 +413,8 @@ mod imp {
             .map_err(|error| error.to_string())? =
             payload.caption.as_ref().map(|target| target.path.clone());
         *state.quick_add.lock().map_err(|error| error.to_string())? = payload.quick_add;
+        *state.counter_box.lock().map_err(|error| error.to_string())? =
+            payload.counter_box.is_some();
         *state.pending.lock().map_err(|error| error.to_string())? = Some(payload);
         let window = tauri::WebviewWindowBuilder::new(
             app,
@@ -356,6 +476,7 @@ mod imp {
             .map_err(|error| error.to_string())?
             .take();
         *state.quick_add.lock().map_err(|error| error.to_string())? = false;
+        *state.counter_box.lock().map_err(|error| error.to_string())? = false;
         let foreground = state
             .foreground
             .lock()
@@ -465,6 +586,20 @@ fn quick_add_box_only(window: &tauri::Window, state: &QuickNoteState) -> Result<
         Ok(())
     } else {
         Err("no quick add box is open".to_string())
+    }
+}
+
+fn counter_box_open(state: &QuickNoteState) -> Result<bool, String> {
+    Ok(*state.counter_box.lock().map_err(|error| error.to_string())?)
+}
+
+/// Only the counter box counts.
+fn counter_box_only(window: &tauri::Window, state: &QuickNoteState) -> Result<(), String> {
+    note_window_only(window)?;
+    if counter_box_open(state)? {
+        Ok(())
+    } else {
+        Err("no counter box is open".to_string())
     }
 }
 
@@ -594,14 +729,55 @@ pub fn quick_add_reply(
         .map_err(|error| error.to_string())
 }
 
-/// The quick add box grows and shrinks with what it shows.
+/// The counter box asks the main window to count, add or change a counter.
+#[tauri::command(async)]
+pub fn counter_box_action(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    action: CounterBoxAction,
+) -> Result<(), String> {
+    counter_box_only(&window, &state)?;
+    use tauri::Emitter;
+    app.emit_to(
+        crate::notification_overlay::MAIN_LABEL,
+        COUNTER_BOX_ACTION_EVENT,
+        sanitize_action(action),
+    )
+    .map_err(|error| error.to_string())
+}
+
+/// The main window tells the counter box what it shows now. False when no
+/// counter box is open any more.
+#[tauri::command(async)]
+pub fn counter_box_update(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    update: CounterBox,
+) -> Result<bool, String> {
+    main_only(&window)?;
+    if !counter_box_open(&state)? {
+        return Ok(false);
+    }
+    use tauri::Emitter;
+    app.emit_to(LABEL, COUNTER_BOX_UPDATE_EVENT, sanitize_counter_box(update))
+        .map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
+/// The quick add box and the counter box grow and shrink with what they
+/// show.
 #[tauri::command(async)]
 pub fn quick_add_fit(
     window: tauri::Window,
     state: tauri::State<'_, QuickNoteState>,
     height: f64,
 ) -> Result<(), String> {
-    quick_add_box_only(&window, &state)?;
+    note_window_only(&window)?;
+    if !quick_add_open(&state)? && !counter_box_open(&state)? {
+        return Err("no box that fits itself is open".to_string());
+    }
     let height = fit_height(height).ok_or_else(|| "invalid box height".to_string())?;
     imp::fit(&window, height)
 }
@@ -628,7 +804,129 @@ mod tests {
             reduced_motion: false,
             caption: None,
             quick_add: false,
+            counter_box: None,
         }
+    }
+
+    fn counter_row(index: usize) -> CounterRow {
+        CounterRow {
+            id: "i".repeat(100),
+            name: "n".repeat(100),
+            shown: index % 2 == 0,
+            controller: index == 0,
+            key: Some("k".repeat(100)),
+            key_label: Some("l".repeat(100)),
+            key_error: Some("e".repeat(1000)),
+            session: u32::MAX,
+            playthrough: 3,
+        }
+    }
+
+    /// What the main window sends for the counter box (counterBox.ts).
+    fn counter_box_payload() -> QuickNotePayload {
+        serde_json::from_value(serde_json::json!({
+            "counterBox": {
+                "sessionId": 7,
+                "gameName": "Elden Ring",
+                "coverUrl": null,
+                "playthroughName": "Default playthrough",
+                "rows": [{
+                    "id": "deaths",
+                    "name": "Deaths",
+                    "shown": true,
+                    "key": null,
+                    "keyLabel": null,
+                    "keyError": null,
+                    "session": 14,
+                    "playthrough": 313
+                }],
+                "notice": null
+            },
+            "labels": { "Counters": "Zähler" },
+            "monitor": "primary",
+            "locale": "de",
+            "theme": "dark",
+            "accentColor": null,
+            "reducedMotion": false
+        }))
+        .expect("a counter box payload needs no note session")
+    }
+
+    #[test]
+    fn a_counter_box_keeps_no_note_session() {
+        let counter_box = counter_box_payload();
+        assert!(counter_box.counter_box.is_some());
+        assert_eq!(session_of(&counter_box), None);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn the_counter_box_is_placed_for_its_full_height() {
+        let counter_box = counter_box_payload();
+        assert_eq!(
+            window_size(&counter_box),
+            (COUNTER_BOX_WIDTH, COUNTER_BOX_START_HEIGHT)
+        );
+        assert_eq!(placement_height(&counter_box), QUICK_ADD_MAX_HEIGHT);
+    }
+
+    #[test]
+    fn caps_what_the_counter_box_gets() {
+        let clean = sanitize_counter_box(CounterBox {
+            session_id: 1,
+            game_name: "g".repeat(300),
+            cover_url: Some("u".repeat(3000)),
+            playthrough_name: "p".repeat(300),
+            rows: (0..80).map(counter_row).collect(),
+            notice: Some("n".repeat(900)),
+            undo_hint: Some("u".repeat(300)),
+            controller_enabled: true,
+        });
+        assert_eq!(clean.rows.len(), COUNTER_LIMIT);
+        assert_eq!(clean.game_name.chars().count(), 200);
+        assert_eq!(clean.notice.unwrap().chars().count(), 500);
+        let row = &clean.rows[0];
+        assert_eq!(row.id.chars().count(), 64);
+        assert_eq!(row.name.chars().count(), COUNTER_NAME_LIMIT);
+        assert_eq!(row.key_error.as_ref().unwrap().chars().count(), 500);
+        assert_eq!(row.session, COUNT_LIMIT);
+    }
+
+    #[test]
+    fn a_count_from_the_box_moves_by_one_at_most() {
+        let action: CounterBoxAction = serde_json::from_value(serde_json::json!({
+            "kind": "count",
+            "counterId": "deaths",
+            "delta": 50
+        }))
+        .unwrap();
+        assert_eq!(
+            sanitize_action(action),
+            CounterBoxAction::Count {
+                counter_id: "deaths".into(),
+                delta: 1
+            }
+        );
+        let key: CounterBoxAction = serde_json::from_value(serde_json::json!({
+            "kind": "key",
+            "counterId": "deaths",
+            "key": null
+        }))
+        .unwrap();
+        assert_eq!(
+            key,
+            CounterBoxAction::Key {
+                counter_id: "deaths".into(),
+                key: None
+            }
+        );
+        let add: CounterBoxAction =
+            serde_json::from_value(serde_json::json!({ "kind": "add", "name": "m".repeat(90) }))
+                .unwrap();
+        let CounterBoxAction::Add { name } = sanitize_action(add) else {
+            panic!("an add stays an add");
+        };
+        assert_eq!(name.chars().count(), COUNTER_NAME_LIMIT);
     }
 
     /// What the main window sends for the quick add box: no session at all.
@@ -756,7 +1054,7 @@ mod tests {
         let clean = sanitize(payload());
         assert_eq!(clean.game_name.chars().count(), 200);
         assert_eq!(clean.note.chars().count(), NOTE_LIMIT);
-        assert_eq!(clean.labels.len(), 16);
+        assert_eq!(clean.labels.len(), 40);
         assert!(clean
             .labels
             .values()

@@ -129,6 +129,8 @@ DOSBox, PCSX2, mGBA.
 | exclusive fullscreen         | exklusives Vollbild                      |                                                                 |
 | borderless (window)          | randloses Fenster                        | windowed: Fenstermodus                                          |
 | caption (screenshot)         | Bildunterschrift                         | saved in the picture; Explorer shows it as Titel                |
+| counter, counter box         | Zähler, Zählerbox                        | Deaths (the default counter): Tode                              |
+| own key (of a counter)       | eigene Taste                             | the keyboard mark: Tastatur-Symbol                              |
 
 ## Português (Brasil), Español, 中文（简体） — translation drafts
 
@@ -211,6 +213,10 @@ the complete translations still need native-speaker review.
 | exclusive fullscreen | tela cheia exclusiva          | pantalla completa exclusiva    | 独占全屏         |
 | borderless (window)  | janela sem bordas             | ventana sin bordes             | 无边框窗口       |
 | caption (screenshot) | legenda                       | pie de foto                    | 说明             |
+| counter              | contador                      | contador                       | 计数器           |
+| counter box          | caixa de contadores           | caja de contadores             | 计数器窗口       |
+| Deaths (counter)     | Mortes                        | Muertes                        | 死亡次数         |
+| own key (counter)    | tecla própria                 | tecla propia                   | 专属按键         |
 
 ## Русский, Polski, Français — translation drafts
 
@@ -301,6 +307,10 @@ native-speaker review (Weblate).
 | exclusive fullscreen | эксклюзивный полноэкранный режим  | wyłączny tryb pełnoekranowy   | plein écran exclusif              |
 | borderless (window)  | окно без рамки                    | okno bez ramki                | fenêtre sans bordure              |
 | caption (screenshot) | подпись                           | podpis                        | légende                           |
+| counter              | счётчик                           | licznik                       | compteur                          |
+| counter box          | окно счётчиков                    | okienko liczników             | boîte des compteurs               |
+| Deaths (counter)     | Смерти                            | Śmierci                       | Morts                             |
+| own key (counter)    | своя клавиша                      | własny klawisz                | touche dédiée                     |
 | tray                 | трей                              | zasobnik systemowy            | zone de notification              |
 | desktop popup        | всплывающее окно                  | wyskakujące okienko           | fenêtre contextuelle              |
 | keyboard shortcut    | сочетание клавиш                  | skrót klawiszowy              | raccourci clavier                 |

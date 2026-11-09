@@ -355,5 +355,14 @@
   "Screenshot with caption": "Screenshot mit Bildunterschrift",
   "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "Macht sofort das Bild und öffnet dann über deinem Spiel ein kleines Feld für eine Bildunterschrift. Enter speichert und bringt dich zurück ins Spiel. Esc behält das Bild ohne Bildunterschrift. Spiele im exklusiven Vollbild können minimiert werden, solange das Feld offen ist.",
   "Pause or resume timer": "Timer pausieren oder fortsetzen",
-  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Hält die Zählung für dein laufendes Spiel an, während du weg bist, und zählt weiter, wenn du die Taste noch einmal drückst. Das Spiel bleibt offen."
+  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Hält die Zählung für dein laufendes Spiel an, während du weg bist, und zählt weiter, wenn du die Taste noch einmal drückst. Das Spiel bleibt offen.",
+  "{{key}} is already one of PlayCounter's hotkeys.": "{{key}} ist schon eines der Tastenkürzel von PlayCounter.",
+  "{{key}} already counts {{counter}}.": "{{key}} zählt schon {{counter}}.",
+  "Take one back": "Eins zurücknehmen",
+  "Open counter box": "Zählerbox öffnen",
+  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.": "Öffnet eine kleine Box über deinem Spiel mit all seinen Zählern. Dort fügst du Zähler hinzu, zählst mit jedem davon und gibst einem eine eigene Taste. In Spielen im exklusiven Vollbild kann sich das Spiel minimieren, solange die Box offen ist.",
+  "Count with controller": "Mit Controller zählen",
+  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.": "Nimmt eins vom zuletzt gezählten Zähler zurück, falls du dich bei seiner Taste verdrückt hast. Jeder Zähler bekommt seine eigene Taste in der Zählerbox oder in den Spieldetails.",
+  "Num": "Num",
+  "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.": "Halte View (Create bei PlayStation) und Steuerkreuz hoch 1 Sekunde, um eins zum Zähler mit dem Controller-Symbol zu zählen, View und Steuerkreuz runter, um eins zurückzunehmen. Das Spiel bekommt diese Tasten auch, drück sie also auf dem Todesbildschirm."
 }

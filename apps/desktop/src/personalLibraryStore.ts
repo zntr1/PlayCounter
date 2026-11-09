@@ -1,5 +1,25 @@
 import type { StoreApi } from "zustand";
-import { getGameJournal, personalGameIdentity, type AppState } from "./store";
+import {
+  getGameJournal,
+  personalGameIdentity,
+  type AppState,
+  type GameIdentityRef,
+} from "./store";
+import {
+  COUNTER_LIMIT,
+  COUNTER_NAME_LIMIT,
+  DEATHS_COUNTER_ID,
+  archiveWithoutCounter,
+  archivedCountsToDefault,
+  changedCounts,
+  counterName,
+  gameArchiveKeys,
+  journalCounters,
+  sameCounterName,
+  withCounts,
+  withoutCounter,
+  type GameCounter,
+} from "./counters";
 import {
   NAME_LIMIT,
   NOTE_LIMIT,
@@ -24,6 +44,11 @@ export type PersonalLibraryActions = Pick<
   | "deletePlaythrough"
   | "assignSessionPlaythrough"
   | "setSessionNote"
+  | "changeSessionCount"
+  | "addGameCounter"
+  | "updateGameCounter"
+  | "setControllerCounter"
+  | "deleteGameCounter"
   | "savePersonalShelf"
   | "deletePersonalShelf"
 >;
@@ -34,6 +59,7 @@ export type PersonalLibraryState = PersonalLibraryActions &
     | "gameJournals"
     | "personalShelves"
     | "archivedPlaythroughSeconds"
+    | "archivedCounts"
     | "journalTarget"
     | "recentSessions"
     | "activeSessions"
@@ -264,6 +290,7 @@ export function createPersonalLibraryActions(
           personalGameIdentity(state),
         ),
         archivedPlaythroughSeconds,
+        archivedCounts: archivedCountsToDefault(state.archivedCounts, id),
         recentSessions: state.recentSessions.map(moveToDefault),
         activeSessions: state.activeSessions.map(moveToDefault),
       });
@@ -329,6 +356,163 @@ export function createPersonalLibraryActions(
         persistSoon();
       }
       return true;
+    },
+    changeSessionCount: (sessionId, counterId, delta) => {
+      const state = get();
+      const session = state.activeSessions.find((s) => s.id === sessionId);
+      if (
+        !session ||
+        !journalCounters(getGameJournal(state, session)).some(
+          (c) => c.id === counterId,
+        )
+      )
+        return null;
+      const counts = changedCounts(session.counts, counterId, delta);
+      const changed = withCounts(session, counts);
+      // "Take one back" takes from the counter counted last.
+      if (delta > 0) changed.lastCounterId = counterId;
+      set({
+        activeSessions: state.activeSessions.map((s) =>
+          s.id === sessionId ? changed : s,
+        ),
+      });
+      persistSoon();
+      return counts?.[counterId] ?? 0;
+    },
+    addGameCounter: (game, name) => {
+      const normalized = name.trim().slice(0, COUNTER_NAME_LIMIT);
+      if (!normalized) return null;
+      const state = get();
+      const journal = getGameJournal(state, game);
+      const counters = journalCounters(journal);
+      if (
+        counters.length >= COUNTER_LIMIT ||
+        counters.some((c) => sameCounterName(counterName(c), normalized))
+      )
+        return null;
+      const id = crypto.randomUUID();
+      set({
+        gameJournals: writeJournal(
+          state.gameJournals,
+          {
+            ...journal,
+            counters: [
+              ...counters,
+              {
+                id,
+                name: normalized,
+                shown: true,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          },
+          personalGameIdentity(state),
+        ),
+      });
+      persistSoon();
+      return id;
+    },
+    updateGameCounter: (game, counterId, patch) => {
+      const state = get();
+      const journal = getGameJournal(state, game);
+      const counters = journalCounters(journal);
+      const counter = counters.find((c) => c.id === counterId);
+      if (!counter) return false;
+      const name = patch.name?.trim().slice(0, COUNTER_NAME_LIMIT);
+      if (patch.name !== undefined) {
+        if (!name) return false;
+        if (
+          counters.some(
+            (c) => c.id !== counterId && sameCounterName(counterName(c), name),
+          )
+        )
+          return false;
+      }
+      const next: GameCounter = {
+        ...counter,
+        ...(name !== undefined ? { name } : {}),
+        ...(patch.shown !== undefined ? { shown: patch.shown } : {}),
+      };
+      if (patch.key !== undefined) {
+        delete next.key;
+        if (patch.key) next.key = patch.key;
+      }
+      set({
+        gameJournals: writeJournal(
+          state.gameJournals,
+          {
+            ...journal,
+            counters: counters.map((c) => (c.id === counterId ? next : c)),
+          },
+          personalGameIdentity(state),
+        ),
+      });
+      persistSoon();
+      return true;
+    },
+    setControllerCounter: (game, counterId) => {
+      const state = get();
+      const journal = getGameJournal(state, game);
+      if (
+        counterId !== null &&
+        !journalCounters(journal).some((c) => c.id === counterId)
+      )
+        return;
+      set({
+        gameJournals: writeJournal(
+          state.gameJournals,
+          { ...journal, controllerCounterId: counterId },
+          personalGameIdentity(state),
+        ),
+      });
+      persistSoon();
+    },
+    deleteGameCounter: (game, counterId) => {
+      const state = get();
+      const identity = personalGameIdentity(state);
+      const journal = getGameJournal(state, game);
+      const counters = journalCounters(journal);
+      if (!counters.some((c) => c.id === counterId)) return;
+      const gameKey = identity(game);
+      // Only this game's counts go: another game's Deaths has the same id.
+      const strip = <
+        T extends GameIdentityRef & {
+          counts?: Record<string, number>;
+          lastCounterId?: string;
+        },
+      >(
+        sessions: T[],
+      ): T[] =>
+        sessions.map((s) => {
+          if (identity(s) !== gameKey || !s.counts?.[counterId]) return s;
+          const next = withCounts(s, withoutCounter(s.counts, counterId));
+          if (next.lastCounterId === counterId) delete next.lastCounterId;
+          return next;
+        });
+      set({
+        gameJournals: writeJournal(
+          state.gameJournals,
+          {
+            ...journal,
+            counters: counters.filter((c) => c.id !== counterId),
+            // The controller's counter went with it: none until one is picked.
+            ...(journal.controllerCounterId === counterId ||
+            (journal.controllerCounterId === undefined &&
+              counterId === DEATHS_COUNTER_ID)
+              ? { controllerCounterId: null }
+              : {}),
+          },
+          identity,
+        ),
+        activeSessions: strip(state.activeSessions),
+        recentSessions: strip(state.recentSessions),
+        archivedCounts: archiveWithoutCounter(
+          state.archivedCounts,
+          gameArchiveKeys(state.archivedCounts, game, identity),
+          counterId,
+        ),
+      });
+      persistSoon();
     },
     savePersonalShelf: (shelf) => {
       const name = shelf.name.trim().slice(0, NAME_LIMIT);

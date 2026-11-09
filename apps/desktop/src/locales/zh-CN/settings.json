@@ -348,5 +348,14 @@
   "Screenshot with caption": "带说明的截图",
   "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "立即截图，然后在游戏上方打开一个小框来写说明。按 Enter 保存并回到游戏。按 Esc 保留图片，不加说明。在独占全屏的游戏中，小框打开时游戏可能会最小化。",
   "Pause or resume timer": "暂停或继续计时",
-  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "你离开时停止为正在玩的游戏计时，再按一次即继续计时。游戏保持打开。"
+  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "你离开时停止为正在玩的游戏计时，再按一次即继续计时。游戏保持打开。",
+  "{{key}} is already one of PlayCounter's hotkeys.": "{{key}} 已是 PlayCounter 的快捷键。",
+  "{{key}} already counts {{counter}}.": "{{key}} 已用于计数器“{{counter}}”。",
+  "Take one back": "减一",
+  "Open counter box": "打开计数器窗口",
+  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.": "在游戏上方打开一个小窗口，显示它的所有计数器。可以在这里添加计数器、用任意一个计数，并给某个计数器设置专属按键。在独占全屏游戏中，窗口打开时游戏可能会最小化。",
+  "Count with controller": "用手柄计数",
+  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.": "误按计数器按键时，从上次计数的计数器减一。每个计数器的专属按键可在计数器窗口或游戏详情中设置。",
+  "Num": "Num",
+  "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.": "按住 View（PlayStation 上为 Create）和方向键上 1 秒，为带手柄图标的计数器加一；按住 View 和方向键下，减一。游戏也会收到这些按键，所以请在死亡画面按。"
 }

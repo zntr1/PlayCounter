@@ -369,5 +369,14 @@
   "Screenshot with caption": "Скриншот с подписью",
   "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one. In exclusive fullscreen games, the game may minimize while the box is open.": "Сразу делает снимок, а затем открывает поверх игры небольшое поле для подписи. Enter сохраняет и возвращает в игру. Esc оставляет снимок без подписи. Игры в эксклюзивном полноэкранном режиме могут свернуться, пока поле открыто.",
   "Pause or resume timer": "Приостановить или возобновить таймер",
-  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Останавливает счёт времени игры, пока вас нет, и продолжает его при повторном нажатии. Игра остаётся открытой."
+  "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.": "Останавливает счёт времени игры, пока вас нет, и продолжает его при повторном нажатии. Игра остаётся открытой.",
+  "{{key}} is already one of PlayCounter's hotkeys.": "{{key}} уже занято сочетанием клавиш PlayCounter.",
+  "{{key}} already counts {{counter}}.": "{{key}} уже считает «{{counter}}».",
+  "Take one back": "Убрать один",
+  "Open counter box": "Открыть окно счётчиков",
+  "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key. In exclusive fullscreen games, the game may minimize while the box is open.": "Открывает небольшое окно поверх игры со всеми её счётчиками. Там можно добавлять счётчики, считать любым из них и назначить одному свою клавишу. В играх в эксклюзивном полноэкранном режиме игра может свернуться, пока окно открыто.",
+  "Count with controller": "Считать геймпадом",
+  "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.": "Убирает один у последнего использованного счётчика, если его клавишу нажали по ошибке. Свою клавишу каждый счётчик получает в окне счётчиков или в сведениях об игре.",
+  "Num": "Num",
+  "Hold View (Create on PlayStation) and D-pad up for 1 second to add one to the counter with the controller icon, View and D-pad down to take one back. The game gets these buttons too, so press them on the death screen.": "Удерживайте View (Create на PlayStation) и крестовину вверх 1 секунду, чтобы добавить один к счётчику со значком геймпада, и View и крестовину вниз, чтобы убрать один. Игра тоже получает эти кнопки, поэтому нажимайте их на экране смерти."
 }

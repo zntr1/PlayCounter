@@ -221,5 +221,6 @@
   "Caption": "Légende",
   "What's happening in this picture?": "Que se passe-t-il sur cette image ?",
   "Enter saves · Esc cancels": "Entrée enregistre · Échap annule",
-  "The caption couldn't be saved.": "La légende n'a pas pu être enregistrée."
+  "The caption couldn't be saved.": "La légende n'a pas pu être enregistrée.",
+  "{{counter}} in this session: {{value}}": "{{counter}} pendant cette session : {{value}}"
 }
