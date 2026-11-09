@@ -1121,7 +1121,7 @@ export function GameDetailsDialog({
     <Modal
       dataTour={demo ? "demo-game-details" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
-      className="game-details-dialog"
+      className="game-details-dialog max-w-6xl"
       size="xl"
       labelId="game-details-title"
       title={game.name}
