@@ -411,6 +411,25 @@ export function counterTallies({
   return tallies;
 }
 
+/** One counter over the last sessions of a playthrough, oldest first; a
+ *  session that didn't count it has 0. For the chart in Game Details. */
+export function lastSessionCounts(
+  sessions: readonly CountedSession[],
+  counterId: string,
+  playthroughId: string | null,
+  limit = 12,
+): { id: number; startedAt: string; count: number }[] {
+  return sessions
+    .filter((session) => (session.playthroughId ?? null) === playthroughId)
+    .sort((left, right) => left.startedAt.localeCompare(right.startedAt))
+    .slice(-limit)
+    .map((session) => ({
+      id: session.id,
+      startedAt: session.startedAt,
+      count: session.counts?.[counterId] ?? 0,
+    }));
+}
+
 /** Whether a game has ever been counted: until then the live timer shows no
  *  counts and Now Playing only a quiet line. */
 export function hasCounted(tallies: ReadonlyMap<string, CounterTally>) {

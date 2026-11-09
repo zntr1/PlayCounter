@@ -11,7 +11,12 @@ import {
   Tally5,
   X,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Trans } from "react-i18next";
 import {
   COUNTER_NAME_LIMIT,
@@ -128,6 +133,53 @@ export function CounterControllerButton({
   );
 }
 
+/** Recording a counter's own key: start, press a key combination (or a
+ *  Numpad key alone), and it is saved; a taken key says so in a toast. Put
+ *  `buttonProps` on the button that starts it. */
+export function useCounterKeyRecorder(
+  game: GameIdentityRef,
+  counter: GameCounter,
+) {
+  const api = usePersonalLibraryApi();
+  const update = usePersonalLibraryState((s) => s.updateGameCounter);
+  const addToast = usePersonalLibraryState((s) => s.addToast);
+  /** Why the key could not be set up, if it couldn't. */
+  const error = useCounterKeyStatus((s) => s.errors[counter.id]);
+  const [recording, setRecording] = useState(false);
+  return {
+    recording,
+    /** What the button says while it waits for the key. */
+    recordingLabel: t("Press a key combination…"),
+    error,
+    remove: () => update(game, counter.id, { key: null }),
+    buttonProps: {
+      "aria-pressed": recording,
+      onClick: () => setRecording(!recording),
+      onBlur: () => setRecording(false),
+      onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
+        if (!recording || event.key === "Tab") return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.key === "Escape") {
+          setRecording(false);
+          return;
+        }
+        const key = shortcutFromKey(event.nativeEvent, { plain: true });
+        if (!key) return;
+        setRecording(false);
+        const conflict = counterKeyConflict(
+          api.getState(),
+          game,
+          counter.id,
+          key,
+        );
+        if (conflict) addToast({ tone: "error", title: conflict });
+        else update(game, counter.id, { key });
+      },
+    },
+  };
+}
+
 /** The counter's own key: the keyboard icon. Click it and press a key
  *  combination (or a Numpad key alone); the key shows next to it, × takes it
  *  away. The key counts this counter while its game runs. */
@@ -138,11 +190,10 @@ export function CounterKeyButton({
   game: GameIdentityRef;
   counter: GameCounter;
 }) {
-  const api = usePersonalLibraryApi();
-  const update = usePersonalLibraryState((s) => s.updateGameCounter);
-  const addToast = usePersonalLibraryState((s) => s.addToast);
-  const error = useCounterKeyStatus((s) => s.errors[counter.id]);
-  const [recording, setRecording] = useState(false);
+  const { recording, error, remove, buttonProps } = useCounterKeyRecorder(
+    game,
+    counter,
+  );
   const name = counterName(counter);
   const keyLabel = counter.key ? formatHotkey(counter.key) : null;
   const title = recording
@@ -162,24 +213,7 @@ export function CounterKeyButton({
         type="button"
         title={title}
         aria-label={title}
-        aria-pressed={recording}
-        onClick={() => setRecording(!recording)}
-        onBlur={() => setRecording(false)}
-        onKeyDown={(event) => {
-          if (!recording || event.key === "Tab") return;
-          event.preventDefault();
-          event.stopPropagation();
-          if (event.key === "Escape") {
-            setRecording(false);
-            return;
-          }
-          const key = shortcutFromKey(event.nativeEvent, { plain: true });
-          if (!key) return;
-          setRecording(false);
-          const conflict = counterKeyConflict(api.getState(), game, counter.id, key);
-          if (conflict) addToast({ tone: "error", title: conflict });
-          else update(game, counter.id, { key });
-        }}
+        {...buttonProps}
         className={cn(
           "flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-1.5 transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
           recording
@@ -205,7 +239,7 @@ export function CounterKeyButton({
           type="button"
           title={t("Remove the key")}
           aria-label={t("Remove the key from {{counter}}", { counter: name })}
-          onClick={() => update(game, counter.id, { key: null })}
+          onClick={remove}
           className="grid h-5 w-5 place-items-center rounded text-text-faint hover:text-text"
         >
           <X size={12} aria-hidden />
@@ -251,10 +285,13 @@ export function CountButtons({
 export function AddCounterField({
   game,
   onDone,
+  onAdded,
   className,
 }: {
   game: GameIdentityRef;
   onDone: () => void;
+  /** The new counter's id, before onDone. */
+  onAdded?: (counterId: string) => void;
   className?: string;
 }) {
   const addGameCounter = usePersonalLibraryState((s) => s.addGameCounter);
@@ -262,8 +299,11 @@ export function AddCounterField({
   const [taken, setTaken] = useState(false);
   const add = () => {
     if (!name.trim()) return;
-    if (addGameCounter(game, name)) onDone();
-    else setTaken(true);
+    const id = addGameCounter(game, name);
+    if (id) {
+      onAdded?.(id);
+      onDone();
+    } else setTaken(true);
   };
   return (
     <div className={cn("grid gap-1.5", className)}>
