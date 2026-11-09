@@ -736,6 +736,7 @@ export function App() {
         outcome = result.status;
         if (!cancelled && result.status === "available") {
           setStartupUpdate(result);
+          useAppStore.getState().setAvailableUpdate(result);
         }
       } catch {
         outcome = "failed";

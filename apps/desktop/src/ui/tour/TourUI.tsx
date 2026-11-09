@@ -1269,26 +1269,3 @@ function sameRects(left: TourTargetRect[], right: TourTargetRect[]) {
     )
   );
 }
-
-export function TutorialSettingsPanel() {
-  const setOpen = useAppStore((state) => state.setHelpMenuOpen);
-  return (
-    <div
-      data-tour="settings-help"
-      className="flex flex-wrap items-center justify-between gap-4"
-    >
-      <div className="flex min-w-0 items-start gap-3">
-        <CircleHelp size={20} className="mt-0.5 shrink-0 text-accent-ink" />
-        <p className="text-sm leading-5 text-text-muted">
-          {t("Use the")} <span className="font-semibold text-text">?</span>{" "}
-          {t(
-            "button in the top-right corner to start or replay the Quick Tour and every step-by-step guide.",
-          )}
-        </p>
-      </div>
-      <Button icon={CircleHelp} onClick={() => setOpen(true)}>
-        {t("Open Help menu")}
-      </Button>
-    </div>
-  );
-}

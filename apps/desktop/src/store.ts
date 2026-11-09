@@ -60,6 +60,11 @@ import type {
   EmulatorLaunchTarget,
 } from "./emulatorLaunch";
 import { stepView } from "./ui/tour/tourNavigation";
+import {
+  DEFAULT_SETTINGS_GROUP,
+  type SettingsGroupId,
+} from "./ui/views/settings/settingsGroups";
+import type { UpdateCheckResult } from "./updater";
 import type {
   LibraryImportEntry,
   LibraryInstallEntry,
@@ -596,9 +601,17 @@ export type AppState = {
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
+  /** The group Settings shows. Not saved: Settings opens on General. */
+  settingsGroup: SettingsGroupId;
+  /** A newer version the update check found, for the About page. */
+  availableUpdate: Extract<UpdateCheckResult, { status: "available" }> | null;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
+  setSettingsGroup: (group: SettingsGroupId) => void;
+  setAvailableUpdate: (
+    update: Extract<UpdateCheckResult, { status: "available" }> | null,
+  ) => void;
   setLibraryTab: (tab: LibraryTabId) => void;
   setLibraryImportProvider: (provider: BuiltinImportProviderId) => void;
   startTour: (tourId: string) => void;
@@ -1051,9 +1064,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
+  settingsGroup: DEFAULT_SETTINGS_GROUP,
+  availableUpdate: null,
   cleanup: null,
   settings: createDefaultSettings(),
   setActiveView: (activeView) => set({ activeView }),
+  setSettingsGroup: (settingsGroup) => set({ settingsGroup }),
+  setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setLibraryImportProvider: (libraryImportProvider) =>
     set({ libraryImportProvider }),
@@ -1070,6 +1087,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return {
         activeTour,
         activeView: stepView(tour.steps[0], state.activeView, state.activeView),
+        settingsGroup: tour.steps[0].settingsGroup ?? state.settingsGroup,
         demoResetToken: state.demoResetToken + 1,
         helpMenuOpen: false,
       };
@@ -1092,6 +1110,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           state.activeView,
           state.activeTour.returnView,
         ),
+        settingsGroup: step.settingsGroup ?? state.settingsGroup,
         demoResetToken: state.demoResetToken + (resetDemo ? 1 : 0),
       };
     }),

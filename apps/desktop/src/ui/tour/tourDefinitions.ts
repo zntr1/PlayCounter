@@ -1,4 +1,5 @@
 import type { ViewId } from "../../store";
+import type { SettingsGroupId } from "../views/settings/settingsGroups";
 import { TOUR_DEMO_GAME, TOUR_GTA_GAME_ID } from "./tourDemoGame";
 import { emulatorLabelList } from "../../emulators/registry";
 import { getT } from "../../i18n";
@@ -34,6 +35,8 @@ export type TourStep = {
   title: string;
   body: string;
   view: ViewId | "keep" | "return";
+  /** On the Settings view: the group the step opens. */
+  settingsGroup?: SettingsGroupId;
   anchor?: string;
   /** Prefer these targets, in order, as an action opens a menu or dialog. */
   anchorTargets?: string[];
@@ -252,6 +255,7 @@ export function tours(): TourDefinition[] {
         {
           id: "intro",
           view: "settings",
+          settingsGroup: "library",
           title: t("Games outside any launcher"),
           body: t(
             "Not every game comes from a launcher. DRM-free downloads, itch.io games, old disc installs, and portable games often sit together in one folder. PlayCounter can watch that folder and add the games it finds. This guide only points at the controls; nothing is changed.",
@@ -260,6 +264,7 @@ export function tours(): TourDefinition[] {
         {
           id: "add",
           view: "settings",
+          settingsGroup: "library",
           anchor: a("settings-watch-folders-add"),
           optional: true,
           scrollIntoView: true,
@@ -271,6 +276,7 @@ export function tours(): TourDefinition[] {
         {
           id: "results",
           view: "settings",
+          settingsGroup: "library",
           anchor: a("settings-watch-folders"),
           optional: true,
           scrollIntoView: true,
@@ -282,6 +288,7 @@ export function tours(): TourDefinition[] {
         {
           id: "privacy",
           view: "settings",
+          settingsGroup: "library",
           anchor: a("settings-watch-folders"),
           optional: true,
           scrollIntoView: true,
@@ -293,6 +300,7 @@ export function tours(): TourDefinition[] {
         {
           id: "dismissed",
           view: "settings",
+          settingsGroup: "library",
           anchor: a("settings-watch-folders"),
           additionalAnchors: [a("settings-watch-folders-dismissed")],
           optional: true,
@@ -305,6 +313,7 @@ export function tours(): TourDefinition[] {
         {
           id: "auto-add",
           view: "settings",
+          settingsGroup: "library",
           anchor: a("settings-auto-add"),
           optional: true,
           scrollIntoView: true,
@@ -831,6 +840,7 @@ export function tours(): TourDefinition[] {
         {
           id: "intro",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-launcher"),
           scrollIntoView: true,
           title: t("PlayCounter can start games too"),
@@ -841,6 +851,7 @@ export function tours(): TourDefinition[] {
         {
           id: "enable",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-launch-direct"),
           interactive: true,
           manualAdvance: true,
@@ -927,6 +938,7 @@ export function tours(): TourDefinition[] {
         {
           id: "limits",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-launcher"),
           scrollIntoView: true,
           title: t("How Play starts your games"),
@@ -937,6 +949,7 @@ export function tours(): TourDefinition[] {
         {
           id: "uninstalled",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-install-in-steam"),
           scrollIntoView: true,
           title: t("When a game is uninstalled"),
@@ -947,6 +960,7 @@ export function tours(): TourDefinition[] {
         {
           id: "privacy",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-launcher"),
           scrollIntoView: true,
           title: t("Paths stay on this PC"),
@@ -957,6 +971,7 @@ export function tours(): TourDefinition[] {
         {
           id: "controller",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-controller-navigation"),
           interactive: true,
           manualAdvance: true,
@@ -1533,6 +1548,7 @@ export function tours(): TourDefinition[] {
         {
           id: "intro",
           view: "settings",
+          settingsGroup: "general",
           title: t("Settings, your way"),
           body: t(
             "This guide walks through the most useful preferences. Controls inside each highlighted panel stay active, and any changes you make are real and saved immediately.",
@@ -1541,6 +1557,7 @@ export function tours(): TourDefinition[] {
         {
           id: "general",
           view: "settings",
+          settingsGroup: "general",
           anchor: a("settings-general"),
           interactive: true,
           manualAdvance: true,
@@ -1555,6 +1572,7 @@ export function tours(): TourDefinition[] {
         {
           id: "appearance",
           view: "settings",
+          settingsGroup: "appearance",
           anchor: a("settings-appearance"),
           interactive: true,
           manualAdvance: true,
@@ -1569,6 +1587,7 @@ export function tours(): TourDefinition[] {
         {
           id: "shortcuts",
           view: "settings",
+          settingsGroup: "shortcuts",
           anchor: a("settings-shortcuts"),
           interactive: true,
           manualAdvance: true,
@@ -1583,6 +1602,7 @@ export function tours(): TourDefinition[] {
         {
           id: "notifications",
           view: "settings",
+          settingsGroup: "popups",
           anchor: a("settings-notifications"),
           optional: true,
           interactive: true,
@@ -1598,6 +1618,7 @@ export function tours(): TourDefinition[] {
         {
           id: "launcher",
           view: "settings",
+          settingsGroup: "launching",
           anchor: a("settings-launcher"),
           optional: true,
           interactive: true,
@@ -1613,6 +1634,7 @@ export function tours(): TourDefinition[] {
         {
           id: "emulators",
           view: "settings",
+          settingsGroup: "emulators",
           anchor: a("settings-emulators"),
           interactive: true,
           manualAdvance: true,
@@ -1628,6 +1650,7 @@ export function tours(): TourDefinition[] {
         {
           id: "sharing",
           view: "settings",
+          settingsGroup: "discovery",
           anchor: a("settings-sharing"),
           interactive: true,
           manualAdvance: true,
@@ -1642,6 +1665,7 @@ export function tours(): TourDefinition[] {
         {
           id: "library-import",
           view: "settings",
+          settingsGroup: "library",
           anchor: a("settings-library-import"),
           scrollIntoView: true,
           title: t("Keep your library up to date"),
@@ -1652,6 +1676,7 @@ export function tours(): TourDefinition[] {
         {
           id: "backup",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup"),
           scrollIntoView: true,
           title: t("Backups"),
@@ -1662,6 +1687,7 @@ export function tours(): TourDefinition[] {
         {
           id: "updates",
           view: "settings",
+          settingsGroup: "about",
           anchor: a("settings-updates"),
           scrollIntoView: true,
           title: t("Keep PlayCounter current"),
@@ -1686,6 +1712,7 @@ export function tours(): TourDefinition[] {
         {
           id: "intro",
           view: "settings",
+          settingsGroup: "backup",
           title: t("Your data stays portable"),
           body: t(
             "Open Settings and find Backup & transfer whenever you want to protect your local data or move PlayCounter to another PC. This guide explains both actions without opening a file dialog or changing your data.",
@@ -1694,6 +1721,7 @@ export function tours(): TourDefinition[] {
         {
           id: "overview",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup"),
           scrollIntoView: true,
           title: t("Backup & transfer"),
@@ -1704,6 +1732,7 @@ export function tours(): TourDefinition[] {
         {
           id: "automatic",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup-enabled"),
           scrollIntoView: true,
           title: t("Automatic backups"),
@@ -1714,6 +1743,7 @@ export function tours(): TourDefinition[] {
         {
           id: "schedule",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup-interval"),
           additionalAnchors: [
             a("settings-backup-keep"),
@@ -1728,6 +1758,7 @@ export function tours(): TourDefinition[] {
         {
           id: "folder",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup-choose-folder"),
           additionalAnchors: [a("settings-backup-open-folder")],
           scrollIntoView: true,
@@ -1739,6 +1770,7 @@ export function tours(): TourDefinition[] {
         {
           id: "export",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup-export"),
           scrollIntoView: true,
           title: t("Export your data"),
@@ -1749,6 +1781,7 @@ export function tours(): TourDefinition[] {
         {
           id: "import",
           view: "settings",
+          settingsGroup: "backup",
           anchor: a("settings-backup-import"),
           scrollIntoView: true,
           title: t("Import a backup"),
@@ -1818,6 +1851,7 @@ export function tours(): TourDefinition[] {
         {
           id: "intro",
           view: "settings",
+          settingsGroup: "emulators",
           title: t("Games inside emulators"),
           body: t(
             "PlayCounter can recognize games inside {{emulatorLabelList}}. This guide uses a sample Dolphin setup. You can confirm and change its match; nothing is saved or shared.",
@@ -1827,6 +1861,7 @@ export function tours(): TourDefinition[] {
         {
           id: "settings",
           view: "settings",
+          settingsGroup: "emulators",
           anchor: a("settings-emulators"),
           scrollIntoView: true,
           title: t("Enable emulator detection"),
@@ -1921,6 +1956,7 @@ export function tours(): TourDefinition[] {
         {
           id: "pcsx2",
           view: "settings",
+          settingsGroup: "emulators",
           anchor: a("settings-emulators"),
           scrollIntoView: true,
           title: t("PlayStation 2 with PCSX2"),

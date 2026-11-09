@@ -1877,6 +1877,163 @@ body.shift-held
   opacity: 0.5;
 }
 
+/* Settings: a menu of groups beside one group per page. Both follow the
+   content width, which includes the sidebar and CSS zoom; when it is narrow,
+   the menu becomes a row of buttons above the page. A container query
+   can't style the container itself, so the grid sits one level inside. */
+.settings-shell {
+  container: settings / inline-size;
+}
+
+.settings-layout {
+  display: grid;
+  gap: 18px;
+  max-width: 1100px;
+}
+
+.settings-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-menu-search {
+  flex: 1 1 100%;
+  margin-bottom: 4px;
+}
+
+.settings-menu-label {
+  white-space: nowrap;
+}
+
+.settings-menu-break {
+  display: none;
+}
+
+@container settings (min-width: 860px) {
+  .settings-layout {
+    grid-template-columns: 236px minmax(0, 1fr);
+    align-items: start;
+    gap: 28px;
+  }
+
+  .settings-menu {
+    position: sticky;
+    top: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .settings-menu-search {
+    margin-bottom: 8px;
+  }
+
+  .settings-menu-label {
+    flex: 1 1 0%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .settings-menu-break {
+    display: block;
+    height: 1px;
+    margin: 6px 10px;
+    background: rgb(var(--color-border) / 0.6);
+  }
+}
+
+.settings-page {
+  container: settings-page / inline-size;
+  min-width: 0;
+  max-width: 820px;
+}
+
+.settings-card > * + * {
+  border-top: 1px solid rgb(var(--color-border) / 0.6);
+}
+
+.settings-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 12px 18px;
+}
+
+.settings-row-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-row-below {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.settings-row-off > .settings-row-text,
+.settings-row-off > .settings-row-below {
+  opacity: 0.55;
+}
+
+.settings-hint {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  color: rgb(var(--color-text-muted));
+  font-size: 12.5px;
+}
+
+/* Rows under the switch they need: indented, with a line per level. */
+.settings-row-l1,
+.settings-hint-l1 {
+  padding-left: 46px;
+  background: rgb(var(--color-bg) / 0.28);
+}
+
+.settings-row-l2,
+.settings-hint-l2 {
+  padding-left: 72px;
+  background: rgb(var(--color-bg) / 0.45);
+}
+
+.settings-row-l1::before,
+.settings-row-l2::before,
+.settings-hint-l1::before,
+.settings-hint-l2::before,
+.settings-row-l2::after,
+.settings-hint-l2::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 27px;
+  width: 2px;
+  background: rgb(var(--color-border));
+}
+
+.settings-row-l2::after,
+.settings-hint-l2::after {
+  left: 53px;
+}
+
+@container settings-page (width < 560px) {
+  .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-row-control {
+    justify-content: flex-start;
+  }
+}
+
 /* Keep native range keyboard and pointer behavior with the app's track and thumb. */
 .pc-range {
   appearance: none;
