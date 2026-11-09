@@ -47,7 +47,7 @@ miniz_oxide = "0.8"
 hidapi = { version = "2.6", default-features = false, features = ["windows-native"] }
 webview2-com = "0.38.2"
 windows-core = "0.61"
-windows-sys = { version = "0.59", features = ["Wdk_System_Threading", "Win32_Foundation", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Input_XboxController", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.59", features = ["Wdk_System_Threading", "Win32_Foundation", "Win32_Globalization", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Input_XboxController", "Win32_UI_WindowsAndMessaging"] }
 # Screenshots (screenshot.rs): Windows Graphics Capture for one frame of the
 # game window, Direct3D 11 to read it back, WIC to write the JPEG, and the
 # property system for its caption.

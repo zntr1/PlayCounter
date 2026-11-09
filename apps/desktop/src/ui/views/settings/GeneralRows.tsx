@@ -5,6 +5,7 @@ import {
   LANGUAGE_NAMES,
   appLanguage,
   appLocale,
+  formatNumericDate,
   formatRegions,
   getT,
   isAppLanguage,
@@ -161,6 +162,7 @@ function formatExample() {
       month: "short",
       year: "numeric",
     }),
+    formatNumericDate(sample),
     sample.toLocaleTimeString(appLocale(), {
       hour: "numeric",
       minute: "2-digit",

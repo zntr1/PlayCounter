@@ -47,13 +47,7 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
-import {
-  appLocale,
-  applyFormats,
-  applyLanguage,
-  type LanguageSetting,
-  getT,
-} from "./i18n";
+import { applyFormats, applyLanguage, formatNumericDate, getT, type LanguageSetting } from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -973,7 +967,7 @@ function persistSoon() {
                 "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
                 {
                   count: result.removed.length,
-                  date: new Date(oldest).toLocaleDateString(appLocale()),
+                  date: formatNumericDate(oldest),
                 },
               )
             : t(

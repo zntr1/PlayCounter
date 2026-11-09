@@ -19,6 +19,7 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 mod automatic_backups;
 mod close_game;
 mod controller;
+mod date_format;
 mod emulator_launch;
 mod exe_details;
 mod fullscreen;
@@ -546,6 +547,7 @@ pub fn run() {
             hotkeys::set_global_hotkey,
             install_uuid,
             adopt_install_uuid,
+            date_format::system_date_pattern,
             ignored_processes,
             set_user_ignored_process,
             save_custom_cover,

@@ -671,6 +671,9 @@ describe("formats regardless of language", () => {
     const example = container.querySelector('[data-row="formatRegion"]')!;
     expect(example.textContent).toContain("1.234,5");
     expect(example.textContent).toContain("21:14");
+    // Numbers in a date follow Germany too, not "English in Germany".
+    expect(example.textContent).toContain("07.11.2026");
+    expect(example.textContent).not.toContain("07/11/2026");
   });
 
   it("offers only the countries the language can write dates for", async () => {

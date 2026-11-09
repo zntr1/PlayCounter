@@ -412,6 +412,108 @@ export function appLocale() {
   return currentLocale;
 }
 
+let systemDatePattern: ((date: Date) => string) | null = null;
+
+/** The computer's own short date format, e.g. "dd.MM.yyyy" from Windows.
+ *  Automatic dates in numbers use it. One with words (month or weekday
+ *  names) is ignored: the computer's country decides then. */
+export function setSystemDatePattern(pattern: string | null | undefined) {
+  systemDatePattern = pattern ? readDatePattern(pattern) : null;
+}
+
+const NUMERIC_DATE = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+} as const;
+
+/** A date in numbers, the way the format region's country writes it in its
+ *  own language: 07.11.2026 for Germany, 11/07/2026 for the US, 2026-11-07
+ *  for Sweden, whatever language the texts are in. Automatic follows the
+ *  computer's own date format. */
+export function formatNumericDate(value: Date | number | string) {
+  const date = value instanceof Date ? value : new Date(value);
+  // A country the language can't take counts as Automatic, as Settings shows.
+  const region =
+    formats.region && formatRegions(appLanguage()).includes(formats.region)
+      ? formats.region
+      : null;
+  if (region)
+    return date.toLocaleDateString(countryLocale(region), NUMERIC_DATE);
+  if (systemDatePattern) return systemDatePattern(date);
+  const system = systemLocales()[0];
+  let systemRegion: string | undefined;
+  try {
+    systemRegion = system ? new Intl.Locale(system).region : undefined;
+  } catch {
+    systemRegion = undefined;
+  }
+  return date.toLocaleDateString(
+    systemRegion ? countryLocale(systemRegion) : appLocale(),
+    NUMERIC_DATE,
+  );
+}
+
+/** The same, with the time of day after it: "07.11.2026 21:14:00". */
+export function formatNumericDateTime(value: Date | number | string) {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(appLocale())}`;
+}
+
+/** The country's main language with the country, in Latin digits: "DE" is
+ *  de-DE, "CH" de-CH, "CA" en-CA. */
+function countryLocale(region: string) {
+  try {
+    const own = new Intl.Locale(`und-${region}`).maximize();
+    return `${own.language}-${region}-u-nu-latn`;
+  } catch {
+    return appLocale();
+  }
+}
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+// Windows' date pictures that are pure numbers. Words (ddd, MMM) and eras (g)
+// make a pattern unreadable here.
+const DATE_PARTS: Record<string, (date: Date) => string> = {
+  d: (date) => String(date.getDate()),
+  dd: (date) => pad(date.getDate()),
+  M: (date) => String(date.getMonth() + 1),
+  MM: (date) => pad(date.getMonth() + 1),
+  y: (date) => String(date.getFullYear() % 100),
+  yy: (date) => pad(date.getFullYear() % 100),
+  yyyy: (date) => String(date.getFullYear()),
+  yyyyy: (date) => String(date.getFullYear()).padStart(5, "0"),
+};
+
+function readDatePattern(pattern: string) {
+  const parts: Array<string | ((date: Date) => string)> = [];
+  for (let index = 0; index < pattern.length; ) {
+    const char = pattern[index];
+    if (char === "'") {
+      const end = pattern.indexOf("'", index + 1);
+      if (end < 0) return null;
+      parts.push(pattern.slice(index + 1, end));
+      index = end + 1;
+    } else if (/[A-Za-z]/.test(char)) {
+      let length = 1;
+      while (pattern[index + length] === char) length += 1;
+      const part = DATE_PARTS[char.repeat(length)];
+      if (!part) return null;
+      parts.push(part);
+      index += length;
+    } else {
+      parts.push(char);
+      index += 1;
+    }
+  }
+  if (!parts.some((part) => typeof part === "function")) return null;
+  return (date: Date) =>
+    parts
+      .map((part) => (typeof part === "string" ? part : part(date)))
+      .join("");
+}
+
 /** Switches date, time and number formats to the Format region and Clock
  *  settings, keeping the language. */
 export function applyFormats(

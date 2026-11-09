@@ -31,7 +31,7 @@ import {
   type Pace,
   type TimeToBeatProgress,
 } from "../../../howLongToBeat";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../../i18n";
 import {
   defaultPlaythroughName,
   type GameStatus,
@@ -106,7 +106,7 @@ function progressLine(progress: TimeToBeatProgress, showDays: boolean) {
 }
 
 const formatDay = (iso: string) =>
-  new Date(iso).toLocaleDateString(appLocale());
+  formatNumericDate(iso);
 
 export function HowLongToBeatTab({
   game,

@@ -51,7 +51,7 @@ import {
   recordLoginHealth,
   useLoginHealth,
 } from "../../../library/loginHealth";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../../i18n";
 import { nativeText } from "../../../nativeText";
 import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
@@ -380,7 +380,7 @@ function XboxAchievements({ titleId }: { titleId: string }) {
       <AchievementOverview
         achievements={list.achievements}
         origin={t("From Xbox, updated {{date}}", {
-          date: new Date(list.fetchedAt).toLocaleDateString(appLocale()),
+          date: formatNumericDate(list.fetchedAt),
         })}
         action={
           <Button
@@ -645,9 +645,7 @@ function KeptLoginAchievements<S extends string>({
       {errorLine}
       <AchievementOverview
         achievements={list.achievements}
-        origin={source.origin(
-          new Date(list.fetchedAt).toLocaleDateString(appLocale()),
-        )}
+        origin={source.origin(formatNumericDate(list.fetchedAt))}
         action={action}
       />
     </div>
@@ -1036,9 +1034,7 @@ function AchievementRow({
             <Check size={13} />
             {achievement.unlockedAt
               ? t("Unlocked {{date}}", {
-                  date: new Date(achievement.unlockedAt).toLocaleDateString(
-                    appLocale(),
-                  ),
+                  date: formatNumericDate(achievement.unlockedAt),
                 })
               : t("Unlocked, date unknown")}
           </span>

@@ -580,6 +580,34 @@ describe("UI code", () => {
     expect(problems).toEqual([]);
   });
 
+  it("writes dates in numbers through formatNumericDate", () => {
+    // toLocaleDateString(locale) and a date's toLocaleString(locale) print
+    // the language's numbers (07/11/2026 for English in Germany). Numeric
+    // dates follow the format region and the computer's own date format.
+    const problems: string[] = [];
+    for (const source of sources()) {
+      if (source.file === "i18n.ts") continue;
+      const visit = (node: ts.Node) => {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isPropertyAccessExpression(node.expression) &&
+          node.arguments.length <= 1
+        ) {
+          const method = node.expression.name.text;
+          const receiver = node.expression.expression.getText();
+          if (
+            method === "toLocaleDateString" ||
+            (method === "toLocaleString" && /\bDate\(|\bdate\b/i.test(receiver))
+          )
+            report(source, node, problems);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(source.sourceFile);
+    }
+    expect(problems).toEqual([]);
+  });
+
   it("formats dates and numbers in the app's language", () => {
     const problems: string[] = [];
     const missingLocale = (args: readonly ts.Expression[] | undefined) => {

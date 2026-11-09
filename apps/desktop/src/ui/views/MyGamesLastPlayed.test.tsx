@@ -8,7 +8,7 @@ import { buildLibraryImportCommit } from "../../library/importPlan";
 import { STORAGE_KEY } from "../../persistence";
 import { useAppStore } from "../../store";
 import { LibraryTestShell } from "./libraryTestShell";
-import { appLocale } from "../../i18n";
+import { formatNumericDate } from "../../i18n";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -190,9 +190,7 @@ it.each([
 
     await act(() => root.render(<LibraryTestShell />));
     await openDetails();
-    expect(lastPlayedFigure()).toBe(
-      new Date(daysAgo(2)).toLocaleDateString(appLocale()),
-    );
+    expect(lastPlayedFigure()).toBe(formatNumericDate(daysAgo(2)));
 
     await act(() => {
       document
@@ -204,7 +202,7 @@ it.each([
     });
     const card = container.querySelector(".game-library-card")!;
     expect(card.textContent).toContain(
-      `Last played ${new Date(daysAgo(2)).toLocaleDateString(appLocale())}`,
+      `Last played ${formatNumericDate(daysAgo(2))}`,
     );
     expect(card.textContent).not.toContain("Added ");
   },
@@ -236,9 +234,7 @@ it.each([
     importGame({ lastPlayedAt: daysAgo(providerDaysAgo) });
     await act(() => root.render(<LibraryTestShell />));
     await openDetails();
-    expect(lastPlayedFigure()).toBe(
-      new Date(daysAgo(1)).toLocaleDateString(appLocale()),
-    );
+    expect(lastPlayedFigure()).toBe(formatNumericDate(daysAgo(1)));
   },
 );
 
@@ -260,14 +256,10 @@ it("refreshes the displayed date on reimport without creating sessions or duplic
   importGame({ lastPlayedAt: daysAgo(20) });
   await act(() => root.render(<LibraryTestShell />));
   await openDetails();
-  expect(lastPlayedFigure()).toBe(
-    new Date(daysAgo(20)).toLocaleDateString(appLocale()),
-  );
+  expect(lastPlayedFigure()).toBe(formatNumericDate(daysAgo(20)));
 
   await act(() => importGame({ lastPlayedAt: daysAgo(1) }));
-  expect(lastPlayedFigure()).toBe(
-    new Date(daysAgo(1)).toLocaleDateString(appLocale()),
-  );
+  expect(lastPlayedFigure()).toBe(formatNumericDate(daysAgo(1)));
   expect(useAppStore.getState().libraryImports.size).toBe(1);
   expect(useAppStore.getState().recentSessions).toEqual([]);
 });

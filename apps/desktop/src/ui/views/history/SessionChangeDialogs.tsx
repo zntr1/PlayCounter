@@ -18,7 +18,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../../i18n";
 import { useCoverUrl } from "../../../pickedCovers";
 import {
   breakAround,
@@ -583,7 +583,7 @@ function overlapStart(ms: number, referenceMs: number) {
   const date = new Date(ms);
   return date.toDateString() === new Date(referenceMs).toDateString()
     ? formatTime(ms)
-    : `${date.toLocaleDateString(appLocale())} ${formatTime(ms)}`;
+    : `${formatNumericDate(date)} ${formatTime(ms)}`;
 }
 
 const breakPresets = [0, 10, 30, 60];
@@ -914,7 +914,7 @@ function SessionSummary({
           {label}
         </span>
         <span className="mt-1 block text-[12.5px] tabular-nums text-text-muted">
-          {new Date(session.startedAt).toLocaleDateString(appLocale())}
+          {formatNumericDate(session.startedAt)}
         </span>
         <SessionTimes session={session} taken={taken} />
         <span className="mt-1.5 block font-mono font-bold tabular-nums text-accent-ink">
@@ -1108,9 +1108,7 @@ export function CombineSessionDialog({
                     {t("Combined session")}
                   </div>
                   <div className="mt-1 text-[12.5px] tabular-nums text-text-muted">
-                    {new Date(combined.startedAt).toLocaleDateString(
-                      appLocale(),
-                    )}
+                    {formatNumericDate(combined.startedAt)}
                   </div>
                   <SessionTimes
                     session={combined}

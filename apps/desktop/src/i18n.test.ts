@@ -5,12 +5,16 @@ import {
   appLocale,
   applyFormats,
   applyLanguage,
+  formatNumericDate,
+  formatNumericDateTime,
   formatRegions,
   formattingLocale,
   getT,
+  setSystemDatePattern,
 } from "./i18n";
 
 afterEach(() => {
+  setSystemDatePattern(null);
   applyFormats(null, "auto");
   applyLanguage("en");
 });
@@ -183,5 +187,72 @@ describe("format region and clock, regardless of language", () => {
     expect(formatRegions("zh-CN")).toContain("CN");
     expect(formatRegions("zh-CN")).not.toContain("TW");
     expect(formatRegions("zh-CN")).not.toContain("HK");
+  });
+});
+
+describe("dates in numbers", () => {
+  // Saturday, 7 November 2026, 21:14.
+  const sample = new Date(2026, 10, 7, 21, 14);
+
+  it.each([
+    ["en", "DE", "07.11.2026"],
+    ["en", "US", "11/07/2026"],
+    ["en", "GB", "07/11/2026"],
+    ["en", "SE", "2026-11-07"],
+    ["en", "AT", "07.11.2026"],
+    ["de", "CH", "07.11.2026"],
+    ["pt-BR", "PT", "07/11/2026"],
+  ] as const)(
+    "writes them like the picked country, not like the app language: %s + %s = %s",
+    (language, region, expected) => {
+      applyLanguage(language);
+      applyFormats(region, "auto");
+      expect(formatNumericDate(sample)).toBe(expected);
+    },
+  );
+
+  it("follows the computer's own date format when the region is automatic", () => {
+    applyLanguage("en");
+    setSystemDatePattern("dd.MM.yyyy");
+    expect(formatNumericDate(sample)).toBe("07.11.2026");
+    setSystemDatePattern("M/d/yyyy");
+    expect(formatNumericDate(sample)).toBe("11/7/2026");
+    setSystemDatePattern("yyyy-MM-dd");
+    expect(formatNumericDate(sample)).toBe("2026-11-07");
+    setSystemDatePattern("d. M. yy");
+    expect(formatNumericDate(sample)).toBe("7. 11. 26");
+    setSystemDatePattern("dd'/'MM'/'yyyy");
+    expect(formatNumericDate(sample)).toBe("07/11/2026");
+  });
+
+  it("lets a picked country win over the computer's format", () => {
+    setSystemDatePattern("dd.MM.yyyy");
+    applyFormats("US", "auto");
+    expect(formatNumericDate(sample)).toBe("11/07/2026");
+  });
+
+  it("ignores a computer format with words and uses the computer's country", () => {
+    const byCountry = formatNumericDate(sample);
+    setSystemDatePattern("dddd, d MMMM yyyy");
+    expect(formatNumericDate(sample)).toBe(byCountry);
+    expect(byCountry).toMatch(/^[\d./ -]+$/);
+  });
+
+  it("treats a country the language can't take as automatic, like the Settings menu shows", () => {
+    setSystemDatePattern("dd.MM.yyyy");
+    applyLanguage("de");
+    applyFormats("US", "auto");
+    expect(formatNumericDate(sample)).toBe("07.11.2026");
+  });
+
+  it("puts the time after the date, with the clock setting", () => {
+    setSystemDatePattern("dd.MM.yyyy");
+    applyFormats(null, "24h");
+    expect(formatNumericDateTime(sample)).toBe("07.11.2026 21:14:00");
+    applyFormats(null, "12h");
+    // English in the US writes PM, English in Germany pm.
+    expect(formatNumericDateTime(sample)).toMatch(
+      /^07\.11\.2026 9:14:00\spm$/i,
+    );
   });
 });

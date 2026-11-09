@@ -45,7 +45,7 @@ import {
   IconButton,
   useContextMenu,
 } from "../../primitives";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../../i18n";
 
 const t = getT("history");
 
@@ -61,7 +61,7 @@ export type HistoryRowMetadata = {
 };
 
 function formatSessionDate(startedAt: string) {
-  return new Date(startedAt).toLocaleDateString(appLocale());
+  return formatNumericDate(startedAt);
 }
 
 function formatTimeRange(startedAt: string, endedAt: string | null) {

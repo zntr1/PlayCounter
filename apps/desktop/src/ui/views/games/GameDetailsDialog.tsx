@@ -74,7 +74,7 @@ import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
-import { appLanguage, appLocale, getT } from "../../../i18n";
+import { appLanguage, formatNumericDate, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
 
 const t = getT("games");
@@ -120,7 +120,7 @@ function formatDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(appLocale());
+  return formatNumericDate(date);
 }
 
 function Row({

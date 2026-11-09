@@ -6,7 +6,7 @@ import {
   type LaunchTarget,
 } from "../../../store";
 import type { GameAliasRef } from "../../../tracker";
-import { appLocale, getT } from "../../../i18n";
+import { formatNumericDate, getT } from "../../../i18n";
 
 const t = getT("games");
 
@@ -86,7 +86,7 @@ export function fileRunStatus(file: GameFile) {
   if (file.running) return t("Running now");
   if (!file.lastRanAt) return t("Never ran on this PC");
   return t("Last ran {{date}}", {
-    date: new Date(file.lastRanAt).toLocaleDateString(appLocale()),
+    date: formatNumericDate(file.lastRanAt),
   });
 }
 
