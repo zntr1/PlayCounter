@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { type LucideIcon } from "lucide-react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 import type { MouseEvent } from "react";
 import { RailTooltip, useRailTooltip } from "./shell/RailTooltip";
 import { getT } from "../i18n";
@@ -20,6 +20,8 @@ type SidebarButtonProps = {
   count?: number;
   /** Leaves room on the right for a control placed over the row (chevron). */
   trailingSpace?: boolean;
+  /** Set for a row that folds a list open or shut: adds a chevron. */
+  expanded?: boolean;
   disabled?: boolean;
   title?: string;
   onClick: () => void;
@@ -39,6 +41,7 @@ export function SidebarButton({
   collapsed = false,
   count,
   trailingSpace = false,
+  expanded,
   disabled = false,
   title,
   onClick,
@@ -148,6 +151,7 @@ export function SidebarButton({
       // The rail shows `title` inside its own label; a second tooltip would stack.
       title={collapsed ? undefined : title}
       aria-label={collapsed ? label : undefined}
+      aria-expanded={expanded}
       className={clsx(
         "sidebar-button group relative flex w-full items-center rounded-xl text-[15px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
         collapsed ? "h-11 justify-center px-0" : "h-11 gap-3 px-3",
@@ -187,6 +191,18 @@ export function SidebarButton({
         </span>
       ) : null}
       {!collapsed ? rowStatus : null}
+      {!collapsed && expanded !== undefined ? (
+        // Lines up with the chevron button that sits over My Games.
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={clsx(
+            "mr-0.5 shrink-0 text-text-muted transition-transform duration-200",
+            rowStatus ? "ml-2" : "ml-auto",
+            !expanded && "-rotate-90",
+          )}
+        />
+      ) : null}
       {collapsed ? (
         <RailTooltip
           anchor={tooltip.anchor}

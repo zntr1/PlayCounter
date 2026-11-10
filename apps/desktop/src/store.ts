@@ -748,6 +748,7 @@ export type AppState = {
   setViewBannerDetails: (enabled: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarSourcesCollapsed: (collapsed: boolean) => void;
+  setSidebarEmulatorsCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setTrackTools: (enabled: boolean) => void;
@@ -848,6 +849,7 @@ const defaultSettings: Settings = {
   viewBannerDetails: true,
   sidebarCollapsed: false,
   sidebarSourcesCollapsed: false,
+  sidebarEmulatorsCollapsed: false,
   autoShareIgnoredProcesses: false,
   trackTools: false,
   pollingIntervalSeconds: 5,
@@ -2121,6 +2123,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSidebarSourcesCollapsed: (sidebarSourcesCollapsed) => {
     set((state) => ({
       settings: { ...state.settings, sidebarSourcesCollapsed },
+    }));
+    persistSoon();
+  },
+  setSidebarEmulatorsCollapsed: (sidebarEmulatorsCollapsed) => {
+    set((state) => ({
+      settings: { ...state.settings, sidebarEmulatorsCollapsed },
     }));
     persistSoon();
   },
