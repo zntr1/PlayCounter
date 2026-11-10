@@ -255,5 +255,7 @@
   "Started {{date}}": "Начато {{date}}",
   "Session note": "Заметка о сессии",
   "Add session note": "Добавить заметку о сессии",
-  "Edit session note": "Изменить заметку о сессии"
+  "Edit session note": "Изменить заметку о сессии",
+  "Added to {{shelf}}. It's hidden from All games now.": "Добавлено на полку «{{shelf}}». Теперь игра скрыта во «Всех играх».",
+  "Undo": "Отменить"
 }

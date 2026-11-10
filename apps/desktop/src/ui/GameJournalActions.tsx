@@ -1,18 +1,26 @@
 import {
+  usePersonalLibraryApi,
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
 import {
   BookOpen,
   CircleDot,
+  EyeOff,
   FolderHeart,
   Medal,
   Star,
   StickyNote,
   X,
 } from "lucide-react";
-import { GAME_TIERS, gameStatusLabel, type GameTier } from "../personalLibrary";
-import { type GameIdentityRef } from "../store";
+import {
+  GAME_TIERS,
+  gameStatusLabel,
+  journalHiddenIn,
+  shelfHides,
+  type GameTier,
+} from "../personalLibrary";
+import { getGameJournal, type GameIdentityRef } from "../store";
 import {
   ContextMenuHeading,
   ContextMenuItem,
@@ -39,6 +47,8 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
   const update = usePersonalLibraryState((s) => s.updateGameJournal);
+  const addToast = usePersonalLibraryState((s) => s.addToast);
+  const libraryApi = usePersonalLibraryApi();
   const shelves = usePersonalLibraryState((s) => s.personalShelves);
   const showShelves = usePersonalLibraryState(
     (s) => s.settings.libraryShowShelves !== false,
@@ -137,13 +147,38 @@ export function GameJournalMenu({
             return (
               <ContextMenuItem
                 key={shelf.id}
+                icon={shelfHides(shelf) ? EyeOff : FolderHeart}
                 selected={member}
                 onClick={() => {
                   onClose();
+                  const leavesAllGames =
+                    !member &&
+                    shelfHides(shelf, "all") &&
+                    !journalHiddenIn(journal, shelves, "all");
                   update(game, {
                     shelfIds: member
                       ? journal.shelfIds.filter((id) => id !== shelf.id)
                       : [...journal.shelfIds, shelf.id],
+                  });
+                  if (!leavesAllGames) return;
+                  addToast({
+                    tone: "success",
+                    title: t(
+                      "Added to {{shelf}}. It's hidden from All games now.",
+                      { shelf: shelf.name },
+                    ),
+                    detail: game.gameName,
+                    action: {
+                      label: t("Undo"),
+                      run: () => {
+                        const state = libraryApi.getState();
+                        state.updateGameJournal(game, {
+                          shelfIds: getGameJournal(state, game).shelfIds.filter(
+                            (id) => id !== shelf.id,
+                          ),
+                        });
+                      },
+                    },
                   });
                 }}
               >

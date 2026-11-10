@@ -1,20 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session } from "@playcounter/shared";
 import {
+  createGameIdentityResolver,
   getGameJournal,
+  personalGameIdentity,
   reconcileSessionPlaythroughs,
   useAppStore,
   type ActiveSession,
 } from "./store";
+import { getSessionGameKey } from "./historyStats";
 import {
   archivePlaythroughSeconds,
   defaultPlaythroughTime,
   emptyJournal,
+  hiddenGameKeys,
   journalNote,
   matchesLibraryFilters,
   normalizeLibraryFilters,
   playthroughSeconds,
   type FilterableLibraryGame,
+  type ShelfHidePlace,
 } from "./personalLibrary";
 import {
   createPersistedPayload,
@@ -958,5 +963,89 @@ describe("saved library filters", () => {
     expect(
       matchesLibraryFilters(played, journal, { source: "steam" }, now),
     ).toBe(false);
+  });
+});
+
+// docs/hidden-shelves-plan.md, "Data" and decision 1.
+describe("hidden shelves", () => {
+  const shelf = (id: string) =>
+    useAppStore.getState().personalShelves.find((entry) => entry.id === id)!;
+
+  it("keeps a shelf's hidden places through edits and backups, without unknown or doubled places", () => {
+    const state = useAppStore.getState();
+    const id = state.savePersonalShelf({
+      name: "Private",
+      hiddenIn: ["history", "all", "history", "everywhere" as ShelfHidePlace],
+    })!;
+    expect([...(shelf(id).hiddenIn ?? [])].sort()).toEqual(["all", "history"]);
+
+    // A rename or a banner pin leaves the places alone.
+    state.savePersonalShelf({ id, name: "Secret" });
+    state.savePersonalShelf({
+      ...shelf(id),
+      featuredGame: { gameId: 42, source: "igdb" },
+    });
+    expect([...(shelf(id).hiddenIn ?? [])].sort()).toEqual(["all", "history"]);
+
+    // No place left: the shelf hides nothing and stores nothing.
+    state.savePersonalShelf({ ...shelf(id), hiddenIn: [] });
+    expect(shelf(id)).not.toHaveProperty("hiddenIn");
+
+    state.savePersonalShelf({ ...shelf(id), hiddenIn: ["nowPlaying"] });
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    expect(
+      (data.personalShelves as Array<{ hiddenIn?: string[] }>)[0].hiddenIn,
+    ).toEqual(["nowPlaying"]);
+    expect(() =>
+      validateBackupData(
+        {
+          ...data,
+          personalShelves: [{ id, name: "Secret", hiddenIn: ["everywhere"] }],
+        },
+        "data",
+      ),
+    ).toThrow();
+  });
+
+  it("hides a game wherever any of its shelves hides it, under the key History uses, and not while that shelf fills itself from filters", () => {
+    const state = useAppStore.getState();
+    const coop = state.savePersonalShelf({ name: "Co-op" })!;
+    const hiding = state.savePersonalShelf({
+      name: "Private",
+      hiddenIn: ["history"],
+    })!;
+    state.updateGameJournal(game, { shelfIds: [coop, hiding] });
+    const keys = (place: ShelfHidePlace) => {
+      const current = useAppStore.getState();
+      return hiddenGameKeys(
+        current.gameJournals,
+        current.personalShelves,
+        personalGameIdentity(current),
+        place,
+      );
+    };
+    const current = useAppStore.getState();
+    const historyKey = getSessionGameKey(
+      session(),
+      createGameIdentityResolver(
+        current.gameMetadata,
+        current.exeCache,
+        current.libraryImports,
+      ),
+    );
+    expect(keys("history")).toEqual(new Set([historyKey]));
+    expect(keys("all").size).toBe(0);
+
+    // Saved filters pause the hiding; removing them brings it back.
+    state.savePersonalShelf({
+      ...shelf(hiding),
+      filters: { played: "played" },
+    });
+    expect(keys("history").size).toBe(0);
+    state.savePersonalShelf({ ...shelf(hiding), filters: undefined });
+    expect(keys("history")).toEqual(new Set([historyKey]));
   });
 });

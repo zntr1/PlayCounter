@@ -424,6 +424,8 @@ export type Toast = {
   emoji?: string;
   title: string;
   detail?: string;
+  /** One button, e.g. Undo: it runs once and closes the toast. */
+  action?: { label: string; run: () => void };
 };
 
 export type DesktopOverlaySettingKey =

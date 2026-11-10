@@ -5,6 +5,8 @@ import {
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import { EMULATORS } from "../emulators/registry";
 import {
+  AlertTriangle,
+  EyeOff,
   FolderHeart,
   Pencil,
   Plus,
@@ -27,14 +29,18 @@ import {
   GAME_TIERS,
   gameStatusLabel,
   NAME_LIMIT,
+  SHELF_HIDE_PLACES,
+  journalHiddenIn,
   matchesLibraryFilters,
   normalizeLibraryFilters,
   readJournal,
+  shelfHides,
   type FilterableLibraryGame,
   type GameJournal,
   type GameStatus,
   type LibraryFilters,
   type PersonalShelf,
+  type ShelfHidePlace,
 } from "../personalLibrary";
 import { personalGameIdentity, type GameIdentityRef } from "../store";
 import {
@@ -42,6 +48,7 @@ import {
   ContextMenu,
   ContextMenuHeading,
   ContextMenuItem,
+  ContextMenuSubmenu,
   Input,
   Modal,
   Pill,
@@ -52,7 +59,8 @@ import { GameStatusIcon } from "./GameStatusIcon";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
 import { emitTourEvent } from "./tour/TourUI";
-import { getT } from "../i18n";
+import { appLocale, getT } from "../i18n";
+import { cn } from "./cn";
 
 const t = getT("myGames");
 
@@ -88,14 +96,15 @@ export function matchesShelf(
   id: string,
   shelves: readonly PersonalShelf[],
 ) {
-  if (id === "all") return true;
   if (id === "favorites") return journal.favorite;
   const shelf = shelves.find((s) => s.id === id);
-  return !shelf
-    ? true
-    : shelf.filters
-      ? matchesLibraryFilters(game, journal, shelf.filters)
-      : journal.shelfIds.includes(shelf.id);
+  // Favorites and the shelves the player filled show what is on them; All
+  // games and the shelves that narrow it leave out what a shelf hides there.
+  if (shelf && !shelf.filters) return journal.shelfIds.includes(shelf.id);
+  if (journalHiddenIn(journal, shelves, "all")) return false;
+  return shelf?.filters
+    ? matchesLibraryFilters(game, journal, shelf.filters)
+    : true;
 }
 
 export function countShelfGames(
@@ -104,17 +113,123 @@ export function countShelfGames(
   shelves: readonly PersonalShelf[],
 ) {
   const counts: Record<string, number> = {
-    all: games.length,
+    all: 0,
     favorites: 0,
   };
   for (const shelf of shelves) counts[shelf.id] = 0;
   for (const game of games) {
     const journal = journalFor({ ...game, gameName: game.name });
+    if (matchesShelf(game, journal, "all", shelves)) counts.all += 1;
     if (journal.favorite) counts.favorites += 1;
     for (const shelf of shelves)
       if (matchesShelf(game, journal, shelf.id, shelves)) counts[shelf.id] += 1;
   }
   return counts;
+}
+
+export function hidePlaceLabel(place: ShelfHidePlace) {
+  switch (place) {
+    case "all":
+      return t("All games and search");
+    case "new":
+      return t("New games row and banner");
+    case "history":
+      return t("My History");
+    case "achievements":
+      return t("Achievements");
+    case "nowPlaying":
+      return t("Now Playing");
+  }
+}
+
+function hidePlaceDescription(place: ShelfHidePlace) {
+  switch (place) {
+    case "all":
+      return t("Searching inside this shelf still finds them.");
+    case "new":
+      return t("They never show as new or as the featured game.");
+    case "history":
+      return t("Sessions, totals, charts and the calendar.");
+    case "achievements":
+      return t("Their ladders and unlocks.");
+    case "nowPlaying":
+      return t("The timer and the tray still show the game.");
+  }
+}
+
+function hidePlaceShort(place: ShelfHidePlace) {
+  switch (place) {
+    case "all":
+      return t("All games");
+    case "new":
+      return t("New games");
+    case "history":
+      return t("My History");
+    case "achievements":
+      return t("Achievements");
+    case "nowPlaying":
+      return t("Now Playing");
+  }
+}
+
+/** Why a shelf that fills itself from filters cannot hide. Ticks saved
+ *  before are paused: that one is a warning. */
+function HidingNote({
+  shelf,
+  className,
+}: {
+  shelf: PersonalShelf;
+  className?: string;
+}) {
+  if (!shelf.filters) return null;
+  if (!shelf.hiddenIn?.length)
+    return (
+      <p className={cn("text-xs text-text-muted", className)}>
+        {t("Only shelves you fill yourself can hide games.")}
+      </p>
+    );
+  return (
+    <p
+      className={cn(
+        "flex items-start gap-2 rounded-lg border border-warning-border/60 bg-warning-tint/40 px-3 py-2 text-xs leading-5 text-warning",
+        className,
+      )}
+    >
+      <AlertTriangle size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+      <span className="min-w-0">
+        {t(
+          "Hiding is paused while this shelf fills itself from filters. Remove the saved filters to hide its games again.",
+        )}
+      </span>
+    </p>
+  );
+}
+
+function shelfTitle(shelf: PersonalShelf) {
+  if (shelf.filters)
+    return shelf.hiddenIn?.length
+      ? t(
+          "Fills itself from saved filters, so hiding is paused. Right-click to edit filters, rename, or delete.",
+        )
+      : t(
+          "Fills itself from saved filters. Right-click to edit filters, rename, or delete.",
+        );
+  if (shelfHides(shelf))
+    return t("Hidden in {{places}}. Right-click to change.", {
+      places: new Intl.ListFormat(appLocale(), { type: "conjunction" }).format(
+        shelf.hiddenIn!.map(hidePlaceShort),
+      ),
+    });
+  return t("Right-click to edit filters, rename, or delete");
+}
+
+function toggledPlaces(
+  places: readonly ShelfHidePlace[] | undefined,
+  place: ShelfHidePlace,
+) {
+  return places?.includes(place)
+    ? places.filter((entry) => entry !== place)
+    : [...(places ?? []), place];
 }
 
 /* The shelf rail ─────────────────────────────────────────────────────────────
@@ -206,6 +321,7 @@ export function LibraryOrganizationToolbar({
   }, [fitToolbar]);
   const [editor, setEditor] = useState<PersonalShelf | "new" | null>(null);
   const [name, setName] = useState("");
+  const [hiddenDraft, setHiddenDraft] = useState<ShelfHidePlace[]>([]);
   const [deleting, setDeleting] = useState<PersonalShelf | null>(null);
   const [menuShelfId, setMenuShelfId] = useState<string | null>(null);
   const shelfMenu = useContextMenu();
@@ -245,6 +361,9 @@ export function LibraryOrganizationToolbar({
   function edit(value: typeof editor) {
     setEditor(value);
     setName(typeof value === "object" && value ? value.name : "");
+    setHiddenDraft(
+      typeof value === "object" && value ? (value.hiddenIn ?? []) : [],
+    );
   }
   function setFilter(key: keyof LibraryFilters, value: unknown) {
     const next = { ...filters, [key]: value };
@@ -329,15 +448,15 @@ export function LibraryOrganizationToolbar({
                 role="tab"
                 aria-selected={selection === shelf.id}
                 selected={selection === shelf.id}
-                icon={shelf.filters ? SlidersHorizontal : FolderHeart}
-                count={counts[shelf.id]}
-                title={
+                icon={
                   shelf.filters
-                    ? t(
-                        "Fills itself from saved filters. Right-click to edit filters, rename, or delete.",
-                      )
-                    : t("Right-click to edit filters, rename, or delete")
+                    ? SlidersHorizontal
+                    : shelfHides(shelf)
+                      ? EyeOff
+                      : FolderHeart
                 }
+                count={counts[shelf.id]}
+                title={shelfTitle(shelf)}
                 onClick={() => onSelect(shelf.id)}
                 onContextMenu={(event) => {
                   menuTriggerRef.current = event.currentTarget;
@@ -644,13 +763,26 @@ export function LibraryOrganizationToolbar({
                 })}
                 disabled={!activeCount || !filtersChanged}
                 onClick={() => {
+                  const pausing = shelfHides(selected);
                   save({ ...selected, filters: draftFilters });
                   closeFilters(true);
-                  addToast({
-                    tone: "success",
-                    title: t("Filters saved"),
-                    detail: selected.name,
-                  });
+                  addToast(
+                    pausing
+                      ? {
+                          tone: "info",
+                          title: t("Hiding is paused for {{shelf}}", {
+                            shelf: selected.name,
+                          }),
+                          detail: t(
+                            "Its games show everywhere again while it fills itself from filters.",
+                          ),
+                        }
+                      : {
+                          tone: "success",
+                          title: t("Filters saved"),
+                          detail: selected.name,
+                        },
+                  );
                 }}
               >
                 {t("Save filters")}
@@ -667,11 +799,20 @@ export function LibraryOrganizationToolbar({
                 onClick={() => {
                   save({ ...selected, filters: undefined });
                   closeFilters();
-                  addToast({
-                    tone: "success",
-                    title: t("Saved filters removed"),
-                    detail: selected.name,
-                  });
+                  addToast(
+                    selected.hiddenIn?.length
+                      ? {
+                          tone: "info",
+                          title: t("{{shelf}} hides its games again", {
+                            shelf: selected.name,
+                          }),
+                        }
+                      : {
+                          tone: "success",
+                          title: t("Saved filters removed"),
+                          detail: selected.name,
+                        },
+                  );
                 }}
               >
                 {t("Remove saved filters")}
@@ -737,6 +878,35 @@ export function LibraryOrganizationToolbar({
           >
             {t("Edit")}
           </ContextMenuItem>
+          {/* Each tick saves at once; the menu stays open for the next. The
+              guide's practice leaves hiding out, like its shelf dialog. */}
+          {!practice ? (
+            <ContextMenuSubmenu label={t("Hide in")} icon={EyeOff}>
+              <HidingNote
+                shelf={menuShelf}
+                className={
+                  menuShelf.hiddenIn?.length
+                    ? "mx-2 my-1 max-w-60"
+                    : "max-w-60 px-3 py-1.5"
+                }
+              />
+              {SHELF_HIDE_PLACES.map((place) => (
+                <ContextMenuItem
+                  key={place}
+                  selected={Boolean(menuShelf.hiddenIn?.includes(place))}
+                  disabled={Boolean(menuShelf.filters)}
+                  onClick={() =>
+                    save({
+                      ...menuShelf,
+                      hiddenIn: toggledPlaces(menuShelf.hiddenIn, place),
+                    })
+                  }
+                >
+                  {hidePlaceLabel(place)}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubmenu>
+          ) : null}
           <ContextMenuItem
             icon={Trash2}
             danger
@@ -782,6 +952,7 @@ export function LibraryOrganizationToolbar({
                 name,
                 filters:
                   typeof editor === "object" ? editor.filters : undefined,
+                hiddenIn: hiddenDraft,
               });
               if (id) {
                 if (typeof editor !== "object") {
@@ -813,6 +984,13 @@ export function LibraryOrganizationToolbar({
                   "Right-click a game on this shelf and choose Pin to shelf banner to give this shelf its own featured game.",
                 )}
               </p>
+            ) : null}
+            {!practice ? (
+              <ShelfHideSection
+                shelf={typeof editor === "object" ? editor : null}
+                places={hiddenDraft}
+                onChange={setHiddenDraft}
+              />
             ) : null}
           </form>
         </Modal>
@@ -853,6 +1031,74 @@ export function LibraryOrganizationToolbar({
           </p>
         </Modal>
       ) : null}
+    </div>
+  );
+}
+
+/** The Edit / New shelf dialog's ticks. Saved with Save shelf. */
+function ShelfHideSection({
+  shelf,
+  places,
+  onChange,
+}: {
+  /** Null for a new shelf. One that fills itself from filters locks the ticks. */
+  shelf: PersonalShelf | null;
+  places: readonly ShelfHidePlace[];
+  onChange: (places: ShelfHidePlace[]) => void;
+}) {
+  const locked = Boolean(shelf?.filters);
+  return (
+    <div
+      role="group"
+      aria-labelledby="shelf-hide-heading"
+      className="grid gap-2 border-t border-border pt-4"
+    >
+      <h3
+        id="shelf-hide-heading"
+        className="flex items-center gap-2 text-sm font-semibold text-text"
+      >
+        <EyeOff size={15} aria-hidden="true" className="text-text-muted" />
+        {t("Hide these games in")}
+      </h3>
+      {shelf && locked ? (
+        <HidingNote shelf={shelf} />
+      ) : (
+        <p className="text-xs text-text-muted">
+          {t(
+            "They stay on this shelf. Untick a place to show them there again.",
+          )}
+        </p>
+      )}
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {SHELF_HIDE_PLACES.map((place) => (
+          <li key={place}>
+            <label
+              className={cn(
+                "flex items-start gap-3 px-3 py-2.5 transition-colors",
+                locked
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer hover:bg-surface-hover/50",
+              )}
+            >
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-[rgb(var(--color-accent))]"
+                checked={places.includes(place)}
+                disabled={locked}
+                onChange={() => onChange(toggledPlaces(places, place))}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-text">
+                  {hidePlaceLabel(place)}
+                </span>
+                <span className="block text-xs text-text-muted">
+                  {hidePlaceDescription(place)}
+                </span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

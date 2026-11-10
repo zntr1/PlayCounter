@@ -25,6 +25,7 @@ import {
   NOTE_LIMIT,
   SESSION_NOTE_LIMIT,
   addJournalGamesToShelf,
+  normalizeHiddenIn,
   normalizeLibraryFilters,
   updateJournalStatuses,
   writeJournal,
@@ -519,8 +520,11 @@ export function createPersonalLibraryActions(
       if (!name) return null;
       const id = shelf.id ?? crypto.randomUUID();
       const state = get();
-      const next = {
-        ...state.personalShelves.find((saved) => saved.id === id),
+      const saved = state.personalShelves.find((entry) => entry.id === id);
+      // Left out keeps the saved places, an empty list clears them.
+      const hiddenIn = normalizeHiddenIn(shelf.hiddenIn ?? saved?.hiddenIn);
+      const { hiddenIn: _places, ...rest } = {
+        ...saved,
         ...shelf,
         id,
         name,
@@ -529,6 +533,7 @@ export function createPersonalLibraryActions(
             ? undefined
             : normalizeLibraryFilters(shelf.filters),
       };
+      const next = hiddenIn ? { ...rest, hiddenIn } : rest;
       set({
         personalShelves: state.personalShelves.some((s) => s.id === id)
           ? state.personalShelves.map((s) => (s.id === id ? next : s))

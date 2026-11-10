@@ -62,6 +62,7 @@ import {
   usePersonalLibraryApi,
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
+import { useHiddenGameKeys } from "../useHiddenGameKeys";
 import { HistoryHero, type HeroArtworkGame } from "./history/HistoryHero";
 import {
   historySelectionLabel,
@@ -163,7 +164,10 @@ export function HistoryView() {
   const query = practice ? sampleQuery : realQuery;
   const setQuery = practice ? setSampleQuery : setRealQuery;
   const selectedGameKey = practice ? sampleGameKey : realGameKey;
-  const sessions = usePersonalLibraryState((state) => state.recentSessions);
+  const storedSessions = usePersonalLibraryState(
+    (state) => state.recentSessions,
+  );
+  const hiddenKeys = useHiddenGameKeys("history");
   const exeCache = usePersonalLibraryState((state) => state.exeCache);
   const hydratedGameMetadata = usePersonalLibraryState(
     (state) => state.gameMetadata,
@@ -219,7 +223,7 @@ export function HistoryView() {
   const timelineBodyRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
   const [insightsReady, setInsightsReady] = useState(() =>
-    hasCachedHistoryInsights(sessions, nowMs),
+    hasCachedHistoryInsights(storedSessions, nowMs),
   );
   const deferredQuery = useDeferredValue(query);
   // Same identity rules as My Games, so launcher totals land on the same
@@ -232,6 +236,18 @@ export function HistoryView() {
         libraryImports,
       ),
     [exeCache, hydratedGameMetadata, libraryImports],
+  );
+  // A shelf can hide games from My History; a game picked on purpose still
+  // shows its own sessions.
+  const sessions = useMemo(
+    () =>
+      hiddenKeys.size === 0
+        ? storedSessions
+        : storedSessions.filter((session) => {
+            const key = getSessionGameKey(session, resolveIgdbId);
+            return !hiddenKeys.has(key) || key === selectedGameKey;
+          }),
+    [hiddenKeys, resolveIgdbId, selectedGameKey, storedSessions],
   );
 
   useEffect(() => {
@@ -406,28 +422,38 @@ export function HistoryView() {
     [neighbours],
   );
 
-  const lifetime = useMemo(
-    () =>
-      selection.kind === "all"
-        ? gameLifetimeTotals({
-            sessions,
-            archivedGameSeconds,
-            archivedConsoleSeconds,
-            playtimeAdjustments,
-            providerFloors: providerFloors(libraryImports.values()),
-            resolveIgdbId,
-          })
-        : null,
-    [
-      archivedConsoleSeconds,
-      archivedGameSeconds,
-      libraryImports,
-      playtimeAdjustments,
-      resolveIgdbId,
-      selection.kind,
+  const lifetime = useMemo(() => {
+    if (selection.kind !== "all") return null;
+    const totals = gameLifetimeTotals({
       sessions,
-    ],
-  );
+      archivedGameSeconds,
+      archivedConsoleSeconds,
+      playtimeAdjustments,
+      providerFloors: providerFloors(libraryImports.values()),
+      resolveIgdbId,
+    });
+    // Archived and launcher time of a hidden game go too, not only sessions.
+    return hiddenKeys.size === 0
+      ? totals
+      : {
+          ...totals,
+          games: new Map(
+            [...totals.games].filter(
+              ([key]) => !hiddenKeys.has(key) || key === selectedGameKey,
+            ),
+          ),
+        };
+  }, [
+    archivedConsoleSeconds,
+    archivedGameSeconds,
+    hiddenKeys,
+    libraryImports,
+    playtimeAdjustments,
+    resolveIgdbId,
+    selectedGameKey,
+    selection.kind,
+    sessions,
+  ]);
   // Name, cover and last played for games no session describes.
   const describeLifetimeGame = useMemo(() => {
     const imported = new Map<
@@ -1135,7 +1161,7 @@ export function HistoryView() {
           onCancel={cancelChange}
           overlapFor={(times) =>
             overlappingSession(
-              sessions,
+              storedSessions,
               pendingChange.session,
               times,
               sessionGameKey,

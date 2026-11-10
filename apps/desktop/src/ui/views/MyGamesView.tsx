@@ -34,6 +34,7 @@ import {
   ClockPlus,
   Download,
   ExternalLink,
+  EyeOff,
   Flag,
   FolderOpen,
   FolderSearch,
@@ -263,8 +264,10 @@ import { LibraryGameDropHint } from "../LibraryGameDropHint";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 import {
   defaultPlaythroughName,
+  journalHiddenIn,
   matchesLibraryFilters,
   normalizeLibraryFilters,
+  shelfHides,
   type LibraryFilters,
   type PersonalShelf,
 } from "../../personalLibrary";
@@ -370,6 +373,17 @@ const t = getT("myGames");
 
 type SortKey = MyGamesSortKey;
 type ViewMode = MyGamesCardSize;
+
+/** The library search: a game's name or the emulator it runs in. */
+function matchesLibrarySearch(
+  game: Pick<GameSummary, "name" | "emulatorLabels">,
+  needle: string,
+) {
+  return (
+    game.name.toLowerCase().includes(needle) ||
+    game.emulatorLabels.some((label) => label.toLowerCase().includes(needle))
+  );
+}
 
 function sortOptions(): Array<{ key: SortKey; label: string }> {
   return [
@@ -1924,8 +1938,9 @@ export function MyGamesView({
     return games.filter((game) => {
       const journal = journalFor({ ...game, gameName: game.name });
       return (
-        (previewFilters ||
-          matchesShelf(game, journal, shelfSelection, personalShelves)) &&
+        (previewFilters
+          ? matchesShelf(game, journal, "all", personalShelves)
+          : matchesShelf(game, journal, shelfSelection, personalShelves)) &&
         matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
       );
     });
@@ -1957,13 +1972,7 @@ export function MyGamesView({
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
-      ? shelfGames.filter(
-          (game) =>
-            game.name.toLowerCase().includes(needle) ||
-            game.emulatorLabels.some((label) =>
-              label.toLowerCase().includes(needle),
-            ),
-        )
+      ? shelfGames.filter((game) => matchesLibrarySearch(game, needle))
       : shelfGames;
   }, [query, shelfGames]);
   const platform = currentPlatform();
@@ -2145,17 +2154,31 @@ export function MyGamesView({
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
+  const hidesNew = personalShelves.some((shelf) => shelfHides(shelf, "new"));
   const defaultFeatured = useMemo(
-    () => pickFeaturedGame(games, featuredSetting),
-    [featuredSetting, games],
-  );
-  const featured = useMemo(
     () =>
-      selectedShelf?.featuredGame
-        ? pickFeaturedGame(games, selectedShelf.featuredGame, featuredSetting)
-        : defaultFeatured,
-    [defaultFeatured, featuredSetting, games, selectedShelf?.featuredGame],
+      pickFeaturedGame(
+        hidesNew
+          ? games.filter(
+              (game) =>
+                !journalHiddenIn(
+                  journalFor({ ...game, gameName: game.name }),
+                  personalShelves,
+                  "new",
+                ),
+            )
+          : games,
+        featuredSetting,
+      ),
+    [featuredSetting, games, hidesNew, journalFor, personalShelves],
   );
+  const featured = useMemo(() => {
+    const shelfPin = selectedShelf?.featuredGame;
+    const pinned = shelfPin
+      ? games.find((game) => matchesFeaturedGame(game, shelfPin))
+      : undefined;
+    return pinned ? { game: pinned, pinned: true } : defaultFeatured;
+  }, [defaultFeatured, games, selectedShelf?.featuredGame]);
   const shelfBannerPinned = Boolean(
     featured &&
     selectedShelf?.featuredGame &&
@@ -2182,11 +2205,73 @@ export function MyGamesView({
   const newGames = useMemo(
     () =>
       newRowAllowed
-        ? newRowGames(displayedGames, Date.now(), newGamesSeen)
+        ? newRowGames(
+            hidesNew
+              ? displayedGames.filter(
+                  (game) =>
+                    !journalHiddenIn(
+                      journalFor({ ...game, gameName: game.name }),
+                      personalShelves,
+                      "new",
+                    ),
+                )
+              : displayedGames,
+            Date.now(),
+            newGamesSeen,
+          )
         : NO_NEW_GAMES,
-    [newRowAllowed, displayedGames, newGamesSeen],
+    [
+      newRowAllowed,
+      displayedGames,
+      newGamesSeen,
+      hidesNew,
+      journalFor,
+      personalShelves,
+    ],
   );
   const newRowVisible = newRowAllowed && newGames.length > 0;
+  // Under All games: how many games the open source, filters and search
+  // would show if no shelf hid them, and which shelves those are.
+  const hiddenHint = useMemo(() => {
+    if (
+      shelfSelection !== "all" ||
+      tourDemo.active ||
+      !personalShelves.some((shelf) => shelfHides(shelf, "all"))
+    )
+      return null;
+    const needle = query.trim().toLowerCase();
+    const shelfIds = new Set<string>();
+    let count = 0;
+    for (const game of filterByLibraryTab(games, activeLibraryTab)) {
+      const journal = journalFor({ ...game, gameName: game.name });
+      if (
+        !journalHiddenIn(journal, personalShelves, "all") ||
+        !matchesLibraryFilters(game, journal, libraryFilters, recentSortNow) ||
+        (needle && !matchesLibrarySearch(game, needle))
+      )
+        continue;
+      count += 1;
+      for (const id of journal.shelfIds) shelfIds.add(id);
+    }
+    if (!count) return null;
+    return {
+      count,
+      searching: Boolean(needle),
+      shelves: personalShelves.filter(
+        (shelf) => shelfIds.has(shelf.id) && shelfHides(shelf, "all"),
+      ),
+    };
+  }, [
+    activeLibraryTab,
+    games,
+    journalFor,
+    libraryFilters,
+    personalShelves,
+    query,
+    recentSortNow,
+    shelfSelection,
+    tourDemo.active,
+  ]);
   useEffect(() => {
     publishLibrarySources({
       tabs,
@@ -2969,6 +3054,37 @@ export function MyGamesView({
                   ) : null}
                 </>
               )}
+              {hiddenHint ? (
+                <p
+                  data-library-hidden-hint=""
+                  className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12.5px] text-text-faint"
+                >
+                  <EyeOff size={13} aria-hidden="true" className="shrink-0" />
+                  <span data-library-hidden-hint-text="">
+                    {hiddenHint.searching
+                      ? t("{{count}} more matches are hidden here by:", {
+                          count: hiddenHint.count,
+                        })
+                      : t("{{count}} games are hidden here by:", {
+                          count: hiddenHint.count,
+                        })}
+                  </span>
+                  {hiddenHint.shelves.map((shelf) => (
+                    <button
+                      key={shelf.id}
+                      type="button"
+                      className="rounded text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      onClick={() => {
+                        // With the shelf row off, its shelf could not show.
+                        if (!showShelves) setMyGamesShowShelves(true);
+                        selectShelf(shelf.id);
+                      }}
+                    >
+                      {shelf.name}
+                    </button>
+                  ))}
+                </p>
+              ) : null}
             </div>
           </div>
         </>

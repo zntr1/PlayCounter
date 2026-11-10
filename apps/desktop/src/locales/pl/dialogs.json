@@ -255,5 +255,7 @@
   "Started {{date}}": "Rozpoczęto {{date}}",
   "Session note": "Notatka do sesji",
   "Add session note": "Dodaj notatkę do sesji",
-  "Edit session note": "Edytuj notatkę do sesji"
+  "Edit session note": "Edytuj notatkę do sesji",
+  "Added to {{shelf}}. It's hidden from All games now.": "Dodano do półki {{shelf}}. Gra jest teraz ukryta we Wszystkich grach.",
+  "Undo": "Cofnij"
 }

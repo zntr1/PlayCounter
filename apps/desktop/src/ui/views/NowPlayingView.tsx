@@ -4,6 +4,7 @@ import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { useGameDetails } from "../../gameDetails";
 import { useCoverUrl } from "../../pickedCovers";
 import { useLibrarySources } from "../librarySources";
+import { useHiddenGameKeys } from "../useHiddenGameKeys";
 import {
   createGameIdentityResolver,
   customHeroArtKey,
@@ -58,10 +59,6 @@ const EMPTY_SECONDS: Record<string, number> = {};
 
 export function NowPlayingView() {
   const allActiveSessions = useAppStore((state) => state.activeSessions);
-  const activeSessions = useMemo(
-    () => allActiveSessions.filter((session) => !session.emulator),
-    [allActiveSessions],
-  );
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const recentSessions = useAppStore((state) => state.recentSessions);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
@@ -75,6 +72,17 @@ export function NowPlayingView() {
   const resolveIgdbId = useMemo(
     () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
     [exeCache, gameMetadata, libraryImports],
+  );
+  // A shelf can hide a game from Now Playing; the timer and tray still run.
+  const hiddenKeys = useHiddenGameKeys("nowPlaying");
+  const activeSessions = useMemo(
+    () =>
+      allActiveSessions.filter(
+        (session) =>
+          !session.emulator &&
+          !hiddenKeys.has(resolvedCanonicalGameKey(session, resolveIgdbId)),
+      ),
+    [allActiveSessions, hiddenKeys, resolveIgdbId],
   );
   const providerFloorByGame = useMemo(
     () => providerFloorsByKey(collectProviderFloors(libraryImports.values())),
