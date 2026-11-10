@@ -223,6 +223,7 @@ import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { useGameCountersRequest } from "../openGameCounters";
 import { achievementSources } from "./games/GameAchievementsTab";
 import { isRejectedGameFile } from "../../rejectedGameFiles";
 import { PickGameFileDialog } from "./games/GameFileList";
@@ -1826,6 +1827,31 @@ export function MyGamesView({
     userIgnoredProcesses,
   ]);
 
+  // "Counters" on Now Playing: the game's Details open here, not on its card,
+  // which a search or filter may hide.
+  const countersRequest = useGameCountersRequest((state) => state.request);
+  const countersGame = useMemo(
+    () =>
+      countersRequest
+        ? games.find((game) =>
+            game.aliases.some(
+              (alias) =>
+                alias.gameId === countersRequest.gameId &&
+                alias.source === countersRequest.source,
+            ),
+          )
+        : undefined,
+    [countersRequest, games],
+  );
+  const closeCounters = useCallback(
+    () => useGameCountersRequest.setState({ request: null }),
+    [],
+  );
+  useEffect(() => {
+    // Not in the library: nothing to open, and nothing to open later either.
+    if (countersRequest && !countersGame) closeCounters();
+  }, [countersRequest, countersGame, closeCounters]);
+
   const demoGames = useMemo<GameSummary[]>(() => {
     if (!tourDemo.active) return [];
     if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
@@ -2978,6 +3004,17 @@ export function MyGamesView({
               });
             }
           }}
+        />
+      ) : null}
+      {countersGame ? (
+        <GameDetailsDialog
+          game={countersGame}
+          initialTab="counters"
+          launchKey="now-playing-counters"
+          launchBlocked={launchingGameKey !== null}
+          onAcquireLaunch={acquireLaunchLock}
+          onReleaseLaunch={releaseLaunchLock}
+          onClose={closeCounters}
         />
       ) : null}
       {pendingBulkMove ? (

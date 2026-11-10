@@ -7,6 +7,7 @@ import {
   Gamepad2,
   Pause,
   Play,
+  Skull,
   Square,
   StickyNote,
 } from "lucide-react";
@@ -49,6 +50,7 @@ import {
 import { getT } from "../../i18n";
 import { igdbTerm } from "../../igdbTerms";
 import { NowPlayingCounters } from "../counters/CounterParts";
+import { openGameCounters } from "../openGameCounters";
 
 const t = getT("nowPlaying");
 
@@ -347,6 +349,16 @@ export function ActiveGameHero({
             >
               {t("Journal")}
             </Button>
+            {showCounters ? (
+              <Button
+                variant="secondary"
+                icon={Skull}
+                onClick={() => openGameCounters(session)}
+                className="h-9 rounded-lg border-border/70 bg-bg/40 backdrop-blur"
+              >
+                {t("Counters")}
+              </Button>
+            ) : null}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
