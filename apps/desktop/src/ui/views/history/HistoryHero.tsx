@@ -24,8 +24,11 @@ import {
   type HistorySelection,
   type SummaryStats,
 } from "../../../historyStats";
-import { usePickedCovers } from "../../../pickedCovers";
-import { customHeroArtKey, useAppStore } from "../../../store";
+import {
+  markCoverUnavailable,
+  usePickedBanner,
+  usePickedCovers,
+} from "../../../pickedCovers";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -113,11 +116,7 @@ export function HistoryHero({
   practice: boolean;
 }) {
   const details = useGameDetails(artworkGame?.igdbId);
-  const pickedArt = useAppStore((state) =>
-    artworkGame
-      ? state.customHeroArt[customHeroArtKey(artworkGame)]
-      : undefined,
-  );
+  const pickedArt = usePickedBanner(artworkGame);
   const wideArt = heroArtwork(
     pickedArt,
     details.status === "ready" ? details.details : null,
@@ -216,6 +215,7 @@ export function HistoryHero({
           src={artwork}
           alt=""
           aria-hidden="true"
+          onError={() => markCoverUnavailable(artwork)}
           className={clsx(
             "history-hero-art pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%]",
             coverOnly && "scale-125 blur-3xl saturate-150",

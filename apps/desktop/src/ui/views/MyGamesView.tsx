@@ -115,6 +115,7 @@ import {
   startGameTimer,
   stopGameTimer,
   setCustomGameCover,
+  setPickedBannerFile,
   setPickedCoverFile,
   suggestTrackedGameToCommunity,
   submitLocalLinkToCommunity,
@@ -128,6 +129,7 @@ import {
   fileMatchSource,
   canSwitchApprovedSuggestionToCommunity,
   createGameIdentityResolver,
+  customHeroArtKey,
   findPendingCommunitySuggestionEntry,
   gameMetadataKey,
   resolvedCanonicalGameKey,
@@ -3523,6 +3525,8 @@ export function GameLibraryCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
+  const [bannerBusy, setBannerBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(
     () =>
       demo &&
@@ -4798,7 +4802,35 @@ export function GameLibraryCard({
     }
   }
 
-  async function handlePasteCover() {
+  // Any game can carry its own banner, also one IGDB and SteamGridDB do not
+  // know; it is stored like a SteamGridDB pick.
+  async function saveBanner(file: File | Blob | null) {
+    if (!file || bannerBusy) return;
+
+    setBannerBusy(true);
+    try {
+      await setPickedBannerFile(customHeroArtKey(game), file);
+      addToast({
+        tone: "success",
+        title: t("Banner updated"),
+        detail: t("{{name}} now uses the selected banner.", {
+          name: game.name,
+        }),
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: t("Banner update failed"),
+        detail: formatError(error),
+      });
+    } finally {
+      setBannerBusy(false);
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+    }
+  }
+
+  /** Paste cover and Paste banner: the first image on the clipboard. */
+  async function pasteArt(kind: "cover" | "banner") {
     contextMenu.close();
     if (!navigator.clipboard?.read) {
       addToast({
@@ -4814,19 +4846,24 @@ export function GameLibraryCard({
       for (const item of items) {
         const imageType = item.types.find((type) => type.startsWith("image/"));
         if (!imageType) continue;
-        await saveCover(await item.getType(imageType));
+        const image = await item.getType(imageType);
+        await (kind === "cover" ? saveCover(image) : saveBanner(image));
         return;
       }
 
       addToast({
         tone: "error",
         title: t("No image in clipboard"),
-        detail: t("Copy an image, then try Paste cover again."),
+        detail:
+          kind === "cover"
+            ? t("Copy an image, then try Paste cover again.")
+            : t("Copy an image, then try Paste banner again."),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: t("Paste cover failed"),
+        title:
+          kind === "cover" ? t("Paste cover failed") : t("Paste banner failed"),
         detail: formatError(error),
       });
     }
@@ -5842,6 +5879,21 @@ export function GameLibraryCard({
                   icon={ImagePlus}
                   onClick={() => {
                     contextMenu.close();
+                    bannerInputRef.current?.click();
+                  }}
+                >
+                  {t("Upload banner")}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  icon={Clipboard}
+                  onClick={() => void pasteArt("banner")}
+                >
+                  {t("Paste banner")}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  icon={ImagePlus}
+                  onClick={() => {
+                    contextMenu.close();
                     setArtPickerTab("cover");
                     setShowArtPicker(true);
                   }}
@@ -5860,7 +5912,7 @@ export function GameLibraryCard({
                 <ContextMenuItem
                   dataTour={demo ? "demo-menu-paste-cover" : undefined}
                   icon={Clipboard}
-                  onClick={() => void handlePasteCover()}
+                  onClick={() => void pasteArt("cover")}
                 >
                   {t("Paste Cover")}
                 </ContextMenuItem>
@@ -6621,6 +6673,16 @@ export function GameLibraryCard({
             void saveCover(event.currentTarget.files?.[0] ?? null);
           }}
         />
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          disabled={bannerBusy}
+          onChange={(event) => {
+            void saveBanner(event.currentTarget.files?.[0] ?? null);
+          }}
+        />
 
         {/* Info Panel Below Cover */}
         <div
@@ -7296,6 +7358,16 @@ export function GameLibraryCard({
         disabled={coverBusy}
         onChange={(event) => {
           void saveCover(event.currentTarget.files?.[0] ?? null);
+        }}
+      />
+      <input
+        ref={bannerInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        disabled={bannerBusy}
+        onChange={(event) => {
+          void saveBanner(event.currentTarget.files?.[0] ?? null);
         }}
       />
       {renderDialogs()}

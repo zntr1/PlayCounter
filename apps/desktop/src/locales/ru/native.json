@@ -171,5 +171,8 @@
   "PlayStation returned an invalid sign-in code. Please sign in again.": "От PlayStation пришёл неверный код входа. Войдите снова.",
   "PlayStation sign-in timed out. Please try again.": "Время на вход в PlayStation истекло. Попробуйте снова.",
   "Could not clear the PlayStation sign-in session. Close PlayCounter before signing in again.": "Не удалось сбросить сеанс входа PlayStation. Закройте PlayCounter перед повторным входом.",
-  "Could not cancel PlayStation sign-in.": "Не удалось отменить вход в PlayStation."
+  "Could not cancel PlayStation sign-in.": "Не удалось отменить вход в PlayStation.",
+  "Banner image is empty.": "Изображение баннера пустое.",
+  "Banner image must be 8 MB or smaller.": "Изображение баннера должно быть не больше 8 МБ.",
+  "Banner image must be a PNG, JPG, or WebP file.": "Баннер должен быть файлом PNG, JPG или WebP."
 }

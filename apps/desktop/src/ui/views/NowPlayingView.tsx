@@ -2,12 +2,11 @@ import { AlertTriangle, ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { useGameDetails } from "../../gameDetails";
-import { useCoverUrl } from "../../pickedCovers";
+import { useCoverUrl, usePickedBanner } from "../../pickedCovers";
 import { useLibrarySources } from "../librarySources";
 import { useHiddenGameKeys } from "../useHiddenGameKeys";
 import {
   createGameIdentityResolver,
-  customHeroArtKey,
   resolvedCanonicalGameKey,
   useAppStore,
   useIsOffline,
@@ -144,11 +143,7 @@ export function NowPlayingView() {
         leadDetails.details.screenshotUrls?.[0] ??
         null)
       : null;
-  const pickedArt = useAppStore((state) =>
-    leadSession
-      ? state.customHeroArt[customHeroArtKey(leadSession)]
-      : undefined,
-  );
+  const pickedArt = usePickedBanner(leadSession);
   const leadCover = useCoverUrl(leadSession, leadSession?.coverUrl);
   const reportCover = useCoverUrl(reportTarget, reportTarget?.coverUrl);
   const nowArt = showTourSession

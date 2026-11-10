@@ -28,7 +28,11 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
-import { useCoverUrl } from "../../../pickedCovers";
+import {
+  markCoverUnavailable,
+  useCoverUrl,
+  usePickedBanner,
+} from "../../../pickedCovers";
 import { playsOnConsole } from "../../../library/importProfiles";
 import { EARLIER_IMPORT } from "../../../library/accountReadings";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
@@ -36,7 +40,6 @@ import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
 import {
   canCancelCommunitySuggestion,
-  customHeroArtKey,
   fileMatchSource,
   gameMetadataKey,
   useAppStore,
@@ -267,9 +270,7 @@ export function GameDetailsDialog({
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const addToast = useAppStore((state) => state.addToast);
-  const pickedArt = useAppStore(
-    (state) => state.customHeroArt[customHeroArtKey(game)],
-  );
+  const pickedArt = usePickedBanner(game);
   const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
   const details = useGameDetails(demo ? undefined : game.igdbId);
   // Release year already known from matching, so the title line is never empty
@@ -502,6 +503,7 @@ export function GameDetailsDialog({
             sizes="1024px"
             alt=""
             decoding="async"
+            onError={() => markCoverUnavailable(artwork)}
             className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
           />
         ) : coverUrl ? (

@@ -711,5 +711,12 @@
   "{{count}} games are hidden here by:_one": "{{count}} Spiel ist hier ausgeblendet durch:",
   "{{count}} games are hidden here by:_other": "{{count}} Spiele sind hier ausgeblendet durch:",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._one": "{{count}} Spiel zu {{shelf}} hinzugefügt. Es ist jetzt in „Alle Spiele“ ausgeblendet.",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "{{count}} Spiele zu {{shelf}} hinzugefügt. Sie sind jetzt in „Alle Spiele“ ausgeblendet."
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "{{count}} Spiele zu {{shelf}} hinzugefügt. Sie sind jetzt in „Alle Spiele“ ausgeblendet.",
+  "Upload banner": "Banner hochladen",
+  "Paste banner": "Banner einfügen",
+  "Banner updated": "Banner aktualisiert",
+  "{{name}} now uses the selected banner.": "{{name}} nutzt jetzt das gewählte Banner.",
+  "Banner update failed": "Banner konnte nicht aktualisiert werden",
+  "Copy an image, then try Paste banner again.": "Kopiere ein Bild und versuch „Banner einfügen“ erneut.",
+  "Paste banner failed": "Banner einfügen fehlgeschlagen"
 }

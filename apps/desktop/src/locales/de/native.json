@@ -171,5 +171,8 @@
   "PlayStation returned an invalid sign-in code. Please sign in again.": "PlayStation hat einen ungültigen Anmeldecode geliefert. Bitte melde dich erneut an.",
   "PlayStation sign-in timed out. Please try again.": "Zeitüberschreitung bei der PlayStation-Anmeldung. Bitte versuche es erneut.",
   "Could not clear the PlayStation sign-in session. Close PlayCounter before signing in again.": "Die PlayStation-Anmeldesitzung konnte nicht gelöscht werden. Schließe PlayCounter, bevor du dich erneut anmeldest.",
-  "Could not cancel PlayStation sign-in.": "Die PlayStation-Anmeldung konnte nicht abgebrochen werden."
+  "Could not cancel PlayStation sign-in.": "Die PlayStation-Anmeldung konnte nicht abgebrochen werden.",
+  "Banner image is empty.": "Das Bannerbild ist leer.",
+  "Banner image must be 8 MB or smaller.": "Das Bannerbild darf höchstens 8 MB groß sein.",
+  "Banner image must be a PNG, JPG, or WebP file.": "Das Bannerbild muss eine PNG-, JPG- oder WebP-Datei sein."
 }

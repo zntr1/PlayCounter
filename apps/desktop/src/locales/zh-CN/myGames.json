@@ -683,5 +683,12 @@
   "Undo": "撤销",
   "{{count}} more matches are hidden here by:_other": "另有 {{count}} 个匹配项在此被以下分类架隐藏：",
   "{{count}} games are hidden here by:_other": "{{count}} 个游戏在此被以下分类架隐藏：",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "已将 {{count}} 个游戏添加到 {{shelf}}。它们现在已从所有游戏中隐藏。"
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "已将 {{count}} 个游戏添加到 {{shelf}}。它们现在已从所有游戏中隐藏。",
+  "Upload banner": "上传横幅",
+  "Paste banner": "粘贴横幅",
+  "Banner updated": "横幅已更新",
+  "{{name}} now uses the selected banner.": "{{name}} 现在使用所选的横幅。",
+  "Banner update failed": "横幅更新失败",
+  "Copy an image, then try Paste banner again.": "复制一张图片，然后再试一次“粘贴横幅”。",
+  "Paste banner failed": "粘贴横幅失败"
 }

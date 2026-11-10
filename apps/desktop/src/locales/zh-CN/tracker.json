@@ -45,5 +45,6 @@
   "{{hours}}h {{minutes}}m": "{{hours}}小时 {{minutes}}分钟",
   "{{minutes}}m": "{{minutes}}分钟",
   "<1m": "<1分钟",
-  "Paused {{game}} - {{duration}}": "已暂停 {{game}} - {{duration}}"
+  "Paused {{game}} - {{duration}}": "已暂停 {{game}} - {{duration}}",
+  "Banner image must be a PNG, JPG, or WebP file.": "横幅图片必须是 PNG、JPG 或 WebP 文件。"
 }

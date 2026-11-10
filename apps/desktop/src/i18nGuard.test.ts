@@ -702,6 +702,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Invalid Steam launch mode.",
   "Invalid Xbox launch mode.",
   "Invalid Xbox title ID.",
+  "Invalid banner key.",
   "Invalid cover key.",
   "Invalid field size.",
   "Invalid install UUID.",

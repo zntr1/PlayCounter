@@ -767,5 +767,12 @@
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._one": "Dodano {{count}} grę do półki {{shelf}}. Jest teraz ukryta we Wszystkich grach.",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._few": "Dodano {{count}} gry do półki {{shelf}}. Są teraz ukryte we Wszystkich grach.",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._many": "Dodano {{count}} gier do półki {{shelf}}. Są teraz ukryte we Wszystkich grach.",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "Dodano {{count}} gry do półki {{shelf}}. Są teraz ukryte we Wszystkich grach."
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "Dodano {{count}} gry do półki {{shelf}}. Są teraz ukryte we Wszystkich grach.",
+  "Upload banner": "Prześlij baner",
+  "Paste banner": "Wklej baner",
+  "Banner updated": "Zaktualizowano baner",
+  "{{name}} now uses the selected banner.": "{{name}} używa teraz wybranego banera.",
+  "Banner update failed": "Nie udało się zaktualizować banera",
+  "Copy an image, then try Paste banner again.": "Skopiuj obraz i spróbuj ponownie „Wklej baner”.",
+  "Paste banner failed": "Nie udało się wkleić banera"
 }

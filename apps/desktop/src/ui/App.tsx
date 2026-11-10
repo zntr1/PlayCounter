@@ -82,6 +82,7 @@ import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
 import { ViewBanner } from "./ViewBanner";
 import { artSrcSet } from "./artSrcSet";
+import { markCoverUnavailable } from "../pickedCovers";
 import { useContextMenu } from "./ContextMenu";
 import { useParkedInTray } from "./useParkedInTray";
 import {
@@ -1197,6 +1198,7 @@ export function App() {
               <img
                 src={titleBarArt}
                 alt=""
+                onError={() => markCoverUnavailable(titleBarArt)}
                 style={
                   // Replaced elements do not stretch between left and right;
                   // the width has to be explicit.
@@ -1311,6 +1313,7 @@ export function App() {
                   srcSet={artSrcSet(titleBarArt)}
                   sizes="100vw"
                   alt=""
+                  onError={() => markCoverUnavailable(titleBarArt)}
                   style={{
                     top: "calc(var(--hero-lead, 0px) * -1)",
                     height: "calc(100% + var(--hero-lead, 0px))",

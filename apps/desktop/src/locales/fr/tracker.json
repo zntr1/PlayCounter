@@ -49,5 +49,6 @@
   "{{hours}}h {{minutes}}m": "{{hours}} h {{minutes}} min",
   "{{minutes}}m": "{{minutes}} min",
   "<1m": "<1 min",
-  "Paused {{game}} - {{duration}}": "En pause : {{game}} - {{duration}}"
+  "Paused {{game}} - {{duration}}": "En pause : {{game}} - {{duration}}",
+  "Banner image must be a PNG, JPG, or WebP file.": "L'image de bannière doit être un fichier PNG, JPG ou WebP."
 }

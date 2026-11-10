@@ -8249,13 +8249,17 @@ export function selectAmbiguousCommunitySuggestion(
 }
 
 async function saveCoverFile(
-  command: "save_custom_cover" | "save_picked_cover",
+  command: "save_custom_cover" | "save_picked_cover" | "save_picked_banner",
   args: Record<string, unknown>,
   file: File | Blob,
 ) {
   const extension = coverExtension(file);
   if (!extension) {
-    throw new Error(t("Cover image must be a PNG, JPG, or WebP file."));
+    throw new Error(
+      command === "save_picked_banner"
+        ? t("Banner image must be a PNG, JPG, or WebP file.")
+        : t("Cover image must be a PNG, JPG, or WebP file."),
+    );
   }
 
   const bytes = [...new Uint8Array(await file.arrayBuffer())];
@@ -8283,6 +8287,15 @@ export async function setPickedCoverFile(key: string, file: File | Blob) {
   const coverUrl = await saveCoverFile("save_picked_cover", { key }, file);
   useAppStore.getState().setCustomCoverArt(key, coverUrl);
   logRuntime(`picked cover uploaded key=${key}`);
+}
+
+/** An uploaded banner, for any game: stored like a SteamGridDB pick, so it
+ *  works for games IGDB and SteamGridDB do not know. `key` is the game's
+ *  customHeroArtKey. */
+export async function setPickedBannerFile(key: string, file: File | Blob) {
+  const bannerUrl = await saveCoverFile("save_picked_banner", { key }, file);
+  useAppStore.getState().setCustomHeroArt(key, bannerUrl);
+  logRuntime(`picked banner uploaded key=${key}`);
 }
 
 export function clearCustomGameCover(gameId: number) {
@@ -9905,7 +9918,11 @@ function sanitizeCustomHeroArt(value: unknown): Record<string, string> {
   for (const [key, url] of Object.entries(value as Record<string, unknown>)) {
     if (
       typeof url === "string" &&
-      /^https:\/\//.test(url) &&
+      // SteamGridDB picks, or uploaded files served by the asset protocol
+      // (http://asset.localhost on Windows, asset://localhost elsewhere).
+      /^(https:\/\/|http:\/\/asset\.localhost\/|asset:\/\/localhost\/)/.test(
+        url,
+      ) &&
       /^[a-z]+:-?\d+$/.test(key)
     ) {
       result[key] = url;

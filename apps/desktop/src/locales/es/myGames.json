@@ -739,5 +739,12 @@
   "{{count}} games are hidden here by:_other": "{{count}} juegos están ocultos aquí por:",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._one": "Se añadió {{count}} juego a {{shelf}}. Ahora está oculto en Todos los juegos.",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._many": "Se añadieron {{count}} juegos a {{shelf}}. Ahora están ocultos en Todos los juegos.",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "Se añadieron {{count}} juegos a {{shelf}}. Ahora están ocultos en Todos los juegos."
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "Se añadieron {{count}} juegos a {{shelf}}. Ahora están ocultos en Todos los juegos.",
+  "Upload banner": "Cargar banner",
+  "Paste banner": "Pegar banner",
+  "Banner updated": "Banner actualizado",
+  "{{name}} now uses the selected banner.": "{{name}} ahora usa el banner seleccionado.",
+  "Banner update failed": "No se pudo actualizar el banner",
+  "Copy an image, then try Paste banner again.": "Copia una imagen y vuelve a intentar “Pegar banner”.",
+  "Paste banner failed": "No se pudo pegar el banner"
 }

@@ -739,5 +739,12 @@
   "{{count}} games are hidden here by:_other": "{{count}} jeux sont masqués ici par :",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._one": "{{count}} jeu ajouté à {{shelf}}. Il est maintenant masqué dans Tous les jeux.",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._many": "{{count}} jeux ajoutés à {{shelf}}. Ils sont maintenant masqués dans Tous les jeux.",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "{{count}} jeux ajoutés à {{shelf}}. Ils sont maintenant masqués dans Tous les jeux."
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "{{count}} jeux ajoutés à {{shelf}}. Ils sont maintenant masqués dans Tous les jeux.",
+  "Upload banner": "Importer une bannière",
+  "Paste banner": "Coller la bannière",
+  "Banner updated": "Bannière mise à jour",
+  "{{name}} now uses the selected banner.": "{{name}} utilise maintenant la bannière choisie.",
+  "Banner update failed": "Échec de la mise à jour de la bannière",
+  "Copy an image, then try Paste banner again.": "Copiez une image, puis réessayez « Coller la bannière ».",
+  "Paste banner failed": "Échec du collage de la bannière"
 }

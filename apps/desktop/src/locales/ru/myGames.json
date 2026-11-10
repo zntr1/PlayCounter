@@ -767,5 +767,12 @@
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._one": "{{count}} игра добавлена на полку «{{shelf}}». Теперь она скрыта во «Всех играх».",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._few": "{{count}} игры добавлены на полку «{{shelf}}». Теперь они скрыты во «Всех играх».",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._many": "{{count}} игр добавлено на полку «{{shelf}}». Теперь они скрыты во «Всех играх».",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "{{count}} игры добавлены на полку «{{shelf}}». Теперь они скрыты во «Всех играх»."
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "{{count}} игры добавлены на полку «{{shelf}}». Теперь они скрыты во «Всех играх».",
+  "Upload banner": "Загрузить баннер",
+  "Paste banner": "Вставить баннер",
+  "Banner updated": "Баннер обновлён",
+  "{{name}} now uses the selected banner.": "{{name}} теперь использует выбранный баннер.",
+  "Banner update failed": "Не удалось обновить баннер",
+  "Copy an image, then try Paste banner again.": "Скопируйте изображение и снова попробуйте «Вставить баннер».",
+  "Paste banner failed": "Не удалось вставить баннер"
 }

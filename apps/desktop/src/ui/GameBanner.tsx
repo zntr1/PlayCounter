@@ -18,8 +18,12 @@ import {
 import { useEffect } from "react";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
-import { useCoverUrl } from "../pickedCovers";
-import { customHeroArtKey, useAppStore } from "../store";
+import {
+  markCoverUnavailable,
+  useCoverUrl,
+  usePickedBanner,
+} from "../pickedCovers";
+import { useAppStore } from "../store";
 import { GameCover } from "./GameCover";
 import {
   Button,
@@ -104,9 +108,7 @@ export function GameBanner({
   });
 
   const ready = details.status === "ready" ? details.details : null;
-  const pickedArt = useAppStore(
-    (state) => state.customHeroArt[customHeroArtKey(game)],
-  );
+  const pickedArt = usePickedBanner(game);
   const artwork = heroArtwork(pickedArt, ready);
   const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
   const facts = ready
@@ -161,6 +163,7 @@ export function GameBanner({
             alt=""
             decoding="async"
             fetchPriority="high"
+            onError={() => markCoverUnavailable(artwork)}
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
@@ -406,6 +409,7 @@ export function GameBanner({
             sizes="100vw"
             alt=""
             decoding="async"
+            onError={() => markCoverUnavailable(backdropArt)}
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:

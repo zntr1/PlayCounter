@@ -711,5 +711,12 @@
   "{{count}} games are hidden here by:_one": "{{count}} game is hidden here by:",
   "{{count}} games are hidden here by:_other": "{{count}} games are hidden here by:",
   "Added {{count}} games to {{shelf}}. They're hidden from All games now._one": "Added {{count}} game to {{shelf}}. It's hidden from All games now.",
-  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "Added {{count}} games to {{shelf}}. They're hidden from All games now."
+  "Added {{count}} games to {{shelf}}. They're hidden from All games now._other": "Added {{count}} games to {{shelf}}. They're hidden from All games now.",
+  "Upload banner": "Upload banner",
+  "Paste banner": "Paste banner",
+  "Banner updated": "Banner updated",
+  "{{name}} now uses the selected banner.": "{{name}} now uses the selected banner.",
+  "Banner update failed": "Banner update failed",
+  "Copy an image, then try Paste banner again.": "Copy an image, then try Paste banner again.",
+  "Paste banner failed": "Paste banner failed"
 }
