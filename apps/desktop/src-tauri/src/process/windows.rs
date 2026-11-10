@@ -1,4 +1,4 @@
-use super::{emulator, ProcessScanner, ProcessSnapshot};
+use super::{bluestacks, emulator, ProcessScanner, ProcessSnapshot};
 use async_trait::async_trait;
 use std::{
     collections::{BTreeMap, HashSet},
@@ -79,6 +79,7 @@ impl ProcessScanner for WindowsScanner {
                         .flatten()
                         .filter(|paths| host.id == "pcsx2" || !paths.is_empty()),
                     recent_file,
+                    foreground_app: None,
                 });
                 continue;
             }
@@ -94,6 +95,7 @@ impl ProcessScanner for WindowsScanner {
                 window_title: None,
                 open_files: None,
                 recent_file: None,
+                foreground_app: None,
             });
         }
 
@@ -111,6 +113,18 @@ impl ProcessScanner for WindowsScanner {
         let titles = emulator::window_titles_for(&title_pids);
         for snapshot in &mut emulator_processes {
             snapshot.window_title = titles.get(&snapshot.pid).cloned();
+        }
+
+        let bluestacks_pids = emulator_processes
+            .iter()
+            .filter(|snapshot| snapshot.emulator_id == Some("bluestacks"))
+            .map(|snapshot| snapshot.pid)
+            .collect::<Vec<_>>();
+        if !bluestacks_pids.is_empty() {
+            let mut apps = bluestacks::foreground_apps(&bluestacks_pids);
+            for snapshot in &mut emulator_processes {
+                snapshot.foreground_app = apps.remove(&snapshot.pid);
+            }
         }
 
         let mut snapshots = processes.into_values().collect::<Vec<_>>();

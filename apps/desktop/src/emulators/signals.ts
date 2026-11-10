@@ -26,6 +26,8 @@ export const GENERIC_IDENTITY_DENYLIST = new Set([
   "melonds",
   "xenia",
   "xenia_canary",
+  "bluestacks",
+  "hd-player",
   "eboot",
   "bios",
   "ps2 bios",

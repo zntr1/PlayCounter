@@ -2730,6 +2730,7 @@ function rawEmulatorSignals(
     windowTitle: process.windowTitle ?? null,
     openFiles: process.openFiles ?? undefined,
     recentFile: process.recentFile ?? undefined,
+    foregroundApp: process.foregroundApp ?? undefined,
   };
 }
 

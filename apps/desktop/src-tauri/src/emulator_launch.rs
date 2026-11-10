@@ -785,6 +785,7 @@ mod tests {
             window_title: Some("Dolphin 2606".to_string()),
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         };
         assert!(is_dolphin_idle(&idle));
         assert!(!is_dolphin_idle(&ProcessSnapshot {
@@ -838,6 +839,7 @@ mod tests {
             ),
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         };
         assert!(is_dosbox_idle(&idle));
         assert!(!is_dosbox_idle(&ProcessSnapshot {
@@ -892,6 +894,7 @@ mod tests {
             window_title: Some("mGBA - 0.10.5".to_string()),
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         };
         assert!(is_mgba_idle(&idle));
         assert!(!is_mgba_idle(&ProcessSnapshot {
@@ -935,6 +938,7 @@ mod tests {
             window_title: Some("Cemu 2.6".to_string()),
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         };
         assert!(is_cemu_idle(&idle));
         assert!(!is_cemu_idle(&ProcessSnapshot {
@@ -970,6 +974,7 @@ mod tests {
             window_title: Some(title.to_string()),
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         }
     }
 
@@ -1126,6 +1131,7 @@ mod tests {
             window_title: None,
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         }]);
         assert_eq!(
             launch_with_dependencies(
@@ -1179,6 +1185,7 @@ mod tests {
             window_title: Some("Dolphin 2606".to_string()),
             open_files: None,
             recent_file: None,
+            foreground_app: None,
         };
         let state = Arc::new(Mutex::new(vec![process]));
         let scanner = SharedScanner(Arc::clone(&state));

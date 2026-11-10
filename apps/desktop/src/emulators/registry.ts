@@ -1,5 +1,6 @@
 import type { EmulatorId } from "@playcounter/shared";
 import { azaharAdapter } from "./azahar";
+import { bluestacksAdapter } from "./bluestacks";
 import { cemuAdapter } from "./cemu";
 import { dosboxAdapter } from "./dosbox";
 import { dolphinAdapter } from "./dolphin";
@@ -31,6 +32,7 @@ const adapters = {
   azahar: azaharAdapter,
   melonds: melondsAdapter,
   xenia: xeniaAdapter,
+  bluestacks: bluestacksAdapter,
 } satisfies Record<EmulatorId, EmulatorAdapter>;
 
 export const EMULATORS: readonly EmulatorAdapter[] = Object.values(adapters);

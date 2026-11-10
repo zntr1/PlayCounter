@@ -7,6 +7,7 @@ type Snapshot = {
   windowTitle?: string | null;
   openFiles?: string[] | null;
   recentFile?: string | null;
+  foregroundApp?: unknown;
   [key: string]: unknown;
 };
 
@@ -18,6 +19,7 @@ export function toPublicSnapshots<T extends Snapshot>(snapshots: T[]): T[] {
       windowTitle: _windowTitle,
       openFiles: _openFiles,
       recentFile: _recentFile,
+      foregroundApp: _foregroundApp,
       ...safe
     } = snapshot;
     return safe as T;

@@ -123,6 +123,7 @@ const detectionSource = oneOf(
   "launch_arguments",
   "open_file_handle",
   "recent_file",
+  "activity_log",
 );
 const game = object(
   { id: integer, name: nonempty, coverUrl: string, source },

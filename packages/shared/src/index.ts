@@ -677,7 +677,8 @@ export type EmulatorId =
   | "eden"
   | "azahar"
   | "melonds"
-  | "xenia";
+  | "xenia"
+  | "bluestacks";
 
 export type DesktopViewId =
   | "now"

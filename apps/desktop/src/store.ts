@@ -51,6 +51,7 @@ import { applyFormats, applyLanguage, formatNumericDate, getT, type LanguageSett
 import type {
   EmulatorMapping,
   EmulatorObservation,
+  ForegroundApp,
   KnownEmulator,
 } from "./emulators/types";
 import { findTour } from "./ui/tour/tourDefinitions";
@@ -132,6 +133,7 @@ export type ProcessSnapshot = {
   windowTitle?: string | null;
   openFiles?: string[] | null;
   recentFile?: string | null;
+  foregroundApp?: ForegroundApp | null;
 };
 
 export type ActiveSession = {

@@ -274,6 +274,7 @@ const BRANDS = new Set([
   "Azahar",
   "melonDS",
   "Xenia",
+  "BlueStacks",
   "Windows",
   "macOS",
   "Linux",
@@ -713,6 +714,8 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Open PlayCounter",
   "PlayCounter cannot import from this launcher.",
   "PlayCounter cannot list games for this launcher.",
+  // A line of BlueStacks' own log that the scanner looks for.
+  "Player state : launched",
   "PlayCounter notification",
   "PlayCounter quick note",
   "PlayCounter timer",

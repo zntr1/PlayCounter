@@ -47,6 +47,7 @@ impl ProcessScanner for MacOsScanner {
                     window_title: None,
                     open_files: None,
                     recent_file: None,
+                    foreground_app: None,
                 });
         }
 
