@@ -201,10 +201,18 @@ export function HistoryView() {
     kind: "all",
   });
   const [sort, setSort] = useState<HistorySort>("newest");
-  // My History opens on Insights; a game picked elsewhere opens its sessions.
+  const savedTab = useAppStore((state) => state.settings.historyTab);
+  const saveTab = useAppStore((state) => state.setHistoryTab);
+  // My History opens on the tab picked last (Insights at first); a game
+  // picked elsewhere opens its sessions.
   const [tab, setTab] = useState<HistoryTab>(() =>
-    selectedGameKey ? "sessions" : "insights",
+    selectedGameKey ? "sessions" : (savedTab ?? "insights"),
   );
+  // Only the player's own pick is saved, not the guide's or a game filter's.
+  const chooseTab = (next: HistoryTab) => {
+    setTab(next);
+    if (!practice) saveTab(next);
+  };
   const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
@@ -828,7 +836,7 @@ export function HistoryView() {
       historyTabs()[
         (index + step + historyTabs().length) % historyTabs().length
       ]!;
-    setTab(next.id);
+    chooseTab(next.id);
     document.getElementById(`history-tab-${next.id}`)?.focus();
   };
   const gamesInRange = leaderboardGames.filter((game) => game.key).length;
@@ -892,7 +900,7 @@ export function HistoryView() {
                 aria-selected={selected}
                 aria-controls={`history-panel-${id}`}
                 tabIndex={selected ? 0 : -1}
-                onClick={() => setTab(id)}
+                onClick={() => chooseTab(id)}
                 className={clsx(
                   "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                   selected

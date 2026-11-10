@@ -392,6 +392,7 @@ const settings = object({}, {
   autoShareIgnoredProcesses: boolean,
   trackTools: boolean,
   softwareLayout: oneOf("grid", "list"),
+  historyTab: oneOf("sessions", "insights", "games"),
   pollingIntervalSeconds: nonnegative,
   unmatchedRetryDays: nonnegative,
   apiEndpoint: nonempty,

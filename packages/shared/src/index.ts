@@ -789,6 +789,8 @@ export interface Settings {
   trackTools?: boolean;
   /** Cards or rows on the Software page. Absent = cards. */
   softwareLayout?: "grid" | "list";
+  /** Tab My History opens on, the one picked last. Absent = Insights. */
+  historyTab?: "sessions" | "insights" | "games";
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;
   apiEndpoint: string;

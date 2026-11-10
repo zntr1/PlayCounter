@@ -733,6 +733,7 @@ export type AppState = {
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setTrackTools: (enabled: boolean) => void;
   setSoftwareLayout: (layout: "grid" | "list") => void;
+  setHistoryTab: (tab: NonNullable<Settings["historyTab"]>) => void;
   setAutoAddInstalledGames: (enabled: boolean) => void;
   setShowInstallInSteam: (enabled: boolean) => void;
   setShowAdultArt: (enabled: boolean) => void;
@@ -2101,6 +2102,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSoftwareLayout: (layout) => {
     set((state) => ({
       settings: { ...state.settings, softwareLayout: layout },
+    }));
+    persistSoon();
+  },
+  setHistoryTab: (historyTab) => {
+    if (get().settings.historyTab === historyTab) return;
+    set((state) => ({
+      settings: { ...state.settings, historyTab },
     }));
     persistSoon();
   },
