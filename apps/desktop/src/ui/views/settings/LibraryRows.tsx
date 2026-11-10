@@ -4,9 +4,9 @@ import { ChevronRight, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { getT } from "../../../i18n";
 import { useAppStore } from "../../../store";
-import { forgetImportedLibraryData } from "../../../tracker";
 import { ProviderBadge } from "../../components";
-import { Button, Modal, Switch } from "../../primitives";
+import { ForgetImportDialog } from "../../ForgetImportDialog";
+import { Button, Switch } from "../../primitives";
 import { SettingsRow, type SettingsRowProps } from "./SettingsKit";
 
 const t = getT("settings");
@@ -71,36 +71,6 @@ const PROVIDERS: readonly LibraryProviderId[] = [
   "playstation",
 ];
 
-// What Forget removes differs per launcher; the confirm dialog says it.
-function forgetText(provider: LibraryProviderId) {
-  switch (provider) {
-    case "steam":
-      return t(
-        "Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
-      );
-    case "xbox":
-      return t(
-        "Removes the Xbox mark, the imported Xbox playtime, and the game files Xbox linked. Sessions PlayCounter recorded itself are kept.",
-      );
-    case "battlenet":
-      return t(
-        "Removes Battle.net imports and their installation links. Sessions PlayCounter recorded itself are kept.",
-      );
-    case "epic":
-      return t(
-        "Removes the Epic Games mark, the imported Epic playtime, the game files Epic linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
-      );
-    case "gog":
-      return t(
-        "Removes the GOG mark, the imported GOG playtime, the game files GOG linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
-      );
-    case "playstation":
-      return t(
-        "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.",
-      );
-  }
-}
-
 /** One list for every launcher import, with a Forget each. */
 export function ForgetImportsRow({ level, disabled }: SettingsRowProps) {
   const libraryImports = useAppStore((state) => state.libraryImports);
@@ -108,7 +78,6 @@ export function ForgetImportsRow({ level, disabled }: SettingsRowProps) {
   const counts = new Map<LibraryProviderId, number>();
   for (const entry of libraryImports.values())
     counts.set(entry.provider, (counts.get(entry.provider) ?? 0) + 1);
-  const label = confirm ? LIBRARY_PROVIDER_LABELS[confirm] : "";
   return (
     <>
       <SettingsRow
@@ -165,40 +134,10 @@ export function ForgetImportsRow({ level, disabled }: SettingsRowProps) {
         }
       />
       {confirm ? (
-        <Modal
-          size="sm"
-          labelId="forget-library-title"
-          title={t("Forget imported {{forgetLibraryLabel}} data?", {
-            forgetLibraryLabel: label,
-          })}
-          subtitle={t("Your recorded PlayCounter sessions will be kept.")}
-          icon={Trash2}
+        <ForgetImportDialog
+          provider={confirm}
           onClose={() => setConfirm(null)}
-          footer={
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setConfirm(null)}>{t("Cancel")}</Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  forgetImportedLibraryData(confirm);
-                  setConfirm(null);
-                }}
-              >
-                {t("Forget imported data")}
-              </Button>
-            </div>
-          }
-        >
-          <div className="grid gap-2 text-sm text-text-muted">
-            <p>{forgetText(confirm)}</p>
-            <p>
-              {t(
-                "{{forgetLibraryLabel}} badges and imported playtime floors will disappear. You can import the library again at any time.",
-                { forgetLibraryLabel: label },
-              )}
-            </p>
-          </div>
-        </Modal>
+        />
       ) : null}
     </>
   );
