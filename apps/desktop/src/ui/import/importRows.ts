@@ -1,4 +1,4 @@
-import { getT, appLocale } from "../../i18n";
+import { formatNumericDate, getT } from "../../i18n";
 import { readAgain } from "../../library/accountReadings";
 import {
   hasImportableActivity,
@@ -145,7 +145,7 @@ export function playtimeText(game: ScannedLibraryGame) {
 
 export function lastPlayedText(game: ScannedLibraryGame) {
   return game.lastPlayedUnix
-    ? new Date(game.lastPlayedUnix * 1000).toLocaleDateString(appLocale())
+    ? formatNumericDate(game.lastPlayedUnix * 1000)
     : null;
 }
 

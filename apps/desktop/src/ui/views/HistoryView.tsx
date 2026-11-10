@@ -81,7 +81,7 @@ import {
   EditSessionDialog,
   SplitSessionDialog,
 } from "./history/SessionChangeDialogs";
-import { appLocale, getT } from "../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../i18n";
 
 const t = getT("history");
 
@@ -118,13 +118,10 @@ function fallbackGameName(exeName: string) {
 
 function formatStartTime(startedAt: string) {
   const date = new Date(startedAt);
-  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
-    appLocale(),
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  )}`;
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(appLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
 }
 
 function formatSessionCount(count: number) {

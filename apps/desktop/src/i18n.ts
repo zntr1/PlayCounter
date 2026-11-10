@@ -1,3 +1,4 @@
+import type { ClockFormat } from "@playcounter/shared";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import enAccounts from "./locales/en/accounts.json";
@@ -396,12 +397,131 @@ export function getT<N extends Namespace>(namespace: N) {
   return i18next.getFixedT(null, namespace);
 }
 
+/** The Format region and Clock settings: a country (ISO code) whose way of
+ *  writing dates and numbers to use, and 24-hour or 12-hour times. */
+export type FormatPreferences = { region: string | null; clock: ClockFormat };
+
+const AUTOMATIC_FORMATS: FormatPreferences = { region: null, clock: "auto" };
+let formats = AUTOMATIC_FORMATS;
 let currentLocale = formattingLocale("en", systemLocales()[0]);
 
 /** Locale for dates and numbers. Pass it to every toLocale…() and Intl call so
- *  they follow PlayCounter's language, not the computer's. */
+ *  they follow PlayCounter's language and format settings, not the
+ *  computer's. */
 export function appLocale() {
   return currentLocale;
+}
+
+let systemDatePattern: ((date: Date) => string) | null = null;
+
+/** The computer's own short date format, e.g. "dd.MM.yyyy" from Windows.
+ *  Automatic dates in numbers use it. One with words (month or weekday
+ *  names) is ignored: the computer's country decides then. */
+export function setSystemDatePattern(pattern: string | null | undefined) {
+  systemDatePattern = pattern ? readDatePattern(pattern) : null;
+}
+
+const NUMERIC_DATE = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+} as const;
+
+/** A date in numbers, the way the format region's country writes it in its
+ *  own language: 07.11.2026 for Germany, 11/07/2026 for the US, 2026-11-07
+ *  for Sweden, whatever language the texts are in. Automatic follows the
+ *  computer's own date format. */
+export function formatNumericDate(value: Date | number | string) {
+  const date = value instanceof Date ? value : new Date(value);
+  // A country the language can't take counts as Automatic, as Settings shows.
+  const region =
+    formats.region && formatRegions(appLanguage()).includes(formats.region)
+      ? formats.region
+      : null;
+  if (region)
+    return date.toLocaleDateString(countryLocale(region), NUMERIC_DATE);
+  if (systemDatePattern) return systemDatePattern(date);
+  const system = systemLocales()[0];
+  let systemRegion: string | undefined;
+  try {
+    systemRegion = system ? new Intl.Locale(system).region : undefined;
+  } catch {
+    systemRegion = undefined;
+  }
+  return date.toLocaleDateString(
+    systemRegion ? countryLocale(systemRegion) : appLocale(),
+    NUMERIC_DATE,
+  );
+}
+
+/** The same, with the time of day after it: "07.11.2026 21:14:00". */
+export function formatNumericDateTime(value: Date | number | string) {
+  const date = value instanceof Date ? value : new Date(value);
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(appLocale())}`;
+}
+
+/** The country's main language with the country, in Latin digits: "DE" is
+ *  de-DE, "CH" de-CH, "CA" en-CA. */
+function countryLocale(region: string) {
+  try {
+    const own = new Intl.Locale(`und-${region}`).maximize();
+    return `${own.language}-${region}-u-nu-latn`;
+  } catch {
+    return appLocale();
+  }
+}
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+// Windows' date pictures that are pure numbers. Words (ddd, MMM) and eras (g)
+// make a pattern unreadable here.
+const DATE_PARTS: Record<string, (date: Date) => string> = {
+  d: (date) => String(date.getDate()),
+  dd: (date) => pad(date.getDate()),
+  M: (date) => String(date.getMonth() + 1),
+  MM: (date) => pad(date.getMonth() + 1),
+  y: (date) => String(date.getFullYear() % 100),
+  yy: (date) => pad(date.getFullYear() % 100),
+  yyyy: (date) => String(date.getFullYear()),
+  yyyyy: (date) => String(date.getFullYear()).padStart(5, "0"),
+};
+
+function readDatePattern(pattern: string) {
+  const parts: Array<string | ((date: Date) => string)> = [];
+  for (let index = 0; index < pattern.length; ) {
+    const char = pattern[index];
+    if (char === "'") {
+      const end = pattern.indexOf("'", index + 1);
+      if (end < 0) return null;
+      parts.push(pattern.slice(index + 1, end));
+      index = end + 1;
+    } else if (/[A-Za-z]/.test(char)) {
+      let length = 1;
+      while (pattern[index + length] === char) length += 1;
+      const part = DATE_PARTS[char.repeat(length)];
+      if (!part) return null;
+      parts.push(part);
+      index += length;
+    } else {
+      parts.push(char);
+      index += 1;
+    }
+  }
+  if (!parts.some((part) => typeof part === "function")) return null;
+  return (date: Date) =>
+    parts
+      .map((part) => (typeof part === "string" ? part : part(date)))
+      .join("");
+}
+
+/** Switches date, time and number formats to the Format region and Clock
+ *  settings, keeping the language. */
+export function applyFormats(
+  region: string | null | undefined,
+  clock: ClockFormat | undefined,
+) {
+  formats = { region: region ?? null, clock: clock ?? "auto" };
+  currentLocale = formattingLocale(appLanguage(), systemLocales()[0], formats);
 }
 
 /** The language the app's texts are in right now. */
@@ -414,10 +534,81 @@ export function systemLanguage() {
   return resolveLanguage("system", systemLocales());
 }
 
-/** The app language with the computer's region: English on a German PC is
- *  en-DE, so English words, but day first, a 24-hour clock and 1.234,5.
- *  Languages with an explicit region keep it, e.g. Brazilian Portuguese. */
+/** The locale dates and numbers use. A picked format region wins when the
+ *  language can be written that way (English + Germany = en-DE: English
+ *  words, day first, a 24-hour clock and 1.234,5); otherwise the app language
+ *  takes the computer's region. A picked clock overrides the region's. */
 export function formattingLocale(
+  language: AppLanguage,
+  systemLocale: string | undefined,
+  preferences: FormatPreferences = AUTOMATIC_FORMATS,
+) {
+  const picked = preferences.region
+    ? regionLocale(language, preferences.region)
+    : null;
+  return withClock(
+    picked ?? automaticLocale(language, systemLocale),
+    preferences.clock,
+  );
+}
+
+function regionLocale(language: AppLanguage, region: string) {
+  return formatRegions(language).includes(region)
+    ? `${new Intl.Locale(language).language}-${region}`
+    : null;
+}
+
+function withClock(locale: string, clock: ClockFormat) {
+  if (clock === "auto") return locale;
+  try {
+    return new Intl.Locale(locale, {
+      hourCycle: clock === "12h" ? "h12" : "h23",
+    }).toString();
+  } catch {
+    return locale;
+  }
+}
+
+// ISO 3166 country codes. Intl can't list regions, so they are spelled out.
+const REGION_CODES =
+  "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(
+    " ",
+  );
+const regionsByLanguage = new Map<AppLanguage, string[]>();
+
+/** The countries whose way of writing dates and numbers this language can
+ *  take, as ISO codes. The browser engine knows only some pairs: English
+ *  goes with most countries, German with Germany, Austria and Switzerland.
+ *  Same script only, so Simplified Chinese never gets Traditional dates. */
+export function formatRegions(language: AppLanguage) {
+  const known = regionsByLanguage.get(language);
+  if (known) return known;
+  let regions: string[] = [];
+  try {
+    const base = new Intl.Locale(language);
+    const script = base.maximize().script;
+    regions = REGION_CODES.filter((region) => {
+      const tag = `${base.language}-${region}`;
+      try {
+        return (
+          new Intl.DateTimeFormat(tag).resolvedOptions().locale === tag &&
+          new Intl.Locale(tag).maximize().script === script
+        );
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    regions = [];
+  }
+  regionsByLanguage.set(language, regions);
+  return regions;
+}
+
+/** The app language with the computer's region: English on a German PC is
+ *  en-DE. Languages with an explicit region keep it, e.g. Brazilian
+ *  Portuguese. */
+function automaticLocale(
   language: AppLanguage,
   systemLocale: string | undefined,
 ) {
@@ -451,7 +642,7 @@ export function weekdayNames(width: "short" | "long") {
 export function applyLanguage(setting: string | undefined) {
   const locales = systemLocales();
   const language = resolveLanguage(setting, locales);
-  currentLocale = formattingLocale(language, locales[0]);
+  currentLocale = formattingLocale(language, locales[0], formats);
   if (typeof document !== "undefined") {
     document.documentElement.lang = language;
   }

@@ -699,6 +699,9 @@ export type LiveTimerCorner =
   | "bottom-left"
   | "bottom-right";
 
+/** Times with 24 hours or with AM and PM; "auto" follows the format region. */
+export type ClockFormat = "auto" | "24h" | "12h";
+
 export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
@@ -721,6 +724,12 @@ export interface Settings {
   /** "system" (the computer's language) or a language code such as "de".
    *  Absent = "system". */
   language?: string;
+  /** Dates and numbers as this country writes them (ISO 3166 code such as
+   *  "DE"), in the app's language. Null or absent = from the language and
+   *  the computer. */
+  formatRegion?: string | null;
+  /** Absent = "auto". */
+  clockFormat?: ClockFormat;
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";

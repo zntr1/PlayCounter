@@ -48,7 +48,12 @@ import {
   clearLoginHealth,
   recordLoginHealth,
 } from "../../../library/loginHealth";
-import { appLocale, applyLanguage, getT } from "../../../i18n";
+import {
+  appLocale,
+  applyLanguage,
+  formatNumericDate,
+  getT,
+} from "../../../i18n";
 import { useAppStore } from "../../../store";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 
@@ -757,7 +762,7 @@ describe("Epic Games", () => {
     for (const xp of ["200 XP", "50 XP", "750 XP"])
       expect(container.textContent).toContain(xp);
     expect(container.textContent).toContain(
-      `From Epic Games, updated ${new Date(Date.UTC(2026, 9, 31)).toLocaleDateString(appLocale())}`,
+      `From Epic Games, updated ${formatNumericDate(Date.UTC(2026, 9, 31))}`,
     );
     expect(buttons()).toContain("Refresh");
     // A saved list doesn't reload by itself.
@@ -975,7 +980,7 @@ describe("GOG", () => {
     gog(() => ({ status: "unavailable" }));
     await render(mordor);
     expect(container.textContent).toContain(
-      `From GOG, updated ${new Date(Date.UTC(2026, 10, 1)).toLocaleDateString(appLocale())}`,
+      `From GOG, updated ${formatNumericDate(Date.UTC(2026, 10, 1))}`,
     );
     expect(container.textContent).not.toContain("XP");
     expect(container.textContent).not.toContain("Gamerscore");
@@ -1346,7 +1351,7 @@ describe("PlayStation", () => {
     expect(row("Elden Lord")).toContain("Gold trophy");
     expect(row("Shardbearer Radahn")).toContain("Bronze trophy");
     expect(container.textContent).toContain(
-      `From PlayStation, updated ${new Date(Date.UTC(2026, 10, 1)).toLocaleDateString(appLocale())}`,
+      `From PlayStation, updated ${formatNumericDate(Date.UTC(2026, 10, 1))}`,
     );
     expect(container.textContent).not.toContain("Gamerscore");
     expect(container.textContent).not.toContain("XP");
@@ -1405,7 +1410,7 @@ describe("PlayStation", () => {
     const de = getT("games");
     for (const text of [
       de("From PlayStation, updated {{date}}", {
-        date: new Date(Date.UTC(2026, 10, 1)).toLocaleDateString(appLocale()),
+        date: formatNumericDate(new Date(Date.UTC(2026, 10, 1))),
       }),
       de("Platinum trophies: {{earned}} of {{total}}", {
         earned: "0",

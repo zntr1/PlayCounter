@@ -14,6 +14,7 @@ import type {
   Session,
   Settings,
   Theme,
+  ClockFormat,
 } from "@playcounter/shared";
 import { create } from "zustand";
 import {
@@ -46,7 +47,7 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
-import { appLocale, applyLanguage, type LanguageSetting, getT } from "./i18n";
+import { applyFormats, applyLanguage, formatNumericDate, getT, type LanguageSetting } from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -60,6 +61,11 @@ import type {
   EmulatorLaunchTarget,
 } from "./emulatorLaunch";
 import { stepView } from "./ui/tour/tourNavigation";
+import {
+  DEFAULT_SETTINGS_GROUP,
+  type SettingsGroupId,
+} from "./ui/views/settings/settingsGroups";
+import type { UpdateCheckResult } from "./updater";
 import type {
   LibraryImportEntry,
   LibraryInstallEntry,
@@ -596,9 +602,17 @@ export type AppState = {
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
+  /** The group Settings shows. Not saved: Settings opens on General. */
+  settingsGroup: SettingsGroupId;
+  /** A newer version the update check found, for the About page. */
+  availableUpdate: Extract<UpdateCheckResult, { status: "available" }> | null;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
+  setSettingsGroup: (group: SettingsGroupId) => void;
+  setAvailableUpdate: (
+    update: Extract<UpdateCheckResult, { status: "available" }> | null,
+  ) => void;
   setLibraryTab: (tab: LibraryTabId) => void;
   setLibraryImportProvider: (provider: BuiltinImportProviderId) => void;
   startTour: (tourId: string) => void;
@@ -704,6 +718,9 @@ export type AppState = {
   setLaunchOnStartup: (enabled: boolean) => void;
   setStartView: (view: "now" | "games") => void;
   setLanguage: (language: LanguageSetting) => void;
+  /** A country code, or null for automatic. */
+  setFormatRegion: (region: string | null) => void;
+  setClockFormat: (clock: ClockFormat) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -801,6 +818,8 @@ const defaultSettings: Settings = {
   launchOnStartup: true,
   startView: "now",
   language: "system",
+  formatRegion: null,
+  clockFormat: "auto",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -949,7 +968,7 @@ function persistSoon() {
                 "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
                 {
                   count: result.removed.length,
-                  date: new Date(oldest).toLocaleDateString(appLocale()),
+                  date: formatNumericDate(oldest),
                 },
               )
             : t(
@@ -1052,9 +1071,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
+  settingsGroup: DEFAULT_SETTINGS_GROUP,
+  availableUpdate: null,
   cleanup: null,
   settings: createDefaultSettings(),
   setActiveView: (activeView) => set({ activeView }),
+  setSettingsGroup: (settingsGroup) => set({ settingsGroup }),
+  setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setLibraryImportProvider: (libraryImportProvider) =>
     set({ libraryImportProvider }),
@@ -1071,6 +1094,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return {
         activeTour,
         activeView: stepView(tour.steps[0], state.activeView, state.activeView),
+        settingsGroup: tour.steps[0].settingsGroup ?? state.settingsGroup,
         demoResetToken: state.demoResetToken + 1,
         helpMenuOpen: false,
       };
@@ -1093,6 +1117,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           state.activeView,
           state.activeTour.returnView,
         ),
+        settingsGroup: step.settingsGroup ?? state.settingsGroup,
         demoResetToken: state.demoResetToken + (resetDemo ? 1 : 0),
       };
     }),
@@ -1883,6 +1908,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // A settings reset must never trim history to make room. Save the current
     // durable data with only its settings replaced, or report the write failure.
     writePersistedRecord(createPersistedPayload({ ...get(), settings }));
+    applyFormats(settings.formatRegion, settings.clockFormat);
     applyLanguage(settings.language);
     set({ settings });
     applyTheme(settings.theme, settings.accentColor);
@@ -1904,6 +1930,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     applyLanguage(language);
     set((state) => ({
       settings: { ...state.settings, language },
+    }));
+    persistSoon();
+  },
+  setFormatRegion: (formatRegion) => {
+    // Like the language: switch first, then re-render.
+    applyFormats(formatRegion, get().settings.clockFormat);
+    set((state) => ({
+      settings: { ...state.settings, formatRegion },
+    }));
+    persistSoon();
+  },
+  setClockFormat: (clockFormat) => {
+    applyFormats(get().settings.formatRegion, clockFormat);
+    set((state) => ({
+      settings: { ...state.settings, clockFormat },
     }));
     persistSoon();
   },

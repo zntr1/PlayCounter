@@ -307,7 +307,7 @@ import type {
   KnownEmulator,
   RawEmulatorSignals,
 } from "./emulators/types";
-import { appLocale, getT } from "./i18n";
+import { appLocale, formatNumericDate, getT } from "./i18n";
 
 const t = getT("tracker");
 
@@ -7230,7 +7230,7 @@ export function persist() {
               "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
               {
                 count: result.removed.length,
-                date: new Date(oldest).toLocaleDateString(appLocale()),
+                date: formatNumericDate(oldest),
               },
             )
           : t(

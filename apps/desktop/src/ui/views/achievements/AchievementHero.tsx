@@ -9,7 +9,7 @@ import {
   type AchievementCatalogItem,
   type AchievementSummaryData,
 } from "./achievementCatalog";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDateTime, getT } from "../../../i18n";
 
 const t = getT("achievements");
 
@@ -245,9 +245,7 @@ function RecentRow({ item }: { item: AchievementCatalogItem }) {
         </div>
         <time
           dateTime={item.milestone!.awardedAt}
-          title={new Date(item.milestone!.awardedAt).toLocaleString(
-            appLocale(),
-          )}
+          title={formatNumericDateTime(item.milestone!.awardedAt)}
           className="mt-0.5 block text-[11px] text-text-faint"
         >
           {relativeTime(item.milestone!.awardedAt)}

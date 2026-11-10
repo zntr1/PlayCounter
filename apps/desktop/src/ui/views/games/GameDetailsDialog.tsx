@@ -52,6 +52,7 @@ import { Button, IconButton, Modal } from "../../primitives";
 import { ContextMenu, useAnchoredMenu } from "../../ContextMenu";
 import { GameTierMenuItems } from "../../GameJournalActions";
 import { useGameJournal } from "../../useGameJournal";
+import { TIER_TONES } from "../../journalStyles";
 import {
   formatDuration,
   GameProvenanceBadges,
@@ -74,7 +75,7 @@ import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
-import { appLanguage, appLocale, getT } from "../../../i18n";
+import { appLanguage, formatNumericDate, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
 
 const t = getT("games");
@@ -120,7 +121,7 @@ function formatDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(appLocale());
+  return formatNumericDate(date);
 }
 
 function Row({
@@ -167,7 +168,7 @@ function Chips({ values }: { values: readonly string[] }) {
 }
 
 /** Your own tier beside IGDB's rating, so the two never read as one. */
-function TierTile({ game }: { game: GameIdentityRef }) {
+export function TierTile({ game }: { game: GameIdentityRef }) {
   const journal = useGameJournal(game);
   const menu = useAnchoredMenu();
   return (
@@ -185,7 +186,9 @@ function TierTile({ game }: { game: GameIdentityRef }) {
             <span className="max-w-[4.5rem] text-left text-[11px] leading-tight text-text-muted">
               {t("Your tier")}
             </span>
-            <span className="font-mono text-2xl font-bold text-text">
+            <span
+              className={`font-mono text-2xl font-bold ${TIER_TONES[journal.tier]}`}
+            >
               {journal.tier}
             </span>
           </>
@@ -1121,10 +1124,9 @@ export function GameDetailsDialog({
     <Modal
       dataTour={demo ? "demo-game-details" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
-      // One height for every tab: a centered dialog that grows or shrinks
-      // with its content jumps up and down while a tab loads.
-      className="game-details-dialog h-[90vh]"
-      size="xl"
+
+      className="game-details-dialog  max-w-6xl h-[90vh]"
+       size="xl"
       labelId="game-details-title"
       title={game.name}
       header={header}

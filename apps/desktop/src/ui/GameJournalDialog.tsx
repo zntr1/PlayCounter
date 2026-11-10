@@ -59,7 +59,7 @@ import { gameSecondsRefFromKey } from "../gameSeconds";
 import { getSessionGameKey } from "../historyStats";
 import { usePickedCovers } from "../pickedCovers";
 import { playedSeconds } from "../sessionTime";
-import { appLocale, getT } from "../i18n";
+import { appLocale, formatNumericDate, getT } from "../i18n";
 import { Trans } from "react-i18next";
 
 const t = getT("dialogs");
@@ -338,7 +338,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     t("{{count}} sessions", { count: gameSessions.length }),
     lastPlayedAt
       ? t("last played {{date}}", {
-          date: new Date(lastPlayedAt).toLocaleDateString(appLocale()),
+          date: formatNumericDate(lastPlayedAt),
         })
       : t("no sessions yet"),
   ];
@@ -564,9 +564,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               <p className="mt-1 text-xs text-text-muted">
                 {playthrough
                   ? t("Started {{date}}", {
-                      date: new Date(playthrough.createdAt).toLocaleDateString(
-                        appLocale(),
-                      ),
+                      date: formatNumericDate(playthrough.createdAt),
                     })
                   : t(
                       "All sessions that are not assigned to a named playthrough.",
@@ -815,9 +813,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                         onEditingNoteChange={(editing) =>
                           setEditingNoteId(editing ? s.id : null)
                         }
-                        date={new Date(s.startedAt).toLocaleDateString(
-                          appLocale(),
-                        )}
+                        date={formatNumericDate(s.startedAt)}
                         seconds={s.durationSeconds ?? 0}
                         showDays={showDays}
                       />

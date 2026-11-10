@@ -363,7 +363,7 @@ import { type MyGamesCardSize } from "../myGamesPresentation";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
-import { appLocale, getT } from "../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../i18n";
 import { nativeText } from "../../nativeText";
 
 const t = getT("myGames");
@@ -624,7 +624,7 @@ function sourceRank(source: GameSource | null | undefined) {
 
 function formatLastPlayed(value: string) {
   const date = new Date(value);
-  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(
     appLocale(),
     {
       hour: "2-digit",

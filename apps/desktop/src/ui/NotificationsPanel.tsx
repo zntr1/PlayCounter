@@ -8,7 +8,7 @@ import { useAppStore } from "../store";
 import { NotificationArt } from "./AchievementBadge";
 import { Panel } from "./components";
 import { Button, IconButton, useEscapeKey } from "./primitives";
-import { appLocale, getT } from "../i18n";
+import { formatNumericDateTime, getT } from "../i18n";
 
 const t = getT("shell");
 
@@ -170,9 +170,7 @@ export function NotificationsPanel({
                     </p>
                   ) : null}
                   <time className="mt-1 block text-[11px] text-text-faint">
-                    {new Date(notification.createdAt).toLocaleString(
-                      appLocale(),
-                    )}
+                    {formatNumericDateTime(notification.createdAt)}
                   </time>
                   {notification.action ? (
                     <button
