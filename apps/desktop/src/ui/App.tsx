@@ -605,6 +605,12 @@ export function App() {
   const setSidebarSourcesCollapsed = useAppStore(
     (state) => state.setSidebarSourcesCollapsed,
   );
+  const emulatorsCollapsed = useAppStore(
+    (state) => state.settings.sidebarEmulatorsCollapsed === true,
+  );
+  const setSidebarEmulatorsCollapsed = useAppStore(
+    (state) => state.setSidebarEmulatorsCollapsed,
+  );
   const libraryTab = useAppStore((state) => state.libraryTab);
   const importMenu = useContextMenu();
   // The title bar uses the same image frame as the banner and its lower
@@ -1101,6 +1107,17 @@ export function App() {
             // Emulator entries close the Library section. They share one
             // wrapper so the emulator guide can ring them together.
             const emulatorItems = items.filter(isEmulatorNavItem);
+            const emulatorPages = items.filter(isEmulatorId);
+            // Two or more emulators fold under one Emulators row, like the
+            // sources under My Games. The emulator guide keeps the row open
+            // so its steps can point at an emulator.
+            const groupEmulators = emulatorPages.length >= 2;
+            const emulatorsOpen =
+              !groupEmulators || emulatorTourDemo || !emulatorsCollapsed;
+            const emulatorBadgeTotal = emulatorPages.reduce(
+              (total, item) => total + sidebarEmulatorBadge(item),
+              0,
+            );
 
             return (
               <div key={section.id}>
@@ -1131,7 +1148,35 @@ export function App() {
                       data-tour="nav-emulators"
                       className="flex flex-col gap-1"
                     >
-                      {emulatorItems.map(renderNavItem)}
+                      {emulatorItems.includes("emulating")
+                        ? renderNavItem("emulating")
+                        : null}
+                      {groupEmulators ? (
+                        <SidebarButton
+                          icon={Cpu}
+                          label={t("Emulators")}
+                          collapsed={sidebarCollapsed}
+                          expanded={emulatorsOpen}
+                          // Folded shut, the row stands in for the open
+                          // emulator page, the way My Games does for sources.
+                          active={
+                            !emulatorsOpen &&
+                            isEmulatorId(activeView) &&
+                            emulatorPages.includes(activeView)
+                          }
+                          badge={
+                            emulatorsOpen
+                              ? undefined
+                              : emulatorBadgeTotal || undefined
+                          }
+                          controllerEnabled
+                          dataTour="nav-emulator-group"
+                          onClick={() =>
+                            setSidebarEmulatorsCollapsed(!emulatorsCollapsed)
+                          }
+                        />
+                      ) : null}
+                      {emulatorsOpen ? emulatorPages.map(renderNavItem) : null}
                     </div>
                   ) : null}
                   {section.id === "system" ? (

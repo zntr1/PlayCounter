@@ -382,6 +382,7 @@ const settings = object({}, {
   viewBannerDetails: boolean,
   sidebarCollapsed: boolean,
   sidebarSourcesCollapsed: boolean,
+  sidebarEmulatorsCollapsed: boolean,
   libraryStatCards: array(
     oneOf(
       "games",

@@ -792,6 +792,8 @@ export interface Settings {
   sidebarCollapsed?: boolean;
   /** Source list under My Games folded away. Absent = shown. */
   sidebarSourcesCollapsed?: boolean;
+  /** Emulator list under its Emulators row folded away. Absent = shown. */
+  sidebarEmulatorsCollapsed?: boolean;
   autoShareIgnoredProcesses: boolean;
   /** Count time for recognized software (Discord, launchers, ...) on the
    *  Software page. Absent = off. */
