@@ -36,8 +36,12 @@ import {
   type AchievementGroupId,
 } from "./achievements/achievementCatalog";
 import { appLocale, getT } from "../../i18n";
+import { Button } from "../primitives";
+import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 
 const t = getT("achievements");
+
+const GAME_LADDER_BATCH = 20;
 
 type Tab = "milestones" | "games";
 
@@ -398,6 +402,12 @@ function GameSection({
   ladders: ReturnType<typeof buildGameLadders>;
   hiddenGameCount: number;
 }) {
+  // Ladders come in batches of 20, so hundreds of games don't draw at once.
+  const renderWindow = useLibraryRenderWindow(
+    "achievement-ladders",
+    ladders.length,
+    { view: "achievements", batch: GAME_LADDER_BATCH },
+  );
   if (ladders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
@@ -416,9 +426,20 @@ function GameSection({
 
   return (
     <div className="grid gap-3">
-      {ladders.map((ladder) => (
+      {ladders.slice(0, renderWindow.limit).map((ladder) => (
         <GameLadderRow key={ladder.key} ladder={ladder} />
       ))}
+      {renderWindow.hasMore ? (
+        <div ref={renderWindow.sentinelRef} className="flex justify-center">
+          <Button
+            variant="ghost"
+            loading={renderWindow.pending}
+            onClick={renderWindow.loadMore}
+          >
+            {t("Show more games")}
+          </Button>
+        </div>
+      ) : null}
       {hiddenGameCount > 0 ? (
         <p className="pt-1 text-center text-xs text-text-faint">
           {t(
