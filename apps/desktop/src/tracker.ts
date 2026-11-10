@@ -543,6 +543,8 @@ export async function initializeTracker() {
           : t(
               "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
             ),
+        // Tracking and saving stay paused, so the message stays on screen.
+        { closable: false },
       );
     return;
   }
@@ -3488,9 +3490,10 @@ async function resolveProcesses(
           "match API unavailable; leaving uncached executables pending",
         );
       } else {
-        state.setRuntimeError(
-          t("Match API failed: {{error}}", { error: formatError(error) }),
-        );
+        matchLookupError = t("Match API failed: {{error}}", {
+          error: formatError(error),
+        });
+        state.setRuntimeError(matchLookupError);
       }
     }
   }
@@ -7112,6 +7115,10 @@ async function sendInstallPresenceIfDue() {
   }
 }
 
+// The failed match lookup shown as the runtime error, so it can go away once
+// the server answers again.
+let matchLookupError: string | null = null;
+
 function setBackendHealth(
   status: "checking" | "online" | "offline" | "reconnecting",
   detail: string,
@@ -7128,7 +7135,12 @@ function setBackendHealth(
     logRuntime(`backend health ${status}: ${detail}`);
   }
 
-  if (status === "online" && state.runtimeError?.includes("API failed")) {
+  // Compared as a whole: the text is in the app's language.
+  if (
+    status === "online" &&
+    matchLookupError !== null &&
+    state.runtimeError === matchLookupError
+  ) {
     state.setRuntimeError(null);
   }
 }

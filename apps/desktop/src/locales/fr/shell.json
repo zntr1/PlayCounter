@@ -155,7 +155,6 @@
   "Match them to games or ignore them so PlayCounter tracks the right playtime.": "Associez-les à des jeux ou ignorez-les pour que PlayCounter suive le bon temps de jeu.",
   "Open Discovered": "Ouvrir Détectés",
   "Update check timed out.": "La recherche de mise à jour a expiré.",
-  "Version {{version}} is available - {{progress}}": "La version {{version}} est disponible - {{progress}}",
   "Version {{version}} is available": "La version {{version}} est disponible",
   "Hide banner in {{view}}": "Masquer la bannière dans {{view}}",
   "Show banner in {{view}}": "Afficher la bannière dans {{view}}",

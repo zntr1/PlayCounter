@@ -124,3 +124,77 @@ it("updates an existing pause when a later in-flight response extends it", async
   expect(vi.getTimerCount()).toBe(0);
   root = createRoot(container);
 });
+
+const closeButton = () =>
+  container.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+
+it("closes the pause notice for the rest of this pause and shows the next pause again", async () => {
+  fetchMock.mockResolvedValue(
+    new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+  );
+  await rateLimitedFetch(endpoint);
+  await act(() =>
+    root.render(
+      createElement(RequestWarning, { apiEndpoint: endpoint, runtimeError: null }),
+    ),
+  );
+  expect(container.textContent).toContain("Online requests paused");
+
+  await act(() => closeButton()!.click());
+  expect(container.textContent).toBe("");
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(5_000);
+  });
+  expect(container.textContent).toBe("");
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15_000);
+  });
+  await act(async () => {
+    await rateLimitedFetch(endpoint);
+  });
+  expect(container.textContent).toContain("Online requests paused");
+  expect(container.querySelector('[role="timer"]')?.textContent).toBe("20s");
+});
+
+it("closes an error until a different one comes or the same one comes back", async () => {
+  const show = (runtimeError: string | null) =>
+    act(() =>
+      root.render(
+        createElement(RequestWarning, { apiEndpoint: endpoint, runtimeError }),
+      ),
+    );
+  await show("Process scan failed: access denied");
+  await act(() => closeButton()!.click());
+  expect(container.textContent).toBe("");
+
+  // The scan fails again with the same message: still the same error.
+  await show("Process scan failed: access denied");
+  expect(container.textContent).toBe("");
+
+  await show("Match API failed: Failed to fetch");
+  expect(container.textContent).toBe("Match API failed: Failed to fetch");
+  await act(() => closeButton()!.click());
+  expect(container.textContent).toBe("");
+
+  // The error went away; when it happens again it is a new error.
+  await show(null);
+  await show("Match API failed: Failed to fetch");
+  expect(container.textContent).toBe("Match API failed: Failed to fetch");
+});
+
+it("never offers to close an error that is not closable", async () => {
+  await act(() =>
+    root.render(
+      createElement(RequestWarning, {
+        apiEndpoint: endpoint,
+        runtimeError: "PlayCounter can't read its saved data.",
+        runtimeErrorClosable: false,
+      }),
+    ),
+  );
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    "PlayCounter can't read its saved data.",
+  );
+  expect(closeButton()).toBeNull();
+});

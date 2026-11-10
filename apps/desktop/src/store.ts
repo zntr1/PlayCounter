@@ -560,6 +560,8 @@ export type AppState = {
   runtimeLog: RuntimeLogEntry[];
   blacklist: Set<string>;
   runtimeError: string | null;
+  /** False for an error that must stay on screen (saved data that failed to load). */
+  runtimeErrorClosable: boolean;
   backendHealth: BackendHealth;
   installPresenceMarker: InstallPresenceMarker | null;
   toasts: Toast[];
@@ -694,7 +696,10 @@ export type AppState = {
   forgetEmulatorLaunchTargets: () => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
-  setRuntimeError: (error: string | null) => void;
+  setRuntimeError: (
+    error: string | null,
+    options?: { closable?: boolean },
+  ) => void;
   setBackendHealth: (health: BackendHealth) => void;
   setInstallPresenceMarker: (marker: InstallPresenceMarker) => void;
   addToast: (toast: Omit<Toast, "id">) => void;
@@ -1042,6 +1047,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   runtimeLog: [],
   blacklist: new Set(),
   runtimeError: null,
+  runtimeErrorClosable: true,
   backendHealth: { status: "checking", checkedAt: null, detail: null },
   installPresenceMarker: null,
   toasts: [],
@@ -1668,7 +1674,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...state.runtimeLog,
       ].slice(0, 300),
     })),
-  setRuntimeError: (runtimeError) => set({ runtimeError }),
+  setRuntimeError: (runtimeError, options) =>
+    set({ runtimeError, runtimeErrorClosable: options?.closable ?? true }),
   setBackendHealth: (backendHealth) => set({ backendHealth }),
   setInstallPresenceMarker: (installPresenceMarker) =>
     set({ installPresenceMarker }),

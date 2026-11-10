@@ -1,7 +1,8 @@
-import { Clock3 } from "lucide-react";
+import { CircleAlert, Clock3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { rateLimitDelay, subscribeRateLimit } from "../rateLimitedFetch";
 import { getT } from "../i18n";
+import { NoticeCard } from "./NoticeCard";
 
 const t = getT("common");
 
@@ -33,11 +34,20 @@ function useRateLimitSeconds(apiEndpoint: string): number {
 export function RequestWarning({
   apiEndpoint,
   runtimeError,
+  runtimeErrorClosable = true,
 }: {
   apiEndpoint: string;
   runtimeError: string | null;
+  runtimeErrorClosable?: boolean;
 }) {
   const seconds = useRateLimitSeconds(apiEndpoint);
+  // Closed for the rest of this pause; the next pause shows again.
+  const [pauseClosed, setPauseClosed] = useState(false);
+  if (seconds === 0 && pauseClosed) setPauseClosed(false);
+  // Closed until a different error comes, or this one goes away and returns.
+  const [closedError, setClosedError] = useState<string | null>(null);
+  if (!runtimeError && closedError !== null) setClosedError(null);
+
   const countdown =
     seconds < 60
       ? t("{{seconds}}s", { seconds })
@@ -45,36 +55,44 @@ export function RequestWarning({
           minutes: Math.floor(seconds / 60),
           seconds: seconds % 60,
         });
+  const showError =
+    runtimeError !== null &&
+    (!runtimeErrorClosable || runtimeError !== closedError);
   return (
     <>
-      {seconds > 0 ? (
-        <div className="flex items-start gap-3 border-b border-warning-border bg-warning-tint px-7 py-3 text-sm text-warning">
-          <Clock3 size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <div className="min-w-0 flex-1" role="status">
-            <p className="font-medium">{t("Online requests paused")}</p>
-            <p className="mt-0.5">
-              {t(
-                "The server is temporarily busy. Background lookups will retry automatically. Other actions can be tried again after this pause.",
-              )}
-            </p>
-          </div>
-          <span
-            role="timer"
-            aria-live="off"
-            aria-label={t("Time until requests can resume")}
-            className="shrink-0 rounded-md border border-warning-border px-2 py-0.5 font-medium tabular-nums"
-          >
-            {countdown}
-          </span>
-        </div>
+      {seconds > 0 && !pauseClosed ? (
+        <NoticeCard
+          tone="warning"
+          icon={<Clock3 size={18} />}
+          title={t("Online requests paused")}
+          text={t(
+            "The server is temporarily busy. Background lookups will retry automatically. Other actions can be tried again after this pause.",
+          )}
+          aside={
+            <span
+              role="timer"
+              aria-live="off"
+              aria-label={t("Time until requests can resume")}
+              className="shrink-0 rounded-full bg-warning/15 px-2 font-mono text-xs font-semibold leading-5 tabular-nums text-warning"
+            >
+              {countdown}
+            </span>
+          }
+          onClose={() => setPauseClosed(true)}
+        />
       ) : null}
-      {runtimeError ? (
-        <div
-          role="alert"
-          className="border-b border-warning-border bg-warning-tint px-7 py-2 text-sm text-warning"
-        >
-          {runtimeError}
-        </div>
+      {showError ? (
+        <NoticeCard
+          tone="danger"
+          live="alert"
+          icon={<CircleAlert size={18} />}
+          text={runtimeError}
+          onClose={
+            runtimeErrorClosable
+              ? () => setClosedError(runtimeError)
+              : undefined
+          }
+        />
       ) : null}
     </>
   );

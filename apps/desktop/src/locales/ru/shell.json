@@ -155,7 +155,6 @@
   "Match them to games or ignore them so PlayCounter tracks the right playtime.": "Привяжите их к играм или игнорируйте, чтобы PlayCounter учитывал правильное время.",
   "Open Discovered": "Открыть «Обнаруженные»",
   "Update check timed out.": "Проверка обновлений не ответила вовремя.",
-  "Version {{version}} is available - {{progress}}": "Доступна версия {{version}} - {{progress}}",
   "Version {{version}} is available": "Доступна версия {{version}}",
   "Hide banner in {{view}}": "Скрыть баннер в разделе {{view}}",
   "Show banner in {{view}}": "Показать баннер в разделе {{view}}",

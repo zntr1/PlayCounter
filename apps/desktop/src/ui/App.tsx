@@ -54,7 +54,6 @@ import {
 } from "../library/loginHealth";
 import { importProfile } from "../library/importProfiles";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
-import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
 import {
   CONTROLLER_MODE_EVENT,
@@ -65,6 +64,7 @@ import { EMULATORS, EMULATOR_IDS, isEmulatorId } from "../emulators/registry";
 import { BackToTopButton } from "./BackToTopButton";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { RequestWarning } from "./RequestWarning";
+import { UpdateNotice } from "./UpdateNotice";
 import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
@@ -522,6 +522,9 @@ export function App() {
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const runtimeError = useAppStore((state) => state.runtimeError);
+  const runtimeErrorClosable = useAppStore(
+    (state) => state.runtimeErrorClosable,
+  );
   const backendHealth = useAppStore((state) => state.backendHealth);
   const isOffline = useIsOffline();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
@@ -1282,52 +1285,25 @@ export function App() {
           </div>
           <WindowControls />
         </header>
-        <RequestWarning apiEndpoint={apiEndpoint} runtimeError={runtimeError} />
-        {startupUpdate?.status === "available" ? (
-          <div className="flex items-center justify-between gap-4 border-b border-info-border bg-info-tint px-7 py-2 text-sm text-info">
-            <div
-              className="flex min-w-0 items-center gap-3"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {installingUpdate ? <PlayCounterAnimatedIcon size={40} /> : null}
-              <span className="min-w-0">
-                {installingUpdate
-                  ? t("Version {{version}} is available - {{progress}}", {
-                      version: startupUpdate.version,
-                      progress: formatInstallProgress(installProgress),
-                    })
-                  : t("Version {{version}} is available", {
-                      version: startupUpdate.version,
-                    })}
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {!isEmptyDisplayNotes(startupDisplayNotes) ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => setStartupNotesOpen(true)}
-                  disabled={installingUpdate}
-                  className="px-3 py-1.5"
-                >
-                  {t("What's new")}
-                </Button>
-              ) : null}
-              <Button
-                variant="primary"
-                icon={installingUpdate ? undefined : Download}
-                disabled={installingUpdate}
-                aria-busy={installingUpdate}
-                onClick={() => void handleInstallStartupUpdate()}
-                className="px-3 py-1.5"
-              >
-                {installingUpdate ? t("Installing…") : t("Install")}
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        <LanguageNotice />
+        {/* Notices above the page; the strip collapses when none shows. */}
+        <div className="flex shrink-0 flex-col gap-2 px-7 pt-3 empty:hidden">
+          <RequestWarning
+            apiEndpoint={apiEndpoint}
+            runtimeError={runtimeError}
+            runtimeErrorClosable={runtimeErrorClosable}
+          />
+          {startupUpdate?.status === "available" ? (
+            <UpdateNotice
+              version={startupUpdate.version}
+              installing={installingUpdate}
+              progress={installProgress}
+              hasNotes={!isEmptyDisplayNotes(startupDisplayNotes)}
+              onOpenNotes={() => setStartupNotesOpen(true)}
+              onInstall={() => void handleInstallStartupUpdate()}
+            />
+          ) : null}
+          <LanguageNotice />
+        </div>
         <div data-tour-viewport className="relative min-h-0 flex-1">
           <div
             ref={contentRef}
@@ -1891,29 +1867,6 @@ function stageBadge(stage: Stage) {
     case "prod":
       return { label: t("Prod"), className: "font-medium text-danger" };
   }
-}
-
-function formatInstallProgress(progress: InstallProgress | null) {
-  if (!progress) return t("preparing update");
-
-  const downloaded = formatBytes(progress.downloadedBytes);
-  if (!progress.totalBytes)
-    return t("downloading {{downloaded}}", { downloaded });
-
-  return t("downloading {{downloaded}} of {{bytes}}", {
-    downloaded,
-    bytes: formatBytes(progress.totalBytes),
-  });
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  // Like toFixed(1), but with the language's decimal mark.
-  return `${(bytes / (1024 * 1024)).toLocaleString(appLocale(), {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-    useGrouping: false,
-  })} MB`;
 }
 
 function formatError(error: unknown) {

@@ -3,6 +3,7 @@ import type { EmulatorMapping } from "./emulators/types";
 import { rateLimitedFetch } from "./rateLimitedFetch";
 import { validateBackupData } from "./backupValidation";
 import * as overlayBridge from "./desktopOverlayBridge";
+import i18next from "i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock, openMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
@@ -5324,5 +5325,63 @@ describe("start page", () => {
     );
     hydrate();
     expect(useAppStore.getState().activeView).toBe(expected);
+  });
+});
+
+describe("match lookup errors", () => {
+  afterEach(async () => {
+    await i18next.changeLanguage("en");
+  });
+
+  function failMatchLookup() {
+    useAppStore.setState({
+      runtimeError: null,
+      backendHealth: {
+        status: "online",
+        detail: "Backend health check passed",
+        checkedAt: "2026-11-10T12:00:00.000Z",
+      },
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://match-error.example",
+      },
+    });
+    invokeMock.mockResolvedValue([{ exeName: "Game.exe", exePath: null }]);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce(Response.json({ ok: true })),
+    );
+  }
+
+  it.each(["en", "de", "zh-CN"])(
+    "goes away once the server answers again (%s)",
+    async (language) => {
+      await i18next.changeLanguage(language);
+      failMatchLookup();
+      await scanProcessesNow();
+      expect(useAppStore.getState().runtimeError).toContain("Failed to fetch");
+
+      await checkBackendHealth();
+
+      expect(useAppStore.getState().backendHealth.status).toBe("online");
+      expect(useAppStore.getState().runtimeError).toBeNull();
+    },
+  );
+
+  it("leaves other errors when the server answers again", async () => {
+    failMatchLookup();
+    await scanProcessesNow();
+    useAppStore
+      .getState()
+      .setRuntimeError("Process scan failed: Access is denied.");
+
+    await checkBackendHealth();
+
+    expect(useAppStore.getState().runtimeError).toBe(
+      "Process scan failed: Access is denied.",
+    );
   });
 });

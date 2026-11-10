@@ -155,7 +155,6 @@
   "Match them to games or ignore them so PlayCounter tracks the right playtime.": "将它们匹配到游戏或忽略它们，让 PlayCounter 记录正确的游戏时长。",
   "Open Discovered": "打开“已发现”",
   "Update check timed out.": "检查更新超时。",
-  "Version {{version}} is available - {{progress}}": "版本 {{version}} 可用 - {{progress}}",
   "Version {{version}} is available": "版本 {{version}} 可用",
   "Hide banner in {{view}}": "在 {{view}} 中隐藏横幅",
   "Show banner in {{view}}": "在 {{view}} 中显示横幅",
