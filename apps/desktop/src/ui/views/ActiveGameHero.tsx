@@ -50,7 +50,7 @@ import {
 import { getT } from "../../i18n";
 import { igdbTerm } from "../../igdbTerms";
 import { NowPlayingCounters } from "../counters/CounterParts";
-import { openGameCounters } from "../openGameCounters";
+import { openGameCounters } from "../openGameDetails";
 
 const t = getT("nowPlaying");
 

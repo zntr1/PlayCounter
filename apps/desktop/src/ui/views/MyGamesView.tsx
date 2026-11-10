@@ -222,8 +222,11 @@ import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
-import { GameDetailsDialog } from "./games/GameDetailsDialog";
-import { useGameCountersRequest } from "../openGameCounters";
+import { GameDetailsDialog, type DetailsTab } from "./games/GameDetailsDialog";
+import {
+  type GameDetailsRequest,
+  useGameDetailsRequest,
+} from "../openGameDetails";
 import { achievementSources } from "./games/GameAchievementsTab";
 import { isRejectedGameFile } from "../../rejectedGameFiles";
 import { PickGameFileDialog } from "./games/GameFileList";
@@ -1827,30 +1830,46 @@ export function MyGamesView({
     userIgnoredProcesses,
   ]);
 
-  // "Counters" on Now Playing: the game's Details open here, not on its card,
-  // which a search or filter may hide.
-  const countersRequest = useGameCountersRequest((state) => state.request);
-  const countersGame = useMemo(
+  // Details opened outside the grid (Now Playing's "Counters", the banner).
+  // Not on the game's card, which may not be built yet or is hidden by a
+  // search, filter, tab or shelf: a copy of the card without the card
+  // (detailsOnly) opens it, so it has every action the card's Details has.
+  const detailsRequest = useGameDetailsRequest((state) => state.request);
+  const [detailsHost, setDetailsHost] = useState<
+    (GameDetailsRequest & { id: number; open: boolean }) | null
+  >(null);
+  useEffect(() => {
+    if (!detailsRequest) return;
+    // Taken once: coming back to My Games later doesn't open it again.
+    useGameDetailsRequest.setState({ request: null });
+    setDetailsHost((current) => ({
+      ...detailsRequest,
+      id: (current?.id ?? 0) + 1,
+      open: true,
+    }));
+  }, [detailsRequest]);
+  useEffect(() => {
+    // Opened once. When the copy is built again (back from the tray, the
+    // first visit to My Games), Details stays closed.
+    if (detailsHost?.open) setDetailsHost({ ...detailsHost, open: false });
+  }, [detailsHost]);
+  const detailsGame = useMemo(
     () =>
-      countersRequest
+      detailsHost
         ? games.find((game) =>
             game.aliases.some(
               (alias) =>
-                alias.gameId === countersRequest.gameId &&
-                alias.source === countersRequest.source,
+                alias.gameId === detailsHost.gameId &&
+                alias.source === detailsHost.source,
             ),
           )
         : undefined,
-    [countersRequest, games],
-  );
-  const closeCounters = useCallback(
-    () => useGameCountersRequest.setState({ request: null }),
-    [],
+    [detailsHost, games],
   );
   useEffect(() => {
     // Not in the library: nothing to open, and nothing to open later either.
-    if (countersRequest && !countersGame) closeCounters();
-  }, [countersRequest, countersGame, closeCounters]);
+    if (detailsHost && !detailsGame) setDetailsHost(null);
+  }, [detailsHost, detailsGame]);
 
   const demoGames = useMemo<GameSummary[]>(() => {
     if (!tourDemo.active) return [];
@@ -2250,10 +2269,37 @@ export function MyGamesView({
     });
   }, []);
 
+  const detailsCard =
+    detailsHost && detailsGame ? (
+      <GameLibraryCard
+        key={detailsHost.id}
+        detailsOnly={{ tab: detailsHost.tab, open: detailsHost.open }}
+        game={detailsGame}
+        localLinks={localLinks}
+        launchKey="details-host"
+        launchBlocked={launchingGameKey !== null}
+        onAcquireLaunch={acquireLaunchLock}
+        onReleaseLaunch={releaseLaunchLock}
+        showDurationDays={showDurationDays}
+        showOrigin={showOrigin}
+        showMatch={showMatch}
+        showTrackingWarning={showTrackingWarnings}
+        view={view}
+        onRemove={requestRemoval}
+        onStopTracking={detailsGame.source ? requestStopTracking : undefined}
+        onDragGame={libraryDrag.start}
+        selectionMode={false}
+        selected={false}
+        onToggleSelection={bulkSelection.toggleGame}
+      />
+    ) : null;
+
   // Other views can request the shared library data without mounting cards.
   // Once My Games has been opened, App keeps its content mounted as before,
   // except while the window is parked in the tray.
-  if (!renderContent || parked) return null;
+  if (parked) return null;
+  // The banner on another page opens Details there.
+  if (!renderContent) return detailsCard;
 
   return (
     <div ref={bulkSelection.rootRef} onKeyDown={bulkSelection.onKeyDown}>
@@ -3006,17 +3052,7 @@ export function MyGamesView({
           }}
         />
       ) : null}
-      {countersGame ? (
-        <GameDetailsDialog
-          game={countersGame}
-          initialTab="counters"
-          launchKey="now-playing-counters"
-          launchBlocked={launchingGameKey !== null}
-          onAcquireLaunch={acquireLaunchLock}
-          onReleaseLaunch={releaseLaunchLock}
-          onClose={closeCounters}
-        />
-      ) : null}
+      {detailsCard}
       {pendingBulkMove ? (
         <MoveToPlayCounterDialog
           games={pendingBulkMove.games}
@@ -3290,6 +3326,7 @@ export function GameLibraryCard({
   demo = false,
   compact = false,
   onMarkSeen,
+  detailsOnly,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3318,6 +3355,10 @@ export function GameLibraryCard({
   compact?: boolean;
   /** The New row's ×: this game is seen, it leaves the row and its badge. */
   onMarkSeen?: (gameKeys: readonly string[]) => void;
+  /** No card, only its dialogs: Details opened outside the grid (Now
+   *  Playing, the banner) with every action the card's own has. `open`:
+   *  Details opens on `tab` when this is built. */
+  detailsOnly?: { tab: DetailsTab; open: boolean };
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
@@ -3436,10 +3477,10 @@ export function GameLibraryCard({
           ),
     [game.igdbId, playcounterLibrary],
   );
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(detailsOnly?.open ?? false);
   // "Achievements" in the card menu opens Details on that tab.
-  const [detailsTab, setDetailsTab] = useState<"general" | "achievements">(
-    "general",
+  const [detailsTab, setDetailsTab] = useState<DetailsTab>(
+    detailsOnly?.tab ?? "general",
   );
   const openDetails = (tab: "general" | "achievements" = "general") => {
     setDetailsTab(tab);
@@ -6047,6 +6088,222 @@ export function GameLibraryCard({
       }
     : {};
 
+  // The card's dialogs, in both layouts. Alone (detailsOnly) they are the
+  // Details that Now Playing and the banner open, with every action.
+  const renderDialogs = () => (
+    <>
+      {renderContextMenu()}
+      {renderDetailsDialog()}
+      {launchFileDialog}
+      {closeGameDialog}
+      {renderDemoAction()}
+      {showAddPlaytime ? (
+        <AddPlaytimeDialog
+          game={game}
+          demo={demo}
+          onCancel={() => setShowAddPlaytime(false)}
+          onConfirm={handleAddPlaytime}
+        />
+      ) : null}
+      {showAdjustPlaytime ? (
+        <AdjustPlaytimeDialog
+          game={game}
+          disabled={hasActiveSession}
+          onCancel={() => setShowAdjustPlaytime(false)}
+          onConfirm={handleAdjustPlaytime}
+        />
+      ) : null}
+      {showMatchCheck ? (
+        checksLibraryGame ? (
+          <LibraryImportMatchCheckDialog
+            apiEndpoint={apiEndpoint}
+            entry={matchCheckImportEntry?.entry}
+            install={matchCheckImportEntry?.install}
+            playcounterGame={playcounterMatchEntry}
+            ignoredProcesses={ignoredProcesses}
+            offeredExecutableMatches={matchOffer?.executableMatches}
+            onCancel={() => setShowMatchCheck(false)}
+            onApplied={(executableNames) => {
+              setShowMatchCheck(false);
+              addToast({
+                tone: "success",
+                title: t("Match applied"),
+                detail: t("{{join}} will now be tracked as {{name}}.", {
+                  join: executableNames.join(", "),
+                  name: game.name,
+                }),
+              });
+            }}
+          />
+        ) : (
+          <MatchCheckDialog
+            game={game}
+            exeName={flowExeName ?? ""}
+            current={flowFileGame}
+            onCancel={() => setShowMatchCheck(false)}
+            onApply={handleApplyMatch}
+            onReport={() => {
+              setShowMatchCheck(false);
+              openReport(flowExeName);
+            }}
+            onSearchCommunity={
+              canSuggestToCommunity || localSearchOnly
+                ? () => {
+                    setShowMatchCheck(false);
+                    openSearch();
+                  }
+                : undefined
+            }
+          />
+        )
+      ) : null}
+      {reportOpen ? (
+        <ReportWrongMatchDialog
+          demo={demo}
+          exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
+          gameName={game.name}
+          coverUrl={shownCover}
+          files={demo ? undefined : databaseFiles}
+          onPickFile={setMatchFile}
+          onCancel={() => setReportOpen(false)}
+          onDifferentGame={() => {
+            setReportOpen(false);
+            if (demo) setDemoAction("matching");
+            else if (localSearchOnly) openSearch();
+            else setShareOpen(true);
+          }}
+          onNotAGame={(exeName) => {
+            if (demo) {
+              setReportOpen(false);
+              setDemoRemoved(true);
+              emitTourEvent(
+                "demo.action-completed",
+                t("Sample ignored. No anonymous report was sent."),
+              );
+            } else void handleNegativeReport(exeName);
+          }}
+          onSoftware={
+            demo
+              ? undefined
+              : () => {
+                  setReportOpen(false);
+                  setSoftwareOpen(true);
+                }
+          }
+          onIgnoreApp={demo ? undefined : handleIgnoreApp}
+          onNotThisGame={
+            demo ? undefined : (exeName) => void handleNotThisGame(exeName)
+          }
+        />
+      ) : null}
+      {softwareOpen && flowExeName ? (
+        <SoftwareDialog
+          exeName={flowExeName}
+          suggestedName={exeProductName(
+            peekExeDetails(
+              useAppStore
+                .getState()
+                .launchTargets.get(flowExeName.toLowerCase())?.path,
+            ),
+            flowExeName,
+          )}
+          tracked={{ gameName: game.name }}
+          isOffline={isOffline}
+          onClose={() => setSoftwareOpen(false)}
+        />
+      ) : null}
+      {cancelSuggestionTarget ? (
+        <CancelCommunitySuggestionDialog
+          gameName={game.name}
+          exeName={cancelSuggestionTarget.exeName}
+          isOffline={isOffline}
+          onCancel={() => setCancelSuggestionTarget(null)}
+          onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
+        />
+      ) : null}
+      {confirmShareOpen && primaryLocalLink ? (
+        <SuggestToCommunityDialog
+          gameName={primaryLocalLink.gameName ?? game.name}
+          exeName={primaryLocalLink.exeName}
+          isOffline={isOffline}
+          onCancel={() => setConfirmShareOpen(false)}
+          onConfirm={() => void shareLinkNow()}
+        />
+      ) : null}
+      {shareOpen ? (
+        <CommunitySuggestionForm
+          candidates={correction.candidates}
+          exeName={flowExeName ?? ""}
+          hasMore={correction.hasMore}
+          message={correction.message}
+          search={correction.search}
+          selection={correction.selection}
+          state={correction.state}
+          isOffline={isOffline}
+          onApplyCandidate={correction.applyCandidate}
+          onCancel={closeShare}
+          onLoadMore={correction.loadMore}
+          onSearch={correction.searchFirstPage}
+          onSearchChange={correction.setSearch}
+          onSearchOptionsChange={correction.resetResults}
+          localOnly={localSearchOnly || searchMode === "change"}
+          localAction={searchMode === "change" ? t("Change game") : undefined}
+          onSubmit={() =>
+            localSearchOnly
+              ? applySearchedGameLocally()
+              : searchMode === "change"
+                ? changeGameNow()
+                : void correction.submit()
+          }
+        />
+      ) : null}
+      {filePick ? (
+        <PickGameFileDialog
+          action={filePickList.action}
+          gameName={game.name}
+          files={filePickList.files}
+          canPick={filePickList.canPick}
+          onPick={pickFile}
+          onCancel={() => setFilePick(null)}
+        />
+      ) : null}
+      {showConvert ? (
+        <GameNameDialog
+          demo={demo}
+          title={t("Convert to a custom game")}
+          subtitle={
+            demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
+          }
+          description={t(
+            "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
+          )}
+          confirmLabel={t("Convert to custom")}
+          name={convertName}
+          onNameChange={setConvertName}
+          onCancel={() => setShowConvert(false)}
+          onConfirm={submitConvertToCustom}
+        />
+      ) : null}
+      {showRename ? (
+        <GameNameDialog
+          demo={demo}
+          title={t("Rename game")}
+          subtitle={game.name}
+          description={t(
+            "Changes the display name of this custom game everywhere, including recorded sessions.",
+          )}
+          confirmLabel={t("Rename")}
+          name={renameName}
+          onNameChange={setRenameName}
+          onCancel={() => setShowRename(false)}
+          onConfirm={submitRename}
+        />
+      ) : null}
+    </>
+  );
+
+  if (detailsOnly) return renderDialogs();
+
   if (demoRemoved)
     return (
       <div
@@ -6628,213 +6885,7 @@ export function GameLibraryCard({
             {t("Not launchable")}
           </div>
         ) : null}
-        {renderContextMenu()}
-        {renderDetailsDialog()}
-        {launchFileDialog}
-        {closeGameDialog}
-        {renderDemoAction()}
-        {showAddPlaytime ? (
-          <AddPlaytimeDialog
-            game={game}
-            demo={demo}
-            onCancel={() => setShowAddPlaytime(false)}
-            onConfirm={handleAddPlaytime}
-          />
-        ) : null}
-        {showAdjustPlaytime ? (
-          <AdjustPlaytimeDialog
-            game={game}
-            disabled={hasActiveSession}
-            onCancel={() => setShowAdjustPlaytime(false)}
-            onConfirm={handleAdjustPlaytime}
-          />
-        ) : null}
-        {showMatchCheck ? (
-          checksLibraryGame ? (
-            <LibraryImportMatchCheckDialog
-              apiEndpoint={apiEndpoint}
-              entry={matchCheckImportEntry?.entry}
-              install={matchCheckImportEntry?.install}
-              playcounterGame={playcounterMatchEntry}
-              ignoredProcesses={ignoredProcesses}
-              offeredExecutableMatches={matchOffer?.executableMatches}
-              onCancel={() => setShowMatchCheck(false)}
-              onApplied={(executableNames) => {
-                setShowMatchCheck(false);
-                addToast({
-                  tone: "success",
-                  title: t("Match applied"),
-                  detail: t("{{join}} will now be tracked as {{name}}.", {
-                    join: executableNames.join(", "),
-                    name: game.name,
-                  }),
-                });
-              }}
-            />
-          ) : (
-            <MatchCheckDialog
-              game={game}
-              exeName={flowExeName ?? ""}
-              current={flowFileGame}
-              onCancel={() => setShowMatchCheck(false)}
-              onApply={handleApplyMatch}
-              onReport={() => {
-                setShowMatchCheck(false);
-                openReport(flowExeName);
-              }}
-              onSearchCommunity={
-                canSuggestToCommunity || localSearchOnly
-                  ? () => {
-                      setShowMatchCheck(false);
-                      openSearch();
-                    }
-                  : undefined
-              }
-            />
-          )
-        ) : null}
-        {reportOpen ? (
-          <ReportWrongMatchDialog
-            demo={demo}
-            exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
-            gameName={game.name}
-            coverUrl={shownCover}
-            files={demo ? undefined : databaseFiles}
-            onPickFile={setMatchFile}
-            onCancel={() => setReportOpen(false)}
-            onDifferentGame={() => {
-              setReportOpen(false);
-              if (demo) setDemoAction("matching");
-              else if (localSearchOnly) openSearch();
-              else setShareOpen(true);
-            }}
-            onNotAGame={(exeName) => {
-              if (demo) {
-                setReportOpen(false);
-                setDemoRemoved(true);
-                emitTourEvent(
-                  "demo.action-completed",
-                  t("Sample ignored. No anonymous report was sent."),
-                );
-              } else void handleNegativeReport(exeName);
-            }}
-            onSoftware={
-              demo
-                ? undefined
-                : () => {
-                    setReportOpen(false);
-                    setSoftwareOpen(true);
-                  }
-            }
-            onIgnoreApp={demo ? undefined : handleIgnoreApp}
-            onNotThisGame={
-              demo ? undefined : (exeName) => void handleNotThisGame(exeName)
-            }
-          />
-        ) : null}
-        {softwareOpen && flowExeName ? (
-          <SoftwareDialog
-            exeName={flowExeName}
-            suggestedName={exeProductName(
-              peekExeDetails(
-                useAppStore
-                  .getState()
-                  .launchTargets.get(flowExeName.toLowerCase())?.path,
-              ),
-              flowExeName,
-            )}
-            tracked={{ gameName: game.name }}
-            isOffline={isOffline}
-            onClose={() => setSoftwareOpen(false)}
-          />
-        ) : null}
-        {cancelSuggestionTarget ? (
-          <CancelCommunitySuggestionDialog
-            gameName={game.name}
-            exeName={cancelSuggestionTarget.exeName}
-            isOffline={isOffline}
-            onCancel={() => setCancelSuggestionTarget(null)}
-            onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
-          />
-        ) : null}
-        {confirmShareOpen && primaryLocalLink ? (
-          <SuggestToCommunityDialog
-            gameName={primaryLocalLink.gameName ?? game.name}
-            exeName={primaryLocalLink.exeName}
-            isOffline={isOffline}
-            onCancel={() => setConfirmShareOpen(false)}
-            onConfirm={() => void shareLinkNow()}
-          />
-        ) : null}
-        {shareOpen ? (
-          <CommunitySuggestionForm
-            candidates={correction.candidates}
-            exeName={flowExeName ?? ""}
-            hasMore={correction.hasMore}
-            message={correction.message}
-            search={correction.search}
-            selection={correction.selection}
-            state={correction.state}
-            isOffline={isOffline}
-            onApplyCandidate={correction.applyCandidate}
-            onCancel={closeShare}
-            onLoadMore={correction.loadMore}
-            onSearch={correction.searchFirstPage}
-            onSearchChange={correction.setSearch}
-            onSearchOptionsChange={correction.resetResults}
-            localOnly={localSearchOnly || searchMode === "change"}
-            localAction={searchMode === "change" ? t("Change game") : undefined}
-            onSubmit={() =>
-              localSearchOnly
-                ? applySearchedGameLocally()
-                : searchMode === "change"
-                  ? changeGameNow()
-                  : void correction.submit()
-            }
-          />
-        ) : null}
-        {filePick ? (
-          <PickGameFileDialog
-            action={filePickList.action}
-            gameName={game.name}
-            files={filePickList.files}
-            canPick={filePickList.canPick}
-            onPick={pickFile}
-            onCancel={() => setFilePick(null)}
-          />
-        ) : null}
-        {showConvert ? (
-          <GameNameDialog
-            demo={demo}
-            title={t("Convert to a custom game")}
-            subtitle={
-              demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
-            }
-            description={t(
-              "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
-            )}
-            confirmLabel={t("Convert to custom")}
-            name={convertName}
-            onNameChange={setConvertName}
-            onCancel={() => setShowConvert(false)}
-            onConfirm={submitConvertToCustom}
-          />
-        ) : null}
-        {showRename ? (
-          <GameNameDialog
-            demo={demo}
-            title={t("Rename game")}
-            subtitle={game.name}
-            description={t(
-              "Changes the display name of this custom game everywhere, including recorded sessions.",
-            )}
-            confirmLabel={t("Rename")}
-            name={renameName}
-            onNameChange={setRenameName}
-            onCancel={() => setShowRename(false)}
-            onConfirm={submitRename}
-          />
-        ) : null}
+        {renderDialogs()}
       </SelectableLibraryCard>
     );
   }
@@ -7176,213 +7227,7 @@ export function GameLibraryCard({
           void saveCover(event.currentTarget.files?.[0] ?? null);
         }}
       />
-      {renderContextMenu()}
-      {renderDetailsDialog()}
-      {launchFileDialog}
-      {closeGameDialog}
-      {renderDemoAction()}
-      {showAddPlaytime ? (
-        <AddPlaytimeDialog
-          game={game}
-          demo={demo}
-          onCancel={() => setShowAddPlaytime(false)}
-          onConfirm={handleAddPlaytime}
-        />
-      ) : null}
-      {showAdjustPlaytime ? (
-        <AdjustPlaytimeDialog
-          game={game}
-          disabled={hasActiveSession}
-          onCancel={() => setShowAdjustPlaytime(false)}
-          onConfirm={handleAdjustPlaytime}
-        />
-      ) : null}
-      {showMatchCheck ? (
-        checksLibraryGame ? (
-          <LibraryImportMatchCheckDialog
-            apiEndpoint={apiEndpoint}
-            entry={matchCheckImportEntry?.entry}
-            install={matchCheckImportEntry?.install}
-            playcounterGame={playcounterMatchEntry}
-            ignoredProcesses={ignoredProcesses}
-            offeredExecutableMatches={matchOffer?.executableMatches}
-            onCancel={() => setShowMatchCheck(false)}
-            onApplied={(executableNames) => {
-              setShowMatchCheck(false);
-              addToast({
-                tone: "success",
-                title: t("Match applied"),
-                detail: t("{{join}} will now be tracked as {{name}}.", {
-                  join: executableNames.join(", "),
-                  name: game.name,
-                }),
-              });
-            }}
-          />
-        ) : (
-          <MatchCheckDialog
-            game={game}
-            exeName={flowExeName ?? ""}
-            current={flowFileGame}
-            onCancel={() => setShowMatchCheck(false)}
-            onApply={handleApplyMatch}
-            onReport={() => {
-              setShowMatchCheck(false);
-              openReport(flowExeName);
-            }}
-            onSearchCommunity={
-              canSuggestToCommunity || localSearchOnly
-                ? () => {
-                    setShowMatchCheck(false);
-                    openSearch();
-                  }
-                : undefined
-            }
-          />
-        )
-      ) : null}
-      {reportOpen ? (
-        <ReportWrongMatchDialog
-          demo={demo}
-          exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
-          gameName={game.name}
-          coverUrl={shownCover}
-          files={demo ? undefined : databaseFiles}
-          onPickFile={setMatchFile}
-          onCancel={() => setReportOpen(false)}
-          onDifferentGame={() => {
-            setReportOpen(false);
-            if (demo) setDemoAction("matching");
-            else if (localSearchOnly) openSearch();
-            else setShareOpen(true);
-          }}
-          onNotAGame={(exeName) => {
-            if (demo) {
-              setReportOpen(false);
-              setDemoRemoved(true);
-              emitTourEvent(
-                "demo.action-completed",
-                t("Sample ignored. No anonymous report was sent."),
-              );
-            } else void handleNegativeReport(exeName);
-          }}
-          onSoftware={
-            demo
-              ? undefined
-              : () => {
-                  setReportOpen(false);
-                  setSoftwareOpen(true);
-                }
-          }
-          onIgnoreApp={demo ? undefined : handleIgnoreApp}
-          onNotThisGame={
-            demo ? undefined : (exeName) => void handleNotThisGame(exeName)
-          }
-        />
-      ) : null}
-      {softwareOpen && flowExeName ? (
-        <SoftwareDialog
-          exeName={flowExeName}
-          suggestedName={exeProductName(
-            peekExeDetails(
-              useAppStore
-                .getState()
-                .launchTargets.get(flowExeName.toLowerCase())?.path,
-            ),
-            flowExeName,
-          )}
-          tracked={{ gameName: game.name }}
-          isOffline={isOffline}
-          onClose={() => setSoftwareOpen(false)}
-        />
-      ) : null}
-      {cancelSuggestionTarget ? (
-        <CancelCommunitySuggestionDialog
-          gameName={game.name}
-          exeName={cancelSuggestionTarget.exeName}
-          isOffline={isOffline}
-          onCancel={() => setCancelSuggestionTarget(null)}
-          onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
-        />
-      ) : null}
-      {confirmShareOpen && primaryLocalLink ? (
-        <SuggestToCommunityDialog
-          gameName={primaryLocalLink.gameName ?? game.name}
-          exeName={primaryLocalLink.exeName}
-          isOffline={isOffline}
-          onCancel={() => setConfirmShareOpen(false)}
-          onConfirm={() => void shareLinkNow()}
-        />
-      ) : null}
-      {shareOpen ? (
-        <CommunitySuggestionForm
-          candidates={correction.candidates}
-          exeName={flowExeName ?? ""}
-          hasMore={correction.hasMore}
-          message={correction.message}
-          search={correction.search}
-          selection={correction.selection}
-          state={correction.state}
-          isOffline={isOffline}
-          onApplyCandidate={correction.applyCandidate}
-          onCancel={closeShare}
-          onLoadMore={correction.loadMore}
-          onSearch={correction.searchFirstPage}
-          onSearchChange={correction.setSearch}
-          onSearchOptionsChange={correction.resetResults}
-          localOnly={localSearchOnly || searchMode === "change"}
-          localAction={searchMode === "change" ? t("Change game") : undefined}
-          onSubmit={() =>
-            localSearchOnly
-              ? applySearchedGameLocally()
-              : searchMode === "change"
-                ? changeGameNow()
-                : void correction.submit()
-          }
-        />
-      ) : null}
-      {filePick ? (
-        <PickGameFileDialog
-          action={filePickList.action}
-          gameName={game.name}
-          files={filePickList.files}
-          canPick={filePickList.canPick}
-          onPick={pickFile}
-          onCancel={() => setFilePick(null)}
-        />
-      ) : null}
-      {showConvert ? (
-        <GameNameDialog
-          demo={demo}
-          title={t("Convert to a custom game")}
-          subtitle={
-            demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
-          }
-          description={t(
-            "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
-          )}
-          confirmLabel={t("Convert to custom")}
-          name={convertName}
-          onNameChange={setConvertName}
-          onCancel={() => setShowConvert(false)}
-          onConfirm={submitConvertToCustom}
-        />
-      ) : null}
-      {showRename ? (
-        <GameNameDialog
-          demo={demo}
-          title={t("Rename game")}
-          subtitle={game.name}
-          description={t(
-            "Changes the display name of this custom game everywhere, including recorded sessions.",
-          )}
-          confirmLabel={t("Rename")}
-          name={renameName}
-          onNameChange={setRenameName}
-          onCancel={() => setShowRename(false)}
-          onConfirm={submitRename}
-        />
-      ) : null}
+      {renderDialogs()}
     </SelectableLibraryCard>
   );
 }

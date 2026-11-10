@@ -15,7 +15,7 @@ import {
   Star,
   EyeOff,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
 import { useCoverUrl } from "../pickedCovers";
@@ -30,7 +30,7 @@ import {
   useAnchoredMenu,
 } from "./primitives";
 import { useGameJournal } from "./useGameJournal";
-import { GameDetailsDialog } from "./views/games/GameDetailsDialog";
+import { openGameDetails } from "./openGameDetails";
 import { useHeroLauncher } from "./views/games/useHeroLauncher";
 import type { GameSummary } from "./views/MyGamesView";
 import { getT } from "../i18n";
@@ -90,7 +90,6 @@ export function GameBanner({
   onToggleDetails,
 }: GameBannerProps) {
   const compact = variant === "compact";
-  const [showDetails, setShowDetails] = useState(false);
   const menu = useAnchoredMenu();
   const details = useGameDetails(game.igdbId);
   const journal = useGameJournal({ ...game, gameName: game.name });
@@ -293,7 +292,9 @@ export function GameBanner({
             <Button
               variant="secondary"
               icon={Info}
-              onClick={() => setShowDetails(true)}
+              // My Games opens it with the card's dialogs, so it has every
+              // action the card's Details has.
+              onClick={() => openGameDetails(game)}
               className={clsx(
                 "rounded-lg border-2 border-text/25 bg-bg/40 font-normal backdrop-blur hover:border-text/50 hover:bg-bg/60",
                 compact ? "h-9 px-4 text-sm" : "h-12 px-5 text-[15px]",
@@ -389,17 +390,6 @@ export function GameBanner({
           {t("Hide banner")}
         </ContextMenuItem>
       </ContextMenu>
-
-      {showDetails ? (
-        <GameDetailsDialog
-          game={game}
-          launchKey={`${launchKey}:details`}
-          launchBlocked={launchBlocked}
-          onAcquireLaunch={onAcquireLaunch}
-          onReleaseLaunch={onReleaseLaunch}
-          onClose={() => setShowDetails(false)}
-        />
-      ) : null}
     </section>
   );
 
