@@ -42,7 +42,6 @@ import {
   History,
   ImagePlus,
   Info,
-  FolderTree,
   LayoutGrid,
   PanelTop,
   List,
@@ -983,14 +982,8 @@ export function MyGamesView({
   const showProviderTabs = useAppStore(
     (state) => state.settings.libraryShowProviderTabs !== false,
   );
-  const setMyGamesShowProviderTabs = useAppStore(
-    (state) => state.setMyGamesShowProviderTabs,
-  );
   const hideEmptyProviderTabs = useAppStore(
     (state) => state.settings.libraryHideEmptyProviderTabs === true,
-  );
-  const setMyGamesHideEmptyProviderTabs = useAppStore(
-    (state) => state.setMyGamesHideEmptyProviderTabs,
   );
   const statCardIds = useMemo(
     () => resolveLibraryStatCardIds({ libraryStatCards: statCardSetting }),
@@ -2001,10 +1994,6 @@ export function MyGamesView({
   const hasImportedGames = providerTabInputs.some(
     (provider) => provider.gameCount > 0,
   );
-  const canHideEmptyProviderTabs =
-    showProviderTabs &&
-    hasImportedGames &&
-    hasEmptyProviderTabs(providerTabInputs);
   // Tab visibility and import prompts still depend on the full library:
   // a shelf with no matches must not hide a source or imply it was never imported.
   const tabs = visibleLibraryTabs({
@@ -2206,6 +2195,8 @@ export function MyGamesView({
         ? demoGames.length
         : matchingGames.length + demoGames.length,
       visible: layout.showTabs,
+      canHideEmptySources:
+        hasImportedGames && hasEmptyProviderTabs(providerTabInputs),
       heroVisible,
       heroArt: heroVisible ? useLibrarySources.getState().heroArt : null,
       featured: defaultFeatured,
@@ -2700,65 +2691,6 @@ export function MyGamesView({
                         checked={highResCovers}
                         onChange={setMyGamesHighResCovers}
                       />
-                    </CustomizeSection>
-
-                    <CustomizeSection
-                      icon={LayoutGrid}
-                      title={t("Card details")}
-                      hint={t("What each game card shows.")}
-                    >
-                      <LibraryCardControls
-                        showOrigin={showOrigin}
-                        showMatch={showMatch}
-                        showStatus={showStatus}
-                        showNotes={showNotes}
-                        showTiers={showTiers}
-                        showTrackingWarnings={showTrackingWarnings}
-                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
-                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
-                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
-                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
-                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
-                        setMyGamesShowTrackingWarnings={
-                          setMyGamesShowTrackingWarnings
-                        }
-                      />
-                    </CustomizeSection>
-
-                    <CustomizeSection
-                      icon={FolderTree}
-                      title={t("Library structure")}
-                      hint={t("How your games are grouped.")}
-                    >
-                      <OptionRow
-                        id="library-show-provider-tabs"
-                        label={t("Launcher groups")}
-                        help={t(
-                          "Steam, Xbox, Battle.net, Epic Games and GOG as their own entries under My Games.",
-                        )}
-                        checked={showProviderTabs}
-                        onChange={setMyGamesShowProviderTabs}
-                      />
-                      <OptionRow
-                        id="library-hide-empty-tabs"
-                        label={t("Hide empty sources")}
-                        help={
-                          !showProviderTabs
-                            ? t(
-                                "Turn on launcher groups to choose which sources appear.",
-                              )
-                            : !hasImportedGames
-                              ? t("Available after you import games.")
-                              : canHideEmptyProviderTabs
-                                ? t(
-                                    "Hide launchers you have not imported from yet.",
-                                  )
-                                : t("All sources in the sidebar have games.")
-                        }
-                        checked={hideEmptyProviderTabs}
-                        disabled={!canHideEmptyProviderTabs}
-                        onChange={setMyGamesHideEmptyProviderTabs}
-                      />
                       <OptionRow
                         id="library-show-stats"
                         label={t("Summary numbers")}
@@ -2817,6 +2749,29 @@ export function MyGamesView({
                           </div>
                         </fieldset>
                       ) : null}
+                    </CustomizeSection>
+
+                    <CustomizeSection
+                      icon={LayoutGrid}
+                      title={t("Card details")}
+                      hint={t("What each game card shows.")}
+                    >
+                      <LibraryCardControls
+                        showOrigin={showOrigin}
+                        showMatch={showMatch}
+                        showStatus={showStatus}
+                        showNotes={showNotes}
+                        showTiers={showTiers}
+                        showTrackingWarnings={showTrackingWarnings}
+                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
+                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
+                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
+                        setMyGamesShowTrackingWarnings={
+                          setMyGamesShowTrackingWarnings
+                        }
+                      />
                     </CustomizeSection>
                   </div>
                 </div>

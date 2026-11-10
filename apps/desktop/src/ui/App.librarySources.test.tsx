@@ -148,3 +148,92 @@ it("removes the expandable structure when launcher groups are hidden and restore
   await act(() => sourceToggle()!.click());
   expect(sources()).not.toBeNull();
 });
+
+async function rightClickMyGames() {
+  await act(() =>
+    container.querySelector('[data-tour="nav-games"]')!.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 20,
+      }),
+    ),
+  );
+}
+
+function menu() {
+  return document.querySelector('[role="menu"]');
+}
+
+function menuToggles() {
+  return [...(menu()?.querySelectorAll("[aria-checked]") ?? [])].map((item) => [
+    item.textContent?.trim(),
+    item.getAttribute("aria-checked"),
+  ]);
+}
+
+async function clickMenuItem(label: string) {
+  const item = [
+    ...(menu()?.querySelectorAll<HTMLButtonElement>(
+      "[data-context-menu-item]",
+    ) ?? []),
+  ].find((entry) => entry.textContent?.trim() === label);
+  expect(item, `missing menu item ${label}`).toBeDefined();
+  await act(() => item!.click());
+}
+
+it("right-click on My Games shows Launcher groups and Hide empty sources under Sidebar, below the importers", async () => {
+  useAppStore.setState({ libraryImports: new Map([["steam:100", imported]]) });
+  await act(() => root.render(<App />));
+  await rightClickMyGames();
+  const text = menu()?.textContent ?? "";
+  expect(text).toContain("Import games");
+  expect(text.indexOf("Sidebar")).toBeGreaterThan(
+    text.indexOf("Import from Steam"),
+  );
+  expect(menuToggles()).toEqual([
+    ["Launcher groups", "true"],
+    ["Hide empty sources", "false"],
+  ]);
+});
+
+it("Hide empty sources in the My Games menu hides launchers without games", async () => {
+  useAppStore.setState({ libraryImports: new Map([["steam:100", imported]]) });
+  await act(() => root.render(<App />));
+  expect(container.querySelector("#library-tab-xbox")).not.toBeNull();
+  await rightClickMyGames();
+  await clickMenuItem("Hide empty sources");
+  expect(useAppStore.getState().settings.libraryHideEmptyProviderTabs).toBe(
+    true,
+  );
+  expect(menu()).toBeNull();
+  expect(container.querySelector("#library-tab-xbox")).toBeNull();
+  expect(container.querySelector("#library-tab-steam")).not.toBeNull();
+  await rightClickMyGames();
+  expect(menuToggles()).toEqual([
+    ["Launcher groups", "true"],
+    ["Hide empty sources", "true"],
+  ]);
+});
+
+it("Launcher groups in the My Games menu removes the sources and leaves Hide empty sources out", async () => {
+  useAppStore.setState({ libraryImports: new Map([["steam:100", imported]]) });
+  await act(() => root.render(<App />));
+  await rightClickMyGames();
+  await clickMenuItem("Launcher groups");
+  expect(useAppStore.getState().settings.libraryShowProviderTabs).toBe(false);
+  expect(menu()).toBeNull();
+  expect(sources()).toBeNull();
+  await rightClickMyGames();
+  expect(menuToggles()).toEqual([["Launcher groups", "false"]]);
+  await clickMenuItem("Launcher groups");
+  expect(useAppStore.getState().settings.libraryShowProviderTabs).toBe(true);
+  expect(sources()).not.toBeNull();
+});
+
+it("leaves Hide empty sources out of the My Games menu before any import", async () => {
+  await act(() => root.render(<App />));
+  await rightClickMyGames();
+  expect(menuToggles()).toEqual([["Launcher groups", "true"]]);
+});

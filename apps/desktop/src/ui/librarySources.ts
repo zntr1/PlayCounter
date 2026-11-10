@@ -16,6 +16,9 @@ export type LibrarySourcesState = {
   gameCount: number;
   /** True when the library has launcher groups to navigate. */
   visible: boolean;
+  /** True when a launcher has no games while another has: "Hide empty
+      sources" would hide something. Independent of the launcher groups switch. */
+  canHideEmptySources: boolean;
   /** True while the featured-game banner is on screen. */
   heroVisible: boolean;
   /** The banner's key art, so the title bar can carry its colour upward. */
@@ -32,6 +35,7 @@ export const useLibrarySources = create<LibrarySourcesState>(() => ({
   activeTab: "all",
   gameCount: 0,
   visible: false,
+  canHideEmptySources: false,
   heroVisible: false,
   heroArt: null,
   featured: null,
@@ -43,6 +47,7 @@ export function publishLibrarySources(next: LibrarySourcesState) {
   const current = useLibrarySources.getState();
   if (
     current.visible === next.visible &&
+    current.canHideEmptySources === next.canHideEmptySources &&
     current.gameCount === next.gameCount &&
     current.heroVisible === next.heroVisible &&
     current.heroArt === next.heroArt &&

@@ -179,5 +179,8 @@
   "Show changes": "Änderungen zeigen",
   "Hide changes": "Änderungen ausblenden",
   "Your screenshot of {{game}} came out black": "Dein Screenshot von {{game}} ist schwarz",
-  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows verbirgt Spiele im exklusiven Vollbild vor anderen Apps. Stell das Spiel auf randloses Fenster oder Fenstermodus und versuch es noch einmal."
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows verbirgt Spiele im exklusiven Vollbild vor anderen Apps. Stell das Spiel auf randloses Fenster oder Fenstermodus und versuch es noch einmal.",
+  "Launcher groups": "Launcher-Gruppen",
+  "Hide empty sources": "Leere Quellen ausblenden",
+  "Sidebar": "Seitenleiste"
 }

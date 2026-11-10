@@ -179,5 +179,8 @@
   "Show changes": "Pokaż zmiany",
   "Hide changes": "Ukryj zmiany",
   "Your screenshot of {{game}} came out black": "Zrzut ekranu z gry {{game}} jest czarny",
-  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows ukrywa gry w wyłącznym trybie pełnoekranowym przed innymi aplikacjami. Przełącz grę na okno bez ramki lub tryb okienkowy i spróbuj ponownie."
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows ukrywa gry w wyłącznym trybie pełnoekranowym przed innymi aplikacjami. Przełącz grę na okno bez ramki lub tryb okienkowy i spróbuj ponownie.",
+  "Launcher groups": "Grupy launcherów",
+  "Hide empty sources": "Ukryj puste źródła",
+  "Sidebar": "Pasek boczny"
 }

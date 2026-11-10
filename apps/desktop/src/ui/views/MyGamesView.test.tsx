@@ -959,21 +959,27 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
   },
 );
 
+it("Customize shows Summary numbers under Layout and no launcher group options", async () => {
+  await act(() => root.render(<LibraryTestShell />));
+  await shelvesToggle();
+  expect(document.querySelector("#library-show-provider-tabs")).toBeNull();
+  expect(document.querySelector("#library-hide-empty-tabs")).toBeNull();
+  const sections = [...document.querySelectorAll("#library-customize section")];
+  expect(
+    sections.map((section) => section.querySelector("h3")?.textContent),
+  ).toEqual(["Layout", "Card details"]);
+  expect(sections[0].querySelector("#library-show-stats")).not.toBeNull();
+});
+
 it.each(["steam", "unimported"])(
-  "hides launcher groups from Customize while %s is selected and restores them without losing imports",
+  "hides launcher groups while %s is selected and restores them without losing imports",
   async (source) => {
     const { libraryImports, exeCache } = useAppStore.getState();
     await act(() => root.render(<LibraryTestShell />));
     await selectSource(source);
     expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
-    await shelvesToggle();
-    const toggle = document.querySelector<HTMLInputElement>(
-      "#library-show-provider-tabs",
-    )!;
-    expect(toggle.checked).toBe(true);
-    expect(toggle.disabled).toBe(false);
 
-    await act(() => toggle.click());
+    await act(() => useAppStore.getState().setMyGamesShowProviderTabs(false));
     expect(useAppStore.getState().libraryTab).toBe("all");
     expect(
       container.querySelector('[aria-label="Game library source"]'),
@@ -985,10 +991,6 @@ it.each(["steam", "unimported"])(
         ?.hasAttribute("aria-labelledby"),
     ).toBe(false);
     expect(
-      document.querySelector<HTMLInputElement>("#library-hide-empty-tabs")!
-        .disabled,
-    ).toBe(true);
-    expect(
       JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
     ).toMatchObject({
       libraryShowProviderTabs: false,
@@ -997,17 +999,13 @@ it.each(["steam", "unimported"])(
     expect(useAppStore.getState().libraryImports).toBe(libraryImports);
     expect(useAppStore.getState().exeCache).toBe(exeCache);
 
-    await act(() => toggle.click());
+    await act(() => useAppStore.getState().setMyGamesShowProviderTabs(true));
     expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
     expect(
       container
         .querySelector("#library-tab-all")
         ?.getAttribute("aria-selected"),
     ).toBe("true");
-    expect(
-      document.querySelector<HTMLInputElement>("#library-hide-empty-tabs")!
-        .disabled,
-    ).toBe(false);
     await selectSource("steam");
     expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
   },
@@ -1018,11 +1016,6 @@ it("shows launcher groups for older settings without a preference", async () => 
   delete settings.libraryShowProviderTabs;
   useAppStore.setState({ settings });
   await act(() => root.render(<LibraryTestShell />));
-  await shelvesToggle();
-  expect(
-    document.querySelector<HTMLInputElement>("#library-show-provider-tabs")!
-      .checked,
-  ).toBe(true);
   expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
 });
 
