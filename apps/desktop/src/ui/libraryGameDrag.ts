@@ -12,8 +12,16 @@ import {
   type HTMLAttributes,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { personalGameIdentity, type GameIdentityRef } from "../store";
-import type { PersonalShelf } from "../personalLibrary";
+import {
+  getGameJournal,
+  personalGameIdentity,
+  type GameIdentityRef,
+} from "../store";
+import {
+  journalHiddenIn,
+  shelfHides,
+  type PersonalShelf,
+} from "../personalLibrary";
 import {
   positionLibraryGameHints,
   type ShelfDropHint,
@@ -95,6 +103,7 @@ function assignShelf(
   games: readonly GameIdentityRef[],
   shelfId: string,
   state: PersonalLibraryState,
+  getState: () => PersonalLibraryState,
 ) {
   const shelf = state.personalShelves.find((entry) => entry.id === shelfId);
   // Recheck at drop time, including changes made since the hover hints were prepared.
@@ -106,8 +115,51 @@ function assignShelf(
   );
   if (blocked) return blocked;
   const favorite = shelfId === "favorites";
-  const added = state.addGamesToShelf(games, shelfId);
   const name = favorite ? t("Favorites") : shelf!.name;
+  // Games new to a shelf that hides All games leave it: say so, with Undo.
+  const newcomers = games.filter(
+    (game) => !getGameJournal(state, game).shelfIds.includes(shelfId),
+  );
+  const leaving =
+    !favorite &&
+    shelfHides(shelf!, "all") &&
+    newcomers.some(
+      (game) =>
+        !journalHiddenIn(
+          getGameJournal(state, game),
+          state.personalShelves,
+          "all",
+        ),
+    );
+  const added = state.addGamesToShelf(games, shelfId);
+  if (leaving) {
+    state.addToast({
+      tone: "success",
+      title:
+        games.length > 1
+          ? t(
+              "Added {{count}} games to {{shelf}}. They're hidden from All games now.",
+              { count: added, shelf: name },
+            )
+          : t("Added to {{shelf}}. It's hidden from All games now.", {
+              shelf: name,
+            }),
+      detail: games.length === 1 ? games[0].gameName : undefined,
+      action: {
+        label: t("Undo"),
+        run: () => {
+          const current = getState();
+          for (const game of newcomers)
+            current.updateGameJournal(game, {
+              shelfIds: getGameJournal(current, game).shelfIds.filter(
+                (id) => id !== shelfId,
+              ),
+            });
+        },
+      },
+    });
+    return null;
+  }
   state.addToast({
     tone: "success",
     title:
@@ -456,6 +508,7 @@ export function useLibraryGameDrag(
             games,
             target.dataset.libraryShelf,
             libraryApi.getState(),
+            libraryApi.getState,
           );
           if (blocked) {
             hintVisibleRef.current = true;

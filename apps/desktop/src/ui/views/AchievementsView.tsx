@@ -38,6 +38,7 @@ import {
 import { appLocale, getT } from "../../i18n";
 import { Button } from "../primitives";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
+import { useHiddenGameKeys } from "../useHiddenGameKeys";
 
 const t = getT("achievements");
 
@@ -64,6 +65,22 @@ const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
   verified: BadgeCheck,
   emulator: Joystick,
 };
+
+/** A shelf can hide games from Achievements: their ladders and unlocks go.
+ *  Milestones over all games keep counting them, so nothing won disappears. */
+function withoutHiddenGames(
+  catalog: AchievementCatalog,
+  hiddenKeys: ReadonlySet<string>,
+): AchievementCatalog {
+  const items = catalog.get("game");
+  if (!items || hiddenKeys.size === 0) return catalog;
+  const next = new Map(catalog);
+  next.set(
+    "game",
+    items.filter((item) => !hiddenKeys.has(item.scope)),
+  );
+  return next;
+}
 
 function milestoneGroups() {
   return groupMeta().filter((group) => group.id !== "game");
@@ -157,13 +174,17 @@ export function AchievementsView() {
     return labels;
   }, [gameMetadata, resolveIgdbId]);
   const pickedCovers = usePickedCovers();
+  const hiddenKeys = useHiddenGameKeys("achievements");
   const catalog = useMemo(
     () =>
-      withPickedCovers(
-        buildAchievementCatalog(awardedMilestones, metrics, gameLabels),
-        pickedCovers,
+      withoutHiddenGames(
+        withPickedCovers(
+          buildAchievementCatalog(awardedMilestones, metrics, gameLabels),
+          pickedCovers,
+        ),
+        hiddenKeys,
       ),
-    [awardedMilestones, gameLabels, metrics, pickedCovers],
+    [awardedMilestones, gameLabels, hiddenKeys, metrics, pickedCovers],
   );
   const summary = useMemo(
     () => summarizeAchievements(catalog, metrics.monthKey),
@@ -184,9 +205,10 @@ export function AchievementsView() {
       (catalog.get("game") ?? []).map((item) => item.scope),
     );
     return [...metrics.games.entries()].filter(
-      ([key, game]) => game.hours > 0 && !displayed.has(key),
+      ([key, game]) =>
+        game.hours > 0 && !displayed.has(key) && !hiddenKeys.has(key),
     ).length;
-  }, [catalog, metrics.games]);
+  }, [catalog, hiddenKeys, metrics.games]);
   const gameItems = catalog.get("game") ?? [];
   const milestoneLadders = milestoneGroups().map((group) => ({
     category: group.id,

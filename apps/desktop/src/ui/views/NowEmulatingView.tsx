@@ -6,6 +6,7 @@ import {
   type ExeCacheEntry,
 } from "../../store";
 import { Panel } from "../components";
+import { useHiddenGameKeys } from "../useHiddenGameKeys";
 import {
   emulatorTourDemoActive,
   tourDemoEmulatorSession,
@@ -57,14 +58,17 @@ export function NowEmulatingView() {
   );
   const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
   const demo = emulatorTourDemoActive(activeTourId);
+  // A shelf can hide a game from Now Playing, which covers this page too.
+  const hiddenKeys = useHiddenGameKeys("nowPlaying");
   const sessions = useMemo(
     () =>
       allSessions.filter(
         (session) =>
           session.emulator &&
-          !ignored.has(session.emulator.emulatorId.toLowerCase()),
+          !ignored.has(session.emulator.emulatorId.toLowerCase()) &&
+          !hiddenKeys.has(resolvedCanonicalGameKey(session, resolveIgdbId)),
       ),
-    [allSessions, ignored],
+    [allSessions, hiddenKeys, ignored, resolveIgdbId],
   );
   const processes = useAppStore((state) => state.processes);
   const allObservations = useAppStore((state) => state.emulatorObservations);

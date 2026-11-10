@@ -253,5 +253,7 @@
   "Started {{date}}": "Started {{date}}",
   "Session note": "Session note",
   "Add session note": "Add session note",
-  "Edit session note": "Edit session note"
+  "Edit session note": "Edit session note",
+  "Added to {{shelf}}. It's hidden from All games now.": "Added to {{shelf}}. It's hidden from All games now.",
+  "Undo": "Undo"
 }

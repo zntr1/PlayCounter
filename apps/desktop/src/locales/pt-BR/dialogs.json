@@ -254,5 +254,7 @@
   "Started {{date}}": "Iniciada em {{date}}",
   "Session note": "Nota da sessão",
   "Add session note": "Adicionar nota da sessão",
-  "Edit session note": "Editar nota da sessão"
+  "Edit session note": "Editar nota da sessão",
+  "Added to {{shelf}}. It's hidden from All games now.": "Adicionado a {{shelf}}. Agora ele está oculto em Todos os jogos.",
+  "Undo": "Desfazer"
 }

@@ -8,6 +8,7 @@ import {
   GAME_TIERS,
   journalKey,
   type GameJournal,
+  SHELF_HIDE_PLACES,
   type PersonalShelf,
 } from "./personalLibrary";
 import { getT } from "./i18n";
@@ -502,6 +503,7 @@ const validateBackupShape: Validator = object(
         { id: nonempty, name: nonempty },
         {
           featuredGame: nullable(featuredGame),
+          hiddenIn: array(oneOf(...SHELF_HIDE_PLACES)),
           filters: object(
             {},
             {

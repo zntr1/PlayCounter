@@ -1622,7 +1622,7 @@ function readPersistedLaunchOnStartup() {
   }
 }
 
-function ToastViewport() {
+export function ToastViewport() {
   const toasts = useAppStore((state) => state.toasts);
   const dismissToast = useAppStore((state) => state.dismissToast);
 
@@ -1702,6 +1702,19 @@ function ToastCard({
             </div>
           ) : null}
         </div>
+        {toast.action ? (
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={() => {
+              toast.action!.run();
+              setLeaving(true);
+            }}
+            className="-mt-0.5 shrink-0 rounded-md px-2.5 py-1 text-sm font-semibold text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+          >
+            {toast.action.label}
+          </button>
+        ) : null}
         <button
           type="button"
           aria-label={t("Dismiss notification")}

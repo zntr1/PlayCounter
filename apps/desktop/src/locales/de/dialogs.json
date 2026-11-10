@@ -253,5 +253,7 @@
   "Started {{date}}": "Begonnen am {{date}}",
   "Session note": "Sitzungsnotiz",
   "Add session note": "Sitzungsnotiz hinzufügen",
-  "Edit session note": "Sitzungsnotiz bearbeiten"
+  "Edit session note": "Sitzungsnotiz bearbeiten",
+  "Added to {{shelf}}. It's hidden from All games now.": "Zu {{shelf}} hinzugefügt. Es ist jetzt in „Alle Spiele“ ausgeblendet.",
+  "Undo": "Rückgängig"
 }
