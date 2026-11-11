@@ -52,6 +52,7 @@ export type PersonalLibraryActions = Pick<
   | "deleteGameCounter"
   | "savePersonalShelf"
   | "deletePersonalShelf"
+  | "openNewShelf"
 >;
 
 export type PersonalLibraryState = PersonalLibraryActions &
@@ -62,6 +63,7 @@ export type PersonalLibraryState = PersonalLibraryActions &
     | "archivedPlaythroughSeconds"
     | "archivedCounts"
     | "journalTarget"
+    | "newShelfGame"
     | "recentSessions"
     | "activeSessions"
     | "gameMetadata"
@@ -555,5 +557,6 @@ export function createPersonalLibraryActions(
       });
       persistSoon();
     },
+    openNewShelf: (newShelfGame) => set({ newShelfGame }),
   };
 }

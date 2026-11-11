@@ -9,6 +9,7 @@ import {
   EyeOff,
   FolderHeart,
   Medal,
+  Plus,
   Star,
   StickyNote,
   X,
@@ -16,18 +17,19 @@ import {
 import {
   GAME_TIERS,
   gameStatusLabel,
-  journalHiddenIn,
   shelfHides,
   type GameTier,
 } from "../personalLibrary";
-import { getGameJournal, type GameIdentityRef } from "../store";
+import type { GameIdentityRef } from "../store";
 import {
   ContextMenuHeading,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuSubmenu,
 } from "./primitives";
 import { GAME_STATUS_LIST, TIER_TONES } from "./journalStyles";
 import { GameStatusIcon } from "./GameStatusIcon";
+import { putGameOnShelf } from "./putGameOnShelf";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
 import { Trans } from "react-i18next";
@@ -47,7 +49,7 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
   const update = usePersonalLibraryState((s) => s.updateGameJournal);
-  const addToast = usePersonalLibraryState((s) => s.addToast);
+  const openNewShelf = usePersonalLibraryState((s) => s.openNewShelf);
   const libraryApi = usePersonalLibraryApi();
   const shelves = usePersonalLibraryState((s) => s.personalShelves);
   const showShelves = usePersonalLibraryState(
@@ -135,7 +137,7 @@ export function GameJournalMenu({
       >
         <GameTierMenuItems game={game} onClose={onClose} />
       </ContextMenuSubmenu>
-      {showShelves && handShelves.length ? (
+      {showShelves && (handShelves.length || !practice) ? (
         // A game can sit on several shelves: a pick adds or removes one.
         <ContextMenuSubmenu
           label={t("Shelves")}
@@ -151,41 +153,34 @@ export function GameJournalMenu({
                 selected={member}
                 onClick={() => {
                   onClose();
-                  const leavesAllGames =
-                    !member &&
-                    shelfHides(shelf, "all") &&
-                    !journalHiddenIn(journal, shelves, "all");
-                  update(game, {
-                    shelfIds: member
-                      ? journal.shelfIds.filter((id) => id !== shelf.id)
-                      : [...journal.shelfIds, shelf.id],
-                  });
-                  if (!leavesAllGames) return;
-                  addToast({
-                    tone: "success",
-                    title: t(
-                      "Added to {{shelf}}. It's hidden from All games now.",
-                      { shelf: shelf.name },
-                    ),
-                    detail: game.gameName,
-                    action: {
-                      label: t("Undo"),
-                      run: () => {
-                        const state = libraryApi.getState();
-                        state.updateGameJournal(game, {
-                          shelfIds: getGameJournal(state, game).shelfIds.filter(
-                            (id) => id !== shelf.id,
-                          ),
-                        });
-                      },
-                    },
-                  });
+                  if (member)
+                    update(game, {
+                      shelfIds: journal.shelfIds.filter(
+                        (id) => id !== shelf.id,
+                      ),
+                    });
+                  else putGameOnShelf(libraryApi, game, shelf.id);
                 }}
               >
                 {shelf.name}
               </ContextMenuItem>
             );
           })}
+          {/* The guide makes its shelf from the shelf row. */}
+          {practice ? null : (
+            <>
+              {handShelves.length ? <ContextMenuSeparator /> : null}
+              <ContextMenuItem
+                icon={Plus}
+                onClick={() => {
+                  onClose();
+                  openNewShelf(game);
+                }}
+              >
+                {t("New shelf")}
+              </ContextMenuItem>
+            </>
+          )}
         </ContextMenuSubmenu>
       ) : null}
     </>

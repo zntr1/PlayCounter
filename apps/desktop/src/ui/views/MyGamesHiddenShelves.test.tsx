@@ -555,6 +555,113 @@ it("marks hiding shelves in the card menu and says when a game leaves All games,
   expect(journal(elden).shelfIds).toEqual([coop]);
 });
 
+/* Card menu → Shelves → New shelf (Phil, 2026-11-11): the last row opens the
+   shelf row's New shelf dialog, Save shelf puts the game on the new shelf, and
+   the open list stays. */
+
+async function newShelfFromCardMenu(name: string) {
+  await openCardMenu(name);
+  await act(() => menuRow("Shelves").click());
+  const last = submenuItems("Shelves").at(-1)!;
+  expect(last.textContent?.trim()).toBe("New shelf");
+  await act(() => last.click());
+}
+
+async function nameShelf(value: string) {
+  const name = document.querySelector<HTMLInputElement>(
+    '[aria-label="Shelf name"]',
+  )!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(name, value);
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+const shelfNamed = (name: string) =>
+  useAppStore.getState().personalShelves.find((entry) => entry.name === name);
+
+it("opens the New shelf dialog from the card menu's Shelves and puts the game on the saved shelf", async () => {
+  await render();
+  await newShelfFromCardMenu("Elden Ring");
+  // The menu is gone; the dialog is the shelf row's: a name and the ticks.
+  expect(document.querySelector("[data-context-menu-item]")).toBeNull();
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+    "New shelf",
+  );
+  for (const label of PLACE_LABELS) expect(checkbox(label).checked).toBe(false);
+  expect(button("Save shelf").disabled).toBe(true);
+
+  await nameShelf("Souls");
+  await click("Save shelf");
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(journal(elden).shelfIds).toEqual([shelfNamed("Souls")!.id]);
+  expect(shelfCount("Souls")).toBe(1);
+  // The list stays: All games, with the card still in it and no message.
+  expect(shelfChip("All games").getAttribute("aria-selected")).toBe("true");
+  expect(cardNames()).toEqual(["Elden Ring", "Hades"]);
+  expect(useAppStore.getState().toasts).toEqual([]);
+});
+
+it("stays on the open shelf after New shelf from a card menu, and keeps the game's other shelves", async () => {
+  await render();
+  await selectShelf("Co-op");
+  expect(cardNames()).toEqual(["Lethal Company"]);
+  await newShelfFromCardMenu("Lethal Company");
+  await nameShelf("Party");
+  await click("Save shelf");
+  expect(journal(lethal).shelfIds).toEqual([
+    privateShelf,
+    coop,
+    shelfNamed("Party")!.id,
+  ]);
+  expect(shelfChip("Co-op").getAttribute("aria-selected")).toBe("true");
+  expect(shelfChip("Party").getAttribute("aria-selected")).toBe("false");
+  expect(cardNames()).toEqual(["Lethal Company"]);
+});
+
+it("forgets the game when the card menu's New shelf dialog is closed without saving", async () => {
+  await render();
+  await newShelfFromCardMenu("Elden Ring");
+  await nameShelf("Souls");
+  await click("Close");
+  expect(shelfNamed("Souls")).toBeUndefined();
+  expect(journal(elden).shelfIds).toEqual([]);
+
+  // The shelf row's New shelf after that: an empty shelf, selected as before.
+  await click("New shelf", container);
+  expect(
+    document.querySelector<HTMLInputElement>('[aria-label="Shelf name"]')!
+      .value,
+  ).toBe("");
+  await nameShelf("Later");
+  await click("Save shelf");
+  expect(shelfNamed("Later")).toBeDefined();
+  expect(journal(elden).shelfIds).toEqual([]);
+  expect(shelfChip("Later").getAttribute("aria-selected")).toBe("true");
+});
+
+// "Putting a game on a hiding shelf", for a shelf made from the card menu.
+it("says when the card menu's new shelf takes the game out of All games, with Undo", async () => {
+  await render();
+  await newShelfFromCardMenu("Elden Ring");
+  await nameShelf("Junk");
+  await act(() => checkbox("All games and search").click());
+  await click("Save shelf");
+  expect(shelfNamed("Junk")!.hiddenIn).toEqual(["all"]);
+  expect(cardNames()).toEqual(["Hades"]);
+  const toast = useAppStore.getState().toasts[0];
+  expect(toast.title).toBe("Added to Junk. It's hidden from All games now.");
+  expect(toast.action?.label).toBe("Undo");
+
+  await act(() => toast.action!.run());
+  expect(cardNames()).toEqual(["Elden Ring", "Hades"]);
+  expect(journal(elden).shelfIds).toEqual([]);
+  expect(shelfNamed("Junk")).toBeDefined();
+});
+
 async function pointer(
   target: EventTarget,
   type: string,

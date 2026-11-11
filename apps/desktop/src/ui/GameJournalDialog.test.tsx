@@ -371,10 +371,10 @@ it("puts a game on another shelf from the card menu, keeps it on its shelves, an
       .map((item) => item.textContent?.trim());
 
   await click("Shelves");
-  // Favorites keeps its own item in the menu.
+  // Favorites keeps its own item in the menu. New shelf closes the list.
   expect(
     submenuItems("Shelves").map((item) => item.textContent?.trim()),
-  ).toEqual(["RPGs", "Backlog"]);
+  ).toEqual(["RPGs", "Backlog", "New shelf"]);
   expect(ticked()).toEqual(["RPGs"]);
 
   await click("Backlog");
@@ -388,7 +388,7 @@ it("puts a game on another shelf from the card menu, keeps it on its shelves, an
   expect(getGameJournal(state(), game).shelfIds).toEqual([backlog]);
 });
 
-it("leaves Shelves out of the card menu until a shelf takes games by hand, and while shelves are switched off", async () => {
+it("keeps Shelves in the card menu with only New shelf until a shelf takes games by hand, and leaves it out while shelves are switched off", async () => {
   const state = () => useAppStore.getState();
   await act(() =>
     root.render(
@@ -397,21 +397,28 @@ it("leaves Shelves out of the card menu until a shelf takes games by hand, and w
       </ContextMenu>,
     ),
   );
-  expect(menuLabels()).toContain("Tier");
-  expect(menuLabels()).not.toContain("Shelves");
+  const shelfRows = () =>
+    submenuItems("Shelves").map((item) => item.textContent?.trim());
+  // No shelf yet: the first one starts from the game.
+  expect(menuLabels().indexOf("Shelves")).toBe(
+    menuLabels().indexOf("Tier") + 1,
+  );
+  await click("Shelves");
+  expect(shelfRows()).toEqual(["New shelf"]);
 
+  // Filters fill this shelf; it is no pick here.
   await act(() => {
     state().savePersonalShelf({
       name: "Unplayed",
       filters: { played: "unplayed" },
     });
   });
-  expect(menuLabels()).not.toContain("Shelves");
+  expect(shelfRows()).toEqual(["New shelf"]);
 
   await act(() => {
     state().savePersonalShelf({ name: "Backlog" });
   });
-  expect(menuLabels()).toContain("Shelves");
+  expect(shelfRows()).toEqual(["Backlog", "New shelf"]);
 
   // Appearance → Shelves off hides the shelf row and the Journal's shelf
   // buttons; the card menu follows.
