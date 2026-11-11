@@ -207,6 +207,48 @@ function HidingNote({
   );
 }
 
+function shelfIcon(shelf: PersonalShelf) {
+  return shelf.filters
+    ? SlidersHorizontal
+    : shelfHides(shelf)
+      ? EyeOff
+      : FolderHeart;
+}
+
+/** Which shelves the rail shows in its one row, by index. If every shelf
+ *  fits, all of them; otherwise "+N more" takes a slot and the shelves fill
+ *  the rest in order. The open shelf always stays in the row. */
+export function fitShelfRail({
+  available,
+  gap,
+  fixed,
+  shelves,
+  more,
+  selected,
+}: {
+  available: number;
+  gap: number;
+  /** All games, Favorites and New shelf. */
+  fixed: readonly number[];
+  shelves: readonly number[];
+  more: number;
+  /** The open shelf's index, or -1. */
+  selected: number;
+}) {
+  const row = (chips: readonly number[]) =>
+    chips.reduce((sum, chip) => sum + gap + chip, -gap);
+  if (row([...fixed, ...shelves]) <= available) return shelves.map((_, i) => i);
+  const shown = selected >= 0 ? [selected] : [];
+  let used = row([...fixed, more, ...shown.map((i) => shelves[i])]);
+  for (let i = 0; i < shelves.length; i++) {
+    if (i === selected) continue;
+    if (used + gap + shelves[i] > available) break;
+    used += gap + shelves[i];
+    shown.push(i);
+  }
+  return shown.sort((a, b) => a - b);
+}
+
 function shelfTitle(shelf: PersonalShelf) {
   if (shelf.filters)
     return shelf.hiddenIn?.length
@@ -312,15 +354,107 @@ export function LibraryOrganizationToolbar({
     row.removeAttribute("data-measuring");
     row.toggleAttribute("data-single-row", requiredWidth <= availableWidth);
   }, []);
+  // Shelves that don't fit the rail's one row wait behind "+N more". The
+  // toolbar above measures with every shelf, so only a toolbar on two rows
+  // ever folds shelves away.
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railHidden, setRailHidden] = useState<readonly string[]>([]);
+  const selectedShelf = shelves.findIndex((s) => s.id === selection);
+  const fitShelves = useCallback(() => {
+    const rail = railRef.current;
+    let hidden: string[] = [];
+    if (rail && !toolbarRowRef.current?.hasAttribute("data-single-row")) {
+      // Every chip in one line, "+N more" included, to measure them all.
+      rail.setAttribute("data-fitting", "");
+      const chips = [...rail.children] as HTMLElement[];
+      const rects = chips.map((chip) => chip.getBoundingClientRect());
+      const available = rail.getBoundingClientRect().width;
+      rail.removeAttribute("data-fitting");
+      const width = new Map<string | undefined, number>();
+      const fixed: number[] = [];
+      let more = 0;
+      chips.forEach((chip, i) => {
+        const shelf = chip.dataset.libraryShelf;
+        if (chip.hasAttribute("data-shelf-more")) more = rects[i].width;
+        else if (shelves.some((s) => s.id === shelf))
+          width.set(shelf, rects[i].width);
+        else fixed.push(rects[i].width);
+      });
+      if (available && rects.length > 1) {
+        const shown = new Set(
+          fitShelfRail({
+            available,
+            gap: rects[1].left - rects[0].right,
+            fixed,
+            shelves: shelves.map((s) => width.get(s.id) ?? 0),
+            more,
+            selected: selectedShelf,
+          }),
+        );
+        hidden = shelves.filter((_, i) => !shown.has(i)).map((s) => s.id);
+      }
+    }
+    setRailHidden((current) =>
+      current.length === hidden.length &&
+      current.every((id, i) => id === hidden[i])
+        ? current
+        : hidden,
+    );
+  }, [shelves, selectedShelf]);
   // Labels, shelf counts, and summary settings can change the required width.
   useLayoutEffect(fitToolbar);
+  useLayoutEffect(fitShelves);
   useLayoutEffect(() => {
     const container = toolbarRef.current;
     if (!container || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(fitToolbar);
+    const observer = new ResizeObserver(() => {
+      fitToolbar();
+      fitShelves();
+    });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [fitToolbar]);
+  }, [fitToolbar, fitShelves]);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const [moreList, setMoreList] = useState<{
+    x: number;
+    y: number;
+    maxHeight: number;
+    /** Opened by a game dragged onto "+N more". */
+    drag: boolean;
+    focus: boolean;
+  } | null>(null);
+  const listOpen = railHidden.length ? moreList : null;
+  function openMoreList(drag: boolean, focus = false) {
+    const rect = moreRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Below "+N more", scrolling if long, so it never covers the row.
+    const below = window.innerHeight - rect.bottom - 6 - 8;
+    setMoreList({
+      x: rect.left,
+      y: rect.bottom + 6,
+      maxHeight: Math.max(below, 160),
+      drag,
+      focus,
+    });
+  }
+  // A list a drag opened closes when the game is dropped anywhere but on one
+  // of its shelves. Dropped there, it stays open and shows the new count.
+  const dragOpened = Boolean(listOpen?.drag);
+  useEffect(() => {
+    if (!dragOpened) return;
+    const dropped = (event: PointerEvent) => {
+      const onList =
+        event.target instanceof Element &&
+        event.target.closest('[role="menu"] [data-library-shelf]');
+      setMoreList((list) => (onList && list ? { ...list, drag: false } : null));
+    };
+    window.addEventListener("pointerup", dropped, true);
+    window.addEventListener("pointercancel", dropped, true);
+    return () => {
+      window.removeEventListener("pointerup", dropped, true);
+      window.removeEventListener("pointercancel", dropped, true);
+    };
+  }, [dragOpened]);
   const [editor, setEditor] = useState<PersonalShelf | "new" | null>(null);
   const [name, setName] = useState("");
   const [hiddenDraft, setHiddenDraft] = useState<ShelfHidePlace[]>([]);
@@ -401,6 +535,33 @@ export function LibraryOrganizationToolbar({
     };
   }
 
+  /** Right-click or the menu key on a shelf opens its menu. From the "+N
+   *  more" list, the list closes and focus later goes back to "+N more". */
+  function shelfMenuHandlers(id: string, inList = false) {
+    const open = (trigger: HTMLButtonElement) => {
+      menuTriggerRef.current = inList ? moreRef.current : trigger;
+      if (inList) setMoreList(null);
+      setMenuShelfId(id);
+    };
+    return {
+      onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => {
+        open(event.currentTarget);
+        shelfMenu.props.onContextMenu(event);
+      },
+      onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (
+          event.key !== "ContextMenu" &&
+          !(event.shiftKey && event.key === "F10")
+        )
+          return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        open(event.currentTarget);
+        shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
+      },
+    };
+  }
+
   return (
     <div
       data-tour={practice ? "demo-organization" : undefined}
@@ -418,6 +579,7 @@ export function LibraryOrganizationToolbar({
         ) : null}
         {showShelves ? (
           <div
+            ref={railRef}
             role="tablist"
             aria-label={t("Library shelf")}
             data-library-shelf-rail=""
@@ -459,36 +621,17 @@ export function LibraryOrganizationToolbar({
                     : undefined
                 }
                 {...dropProps(shelf.id, !shelf.filters)}
+                data-rail-hidden={
+                  railHidden.includes(shelf.id) ? "" : undefined
+                }
                 role="tab"
                 aria-selected={selection === shelf.id}
                 selected={selection === shelf.id}
-                icon={
-                  shelf.filters
-                    ? SlidersHorizontal
-                    : shelfHides(shelf)
-                      ? EyeOff
-                      : FolderHeart
-                }
+                icon={shelfIcon(shelf)}
                 count={counts[shelf.id]}
                 title={shelfTitle(shelf)}
                 onClick={() => onSelect(shelf.id)}
-                onContextMenu={(event) => {
-                  menuTriggerRef.current = event.currentTarget;
-                  setMenuShelfId(shelf.id);
-                  shelfMenu.props.onContextMenu(event);
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key !== "ContextMenu" &&
-                    !(event.shiftKey && event.key === "F10")
-                  )
-                    return;
-                  event.preventDefault();
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  menuTriggerRef.current = event.currentTarget;
-                  setMenuShelfId(shelf.id);
-                  shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
-                }}
+                {...shelfMenuHandlers(shelf.id)}
               >
                 <span className="min-w-0 truncate" title={shelf.name}>
                   {shelf.name}
@@ -496,6 +639,32 @@ export function LibraryOrganizationToolbar({
                 <LibraryGameHoverHint />
               </Pill>
             ))}
+            {/* Always here, so its width can be measured; shown only while
+                shelves wait behind it. A game dragged onto it opens the list. */}
+            <Pill
+              ref={moreRef}
+              data-shelf-more=""
+              data-rail-hidden={railHidden.length ? undefined : ""}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(listOpen)}
+              onClick={(event) => {
+                if (listOpen) setMoreList(null);
+                else openMoreList(false, event.detail === 0);
+              }}
+              onPointerEnter={() => {
+                if (
+                  !listOpen &&
+                  document.documentElement.classList.contains(
+                    "library-game-dragging",
+                  )
+                )
+                  openMoreList(true);
+              }}
+            >
+              {t("+{{count}} more", {
+                count: railHidden.length || shelves.length,
+              })}
+            </Pill>
             <Pill
               data-tour={practice ? "demo-new-shelf" : undefined}
               icon={Plus}
@@ -850,6 +1019,43 @@ export function LibraryOrganizationToolbar({
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {showShelves && listOpen ? (
+        <ContextMenu
+          open
+          position={listOpen}
+          onClose={() => setMoreList(null)}
+          anchorRef={moreRef}
+          focusFirstItem={listOpen.focus}
+          maxHeight={listOpen.maxHeight}
+          ariaLabel={t("More shelves")}
+          className="max-w-72"
+        >
+          {shelves
+            .filter((shelf) => railHidden.includes(shelf.id))
+            .map((shelf) => (
+              <ContextMenuItem
+                key={shelf.id}
+                {...dropProps(shelf.id, !shelf.filters)}
+                icon={shelfIcon(shelf)}
+                title={shelfTitle(shelf)}
+                suffix={
+                  <span className="ml-2 shrink-0 font-mono text-[11px] tabular-nums text-text-faint">
+                    {counts[shelf.id]}
+                  </span>
+                }
+                onClick={() => {
+                  setMoreList(null);
+                  moreRef.current?.focus({ preventScroll: true });
+                  onSelect(shelf.id);
+                }}
+                {...shelfMenuHandlers(shelf.id, true)}
+              >
+                {shelf.name}
+              </ContextMenuItem>
+            ))}
+        </ContextMenu>
       ) : null}
 
       {showShelves && menuShelf ? (

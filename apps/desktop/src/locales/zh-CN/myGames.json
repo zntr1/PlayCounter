@@ -365,6 +365,8 @@
   "e.g. Stardew Valley (modded)": "例如：星露谷物语（模组版）",
   "Favorites": "收藏",
   "New shelf": "新分类架",
+  "+{{count}} more_other": "另 {{count}} 个",
+  "More shelves": "其他分类架",
   "Filters for {{name}}": "{{name}} 的筛选条件",
   "The cards below preview every game in your library that matches these filters. Click Save filters to make this shelf fill itself from them.": "下方的卡片预览游戏库中符合这些筛选条件的所有游戏。点击“保存筛选条件”，让此分类架根据它们自动填充。",
   "Any": "任意",

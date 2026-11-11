@@ -1482,6 +1482,26 @@ select {
   margin-left: auto;
 }
 
+/* Shelves past the rail's one row wait behind "+N more" (fitShelves in
+   LibraryOrganization.tsx). The toolbar's measuring above counts every shelf
+   and leaves "+N more" out; fitting lines every chip up in one row. */
+[data-library-shelf-rail] > [data-rail-hidden] {
+  display: none;
+}
+
+[data-library-shelf-rail][data-fitting] {
+  flex-wrap: nowrap;
+}
+
+.library-toolbar[data-measuring] [data-library-shelf-rail] > [data-rail-hidden],
+[data-library-shelf-rail][data-fitting] > [data-rail-hidden] {
+  display: inline-flex;
+}
+
+.library-toolbar[data-measuring] [data-library-shelf-rail] > [data-shelf-more] {
+  display: none;
+}
+
 @container library-toolbar (width < 560px) {
   .library-summary-stat {
     display: none;
@@ -1555,8 +1575,27 @@ select {
 
 .library-game-dragging
   [data-library-shelf-rail]
-  > button:not([data-library-drop-shelf]):not([data-library-drag-blocked]) {
+  > button:not([data-library-drop-shelf]):not([data-library-drag-blocked]):not(
+    [data-shelf-more]
+  ),
+.library-game-dragging
+  [role="menu"]
+  [data-library-shelf]:not([data-library-drop-shelf]) {
   opacity: 0.4;
+}
+
+/* Rows in the "+N more" list take games like the chips, but stay rows. */
+.library-game-dragging
+  [role="menu"]
+  [data-library-drop-shelf]:not([data-library-drag-blocked]):hover {
+  box-shadow: none;
+}
+
+.library-game-dragging
+  [role="menu"]
+  [data-library-drop-shelf]:not([data-library-drag-blocked]):hover
+  > svg {
+  color: inherit;
 }
 
 .library-game-dragging
