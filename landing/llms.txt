@@ -9,7 +9,7 @@
 - Imported and adjusted totals do not recreate sessions. For a matched game, the displayed total is the higher of the PlayCounter total (tracked sessions plus any manual adjustment) and the sum of the imported launcher totals, counting each launcher once. PlayStation playtime is console play, so it is added to that total instead.
 - Earlier hours from launchers without a playtime import can be set with Adjust total playtime; a single missed session can be logged with its date.
 - Game details show achievements from Steam, Xbox, Epic Games and GOG, PlayStation trophies, and how long a game takes to beat (times from IGDB players) against the player's own progress.
-- Dedicated per-game emulator detection: DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia. Recognition depends on exposed game identifiers, files or titles.
+- Dedicated per-game emulator detection: DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and BlueStacks (Android). Recognition depends on exposed game identifiers, files or titles.
 - Recorded sessions and history stay on the PC. Matching, metadata, updates and pseudonymous installation presence use online services; optional imports have additional data flows.
 - App languages: English, Deutsch, Español, Français, Polski, Português (Brasil), Русский, 中文（简体）.
 

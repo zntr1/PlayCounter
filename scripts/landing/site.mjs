@@ -414,6 +414,14 @@ export const site = {
       detail:
         "Track individual Xbox 360 games by the title ID Xenia shows in its window title.",
     },
+    {
+      id: "bluestacks",
+      name: "BlueStacks",
+      logo: "/brands/bluestacks.png",
+      systems: "Android",
+      detail:
+        "Track individual Android games by the app BlueStacks has in front, read from its own log.",
+    },
   ],
   languages: [
     "English",
@@ -453,7 +461,7 @@ export const faq = [
   ],
   [
     "Which emulators are supported?",
-    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and BlueStacks. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
   ],
   [
     "Which languages is the app available in?",
