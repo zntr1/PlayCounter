@@ -1,4 +1,5 @@
 import {
+  usePersonalLibraryApi,
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
@@ -58,6 +59,7 @@ import { GAME_STATUS_LIST } from "./journalStyles";
 import { GameStatusIcon } from "./GameStatusIcon";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
+import { putGameOnShelf } from "./putGameOnShelf";
 import { emitTourEvent } from "./tour/TourUI";
 import { appLocale, getT } from "../i18n";
 import { cn } from "./cn";
@@ -364,6 +366,18 @@ export function LibraryOrganizationToolbar({
     setHiddenDraft(
       typeof value === "object" && value ? (value.hiddenIn ?? []) : [],
     );
+  }
+  // New shelf in a game's card menu: this dialog, and Save shelf puts the
+  // game on the shelf.
+  const libraryApi = usePersonalLibraryApi();
+  const shelfGame = usePersonalLibraryState((s) => s.newShelfGame);
+  const openNewShelf = usePersonalLibraryState((s) => s.openNewShelf);
+  useEffect(() => {
+    if (shelfGame) edit("new");
+  }, [shelfGame]);
+  function closeEditor() {
+    setEditor(null);
+    if (shelfGame) openNewShelf(null);
   }
   function setFilter(key: keyof LibraryFilters, value: unknown) {
     const next = { ...filters, [key]: value };
@@ -927,7 +941,7 @@ export function LibraryOrganizationToolbar({
           labelId="shelf-editor-title"
           title={typeof editor === "object" ? t("Edit shelf") : t("New shelf")}
           icon={FolderHeart}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           footer={
             <Button
               data-tour={practice ? "demo-shelf-save" : undefined}
@@ -956,11 +970,16 @@ export function LibraryOrganizationToolbar({
               });
               if (id) {
                 if (typeof editor !== "object") {
-                  onExpandedChange(false);
-                  onSelect(id);
-                  if (practice) emitTourEvent("library.demo-shelf-created");
+                  if (shelfGame) {
+                    // The open list stays: the player was sorting a game.
+                    putGameOnShelf(libraryApi, shelfGame, id);
+                  } else {
+                    onExpandedChange(false);
+                    onSelect(id);
+                    if (practice) emitTourEvent("library.demo-shelf-created");
+                  }
                 }
-                setEditor(null);
+                closeEditor();
               }
             }}
           >

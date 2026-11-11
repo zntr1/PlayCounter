@@ -514,6 +514,10 @@ export type AppState = {
     shelf: Omit<PersonalShelf, "id"> & { id?: string },
   ) => string | null;
   deletePersonalShelf: (id: string) => void;
+  /** The game whose card menu asked for a new shelf: the New shelf dialog
+   *  opens, and Save shelf puts this game on the shelf. Not persisted. */
+  newShelfGame: GameIdentityRef | null;
+  openNewShelf: (game: GameIdentityRef | null) => void;
   activeView: ViewId;
   libraryTab: LibraryTabId;
   libraryImportProvider: BuiltinImportProviderId;
@@ -1007,6 +1011,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedPlaythroughSeconds: {},
   archivedCounts: {},
   journalTarget: null,
+  newShelfGame: null,
   ...createPersonalLibraryActions(set, get, persistSoon),
   activeView: "now",
   libraryTab: "all",

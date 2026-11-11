@@ -278,6 +278,13 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
       return found!;
     };
     await act(() => item("Shelves").click());
+    // The practice menu lists its shelf only: the guide made the shelf in the
+    // step before, from the shelf row.
+    expect(
+      [...document.querySelectorAll("[data-context-menu-item]")].some(
+        (button) => button.textContent?.trim() === "New shelf",
+      ),
+    ).toBe(false);
     // The guide must let this pick through: WoW on the shelf ends the step.
     await act(() => item("Online Games").click());
     await act(() => vi.advanceTimersByTime(800));
