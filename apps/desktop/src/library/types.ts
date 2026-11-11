@@ -180,6 +180,9 @@ export type ResolvedLibraryGame = {
   game?: GameMetadata;
   executables: LibraryKnownExecutable[];
   candidates?: GameMetadata[];
+  /** Matched by name, not installed: the game's files are asked for on
+   *  Import, like a picked game's (docs/name-auto-match-plan.md). */
+  filesOnImport?: boolean;
 };
 
 export type LibraryImportCommit = {

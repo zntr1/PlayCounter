@@ -307,7 +307,8 @@ it.each([false, true])(
         key: "battlenet:example",
         status: manual ? "unknown" : "resolved",
         game: manual ? undefined : match,
-        candidates: [match],
+        // Not named like the title: no match by name.
+        candidates: [{ ...match, name: "Account game: Gold Edition" }],
         executables: [],
       },
     ];
@@ -499,7 +500,8 @@ it("populates Battle.net review suggestions on the initial scan using a clean ti
   const candidate = {
     id: 7,
     igdbId: 8,
-    name: "Warcraft III: Reign of Chaos",
+    // Not named like the title: no match by name.
+    name: "Warcraft III: Reforged",
     coverUrl: "",
     source: "igdb",
   };
@@ -562,7 +564,11 @@ it.each(["xbox", "battlenet"] as const)(
   async (provider) => {
     await act(() => store.setState({ libraryImportProvider: provider }));
     const result = scanResult("Example Game");
-    const matchedGame = result.resolvedGames![0].game!;
+    // Not named like the title: no match by name.
+    const matchedGame = {
+      ...result.resolvedGames![0].game!,
+      name: "Example Game: Remastered",
+    };
     const externalId = provider === "battlenet" ? "example" : "42";
     result.games[0] = {
       ...result.games[0],
@@ -770,7 +776,10 @@ it("does not commit an Xbox confirmation after switching providers", async () =>
         key: "xbox:42",
         status: "unknown",
         executables: [],
-        candidates: [result.resolvedGames![0].game],
+        // Not named like the title: no match by name.
+        candidates: [
+          { ...result.resolvedGames![0].game!, name: "Xbox game: Deluxe" },
+        ],
       },
     ],
   });

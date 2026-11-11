@@ -34,6 +34,7 @@ import {
 } from "./keptLogins";
 import { rememberSteamImportAccount } from "./libraryAutoAddState";
 import { getLoginHealth } from "./loginHealth";
+import { nameMatch } from "./nameMatch";
 import { loadLibraryProvider } from "./providers";
 import { resolveLibraryGames } from "./resolve";
 import type {
@@ -525,9 +526,9 @@ export async function startImportScan(
         candidates: serverMatch?.candidates,
       });
     }
-    if (profile.accountAndInstalls) {
-      // Account products have no catalog identity. Titles are searched one
-      // after another for suggestions, never for automatic matching.
+    if (profile.searchesTitles) {
+      // Titles the server didn't match are searched one after another for
+      // suggestions; the name match below may take one of them.
       for (const game of result.games) {
         const key = libraryEntryKey(providerId, game.externalId);
         const match = byKey.get(key);
@@ -559,6 +560,47 @@ export async function startImportScan(
           if (!isCurrent(signal, providerId)) return;
           // A failed suggestion leaves the search to the player.
         }
+      }
+    }
+    if (profile.matchedBy === "name") {
+      // docs/name-auto-match-plan.md: the one suggestion named like the
+      // title is the match. An installed game needs its known files now, for
+      // the file check; any other game gets them on Import, like a pick.
+      for (const game of result.games) {
+        const key = libraryEntryKey(providerId, game.externalId);
+        const match = byKey.get(key);
+        if (saved.has(key) || match?.status === "resolved") continue;
+        const named = nameMatch(game.name, match?.candidates);
+        if (!named) continue;
+        if (
+          game.installed &&
+          game.installPath !== undefined &&
+          !game.runsInEmulator
+        ) {
+          try {
+            const known = await lookUpPickedGame(named.id);
+            if (!isCurrent(signal, providerId)) return;
+            byKey.set(key, {
+              key,
+              status: "resolved",
+              game: known.game,
+              executables: known.executables,
+              candidates: match?.candidates,
+            });
+          } catch {
+            if (!isCurrent(signal, providerId)) return;
+            // Without its files the game stays a suggestion.
+          }
+          continue;
+        }
+        byKey.set(key, {
+          key,
+          status: "resolved",
+          game: named,
+          executables: [],
+          candidates: match?.candidates,
+          filesOnImport: true,
+        });
       }
     }
     const group = initialImportGroup(
@@ -750,14 +792,17 @@ export async function importSelectedGames(externalIds: readonly string[]) {
       const replacement = inLibrary
         ? undefined
         : start.replacements[game.externalId];
-      if (replacement) {
+      // A pick, or a game matched by name: its files are asked for now.
+      const lookUp =
+        replacement ?? (match?.filesOnImport ? match.game : undefined);
+      if (lookUp) {
         let picked: PickedGame;
         try {
-          picked = await pickedGameForImport(replacement.id, signal);
+          picked = await pickedGameForImport(lookUp.id, signal);
         } catch {
           if (!isCurrent(signal, providerId)) return;
           // The other games still go in. This one stays checked.
-          notImported.push(replacement.name);
+          notImported.push(lookUp.name);
           continue;
         }
         if (!isCurrent(signal, providerId)) return;
