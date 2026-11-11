@@ -9,6 +9,11 @@ import { importGroupHint } from "./ImportShelves";
 
 const t = getT("import");
 
+/** The list and the game's box beside it share one height, so neither grows
+ *  with what it shows: the buttons at the box's bottom never move. The
+ *  review sets --import-pane-height. */
+export const IMPORT_PANE_HEIGHT = "h-[var(--import-pane-height)] min-h-[18rem]";
+
 /** The games of one shelf. Clicking one shows it next to the list. */
 export function ImportQueue({
   group,
@@ -60,7 +65,7 @@ export function ImportQueue({
           setQuery("");
         }
       }}
-      className="overflow-hidden rounded-lg border border-border bg-surface shadow-raised"
+      className={`flex flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-raised ${IMPORT_PANE_HEIGHT}`}
     >
       <div className="px-3 pt-3">
         <label className="flex h-9 items-center gap-2 rounded-lg border border-border bg-bg px-3 text-text-faint focus-within:border-accent">
@@ -95,7 +100,7 @@ export function ImportQueue({
       <p className="px-4 pb-2 pt-2.5 text-xs leading-5 text-text-muted">
         {importGroupHint(group)}
       </p>
-      <div className="max-h-[calc(100vh-24rem)] min-h-[160px] overflow-y-auto px-2 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {shown.length === 0 ? (
           <p className="px-3 py-8 text-center text-sm text-text-muted">
             {search

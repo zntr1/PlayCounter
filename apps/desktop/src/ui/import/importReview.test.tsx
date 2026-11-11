@@ -647,7 +647,10 @@ describe("deciding one game after another", () => {
     }));
   });
 
-  it("puts Skip for now and Import beside the game's name, above its choices, for every game", async () => {
+  // Phil, 2026-11-11: back to the bottom right, without the jumping. The box
+  // has one height, its choices scroll above the buttons. (The height itself
+  // is checked in a browser; jsdom has no layout.)
+  it("puts Skip for now and Import at the bottom right of the game's box, below its choices, for every game", async () => {
     await scan("xbox", {
       games: [
         game("1", "Microsoft Flight Simulator 40th Anniversary Edition"),
@@ -668,14 +671,17 @@ describe("deciding one game after another", () => {
       "Halo: The Master Chief Collection (PC)",
     ]) {
       await act(() => row(title).click());
-      const top = container.querySelector(
-        "section[aria-label]",
-      )!.firstElementChild!;
-      expect(top.querySelector("h3")?.textContent).toBe(title);
-      expect(top.contains(findButton("Skip for now")!)).toBe(true);
-      expect(top.contains(findButton("Import")!)).toBe(true);
-      // "Which game is …?" and "Which file starts the game?" come below.
-      expect(top.querySelector("h4")).toBeNull();
+      const box = container.querySelector("section[aria-label]")!;
+      expect(box.querySelector("h3")?.textContent).toBe(title);
+      // The box's last line holds the two buttons, Import on the right…
+      const bottom = box.lastElementChild!;
+      expect(
+        [...bottom.querySelectorAll("button")].map((b) => b.textContent),
+      ).toEqual(["Skip for now", "Import"]);
+      // …and nothing of the game: "Which game is …?" and "Which file starts
+      // the game?" sit above it, in the part that scrolls.
+      expect(bottom.querySelector("h3, h4")).toBeNull();
+      expect(box.querySelector("h4")).not.toBeNull();
     }
     expect(container.textContent).toContain("Which file starts the game?");
   });

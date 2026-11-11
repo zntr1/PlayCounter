@@ -1,5 +1,12 @@
 import { Download, RefreshCw, SlidersHorizontal } from "lucide-react";
-import { useMemo } from "react";
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import { getT } from "../../i18n";
 import { nativeText } from "../../nativeText";
 import type { KeptLogin } from "../../library/keptLogins";
@@ -143,6 +150,42 @@ export function ImportSourceBar({
   );
 }
 
+/** How tall the list and the game's box must be to end at the bottom of the
+ *  content area, whatever sits above them (warnings, notices, shelves on two
+ *  lines) or below them (the import bar). Measured, so nothing above can push
+ *  Import out of the window. In the content's own pixels: the content area is
+ *  zoomed, and its zoom turns window pixels into them. */
+function usePaneHeight(
+  rootRef: RefObject<HTMLElement | null>,
+  panesRef: RefObject<HTMLElement | null>,
+) {
+  const [height, setHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const panes = panesRef.current;
+    const content = root?.closest<HTMLElement>("[data-controller-content]");
+    if (!root || !panes || !content || typeof ResizeObserver === "undefined")
+      return;
+    const measure = () => {
+      const area = content.getBoundingClientRect();
+      const zoom = area.height / content.offsetHeight || 1;
+      const box = panes.getBoundingClientRect();
+      // Counted from the top of the page, so scrolling changes nothing.
+      const top = (box.top - area.top) / zoom + content.scrollTop;
+      const below = (root.getBoundingClientRect().bottom - box.bottom) / zoom;
+      const padding = parseFloat(getComputedStyle(content).paddingBottom) || 0;
+      setHeight(Math.floor(content.clientHeight - padding - top - below));
+    };
+    measure();
+    // The window, and anything in the review above or below the panes.
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [rootRef, panesRef]);
+  return height;
+}
+
 /** Step 3: the shelves filter the list, the picked game sits beside it. */
 export function ImportReview({
   session,
@@ -160,6 +203,9 @@ export function ImportReview({
   onSignOut: () => void;
 }) {
   const libraryImports = useAppStore((state) => state.libraryImports);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panesRef = useRef<HTMLDivElement>(null);
+  const paneHeight = usePaneHeight(rootRef, panesRef);
   const { groups } = useImportGroups(session);
   const group = session.group;
   const shelf = groups[group];
@@ -187,7 +233,7 @@ export function ImportReview({
   const added = chosen.length - updates;
 
   return (
-    <div className="grid gap-4 pb-2">
+    <div ref={rootRef} className="grid gap-4 pb-2">
       <ImportSourceBar
         session={session}
         keptLogin={keptLogin}
@@ -217,7 +263,17 @@ export function ImportReview({
         active={group}
         onSelect={showImportGroup}
       />
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+      <div
+        ref={panesRef}
+        className="grid items-start gap-4 lg:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]"
+        style={
+          paneHeight === null
+            ? undefined
+            : ({
+                "--import-pane-height": `${paneHeight}px`,
+              } as CSSProperties)
+        }
+      >
         <ImportQueue
           key={group}
           group={group}

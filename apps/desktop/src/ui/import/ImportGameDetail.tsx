@@ -27,6 +27,7 @@ import { GameCover } from "../GameCover";
 import { Button } from "../primitives";
 import { GameFilePicker } from "./GameFilePicker";
 import { GameMatchPicker } from "./GameMatchPicker";
+import { IMPORT_PANE_HEIGHT } from "./ImportQueue";
 import {
   lastPlayedText,
   playtimeGrowth,
@@ -66,17 +67,16 @@ export function ImportGameDetail({
   const consoleOnly = importProfile(session.providerId).consoleOnly;
   const deciding = !row.completed && row.group === "attention" && !skipped;
   return (
-    // One column as wide as the box, so a long path can't widen it.
+    // Every game's box is as high as the list, whatever it shows: what doesn't
+    // fit scrolls above the bottom line, so Skip for now and Import stay in
+    // one spot and Import can be clicked game after game.
     <section
       aria-label={row.title}
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-5 rounded-lg border border-border bg-surface p-5 shadow-raised"
+      className={`flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-raised ${IMPORT_PANE_HEIGHT}`}
     >
-      {/* Skip for now and Import sit top right, in the same spot for every
-          game, so Import can be clicked game after game. Without room beside
-          the game they wrap onto a line above it, never below: wrap-reverse
-          stacks the lines bottom up, which also makes items-end the top. */}
-      <div className="flex flex-wrap-reverse items-end justify-end gap-x-5 gap-y-4">
-        <div className="grid min-w-[min(100%,24rem)] flex-1 grid-cols-[112px_minmax(0,1fr)] items-start gap-5">
+      {/* One column as wide as the box, so a long path can't widen it. */}
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-5 overflow-y-auto p-5">
+        <div className="grid grid-cols-[112px_minmax(0,1fr)] items-start gap-5">
           <span className="grid aspect-[3/4] w-full place-items-center overflow-hidden rounded-xl bg-surface-hover text-text-faint shadow-raised">
             {row.coverUrl ? (
               <GameCover
@@ -156,50 +156,54 @@ export function ImportGameDetail({
             ) : null}
           </div>
         </div>
-        {deciding ? (
-          <DecisionActions
-            session={session}
-            row={row}
-            nextToDecide={nextToDecide}
-          />
+
+        {row.completed ? (
+          <p className="text-sm text-success">{t("Imported just now")}</p>
+        ) : row.group === "attention" ? (
+          skipped ? (
+            <p className="flex flex-wrap items-center gap-x-3 text-sm text-text-muted">
+              {t("Skipped for now")}
+              <button
+                type="button"
+                onClick={() => unskipImportGame(id)}
+                className="rounded font-semibold text-accent-ink hover:underline"
+              >
+                {t("Decide now")}
+              </button>
+            </p>
+          ) : (
+            <ImportDecision session={session} row={row} replacing={replacing} />
+          )
+        ) : row.group === "imported" ? (
+          <>
+            <p className="text-sm text-text-muted">
+              {t(
+                "Already in My Games. Check it in the list to import it again.",
+              )}
+            </p>
+            {row.showsFile ? (
+              <FileQuestion session={session} row={row} />
+            ) : null}
+          </>
+        ) : row.group === "unavailable" ? (
+          <p className="text-sm text-text-muted">{unavailableReason(game)}</p>
+        ) : replacing ? (
+          <div className="grid gap-4 rounded-xl border border-accent/30 bg-surface-hover/40 p-4">
+            <MatchReplacement session={session} row={row} />
+            <p className="text-xs leading-5 text-text-faint">
+              {t(
+                "Your pick is imported instead of the matched game. Nothing is sent.",
+              )}
+            </p>
+          </div>
         ) : null}
       </div>
-
-      {row.completed ? (
-        <p className="text-sm text-success">{t("Imported just now")}</p>
-      ) : row.group === "attention" ? (
-        skipped ? (
-          <p className="flex flex-wrap items-center gap-x-3 text-sm text-text-muted">
-            {t("Skipped for now")}
-            <button
-              type="button"
-              onClick={() => unskipImportGame(id)}
-              className="rounded font-semibold text-accent-ink hover:underline"
-            >
-              {t("Decide now")}
-            </button>
-          </p>
-        ) : (
-          <ImportDecision session={session} row={row} replacing={replacing} />
-        )
-      ) : row.group === "imported" ? (
-        <>
-          <p className="text-sm text-text-muted">
-            {t("Already in My Games. Check it in the list to import it again.")}
-          </p>
-          {row.showsFile ? <FileQuestion session={session} row={row} /> : null}
-        </>
-      ) : row.group === "unavailable" ? (
-        <p className="text-sm text-text-muted">{unavailableReason(game)}</p>
-      ) : replacing ? (
-        <div className="grid gap-4 rounded-xl border border-accent/30 bg-surface-hover/40 p-4">
-          <MatchReplacement session={session} row={row} />
-          <p className="text-xs leading-5 text-text-faint">
-            {t(
-              "Your pick is imported instead of the matched game. Nothing is sent.",
-            )}
-          </p>
-        </div>
+      {deciding ? (
+        <DecisionActions
+          session={session}
+          row={row}
+          nextToDecide={nextToDecide}
+        />
       ) : null}
     </section>
   );
@@ -242,7 +246,7 @@ function DecisionActions({
     (!row.needsGame || Boolean(session.picks[id])) &&
     (!requiresFile || Boolean(session.manualExecutables[id]));
   return (
-    <div className="flex min-w-0 flex-wrap justify-end gap-2">
+    <div className="flex min-w-0 shrink-0 flex-wrap justify-end gap-2 border-t border-border px-5 py-3">
       <Button variant="ghost" onClick={() => skipImportGame(id, nextToDecide)}>
         {t("Skip for now")}
       </Button>
