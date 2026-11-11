@@ -62,8 +62,8 @@ export function ImportQueue({
       }}
       className="overflow-hidden rounded-lg border border-border bg-surface shadow-raised"
     >
-      <div className="flex items-center gap-1 px-3 pt-3">
-        <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-border bg-bg px-3 text-text-faint focus-within:border-accent">
+      <div className="px-3 pt-3">
+        <label className="flex h-9 items-center gap-2 rounded-lg border border-border bg-bg px-3 text-text-faint focus-within:border-accent">
           <Search size={15} aria-hidden="true" className="shrink-0" />
           <input
             value={query}
@@ -74,7 +74,7 @@ export function ImportQueue({
           />
         </label>
         {checkable ? (
-          <>
+          <div className="mt-1 flex items-center gap-1">
             <button
               type="button"
               onClick={() => onSelectAll(true)}
@@ -89,7 +89,7 @@ export function ImportQueue({
             >
               {t("Select none")}
             </button>
-          </>
+          </div>
         ) : null}
       </div>
       <p className="px-4 pb-2 pt-2.5 text-xs leading-5 text-text-muted">
