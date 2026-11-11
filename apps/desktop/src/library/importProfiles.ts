@@ -28,6 +28,11 @@ export type ImportProfile = {
    * an unmatched game needs the player to confirm it.
    */
   matchedBy: "id" | "name";
+  /**
+   * The importer searches the titles the server didn't match, during the
+   * scan. Xbox's scan brings its own suggestions (the server's lookup).
+   */
+  searchesTitles: boolean;
   /** The launcher reports playtime. Battle.net does not. */
   hasPlaytime: boolean;
   /**
@@ -61,6 +66,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     login: null,
     choice: "localAccounts",
     matchedBy: "id",
+    searchesTitles: false,
     hasPlaytime: true,
     accountAndInstalls: false,
     linksFilesPerInstall: false,
@@ -74,6 +80,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     login: "xbox",
     choice: "account",
     matchedBy: "name",
+    searchesTitles: false,
     hasPlaytime: true,
     accountAndInstalls: false,
     linksFilesPerInstall: false,
@@ -87,6 +94,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     login: "battlenet",
     choice: "accountOrInstalled",
     matchedBy: "name",
+    searchesTitles: true,
     hasPlaytime: false,
     accountAndInstalls: true,
     linksFilesPerInstall: true,
@@ -100,6 +108,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     login: "epic",
     choice: "accountOrInstalled",
     matchedBy: "name",
+    searchesTitles: true,
     hasPlaytime: true,
     accountAndInstalls: true,
     linksFilesPerInstall: false,
@@ -115,6 +124,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     login: "gog",
     choice: "accountOrInstalled",
     matchedBy: "name",
+    searchesTitles: true,
     hasPlaytime: true,
     accountAndInstalls: true,
     linksFilesPerInstall: false,
@@ -131,6 +141,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     login: "playstation",
     choice: "account",
     matchedBy: "name",
+    searchesTitles: true,
     hasPlaytime: true,
     accountAndInstalls: false,
     linksFilesPerInstall: false,
