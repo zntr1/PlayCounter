@@ -205,6 +205,11 @@
     border-color 180ms ease;
 }
 
+/* The key art lies behind the bar, in the layer it shares with the notices. */
+.app-titlebar[data-art] {
+  background: transparent;
+}
+
 [data-tauri-drag-region] {
   -webkit-user-select: none;
   user-select: none;

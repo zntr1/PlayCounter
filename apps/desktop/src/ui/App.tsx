@@ -402,7 +402,8 @@ let startupPreferenceSynced = false;
 
 export function App() {
   const contentRef = useRef<HTMLDivElement>(null);
-  const titleBarRef = useRef<HTMLElement>(null);
+  const shellRef = useRef<HTMLElement>(null);
+  const noticesRef = useRef<HTMLDivElement>(null);
   const titleBarArtRef = useRef<HTMLDivElement>(null);
   // Fade only the artwork layer. Changing an inherited header variable and
   // then measuring width here forces style recalculation on every scroll.
@@ -663,18 +664,25 @@ export function App() {
 
   useLayoutEffect(() => {
     const content = contentRef.current;
-    const bar = titleBarRef.current;
-    if (!content || !bar) return;
+    const shell = shellRef.current;
+    const notices = noticesRef.current;
+    if (!content || !shell || !notices) return;
+    const set = (name: string, value: string) => {
+      if (shell.style.getPropertyValue(name) !== value)
+        shell.style.setProperty(name, value);
+    };
     // Match the banner's crop when the content resizes, including when its
     // scrollbar appears or disappears. Scrolling needs no width measurement.
-    const syncWidth = () => {
-      const width = `${content.clientWidth}px`;
-      if (bar.style.getPropertyValue("--content-width") !== width)
-        bar.style.setProperty("--content-width", width);
+    // Notices push the banner down; the art needs their height to stay one
+    // picture from the title bar to the banner.
+    const syncSizes = () => {
+      set("--content-width", `${content.clientWidth}px`);
+      set("--notice-height", `${notices.offsetHeight}px`);
     };
-    syncWidth();
-    const observer = new ResizeObserver(syncWidth);
+    syncSizes();
+    const observer = new ResizeObserver(syncSizes);
     observer.observe(content);
+    observer.observe(notices);
     return () => observer.disconnect();
   }, []);
 
@@ -896,6 +904,7 @@ export function App() {
 
   return (
     <main
+      ref={shellRef}
       className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg"
       data-banner-layout={
         compactBannerVisible && !viewBannerDetails ? "compact" : "full"
@@ -907,7 +916,8 @@ export function App() {
           "--zoom-ratio": contentScale / menuScale,
           // On My Games the bar is 72px tall: 64px of controls plus the
           // 8px gap above the banner, so the key art covers the gap too.
-          "--hero-lead": `calc(72px / ${contentScale / menuScale})`,
+          // Notices between the bar and the banner add their height.
+          "--hero-lead": `calc((72px * ${menuScale} + var(--notice-height, 0px)) / ${contentScale})`,
         } as CSSProperties
       }
     >
@@ -1222,23 +1232,15 @@ export function App() {
         data-controller-mode={controllerModeActive ? "true" : undefined}
         className="relative flex min-w-0 flex-1 flex-col"
       >
-        <header
-          ref={titleBarRef}
-          data-tour="header"
-          data-tauri-drag-region={dragRegion}
-          style={{ zoom: menuScale }}
-          className={clsx(
-            // z-30 lifts help and notification popovers above the content;
-            // the art clips itself instead of the bar.
-            "app-titlebar relative z-30 flex shrink-0 items-stretch",
-            titleBarArt ? "h-[72px] pb-2" : "h-16",
-          )}
-        >
+        {/* The title bar and the notices under it share one layer of key art,
+            so the picture runs on behind the notices down to the banner. */}
+        <div className="relative shrink-0">
           {titleBarArt ? (
             <div
               ref={titleBarArtRef}
               aria-hidden="true"
-              className="titlebar-art pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+              style={{ zoom: menuScale }}
+              className="titlebar-art pointer-events-none absolute inset-0 overflow-hidden"
             >
               {/* Same image frame as the card and lower continuation. The
                   card starts its crop --hero-lead lower, leaving this strip
@@ -1247,24 +1249,17 @@ export function App() {
                 src={titleBarArt}
                 alt=""
                 onError={() => markCoverUnavailable(titleBarArt)}
-                style={
+                style={{
                   // Replaced elements do not stretch between left and right;
                   // the width has to be explicit.
-                  artFrame === "card"
-                    ? {
-                        left: 0,
-                        width:
-                          "calc(var(--content-width, 100%) * var(--zoom-ratio))",
-                        height:
-                          "calc((var(--banner-height) + var(--banner-tail)) * var(--zoom-ratio) + 72px)",
-                      }
-                    : {
-                        left: 0,
-                        width:
-                          "calc(var(--content-width, 100%) * var(--zoom-ratio))",
-                        height: "calc(560px * var(--zoom-ratio) + 72px)",
-                      }
-                }
+                  left: 0,
+                  width: "calc(var(--content-width, 100%) * var(--zoom-ratio))",
+                  height: `calc(${
+                    artFrame === "card"
+                      ? "(var(--banner-height) + var(--banner-tail))"
+                      : "560px"
+                  } * var(--zoom-ratio) + 72px + var(--notice-height, 0px) / ${menuScale})`,
+                }}
                 className={clsx(
                   "absolute top-0 object-cover",
                   artFrame === "card" ? "object-[72%_0%]" : "object-[60%_0%]",
@@ -1272,37 +1267,63 @@ export function App() {
               />
             </div>
           ) : null}
-          <div
+          <header
+            data-tour="header"
             data-tauri-drag-region={dragRegion}
-            className="flex min-w-0 flex-1 items-center justify-center px-4"
+            data-art={titleBarArt ? "true" : undefined}
+            style={{ zoom: menuScale }}
+            className={clsx(
+              // z-30 lifts help and notification popovers above the content
+              // and the notices.
+              "app-titlebar relative z-30 flex items-stretch",
+              titleBarArt ? "h-[72px] pb-2" : "h-16",
+            )}
           >
-            <GlobalSearch />
-          </div>
-          <div className="titlebar-actions flex shrink-0 items-center gap-1.5 pr-3">
-            <HelpButton />
-            <NotificationBell />
-            <HeaderLinks />
-          </div>
-          <WindowControls />
-        </header>
-        {/* Notices above the page; the strip collapses when none shows. */}
-        <div className="flex shrink-0 flex-col gap-2 px-7 pt-3 empty:hidden">
-          <RequestWarning
-            apiEndpoint={apiEndpoint}
-            runtimeError={runtimeError}
-            runtimeErrorClosable={runtimeErrorClosable}
-          />
-          {startupUpdate?.status === "available" ? (
-            <UpdateNotice
-              version={startupUpdate.version}
-              installing={installingUpdate}
-              progress={installProgress}
-              hasNotes={!isEmptyDisplayNotes(startupDisplayNotes)}
-              onOpenNotes={() => setStartupNotesOpen(true)}
-              onInstall={() => void handleInstallStartupUpdate()}
+            <div
+              data-tauri-drag-region={dragRegion}
+              className="flex min-w-0 flex-1 items-center justify-center px-4"
+            >
+              <GlobalSearch />
+            </div>
+            <div className="titlebar-actions flex shrink-0 items-center gap-1.5 pr-3">
+              <HelpButton />
+              <NotificationBell />
+              <HeaderLinks />
+            </div>
+            <WindowControls />
+          </header>
+          {/* Notices above the page, as wide as the page's own cards; the
+              strip collapses when none shows. Over key art the banner
+              follows right below, so the strip brings the gap itself. */}
+          <div
+            ref={noticesRef}
+            style={{
+              // The page's px-7 at the page's zoom, plus its scrollbar.
+              paddingLeft: `calc(28px * ${contentScale})`,
+              paddingRight: `calc(100% - var(--content-width, 100%) * ${contentScale} + 28px * ${contentScale})`,
+            }}
+            className={clsx(
+              "relative flex flex-col gap-2 empty:hidden",
+              titleBarArt ? "pb-3 pt-1" : "pt-3",
+            )}
+          >
+            <RequestWarning
+              apiEndpoint={apiEndpoint}
+              runtimeError={runtimeError}
+              runtimeErrorClosable={runtimeErrorClosable}
             />
-          ) : null}
-          <LanguageNotice />
+            {startupUpdate?.status === "available" ? (
+              <UpdateNotice
+                version={startupUpdate.version}
+                installing={installingUpdate}
+                progress={installProgress}
+                hasNotes={!isEmptyDisplayNotes(startupDisplayNotes)}
+                onOpenNotes={() => setStartupNotesOpen(true)}
+                onInstall={() => void handleInstallStartupUpdate()}
+              />
+            ) : null}
+            <LanguageNotice />
+          </div>
         </div>
         <div data-tour-viewport className="relative min-h-0 flex-1">
           <div
