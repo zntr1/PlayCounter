@@ -47,7 +47,10 @@ vi.mock("../../library/gameLookup", async (importOriginal) => ({
   reverseResolveLibraryGame: mocks.reverse,
   searchLibraryGames: mocks.search,
 }));
-vi.mock("../../library/importRun", () => ({ runLibraryImport: mocks.run }));
+vi.mock("../../library/importRun", () => ({
+  runLibraryImport: mocks.run,
+  importNowShareLater: mocks.run,
+}));
 
 type Shelf = "ready" | "attention" | "imported" | "unavailable";
 
@@ -508,9 +511,6 @@ it("playstation: importing a game you confirmed names no PC game files", async (
   await click("Import");
   expect(mocks.run).toHaveBeenCalledTimes(1);
   expect(mocks.run.mock.calls[0][0][0].exeCacheEntries).toEqual([]);
-  const [toast] = store.getState().toasts;
-  expect(toast?.title).toBe("Ghost of Tsushima imported");
-  expect(toast?.detail ?? "").not.toMatch(/game file/i);
 });
 
 describe("Needs you", () => {
@@ -734,6 +734,96 @@ describe("deciding one game after another", () => {
       "Sea of Thieves 2024 Edition",
     ]);
     expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+  });
+
+  // Phil, 2026-11-11: after Import the box showed the list's first game for
+  // two seconds, then the next one. The game is saved at once; sending its
+  // file to the community is what takes the time.
+  it("shows the next game right after Import, not the list's first, while the game's file is still being sent", async () => {
+    await scan("xbox", xboxLibrary);
+    await click("Skip for now");
+    const putInMyGames = mocks.run.getMockImplementation()!;
+    // In My Games at once; the community never answers.
+    mocks.run.mockImplementationOnce((...args: unknown[]) => {
+      void putInMyGames(...args);
+      return new Promise(() => {});
+    });
+
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+    expect(listed()).toEqual([
+      "Microsoft Flight Simulator 40th Anniversary Edition",
+      "Gears 5 Game of the Year Edition",
+      "Sea of Thieves 2024 Edition",
+    ]);
+  });
+
+  it("lets you import the next game while the one before is still being saved", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      // The server is slow to answer about Halo's game.
+      let answerHalo!: () => void;
+      const haloAnswered = new Promise<void>((resolve) => (answerHalo = resolve));
+      mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => {
+        if (id === masterChief.id) await haloAnswered;
+        return {
+          game: [flightSimulator, masterChief, gears, seaOfThieves].find(
+            (item) => item.id === id,
+          ),
+          executables: [],
+        };
+      });
+      const importedIds = () =>
+        mocks.run.mock.calls.map(
+          ([commits]) =>
+            (commits as { entry: LibraryImportEntry }[])[0].entry.externalId,
+        );
+      await scan("xbox", xboxLibrary);
+      await click("Skip for now");
+      expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+      await click("Import");
+      expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+      vi.setSystemTime(Date.now() + 500);
+      await click("Import");
+      expect(detailTitle()).toBe("Sea of Thieves 2024 Edition");
+      expect(importedIds()).toEqual(["3"]);
+
+      await act(async () => answerHalo());
+      expect(importedIds()).toEqual(["3", "2"]);
+      expect(listed()).toEqual([
+        "Microsoft Flight Simulator 40th Anniversary Edition",
+        "Sea of Thieves 2024 Edition",
+      ]);
+      expect(detailTitle()).toBe("Sea of Thieves 2024 Edition");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Phil, 2026-11-11: a toast covered the next game's Import every time.
+  it("shows no toast after a game is imported, so nothing covers the next Import", async () => {
+    await scan("xbox", xboxLibrary);
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(store.getState().toasts).toEqual([]);
+  });
+
+  it("keeps a game that could not be imported in Needs you and names it", async () => {
+    mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => {
+      if (id === masterChief.id) throw new Error("Server unreachable");
+      return { game: gears, executables: [] };
+    });
+    await scan("xbox", xboxLibrary);
+    await click("Skip for now");
+    await click("Import");
+    expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(listed()).toContain("Halo: The Master Chief Collection (PC)");
+    expect(container.textContent).toContain(
+      "Halo: The Master Chief Collection (PC) could not be imported. Please try again.",
+    );
   });
 
   it("stays on the game you opened while the import ran", async () => {

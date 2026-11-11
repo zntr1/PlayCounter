@@ -26,7 +26,7 @@ import {
 import { buildLibraryImportCommit } from "./importPlan";
 import { importProfile, type ImportScope } from "./importProfiles";
 import type { BuiltinImportProviderId } from "./importProviders";
-import { runLibraryImport } from "./importRun";
+import { importNowShareLater, runLibraryImport } from "./importRun";
 import {
   refreshKeptLogins,
   signOutKeptLogin,
@@ -108,7 +108,8 @@ export type ImportSession = {
   current: string | null;
   /** The game an Import moved on to, and when. */
   movedOn: { externalId: string; at: number } | null;
-  busy: string | null;
+  /** Games an Import is saving. The player has already moved on. */
+  importing: ReadonlySet<string>;
   browsing: string | null;
   /** `notImported`: picked games the server could not be asked about. */
   lastImport: {
@@ -152,7 +153,7 @@ export function createImportSession(
     group: "ready",
     current: null,
     movedOn: null,
-    busy: null,
+    importing: new Set<string>(),
     browsing: null,
     lastImport: null,
   };
@@ -286,7 +287,7 @@ const clearedReview = {
   waitingForServer: false,
   current: null,
   movedOn: null,
-  busy: null,
+  importing: new Set<string>(),
   browsing: null,
   lastImport: null,
 };
@@ -709,7 +710,7 @@ export function leaveImportView() {
   if (phase === "scanning" || phase === "importing") cancelImport();
   else {
     controller.abort();
-    update({ busy: null, browsing: null });
+    update({ importing: new Set<string>(), browsing: null });
   }
 }
 
@@ -881,7 +882,9 @@ export async function importSelectedGames(externalIds: readonly string[]) {
 }
 
 /** Imports one game that needed the player: the game they picked, or the
- *  matched one, with the file they picked. Then shows `next`, as Skip does. */
+ *  matched one, with the file they picked. `next` shows at once, as with
+ *  Skip; the game is saved meanwhile and leaves the list once it is in My
+ *  Games. One that can't be imported stays, and the error names it. */
 export async function importOneGame(
   externalId: string,
   next: string | null = null,
@@ -893,24 +896,28 @@ export async function importOneGame(
   const scanned = start.scan?.games.find(
     (game) => game.externalId === externalId,
   );
-  if (!scanned) return;
+  if (!scanned || start.importing.has(externalId)) return;
   const key = libraryEntryKey(providerId, externalId);
   const app = useAppStore.getState();
   const signal = controller.signal;
   if (!isCurrent(signal, providerId)) return;
-  update({ busy: externalId, error: null });
+  const inLibrary = app.libraryImports.has(key);
+  let resolvedGame = rowMatch(start, externalId, inLibrary);
+  // A title the server could not match needs the player's pick; a match
+  // can be replaced by one ("Wrong game?").
+  const needsGame = needsGameChoice(providerId, scanned, resolvedGame);
+  const pick = needsGame
+    ? start.picks[externalId]
+    : inLibrary
+      ? undefined
+      : start.replacements[externalId];
+  if (needsGame ? !pick : !resolvedGame) return;
+  update((current) => ({
+    importing: new Set(current.importing).add(externalId),
+    error: null,
+    ...showNext(current, externalId, next),
+  }));
   try {
-    const inLibrary = app.libraryImports.has(key);
-    let resolvedGame = rowMatch(start, externalId, inLibrary);
-    // A title the server could not match needs the player's pick; a match
-    // can be replaced by one ("Wrong game?").
-    const needsGame = needsGameChoice(providerId, scanned, resolvedGame);
-    const pick = needsGame
-      ? start.picks[externalId]
-      : inLibrary
-        ? undefined
-        : start.replacements[externalId];
-    if (needsGame && !pick) return;
     if (pick) {
       const reverse = await pickedGameForImport(pick.id, signal);
       if (!isCurrent(signal, providerId)) return;
@@ -948,65 +955,52 @@ export async function importOneGame(
       );
     await backupOnce(signal);
     if (!isCurrent(signal, providerId)) return;
-    const result = await runLibraryImport([commit], signal);
+    // No toast: it would sit on the next game's Import. The list shows it.
+    importNowShareLater([commit]);
     rememberImportAccount(start);
-    if (!isCurrent(signal, providerId)) return;
     const done = resolvedGame;
     update((current) => {
       const selected = new Set(current.selected);
       selected.delete(externalId);
-      // Another game opened while this one was imported stays open.
-      const movesOn =
-        current.current === externalId || current.current === null;
       return {
         saved: new Map(current.saved).set(key, done),
         completed: new Set(current.completed).add(externalId),
         selected,
-        current: movesOn ? next : current.current,
-        movedOn:
-          movesOn && next !== null
-            ? { externalId: next, at: Date.now() }
-            : current.movedOn,
+        // Opened again meanwhile: it leaves the list now, so `next` shows.
+        ...(current.current === externalId
+          ? showNext(current, externalId, next)
+          : {}),
       };
-    });
-    const linkedCount =
-      commit.exeCacheEntries.length + commit.scopedLinks.length;
-    useAppStore.getState().addToast({
-      tone: "success",
-      title: t("{{name}} imported", {
-        name: done.game?.name ?? scanned.name ?? t("Game"),
-      }),
-      detail:
-        result.shareOutcomes.length > 0
-          ? importShareDetail(
-              result.shareOutcomes.map(({ outcome }) => outcome.kind),
-            )
-          : profile.consoleOnly
-            ? // A console game has no file on this PC to tell about.
-              undefined
-            : profile.linksFilesPerInstall
-              ? scanned.installed
-                ? t(
-                    "The game file is linked to this installation for future tracking.",
-                  )
-                : t(
-                    "Added to My Games. After installing it, scan again to link its game file.",
-                  )
-              : linkedCount > 0
-                ? t(
-                    "{{count}} known game files were linked, so PlayCounter tracks this game once it is installed.",
-                    { count: linkedCount },
-                  )
-                : t(
-                    "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
-                  ),
     });
   } catch (cause) {
     if (!isCurrent(signal, providerId)) return;
-    update({ error: formatError(cause) });
+    // The player has moved on: say which game it was.
+    update({
+      error: `${notImportedText(scanned.name ?? pick?.name ?? externalId)} ${formatError(cause)}`,
+    });
   } finally {
-    if (isCurrent(signal, providerId)) update({ busy: null });
+    if (isCurrent(signal, providerId))
+      update((current) => {
+        const importing = new Set(current.importing);
+        importing.delete(externalId);
+        return { importing };
+      });
   }
+}
+
+/** `next` instead of `externalId`, when that is the game on show. A click on
+ *  Import right after is ignored: it was meant for the game before. */
+function showNext(
+  current: ImportSession,
+  externalId: string,
+  next: string | null,
+): Partial<ImportSession> {
+  if (current.current !== externalId && current.current !== null) return {};
+  return {
+    current: next,
+    movedOn:
+      next !== null ? { externalId: next, at: Date.now() } : current.movedOn,
+  };
 }
 
 export async function browseGameFile(externalId: string) {
@@ -1240,22 +1234,6 @@ export async function copyImportSignInLink(
   }
 }
 
-export function importShareDetail(outcomes: readonly string[]) {
-  if (outcomes.includes("failed"))
-    return t(
-      "The game was added on this PC, but its game file could not be verified or shared. Please try again later.",
-    );
-  if (outcomes.includes("rejected"))
-    return t(
-      "The game was added on this PC. This game file suggestion was previously rejected; its review status has been preserved.",
-    );
-  if (outcomes.includes("submitted"))
-    return t("The game file was sent to the community for review.");
-  return t(
-    "An existing game file match was linked. No community review was needed.",
-  );
-}
-
 /** A successful Steam import opts this PC into adding new Steam games. */
 function rememberImportAccount(current: ImportSession) {
   if (
@@ -1266,14 +1244,22 @@ function rememberImportAccount(current: ImportSession) {
   }
 }
 
+/** Imports clicked one after another share the one backup. */
+let backingUp: Promise<void> | null = null;
+
 async function backupOnce(signal: AbortSignal) {
   signal.throwIfAborted();
   if (backedUp) return;
-  await invoke("backup_local_data", {
-    contents: readPersistedText() ?? "{}",
+  backingUp ??= (async () => {
+    await invoke("backup_local_data", {
+      contents: readPersistedText() ?? "{}",
+    });
+    backedUp = true;
+  })().finally(() => {
+    backingUp = null;
   });
+  await backingUp;
   signal.throwIfAborted();
-  backedUp = true;
 }
 
 export function formatError(error: unknown) {

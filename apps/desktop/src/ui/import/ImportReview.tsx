@@ -219,8 +219,11 @@ export function ImportReview({
   const checkable = shelf.some((row) => row.selectable);
   const current =
     shelf.find((row) => row.game.externalId === session.current) ?? shelf[0];
+  // A game still being saved is decided: it leaves the list in a moment.
   const toDecide = groups.attention.filter(
-    (row) => !session.skipped.has(row.game.externalId),
+    (row) =>
+      !session.skipped.has(row.game.externalId) &&
+      (row.key === current?.key || !session.importing.has(row.game.externalId)),
   );
   const index = toDecide.findIndex((row) => row.key === current?.key);
   const nextToDecide =

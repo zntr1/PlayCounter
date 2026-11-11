@@ -14,7 +14,28 @@ export async function runLibraryImport(
 ) {
   signal?.throwIfAborted();
   const persisted = commitLibraryImports(commits);
+  const shareOutcomes = await shareLinks(
+    customLinkRefsForCommits(commits),
+    signal,
+  );
+  return { persisted, shareOutcomes };
+}
+
+/** Sent one batch after another, never two at once. */
+let shareQueue: Promise<unknown> = Promise.resolve();
+
+/** Saves the games in My Games now. Their new game files go to the community
+ *  afterwards, with nobody waiting for it; leaving the importer doesn't stop
+ *  that. A file that can't be sent stays retryable, as in `runLibraryImport`. */
+export function importNowShareLater(commits: readonly LibraryImportCommit[]) {
+  const persisted = commitLibraryImports(commits);
   const refs = customLinkRefsForCommits(commits);
+  if (refs.length > 0)
+    shareQueue = shareQueue.then(() => shareLinks(refs)).catch(() => {});
+  return persisted;
+}
+
+async function shareLinks(refs: readonly LocalLinkRef[], signal?: AbortSignal) {
   const shareOutcomes: { ref: LocalLinkRef; outcome: LocalLinkShareOutcome }[] =
     [];
   for (const ref of refs) {
@@ -35,7 +56,7 @@ export async function runLibraryImport(
     });
   }
   signal?.throwIfAborted();
-  return { persisted, shareOutcomes };
+  return shareOutcomes;
 }
 
 function pause(milliseconds: number, signal?: AbortSignal): Promise<void> {

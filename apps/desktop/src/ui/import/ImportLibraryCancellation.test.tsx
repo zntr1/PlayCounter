@@ -33,7 +33,10 @@ vi.mock("../../library/gameLookup", async (importOriginal) => ({
   reverseResolveLibraryGame: mocks.reverse,
   searchLibraryGames: mocks.search,
 }));
-vi.mock("../../library/importRun", () => ({ runLibraryImport: mocks.run }));
+vi.mock("../../library/importRun", () => ({
+  runLibraryImport: mocks.run,
+  importNowShareLater: mocks.run,
+}));
 
 let root: Root;
 let container: HTMLDivElement;
@@ -347,27 +350,20 @@ it.each([false, true])(
       await act(() => checkbox!.click());
       await click("Import 1 game");
     }
-    expect(mocks.run).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          entry: expect.objectContaining({
-            provider: "battlenet",
-            providerSeconds: null,
-            providerHasPlayedEvidence: false,
-            linkedExeNames: [],
-          }),
-          exeCacheEntries: [],
-          scopedLinks: [],
-          install: undefined,
+    expect(mocks.run.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        entry: expect.objectContaining({
+          provider: "battlenet",
+          providerSeconds: null,
+          providerHasPlayedEvidence: false,
+          linkedExeNames: [],
         }),
-      ],
-      expect.any(AbortSignal),
-    );
+        exeCacheEntries: [],
+        scopedLinks: [],
+        install: undefined,
+      }),
+    ]);
     expect(container.textContent).not.toContain("Pick the game file to track");
-    if (manual)
-      expect(store.getState().toasts[0].detail).toContain(
-        "After installing it",
-      );
   },
 );
 
@@ -445,22 +441,14 @@ it.each(["steam", "xbox", "battlenet"] as const)(
     expect(store.getState().libraryImports.size).toBe(0);
 
     await click("Import");
-    expect(mocks.run).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          entry: expect.objectContaining({
-            provider,
-            linkedExeNames: ["Example.exe"],
-          }),
+    expect(mocks.run.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        entry: expect.objectContaining({
+          provider,
+          linkedExeNames: ["Example.exe"],
         }),
-      ],
-      expect.any(AbortSignal),
-    );
-    if (provider === "battlenet") {
-      expect(store.getState().toasts[0].detail).toContain(
-        "sent to the community for review",
-      );
-    }
+      }),
+    ]);
   },
 );
 
@@ -631,9 +619,6 @@ it.each(["xbox", "battlenet"] as const)(
       linkedExeNames: ["Example.exe"],
     });
     if (provider === "battlenet") {
-      expect(store.getState().toasts[0].detail).toContain(
-        "could not be verified or shared",
-      );
       expect(plan.exeCacheEntries).toEqual([]);
       expect(plan.scopedLinks).toEqual([
         expect.objectContaining({

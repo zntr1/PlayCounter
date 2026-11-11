@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryKnownExecutable } from "@playcounter/shared";
 import { useAppStore } from "../store";
 import { importGroupForGame } from "./importGroups";
-import { importShareDetail } from "./importSession";
 import { resolveLibraryGames } from "./resolve";
 import { buildLibraryImportCommit } from "./importPlan";
 import { runLibraryImport } from "./importRun";
@@ -121,11 +120,6 @@ describe("Steam live IGDB import", () => {
       source: "igdb",
     });
     expect(stored?.communitySuggestionId).toBeUndefined();
-    expect(
-      importShareDetail(
-        result.shareOutcomes.map(({ outcome }) => outcome.kind),
-      ),
-    ).toContain("No community review was needed");
   });
 
   it("leaves failed verification retryable without pretending a review was submitted", async () => {
@@ -144,9 +138,6 @@ describe("Steam live IGDB import", () => {
     expect(result.shareOutcomes[0].outcome.kind).toBe("failed");
     expect(useAppStore.getState().exeCache.get("nova lands.exe")).toMatchObject(
       { shareState: "failed" },
-    );
-    expect(importShareDetail(["failed"])).not.toContain(
-      "sent to the community",
     );
     expect(useAppStore.getState().libraryImports.has("steam:1501610")).toBe(
       true,

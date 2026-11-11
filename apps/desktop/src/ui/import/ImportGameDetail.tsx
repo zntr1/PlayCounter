@@ -253,7 +253,7 @@ function DecisionActions({
       <Button
         variant="primary"
         icon={Download}
-        loading={session.busy === id}
+        loading={session.importing.has(id)}
         disabled={!canImport}
         onClick={() => {
           const { movedOn } = session;
