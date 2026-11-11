@@ -604,6 +604,9 @@ export type AppState = {
   languageNoticeSeen: boolean;
   /** "Battle.net has no past playtime" was confirmed once on this PC. */
   battleNetPlaytimeNoticeSeen: boolean;
+  /** Import scan warnings closed with ×, by their English text. They never
+   *  show again; a different warning does. */
+  closedScanWarnings: string[];
   /** When "Not now" first hid the Discord invite. It comes back two weeks
    *  later, once. */
   discordInviteSnoozedAt: string | null;
@@ -635,6 +638,7 @@ export type AppState = {
   markReleaseNotesSeen: (version: string) => void;
   dismissLanguageNotice: () => void;
   markBattleNetPlaytimeNoticeSeen: () => void;
+  closeScanWarnings: (warnings: readonly string[]) => void;
   snoozeDiscordInvite: () => void;
   finishDiscordInvite: () => void;
   openCurrentReleaseNotes: () => void;
@@ -1083,6 +1087,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   suppressContributionNotificationsOnce: false,
   languageNoticeSeen: false,
   battleNetPlaytimeNoticeSeen: false,
+  closedScanWarnings: [],
   discordInviteSnoozedAt: null,
   discordInviteDone: false,
   activeTour: null,
@@ -1195,6 +1200,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   markBattleNetPlaytimeNoticeSeen: () => {
     if (get().battleNetPlaytimeNoticeSeen) return;
     set({ battleNetPlaytimeNoticeSeen: true });
+    persistSoon();
+  },
+  closeScanWarnings: (warnings) => {
+    const closed = get().closedScanWarnings;
+    const added = warnings.filter((warning) => !closed.includes(warning));
+    if (added.length === 0) return;
+    set({ closedScanWarnings: [...closed, ...added] });
     persistSoon();
   },
   snoozeDiscordInvite: () => {

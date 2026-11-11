@@ -1,4 +1,4 @@
-import { Download, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { Download, RefreshCw, SlidersHorizontal, X } from "lucide-react";
 import {
   useLayoutEffect,
   useMemo,
@@ -37,6 +37,7 @@ import { launcherName } from "./importTexts";
 import { AccountLine, LauncherLogo } from "./LauncherIdentity";
 
 const t = getT("import");
+const tc = getT("common");
 
 /** Rows of the scan, sorted onto the four shelves. Showing, checking or
  *  skipping a game leaves them as they are. */
@@ -206,6 +207,10 @@ export function ImportReview({
   const rootRef = useRef<HTMLDivElement>(null);
   const panesRef = useRef<HTMLDivElement>(null);
   const paneHeight = usePaneHeight(rootRef, panesRef);
+  const closedWarnings = useAppStore((state) => state.closedScanWarnings);
+  const warnings = (session.scan?.warnings ?? []).filter(
+    (warning) => !closedWarnings.includes(warning),
+  );
   const { groups } = useImportGroups(session);
   const group = session.group;
   const shelf = groups[group];
@@ -251,11 +256,23 @@ export function ImportReview({
           )}
         </div>
       ) : null}
-      {session.scan?.warnings.length ? (
-        <div className="rounded-lg border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
-          {session.scan.warnings.map((warning) => (
-            <p key={warning}>{nativeText(warning)}</p>
-          ))}
+      {warnings.length ? (
+        <div className="flex items-start gap-3 rounded-lg border border-warning-border bg-warning-tint py-3 pl-4 pr-2 text-sm text-warning">
+          <div className="min-w-0 flex-1">
+            {warnings.map((warning) => (
+              <p key={warning}>{nativeText(warning)}</p>
+            ))}
+          </div>
+          {/* Closed for good: these warnings never show again. */}
+          <button
+            type="button"
+            aria-label={tc("Close")}
+            title={tc("Close")}
+            onClick={() => useAppStore.getState().closeScanWarnings(warnings)}
+            className="-my-1 grid h-7 w-7 shrink-0 place-items-center rounded-md transition hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
         </div>
       ) : null}
       <ImportShelves

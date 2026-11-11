@@ -146,6 +146,7 @@ async function scan(
   provider: BuiltinImportProviderId,
   result: Omit<LibraryScanResult, "warnings" | "partial"> & {
     partial?: boolean;
+    warnings?: string[];
   },
   imports: LibraryImportEntry[] = [],
 ) {
@@ -613,6 +614,40 @@ describe("Needs you", () => {
     await click("Import");
     expect(mocks.run).toHaveBeenCalledTimes(1);
     expect(shelf("imported").count).toBe(1);
+  });
+});
+
+// Phil, 2026-11-11: "make this closable". Closed for good, per warning text;
+// a different warning still shows.
+describe("closing a scan warning", () => {
+  const leftovers =
+    "Some Xbox folders still hold game files that Windows no longer has installed; they were skipped.";
+  const noTitleId =
+    "Some Xbox games do not report a title ID and were skipped.";
+  const library = {
+    games: [game("1", "Halo: The Master Chief Collection (PC)")],
+    resolvedGames: [unmatched("xbox:1")],
+  };
+
+  it("hides it with ×, also after Scan again, but shows a different warning", async () => {
+    await scan("xbox", { ...library, warnings: [leftovers] });
+    expect(container.textContent).toContain(leftovers);
+
+    const close = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close"]',
+    );
+    expect(close).not.toBeNull();
+    await act(() => close!.click());
+    expect(container.textContent).not.toContain(leftovers);
+
+    mocks.scan.mockResolvedValue({
+      ...library,
+      warnings: [leftovers, noTitleId],
+      partial: false,
+    });
+    await click("Scan again");
+    expect(container.textContent).not.toContain(leftovers);
+    expect(container.textContent).toContain(noTitleId);
   });
 });
 

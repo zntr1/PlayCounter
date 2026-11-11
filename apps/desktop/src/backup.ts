@@ -60,6 +60,7 @@ const NOTIFICATION_STATE_KEYS = [
   "lastSeenReleaseNotesVersion",
   "languageNoticeSeen",
   "battleNetPlaytimeNoticeSeen",
+  "closedScanWarnings",
   "discordInviteSnoozedAt",
   "discordInviteDone",
 ];

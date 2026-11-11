@@ -383,6 +383,7 @@ type PersistedState = {
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
   battleNetPlaytimeNoticeSeen?: boolean;
+  closedScanWarnings?: unknown;
   discordInviteSnoozedAt?: unknown;
   discordInviteDone?: boolean;
 };
@@ -1633,6 +1634,11 @@ export function hydrate() {
     languageNoticeSeen:
       persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
     battleNetPlaytimeNoticeSeen: persisted.battleNetPlaytimeNoticeSeen === true,
+    closedScanWarnings: Array.isArray(persisted.closedScanWarnings)
+      ? persisted.closedScanWarnings.filter(
+          (warning): warning is string => typeof warning === "string",
+        )
+      : [],
     discordInviteSnoozedAt:
       typeof persisted.discordInviteSnoozedAt === "string" &&
       Number.isFinite(Date.parse(persisted.discordInviteSnoozedAt))
