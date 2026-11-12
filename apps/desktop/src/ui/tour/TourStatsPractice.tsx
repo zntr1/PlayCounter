@@ -1,5 +1,5 @@
 import type { Session } from "@playcounter/shared";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { StoreApi } from "zustand";
 import type { HistorySelection } from "../../historyStats";
 import type { PersonalLibraryState } from "../../personalLibraryStore";
@@ -15,7 +15,7 @@ import { createLibraryTourStore } from "./libraryTourStore";
 import { findTour } from "./tourDefinitions";
 import { tourSessionsForGame } from "./tourDemoGame";
 import { emitTourEvent } from "./tourEvents";
-import { historySampleSessions } from "./tourHistorySample";
+import { HISTORY_SAMPLE, historySampleSessions } from "./tourHistorySample";
 import type { GameSummary } from "../views/MyGamesView";
 
 /* The sample history of the guides on My History: the real page on a store
@@ -32,7 +32,54 @@ type Scene = {
   selection?: HistorySelection;
   /** What the player does to finish the step. */
   finish?: { on: "range" } | { on: "tab"; tab: HistoryTab };
+  /** Sample sessions the step works on. They are put back as the sample has
+   *  them when the step starts, whatever an earlier step did to them. */
+  needs?: number[];
+  /** The player changed the sessions the way the step asks. `before` is the
+   *  history when the step started. */
+  done?: (now: Session[], before: Session[]) => boolean;
 };
+
+const { overnight, withBreak, beforeRestart, afterRestart } = HISTORY_SAMPLE;
+
+const findSession = (sessions: Session[], id: number) =>
+  sessions.find((session) => session.id === id);
+
+const sameTimes = (left?: Session, right?: Session) =>
+  left?.startedAt === right?.startedAt && left?.endedAt === right?.endedAt;
+
+/** Puts the named sample sessions back as they were, with the pieces a split
+ *  made of them gone. Everything else stays as the player left it. */
+export function restoreSampleSessions(
+  sessions: Session[],
+  original: Session[],
+  ids: number[],
+) {
+  let list = sessions;
+  for (const id of ids) {
+    const source = findSession(original, id);
+    if (!source || sameTimes(findSession(list, id), source)) continue;
+    const from = Date.parse(source.startedAt);
+    const to = Date.parse(source.endedAt!);
+    list = list.filter(
+      (session) =>
+        session.id !== id &&
+        !(
+          session.id > 0 &&
+          session.gameId === source.gameId &&
+          Date.parse(session.startedAt) >= from &&
+          Date.parse(session.endedAt!) <= to
+        ),
+    );
+    list = [...list, source];
+  }
+  return list === sessions
+    ? sessions
+    : [...list].sort(
+        (left, right) =>
+          Date.parse(right.startedAt) - Date.parse(left.startedAt),
+      );
+}
 
 const SESSIONS: Scene = { tab: "sessions" };
 
@@ -52,6 +99,40 @@ const SCENES: Record<string, Record<string, Scene>> = {
       finish: { on: "tab", tab: "games" },
     },
     games: { tab: "games" },
+  },
+  "correct-history": {
+    edit: {
+      tab: "sessions",
+      needs: [overnight],
+      done: (now, before) =>
+        !sameTimes(
+          findSession(now, overnight),
+          findSession(before, overnight),
+        ) && findSession(now, overnight) !== undefined,
+    },
+    split: {
+      tab: "sessions",
+      needs: [withBreak],
+      done: (now, before) =>
+        now.length > before.length &&
+        !sameTimes(findSession(now, withBreak), findSession(before, withBreak)),
+    },
+    combine: {
+      tab: "sessions",
+      needs: [beforeRestart, afterRestart],
+      done: (now) =>
+        findSession(now, beforeRestart) === undefined &&
+        findSession(now, afterRestart) !== undefined,
+    },
+    note: {
+      tab: "sessions",
+      done: (now, before) =>
+        now.some(
+          (session) =>
+            Boolean(session.note) &&
+            session.note !== findSession(before, session.id)?.note,
+        ),
+    },
   },
 };
 
@@ -94,11 +175,32 @@ function GuidePractice() {
         : undefined,
     [tourId, stepIndex],
   );
-  const [store] = useState(() => sampleStore(historySampleSessions(tourId)));
+  const [original] = useState(() => historySampleSessions(tourId));
+  const [store] = useState(() => sampleStore(original));
   const step =
     (tourId !== undefined && stepId !== undefined
       ? SCENES[tourId]?.[stepId]
       : undefined) ?? SESSIONS;
+  // A step starts with the sessions it works on, and hears when they changed.
+  useEffect(() => {
+    const { needs, done: changed } = step;
+    if (needs)
+      store.setState((state) => ({
+        recentSessions: restoreSampleSessions(
+          state.recentSessions,
+          original,
+          needs,
+        ),
+      }));
+    if (!changed) return;
+    const before = store.getState().recentSessions;
+    let finished = false;
+    return store.subscribe((state) => {
+      if (finished || !changed(state.recentSessions, before)) return;
+      finished = true;
+      done();
+    });
+  }, [store, original, step]);
   const scene = useMemo<HistoryGuideScene>(() => {
     const finish = step.finish;
     return {
