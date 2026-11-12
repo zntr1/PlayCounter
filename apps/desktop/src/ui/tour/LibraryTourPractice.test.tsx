@@ -421,19 +421,20 @@ it("previews the learner's note and opens the note box from Add session note", a
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
-it.each(tours().filter((tour) => tour.simulation))(
-  "prepares every isolated simulation target in $id",
-  async (tour) => {
-    await act(() => {
-      root.render(<Harness />);
-      useAppStore.getState().startTour(tour.id);
-    });
-    for (let index = 0; index < tour.steps.length; index++) {
-      await act(() => useAppStore.getState().goToTourStep(index));
-      expect(findTourTarget(tour.steps[index])).not.toBeNull();
-    }
-  },
-);
+// The import sample loads lazily; guides/importLibrary.test.tsx waits for it
+// and checks every step's target there.
+it.each(
+  tours().filter((tour) => tour.simulation && tour.id !== "import-library"),
+)("prepares every isolated simulation target in $id", async (tour) => {
+  await act(() => {
+    root.render(<Harness />);
+    useAppStore.getState().startTour(tour.id);
+  });
+  for (let index = 0; index < tour.steps.length; index++) {
+    await act(() => useAppStore.getState().goToTourStep(index));
+    expect(findTourTarget(tour.steps[index])).not.toBeNull();
+  }
+});
 
 it("deletes sample history through the real dialog without calling the tracker", async () => {
   await start("stats", "sessions");

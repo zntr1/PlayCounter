@@ -62,7 +62,10 @@ export function ImportDone({ session }: { session: ImportSession }) {
               })
             : t("{{count}} games in My Games updated", { count: updated })}
         </h2>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-text-muted">
+        <p
+          data-tour="import-done-playtime"
+          className="mt-2 max-w-xl text-sm leading-6 text-text-muted"
+        >
           {profile.hasPlaytime ? (
             t(
               "Their playtime is in My Games now. New sessions are tracked automatically.",
