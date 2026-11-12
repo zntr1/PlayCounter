@@ -91,7 +91,7 @@ type ExerciseProgress = {
   /** Each sample session's own note. */
   sessionNotes: string[];
   finishedRuns: number;
-  /** How often the popup's note box was opened and closed again. */
+  /** How often "Add session note" was pressed in the popup preview. */
   noteBoxes: number;
   gtaTier: string | null;
   sortKey: MyGamesSortKey;
@@ -747,7 +747,11 @@ function PracticeLibrary({
                     preview
                     message={message}
                     onFinished={() => {}}
-                    onAction={() => setNoteBox(true)}
+                    onAction={() => {
+                      setNoteBox(true);
+                      // Pressing the button is what the step asks for.
+                      setNoteBoxes((count) => count + 1);
+                    }}
                   />
                 </figure>
               ))}
@@ -778,7 +782,6 @@ function PracticeLibrary({
                       if (note !== null)
                         store.getState().setSessionNote(noteSession.id, note);
                       setNoteBox(false);
-                      setNoteBoxes((count) => count + 1);
                     }}
                   />
                 </div>

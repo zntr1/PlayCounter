@@ -7,8 +7,6 @@ const t = getT("tour");
 
 // The practice card's menu.
 const cardMenu = [a("demo-library-menu"), a("demo-context-menu")];
-// A shelf in the card menu's Shelves flyout: the entries with a tick.
-const shelfInMenu = `${a("demo-shelf-menu")} [role="menuitemradio"]`;
 
 export function organizeLibraryGuide(): TourDefinition {
   return {
@@ -80,7 +78,7 @@ export function organizeLibraryGuide(): TourDefinition {
         // The dialog of New shelf, the shelf in the open flyout, then Shelves.
         anchorTargets: [
           a("demo-shelf-name"),
-          shelfInMenu,
+          a("demo-menu-shelf"),
           a("demo-menu-shelves"),
         ],
         additionalAnchors: [libraryTourCard],

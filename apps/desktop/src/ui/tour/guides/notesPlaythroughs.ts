@@ -186,7 +186,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
           "A popup can show your note when a game starts and offer a note box when a session is saved. The real switches are in Settings under Desktop popups, and off until you turn them on.",
         ),
         task: t(
-          "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the popup and write a line.",
+          "Turn on <b>Session notes in popups</b>, then click <b>Add session note</b> in the saved-session popup.",
         ),
       },
       {

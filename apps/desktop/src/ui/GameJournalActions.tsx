@@ -156,7 +156,7 @@ export function GameJournalMenu({
             return (
               <ContextMenuItem
                 key={shelf.id}
-                dataTour={practice ? `demo-shelf-${shelf.id}` : undefined}
+                dataTour={practice ? "demo-menu-shelf" : undefined}
                 icon={shelfHides(shelf) ? EyeOff : FolderHeart}
                 selected={member}
                 onClick={() => {

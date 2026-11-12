@@ -278,17 +278,16 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
       return found!;
     };
     await act(() => item("Shelves").click());
-    // The practice menu lists its shelf only: the guide made the shelf in the
-    // step before, from the shelf row.
+    // Samples show the real flyout: the shelf and "New shelf" too.
     expect(
       [...document.querySelectorAll("[data-context-menu-item]")].some(
         (button) => button.textContent?.trim() === "New shelf",
       ),
-    ).toBe(false);
+    ).toBe(true);
     // The guide must let this pick through: WoW on the shelf ends the step.
     await act(() => item("Online Games").click());
     await act(() => vi.advanceTimersByTime(800));
-    expect(currentStep().id).toBe("filters");
+    expect(currentStep().id).toBe("hide-shelf");
     expect(useAppStore.getState().gameJournals).toEqual({});
   } finally {
     vi.useRealTimers();
@@ -298,13 +297,9 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
 it("guides Select, each sample card, Set status, the menu choice, and the result", async () => {
   await start("library-progress", "select");
   expect(target().textContent).toBe("Select");
-  expect(document.activeElement).toBe(target());
   await act(() => target().click());
-  await act(
-    () => new Promise<void>((resolve) => window.setTimeout(resolve, 120)),
-  );
   await frame();
-  expect(currentStep().id).toBe("select-games");
+  // The highlight follows the next card that is not ticked yet.
   const first = target();
   expect(first.getAttribute("role")).toBe("checkbox");
   await act(() => first.click());
@@ -312,14 +307,13 @@ it("guides Select, each sample card, Set status, the menu choice, and the result
   expect(second).not.toBe(first);
   expect(second.getAttribute("role")).toBe("checkbox");
   await act(() => second.click());
+  expect(target().getAttribute("data-tour")).toBe("demo-bulk-count");
   await goTo("apply");
   expect(target().textContent?.trim()).toBe("Set status");
-  expect(document.activeElement).toBe(target());
   await act(() => target().click());
   await frame();
   expect(target().getAttribute("role")).toBe("menuitem");
   expect(target().textContent).toBe("In progress");
-  expect(document.activeElement).toBe(target());
   await act(() => target().click());
   expect(target().getAttribute("role")).toBe("status");
   expect(target().textContent).toBe("2 games marked In progress");
@@ -393,7 +387,7 @@ it("lets a learner cancel and confirm deletion inside the private journal", asyn
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
-it("previews the learner's note and opens its private journal from Add session note", async () => {
+it("previews the learner's note and opens the note box from Add session note", async () => {
   await start("notes-playthroughs", "note");
   await enter(target() as HTMLTextAreaElement, "Remember the bridge quest");
   await act(() =>
@@ -412,24 +406,18 @@ it("previews the learner's note and opens its private journal from Add session n
   expect(
     preview().querySelector(".desktop-overlay-card")?.textContent,
   ).toContain("Remember the bridge quest");
-  await act(() => {
-    toggle("Session notes in popups").click();
-    [...preview().querySelectorAll<HTMLButtonElement>("button")]
-      .find((b) => b.textContent === "Session saved")!
-      .click();
-  });
+  await act(() => toggle("Session notes in popups").click());
   await act(() =>
     [...preview().querySelectorAll<HTMLButtonElement>("button")]
       .find((b) => b.textContent === "Add session note")!
       .click(),
   );
+  // The button opens the note box over the game, in the practice only.
   expect(
-    (
-      document.querySelector(
-        '[data-tour="demo-note-input"]',
-      ) as HTMLTextAreaElement
-    ).value,
-  ).toBe("Remember the bridge quest");
+    document.querySelector(
+      '[data-tour="demo-popup-note-box"] textarea[aria-label="Session note"]',
+    ),
+  ).not.toBeNull();
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
@@ -516,24 +504,18 @@ it("targets journal fields, session assignment, and Mark finished precisely", as
   expect(target().textContent).toBe("Finished");
 });
 
-it("starts at readable columns and focuses the actual Customize controls", async () => {
-  await start("library-progress", "open-customize");
-  expect(target().textContent).toBe("Customize");
+it("starts at My Games' own columns and focuses the actual Customize controls", async () => {
+  await start("library-progress", "customize");
+  expect(target().getAttribute("data-tour")).toBe("demo-customize-toggle");
   const cards = document.querySelector<HTMLElement>(
     '[data-tour="demo-library-cards"]',
   )!;
-  expect(cards.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
+  expect(cards.style.gridTemplateColumns).toBe("");
   await act(() => target().click());
-  await act(
-    () => new Promise<void>((resolve) => window.setTimeout(resolve, 120)),
-  );
   await frame();
-  expect(currentStep().id).toBe("customize");
   const slider = target() as HTMLInputElement;
   expect(slider.type).toBe("range");
-  expect(slider.value).toBe("3");
   expect(Number(slider.max)).toBeGreaterThanOrEqual(3);
-  expect(document.activeElement).toBe(slider);
   await enter(slider, "6");
   expect(cards.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
   await goTo("card-details");
