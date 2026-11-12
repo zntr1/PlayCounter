@@ -256,8 +256,9 @@ it("shows on both sample cards what a real card's menu shows, in the same order"
 });
 
 it("gives every sample menu entry of the card a name a guide can ring", async () => {
-  // The picks inside Status, Tier and Shelves are named after what is picked
-  // (demo-status-…, demo-tier-…, demo-shelf-…), everything else demo-menu-….
+  // The picks inside Status and Tier are named after what is picked
+  // (demo-status-…, demo-tier-…); every shelf in Shelves is demo-menu-shelf;
+  // everything else demo-menu-….
   const pick = /^(Status|Tier|Shelves) › /;
   for (const entries of [await guideSampleMenu(), await practiceSampleMenu()]) {
     const unnamed = entries
@@ -271,7 +272,10 @@ it("gives every sample menu entry of the card a name a guide can ring", async ()
       )
       .map((entry) => entry.label);
     expect(unnamed).toEqual([]);
-    const names = entries.flatMap((entry) => entry.name ?? []);
+    // The shelves share one name on purpose; every other name is unique.
+    const names = entries.flatMap((entry) =>
+      entry.name && entry.name !== "demo-menu-shelf" ? entry.name : [],
+    );
     expect(new Set(names).size, "a name twice").toBe(names.length);
   }
 });
