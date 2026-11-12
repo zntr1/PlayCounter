@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { invokeMock } = vi.hoisted(() => ({
@@ -24,10 +23,8 @@ import {
   tourCounters,
   tourDemoDetails,
   tourSampleAchievementsPage,
-  useTourSampleDetails,
 } from "./tourDemoDetails";
 import { TOUR_EVENT } from "./tourEvents";
-import type { SampleDetailsTab } from "./tourTypes";
 
 /* The sample data behind the sample game's Details and the sample
    Achievements page (docs/tours-plan.md, WP5): bundled, never loaded, and
@@ -187,94 +184,6 @@ describe("the sample counters", () => {
     const first = tourCounters();
     await act(async () => store().goToTourStep(2, true));
     expect(tourCounters().store).not.toBe(first.store);
-  });
-});
-
-describe("the sample card's Details follow the step", () => {
-  let root: Root;
-  let container: HTMLDivElement;
-  const opened: SampleDetailsTab[] = [];
-  let closed = 0;
-
-  function Card({ enabled = true }: { enabled?: boolean }) {
-    useTourSampleDetails(
-      enabled,
-      (tab) => opened.push(tab),
-      () => {
-        closed += 1;
-      },
-    );
-    return null;
-  }
-  const stepIndex = (tourId: string, stepId: string) =>
-    store().activeTour?.tourId === tourId
-      ? stepIds(tourId).indexOf(stepId)
-      : -1;
-  const stepIds = (tourId: string) =>
-    tourSteps(tourId).map((step) => step.id);
-
-  beforeEach(() => {
-    opened.length = 0;
-    closed = 0;
-    container = document.createElement("div");
-    document.body.append(container);
-    root = createRoot(container);
-  });
-  afterEach(async () => {
-    await act(() => root.unmount());
-    container.remove();
-  });
-
-  it("opens Details on the step's tab when the step is entered from anywhere", async () => {
-    await act(async () => {
-      root.render(<Card />);
-      store().startTour("counters");
-    });
-    expect(opened).toEqual([]);
-    // A click in the checklist: straight to "Add a counter".
-    await act(async () =>
-      store().goToTourStep(stepIndex("counters", "add"), true),
-    );
-    expect(opened).toEqual(["counters"]);
-  });
-
-  it("opens it again on a rebuilt card, and closes it when a step without Details follows", async () => {
-    await act(async () => {
-      root.render(<Card />);
-      store().startTour("counters");
-      store().goToTourStep(stepIndex("counters", "add"));
-    });
-    expect(opened).toEqual(["counters"]);
-    // The next step needs the same tab: asked again, in case it was closed.
-    await act(async () =>
-      store().goToTourStep(stepIndex("counters", "key")),
-    );
-    expect(opened).toEqual(["counters", "counters"]);
-    expect(closed).toBe(0);
-    await act(async () =>
-      store().goToTourStep(stepIndex("counters", "finish")),
-    );
-    expect(closed).toBe(1);
-  });
-
-  it("leaves the card alone in steps and guides that don't ask", async () => {
-    await act(async () => {
-      root.render(<Card />);
-      store().startTour("game-actions");
-    });
-    for (let index = 0; index < tourSteps("game-actions").length; index += 1)
-      await act(async () => store().goToTourStep(index));
-    expect(opened).toEqual([]);
-    expect(closed).toBe(0);
-  });
-
-  it("does nothing for a card that is not the sample card", async () => {
-    await act(async () => {
-      root.render(<Card enabled={false} />);
-      store().startTour("counters");
-      store().goToTourStep(stepIndex("counters", "add"));
-    });
-    expect(opened).toEqual([]);
   });
 });
 

@@ -27,7 +27,7 @@ import {
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
-import { useGameDetails } from "../../../gameDetails";
+import { useGameDetails, type GameDetailsState } from "../../../gameDetails";
 import {
   markCoverUnavailable,
   useCoverUrl,
@@ -78,6 +78,8 @@ import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
+import { tourCounters, tourDemoDetails } from "../../tour/tourDemoDetails";
+import { PersonalLibraryContext } from "../../PersonalLibraryContext";
 import { appLanguage, formatNumericDate, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
 
@@ -272,7 +274,17 @@ export function GameDetailsDialog({
   const addToast = useAppStore((state) => state.addToast);
   const pickedArt = usePickedBanner(game);
   const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
-  const details = useGameDetails(demo ? undefined : game.igdbId);
+  // The sample game of the guides shows bundled facts, times and
+  // achievements like a well-known game; nothing is asked from anywhere.
+  const sample = useMemo(
+    () => (demo ? tourDemoDetails(game) : null),
+    [demo, game.gameId],
+  );
+  const realDetails = useGameDetails(demo ? undefined : game.igdbId);
+  const details: GameDetailsState = sample
+    ? { status: "ready", details: sample.details }
+    : realDetails;
+  const sampleResetToken = useAppStore((state) => state.demoResetToken);
   // Release year already known from matching, so the title line is never empty
   // while the details request is in flight.
   const cachedReleaseYear = useAppStore((state) =>
@@ -483,8 +495,8 @@ export function GameDetailsDialog({
       : []),
     { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
     { id: "files", label: t("Files"), icon: FolderOpen },
-    // Sample games of the tour have nothing to count.
-    ...(demo
+    // The second sample game of the guides has nothing to count.
+    ...(demo && !sample
       ? []
       : [{ id: "counters" as const, label: t("Counters"), icon: Skull }]),
   ];
@@ -600,6 +612,7 @@ export function GameDetailsDialog({
                     aria-selected={selected}
                     data-autofocus={selected || undefined}
                     aria-controls={`game-details-panel-${id}`}
+                    data-tour={demo ? `demo-details-tab-${id}` : undefined}
                     tabIndex={selected ? 0 : -1}
                     onClick={() => setTab(id)}
                     className={clsx(
@@ -651,7 +664,7 @@ export function GameDetailsDialog({
     </div>
   );
 
-  const aboutBody = !game.igdbId ? (
+  const aboutBody = !game.igdbId && !sample ? (
     // Community entries added before suggestions carried an IGDB id - and
     // custom games - have no IGDB identity to look anything up with. Saying
     // so beats hiding the panel, which just looks like it failed.
@@ -1138,6 +1151,7 @@ export function GameDetailsDialog({
         role="tabpanel"
         id={`game-details-panel-${tab}`}
         aria-labelledby={`game-details-tab-${tab}`}
+        data-tour={demo ? `demo-details-panel-${tab}` : undefined}
       >
         {tab === "general" ? (
           generalTab
@@ -1152,7 +1166,17 @@ export function GameDetailsDialog({
         ) : tab === "files" ? (
           filesTab
         ) : tab === "counters" ? (
-          <GameCountersTab game={game} />
+          sample ? (
+            // The sample's counters live in a library of their own.
+            <PersonalLibraryContext.Provider
+              key={sampleResetToken}
+              value={tourCounters().store}
+            >
+              <GameCountersTab game={game} />
+            </PersonalLibraryContext.Provider>
+          ) : (
+            <GameCountersTab game={game} />
+          )
         ) : (
           <GameAchievementsTab sources={gameAchievementSources} />
         )}

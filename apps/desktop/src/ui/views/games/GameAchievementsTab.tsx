@@ -58,6 +58,15 @@ import { useAppStore } from "../../../store";
 import { Button, Pill, Select } from "../../primitives";
 import type { GameSummary } from "../MyGamesView";
 import { XboxSignInWait } from "./XboxSignInWait";
+import { findTour } from "../../tour/tourDefinitions";
+import {
+  completeTourStep,
+  isTourDemoGame,
+  tourAchievementsLauncher,
+  tourDemoDetails,
+} from "../../tour/tourDemoDetails";
+import { emitTourEvent } from "../../tour/tourEvents";
+import { TOUR_DEMO_GAME } from "../../tour/tourDemoGame";
 
 const t = getT("games");
 const accountsT = getT("accounts");
@@ -68,19 +77,33 @@ const accountsT = getT("accounts");
    page. */
 
 export type AchievementSource = {
-  provider: "steam" | "epic" | "gog" | "xbox" | "playstation";
+  /** "sample": the sample game of the guides, with a list of its own. */
+  provider: "steam" | "epic" | "gog" | "xbox" | "playstation" | "sample";
   externalId: string;
 };
 
 /** Steam first, the consoles last. */
-const ORDER = { steam: 0, epic: 1, gog: 2, xbox: 3, playstation: 4 } as const;
+const ORDER = {
+  steam: 0,
+  epic: 1,
+  gog: 2,
+  xbox: 3,
+  playstation: 4,
+  sample: 5,
+} as const;
 
 /** The game's Steam, Epic Games, GOG, Xbox and PlayStation entries. Epic,
  *  GOG and PlayStation only on Windows, where their sign-ins exist. None: no
  *  tab. */
 export function achievementSources(
-  game: Pick<GameSummary, "libraryImports">,
+  game: Pick<GameSummary, "libraryImports"> & {
+    kind?: string;
+    gameId?: number;
+  },
 ): AchievementSource[] {
+  // The sample game of the guides has one launcher's list, bundled.
+  if (game.gameId !== undefined && isTourDemoGame({ ...game, gameId: game.gameId }))
+    return [{ provider: "sample", externalId: "tour" }];
   const signIns = currentPlatform() === "windows";
   const seen = new Set<string>();
   const sources: AchievementSource[] = [];
@@ -110,6 +133,7 @@ const PROVIDER_LABEL = {
   gog: "GOG",
   xbox: "Xbox",
   playstation: "PlayStation",
+  sample: "", // never shown: the sample has one list
 } as const;
 
 export function GameAchievementsTab({
@@ -143,7 +167,9 @@ export function GameAchievementsTab({
           ))}
         </div>
       ) : null}
-      {source.provider === "steam" ? (
+      {source.provider === "sample" ? (
+        <SampleAchievements />
+      ) : source.provider === "steam" ? (
         <SteamAchievements key={source.externalId} appId={source.externalId} />
       ) : source.provider === "epic" ? (
         <KeptLoginAchievements
@@ -166,6 +192,76 @@ export function GameAchievementsTab({
       ) : (
         <XboxAchievements key={source.externalId} titleId={source.externalId} />
       )}
+    </div>
+  );
+}
+
+/** The sample game's list: bundled, one launcher, never read from anywhere.
+ *  In the guide's sign-in step the launcher asks to sign in again, and
+ *  "Sign in again" only ends that step. */
+function SampleAchievements() {
+  const sample = useMemo(
+    () =>
+      tourDemoDetails({ kind: "tour-demo", gameId: TOUR_DEMO_GAME.gameId })!,
+    [],
+  );
+  const [fetchedAt] = useState(() => Date.now());
+  const launcher = tourAchievementsLauncher();
+  const resetToken = useAppStore((state) => state.demoResetToken);
+  const activeTour = useAppStore((state) => state.activeTour);
+  const [signedIn, setSignedIn] = useState<number | null>(null);
+  const asksSignIn = useMemo(
+    () =>
+      activeTour?.tourId === "game-achievements" &&
+      findTour(activeTour.tourId)?.steps[activeTour.stepIndex]?.id ===
+        "sign-in",
+    [activeTour?.tourId, activeTour?.stepIndex],
+  );
+  const needsSignIn = launcher === "gog" && asksSignIn && signedIn !== resetToken;
+  const action = needsSignIn ? (
+    <Button
+      variant="primary"
+      data-tour="demo-achievements-sign-in"
+      onClick={() => {
+        setSignedIn(resetToken);
+        completeTourStep("game-achievements", "sign-in");
+      }}
+    >
+      {accountsT("Sign in again")}
+    </Button>
+  ) : (
+    <Button
+      icon={RefreshCw}
+      onClick={() =>
+        emitTourEvent(
+          "demo.action-completed",
+          t("This is a sample. A real list is read again from the launcher."),
+        )
+      }
+    >
+      {t("Refresh")}
+    </Button>
+  );
+  return (
+    <div className="grid gap-3">
+      {needsSignIn ? (
+        <p role="alert" className="text-sm text-danger">
+          {accountsT("{{launcher}} needs you to sign in again.", {
+            launcher: "GOG",
+          })}
+        </p>
+      ) : null}
+      <AchievementOverview
+        achievements={sample.achievements}
+        origin={
+          launcher === "gog"
+            ? t("From GOG, updated {{date}}", {
+                date: formatNumericDate(fetchedAt),
+              })
+            : t("From Steam on this PC")
+        }
+        action={action}
+      />
     </div>
   );
 }
@@ -892,7 +988,10 @@ function AchievementOverview({
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
+        <div
+          data-tour="demo-achievement-filters"
+          className="flex flex-wrap gap-2"
+        >
           {filters.map(({ id, label, count }) => (
             <Pill
               key={id}
@@ -907,7 +1006,11 @@ function AchievementOverview({
         <Select
           aria-label={t("Sort achievements")}
           value={sort}
-          onChange={(event) => setSort(event.target.value as AchievementSort)}
+          data-tour="demo-achievement-sort"
+          onChange={(event) => {
+            setSort(event.target.value as AchievementSort);
+            completeTourStep("game-achievements", "sort");
+          }}
           className="h-8 rounded-lg !py-0 text-[13px] font-medium"
         >
           {sortOptions().map(({ id, label }) => (

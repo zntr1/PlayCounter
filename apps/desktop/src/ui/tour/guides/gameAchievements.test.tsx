@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-import { readdirSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,18 +46,14 @@ const names = (selector: string | undefined) =>
     (match) => match[1],
   );
 
-const enDir = fileURLToPath(new URL("../../../locales/en/", import.meta.url));
+// Every English text the app can show, from all area files.
 const english = new Set(
-  readdirSync(enDir)
-    .filter((file) => file.endsWith(".json"))
-    .flatMap((file) =>
-      Object.values(
-        JSON.parse(readFileSync(`${enDir}${file}`, "utf8")) as Record<
-          string,
-          string
-        >,
-      ),
-    ),
+  Object.values(
+    import.meta.glob<Record<string, string>>("../../../locales/en/*.json", {
+      eager: true,
+      import: "default",
+    }),
+  ).flatMap((area) => Object.values(area)),
 );
 
 let root: Root;

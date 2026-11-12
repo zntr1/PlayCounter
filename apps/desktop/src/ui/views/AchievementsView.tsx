@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
   CalendarCheck,
@@ -39,6 +39,13 @@ import { appLocale, getT } from "../../i18n";
 import { Button } from "../primitives";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { useHiddenGameKeys } from "../useHiddenGameKeys";
+import { GuideLink } from "../tour/GuideLink";
+import { findTour } from "../tour/tourDefinitions";
+import {
+  completeTourStep,
+  TOUR_ACHIEVEMENTS_PAGE_TABS,
+  tourSampleAchievementsPage,
+} from "../tour/tourDemoDetails";
 
 const t = getT("achievements");
 
@@ -108,7 +115,30 @@ function withPickedCovers(
 
 export function AchievementsView() {
   const [tab, setTab] = useState<Tab>("milestones");
-  const awardedMilestones = useAppStore((state) => state.awardedMilestones);
+  // While the Achievements guide runs, a newcomer's empty page shows sample
+  // milestones and ladders; none of it is the player's. Each step says which
+  // tab it needs.
+  const activeTour = useAppStore((state) => state.activeTour);
+  const guideRunning = activeTour?.tourId === "game-achievements";
+  const sample = useMemo(
+    () => (guideRunning ? tourSampleAchievementsPage() : null),
+    [guideRunning],
+  );
+  const guideStepId = useMemo(
+    () =>
+      guideRunning && activeTour
+        ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]?.id
+        : undefined,
+    [guideRunning, activeTour?.tourId, activeTour?.stepIndex],
+  );
+  useEffect(() => {
+    const needed = guideStepId
+      ? TOUR_ACHIEVEMENTS_PAGE_TABS[guideStepId]
+      : undefined;
+    if (needed) setTab(needed);
+  }, [guideStepId]);
+  const realAwardedMilestones = useAppStore((state) => state.awardedMilestones);
+  const awardedMilestones = sample?.awardedMilestones ?? realAwardedMilestones;
   const sessions = useAppStore((state) => state.recentSessions);
   const archivedSeconds = useAppStore((state) => state.archivedSeconds);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
@@ -129,7 +159,7 @@ export function AchievementsView() {
     () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
     [exeCache, gameMetadata, libraryImports],
   );
-  const metrics = useMemo(
+  const realMetrics = useMemo(
     () =>
       milestoneMetrics({
         sessions,
@@ -154,7 +184,8 @@ export function AchievementsView() {
       verifiedEmulatorContributions,
     ],
   );
-  const gameLabels = useMemo(() => {
+  const metrics = sample?.metrics ?? realMetrics;
+  const realGameLabels = useMemo(() => {
     const labels = new Map<string, { name: string; coverUrl: string }>();
     for (const game of gameMetadata.values()) {
       labels.set(
@@ -173,6 +204,7 @@ export function AchievementsView() {
     }
     return labels;
   }, [gameMetadata, resolveIgdbId]);
+  const gameLabels = sample?.gameLabels ?? realGameLabels;
   const pickedCovers = usePickedCovers();
   const hiddenKeys = useHiddenGameKeys("achievements");
   const catalog = useMemo(
@@ -239,7 +271,9 @@ export function AchievementsView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <AchievementHero summary={summary} nextUp={nextUp} recent={recent} />
+      <div data-tour="achievements-hero">
+        <AchievementHero summary={summary} nextUp={nextUp} recent={recent} />
+      </div>
 
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-3 border-b border-border">
         <div
@@ -260,7 +294,13 @@ export function AchievementsView() {
                 aria-selected={selected}
                 aria-controls={`achievements-panel-${id}`}
                 tabIndex={selected ? 0 : -1}
-                onClick={() => setTab(id)}
+                data-tour={guideRunning ? `demo-achievements-tab-${id}` : undefined}
+                onClick={() => {
+                  setTab(id);
+                  // "Open Game ladders" is done once that tab opens.
+                  if (id === "games" && tab !== "games")
+                    completeTourStep("game-achievements", "tabs");
+                }}
                 className={clsx(
                   "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                   selected
@@ -442,15 +482,22 @@ function GameSection({
         <p className="mt-1 max-w-sm text-sm text-text-muted">
           {t("Play any tracked game for 10 hours to unlock its first trophy.")}
         </p>
+        <GuideLink tourId="game-achievements" className="mt-3" />
       </div>
     );
   }
 
   return (
     <div className="grid gap-3">
-      {ladders.slice(0, renderWindow.limit).map((ladder) => (
-        <GameLadderRow key={ladder.key} ladder={ladder} />
-      ))}
+      {ladders.slice(0, renderWindow.limit).map((ladder, index) =>
+        index === 0 ? (
+          <div key={ladder.key} data-tour="achievements-first-ladder">
+            <GameLadderRow ladder={ladder} />
+          </div>
+        ) : (
+          <GameLadderRow key={ladder.key} ladder={ladder} />
+        ),
+      )}
       {renderWindow.hasMore ? (
         <div ref={renderWindow.sentinelRef} className="flex justify-center">
           <Button
