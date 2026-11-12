@@ -9,7 +9,6 @@ import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import {
   PersonalLibraryContext,
   useLibraryPractice,
-  usePersonalLibraryApi,
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
 import {
