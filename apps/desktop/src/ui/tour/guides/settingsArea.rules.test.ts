@@ -186,9 +186,12 @@ describe("Personalize PlayCounter", () => {
     expect(step("launcher").body).toContain("“Launch games directly”");
   });
 
-  it("names the popup monitor and the choices that need review", () => {
-    expect(step("notifications").body).toContain("<b>Popup monitor</b>");
-    expect(step("notifications").body).toMatch(/choices that need review/i);
+  it("says what auto-add covers and points to Launcher accounts", () => {
+    const body = step("library").body;
+    expect(body).toMatch(/Steam, Battle.net, Epic Games and GOG/);
+    expect(body).toMatch(/PlayStation/);
+    expect(body).toMatch(/Xbox needs another import/);
+    expect(body).toContain("<b>Launcher accounts</b>");
   });
 
   it("calls the update button Check", () => {

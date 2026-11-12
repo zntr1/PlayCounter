@@ -109,8 +109,8 @@ export function target() {
   return element!;
 }
 
-export const all = (selector: string) => [
-  ...document.querySelectorAll<HTMLElement>(selector),
+export const all = <T extends HTMLElement = HTMLElement>(selector: string) => [
+  ...document.querySelectorAll<T>(selector),
 ];
 
 export function q<T extends HTMLElement = HTMLElement>(selector: string) {

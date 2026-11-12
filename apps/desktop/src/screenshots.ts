@@ -8,6 +8,7 @@ import {
 } from "./desktopOverlayBridge";
 import { screenshotBlackNotification } from "./notifications";
 import { pickedCover } from "./pickedCovers";
+import { isSampleShot, useSampleScreenshots } from "./screenshotSample";
 import { openScreenshotCaptionBox } from "./quickNote";
 import { useAppStore, type ActiveSession } from "./store";
 
@@ -261,6 +262,22 @@ export async function setScreenshotCaption(
   path: string,
   caption: string | null,
 ) {
+  if (isSampleShot(path)) {
+    // The guide's sample picture: the caption stays in memory.
+    const current = useSampleScreenshots
+      .getState()
+      .shots.find((entry) => entry.path === path)!;
+    const sample = { ...current, caption: caption?.trim() || null };
+    const swapSample = (shots: Screenshot[]) =>
+      shots.map((entry) => (entry.path === path ? sample : entry));
+    useSampleScreenshots.setState((state) => ({
+      shots: swapSample(state.shots),
+    }));
+    useScreenshotViewer.setState((state) => ({
+      shots: swapSample(state.shots),
+    }));
+    return sample;
+  }
   const file = await invoke<ScreenshotFile>("screenshot_caption", {
     path,
     caption,
@@ -369,7 +386,7 @@ export async function takeScreenshot({ caption = false } = {}) {
 
 /** An address the window can show a picture file from. */
 export function screenshotSource(path: string) {
-  return convertFileSrc(path);
+  return isSampleShot(path) ? path : convertFileSrc(path);
 }
 
 /** The preview of a picture that has none yet, made now. Null on failure. */
@@ -383,15 +400,23 @@ export async function makeScreenshotPreview(path: string) {
 }
 
 export function openScreenshot(path: string) {
+  if (isSampleShot(path)) return Promise.resolve();
   return invoke("screenshot_open", { path });
 }
 
 export function revealScreenshot(path: string) {
+  if (isSampleShot(path)) return Promise.resolve();
   return invoke("screenshot_reveal", { path });
 }
 
 /** Moves the picture to the Recycle Bin and drops it from the list. */
 export async function deleteScreenshot(path: string) {
+  if (isSampleShot(path)) {
+    useSampleScreenshots.setState((state) => ({
+      shots: state.shots.filter((entry) => entry.path !== path),
+    }));
+    return;
+  }
   await invoke("screenshot_delete", { path });
   useScreenshots.setState((current) => ({
     files: current.files.filter((entry) => entry.path !== path),

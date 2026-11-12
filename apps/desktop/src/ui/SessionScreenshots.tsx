@@ -9,7 +9,10 @@ import {
   useSessionScreenshots,
   type Screenshot,
 } from "../screenshots";
+import { isSampleShot, useSampleScreenshots } from "../screenshotSample";
 import { getT } from "../i18n";
+import { useLibraryPractice } from "./PersonalLibraryContext";
+import { HISTORY_SAMPLE } from "./tour/tourHistorySample";
 
 const t = getT("history");
 
@@ -26,7 +29,12 @@ export function SessionScreenshots({
   gameName?: string;
   className?: string;
 }) {
-  const shots = useSessionScreenshots(sessionId);
+  const real = useSessionScreenshots(sessionId);
+  // The guide's sample history has pictures of its own.
+  const practice = useLibraryPractice();
+  const sample = useSampleScreenshots((state) => state.shots);
+  const shots =
+    practice && sessionId === HISTORY_SAMPLE.withPictures ? sample : real;
   if (!shots.length) return null;
   return (
     <ScreenshotStrip shots={shots} gameName={gameName} className={className} />
@@ -69,6 +77,9 @@ function ScreenshotStrip({
     "relative block h-12 w-[86px] shrink-0 overflow-hidden rounded-md border border-border bg-surface-hover transition hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
   return (
     <ul
+      data-tour={
+        isSampleShot(shots[0].path) ? "demo-history-screenshots" : undefined
+      }
       aria-label={t("Screenshots")}
       className={cn("flex flex-wrap items-center gap-1.5", className)}
     >

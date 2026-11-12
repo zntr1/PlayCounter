@@ -62,6 +62,8 @@ import {
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
 import { useHiddenGameKeys } from "../useHiddenGameKeys";
+import { ScreenshotsHistoryPractice } from "../tour/TourScreenshotsPractice";
+import { showsHistorySample } from "../tour/tourHistorySample";
 import { HistoryHero, type HeroArtworkGame } from "./history/HistoryHero";
 import {
   historySelectionLabel,
@@ -164,7 +166,20 @@ function useHistoryNow() {
   return nowMs;
 }
 
+/** My History; while the Screenshots guide runs, its sample history. */
 export function HistoryView({ scene }: { scene?: HistoryGuideScene } = {}) {
+  const inPractice = useLibraryPractice();
+  const sampleGuide = useAppStore((state) =>
+    showsHistorySample(state.activeTour?.tourId),
+  );
+  return sampleGuide && !inPractice ? (
+    <ScreenshotsHistoryPractice Page={HistoryPage} />
+  ) : (
+    <HistoryPage scene={scene} />
+  );
+}
+
+function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
   const practice = useLibraryPractice();
   const libraryApi = usePersonalLibraryApi();
   const realQuery = useAppStore((state) => state.historyQuery);

@@ -27,6 +27,7 @@ import {
   useScreenshotViewer,
   type Screenshot,
 } from "../screenshots";
+import { isSampleShot } from "../screenshotSample";
 import { useAppStore } from "../store";
 import { IconButton, useDialogFocus, useEscapeKey } from "./primitives";
 import { ModalWindowDragRegion } from "./shell/ModalWindowDragRegion";
@@ -137,6 +138,7 @@ function OpenViewer() {
   return createPortal(
     <div
       data-modal-backdrop
+      data-tour={isSampleShot(shot.path) ? "demo-screenshot-viewer" : undefined}
       className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) closeScreenshotViewer();
@@ -272,11 +274,17 @@ function OpenViewer() {
 /** The picture's caption under it: click it to change it. */
 function CaptionLine({ shot }: { shot: Screenshot }) {
   const [editing, setEditing] = useState(false);
+  const guide = isSampleShot(shot.path) ? "demo-screenshot-caption" : undefined;
   if (editing)
-    return <CaptionEditor shot={shot} onDone={() => setEditing(false)} />;
+    return (
+      <div data-tour={guide} className="w-full max-w-xl">
+        <CaptionEditor shot={shot} onDone={() => setEditing(false)} />
+      </div>
+    );
   if (shot.caption)
     return (
       <button
+        data-tour={guide}
         type="button"
         title={t("Change the caption")}
         onClick={() => setEditing(true)}
@@ -294,6 +302,7 @@ function CaptionLine({ shot }: { shot: Screenshot }) {
     );
   return (
     <button
+      data-tour={guide}
       type="button"
       onClick={() => setEditing(true)}
       className="inline-flex items-center gap-2 rounded-lg border border-dashed border-white/25 px-3 py-1.5 text-sm text-white/60 transition hover:border-white/45 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
