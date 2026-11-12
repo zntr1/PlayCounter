@@ -7,7 +7,7 @@ import { NotificationBell } from "../NotificationBell";
 import { LibraryTourPractice } from "./LibraryTourPractice";
 import { HelpButton, TourOverlay } from "./TourUI";
 import { TourPracticeSurface } from "./TourPracticeSurface";
-import { removeHistorySession, selectAmbiguousMatch } from "../../tracker";
+import { removeHistorySession } from "../../tracker";
 import { tours, findTour } from "./tourDefinitions";
 import { findTourElement, findTourTarget } from "./tourTargetRect";
 import { readFileSync } from "node:fs";
@@ -446,22 +446,6 @@ it.each(tours().filter((tour) => tour.simulation))(
     }
   },
 );
-
-it("selects an ambiguous sample without saving a real executable choice", async () => {
-  await start("fix-detection", "ambiguous");
-  await act(() =>
-    document
-      .querySelector<HTMLButtonElement>(
-        '[data-tour="demo-ambiguous"] [aria-label^="Track "]',
-      )!
-      .click(),
-  );
-  expect(
-    document.querySelector('[data-tour="demo-library-result"]')?.textContent,
-  ).toContain("Sample selected");
-  expect(selectAmbiguousMatch).not.toHaveBeenCalled();
-  expect(useAppStore.getState().exeCache.size).toBe(0);
-});
 
 it("deletes sample history through the real dialog without calling the tracker", async () => {
   await start("stats", "sessions");

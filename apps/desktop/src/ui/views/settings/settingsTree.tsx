@@ -119,6 +119,8 @@ export type SettingsGroupDef = {
   title: () => string;
   description: () => string;
   dataTour?: string;
+  /** The guide the page's "Show me how" link starts. */
+  guide?: string;
   foot?: () => string;
   /** Search reads the group's description too (the hotkeys say "hotkey"
    *  only there). */
@@ -287,6 +289,7 @@ const GROUPS: SettingsGroupDef[] = [
         "Global hotkeys work while PlayCounter is running, including in the system tray.",
       ),
     dataTour: "settings-shortcuts",
+    guide: "while-you-play",
     searchDescription: true,
     foot: () =>
       t(
@@ -413,6 +416,7 @@ const GROUPS: SettingsGroupDef[] = [
       t(
         "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.",
       ),
+    guide: "while-you-play",
     sections: [
       {
         id: "play",

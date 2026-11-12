@@ -1,78 +1,111 @@
 import { Settings } from "lucide-react";
-import { emulatorLabelList } from "../../../emulators/registry";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { a, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
 
+/** One row of a Settings page, by its `data-row` id (SettingsKit.tsx). */
+const row = (id: string) => a(`settings-row-${id}`);
+
+// The controls in a ring are the player's real settings. Pages that have a
+// guide of their own (library import, emulators, backup) are left to it; the
+// last step says where those guides are.
 export function settingsGuide(): TourDefinition {
   return {
     id: "settings",
-    version: 4,
+    version: 5,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "settings",
     icon: Settings,
     title: t("Personalize PlayCounter"),
     description: t("Walk through key settings and adjust them as you go."),
     duration: t("3 min"),
+    nextTourId: "backup-data",
     steps: [
       {
         id: "intro",
         view: "settings",
         settingsGroup: "general",
-        title: t("Settings, your way"),
+        anchor: a("settings-search"),
+        title: t("Real settings, saved at once"),
         body: t(
-          "This guide walks through the most useful preferences. Controls inside each highlighted panel stay active, and any changes you make are real and saved immediately.",
+          "This guide walks through your real settings: what you change here is saved at once. <b>Search settings</b> finds a setting on any page by a word, like popup or backup.",
         ),
       },
       {
         id: "general",
         view: "settings",
         settingsGroup: "general",
-        anchor: a("settings-general"),
+        anchor: row("launchOnStartup"),
         interactive: true,
         manualAdvance: true,
         persistentInteraction: true,
-        allow: [a("settings-general")],
-        title: t("General behavior"),
+        allow: [row("launchOnStartup"), row("startView"), row("language")],
+        title: t("Start with your computer"),
         body: t(
-          "Turn on Launch on startup if you want tracking ready when you sign in. PlayCounter records sessions while it is running.\n\nBelow that you can switch long playtimes to days and hours.",
+          "PlayCounter only counts while it runs, so leave <b>Launch on startup</b> on. Right below, <b>Start page</b> and <b>Language</b> set what opens first and which language you read.",
         ),
       },
       {
         id: "appearance",
         view: "settings",
         settingsGroup: "appearance",
-        anchor: a("settings-appearance"),
+        anchor: row("theme"),
         interactive: true,
         manualAdvance: true,
         persistentInteraction: true,
-        allow: [a("settings-appearance")],
-        title: t("Theme, color, and size"),
+        allow: [
+          row("theme"),
+          row("accentColor"),
+          row("contentScale"),
+          row("menuScale"),
+        ],
+        title: t("Theme, color and size"),
         body: t(
-          "Switch between the dark and light theme, and pick the accent color used for buttons, highlights, and focus states. Reset returns to the PlayCounter default.\n\nContent size and Menu size make text, covers, and the sidebar larger or smaller.",
+          "<b>Theme</b> switches between dark and light, <b>Accent color</b> tints buttons and highlights. <b>Content size</b> and <b>Menu size</b> make text, covers and the sidebar larger or smaller.",
         ),
       },
       {
         id: "shortcuts",
         view: "settings",
         settingsGroup: "shortcuts",
-        anchor: a("settings-shortcuts"),
+        anchor: row("showWindowHotkey"),
         interactive: true,
         manualAdvance: true,
         persistentInteraction: true,
         allow: [a("settings-shortcuts")],
-        title: t("Keyboard shortcuts"),
+        title: t("Shortcuts with your own keys"),
         body: t(
-          "Set a hotkey that brings PlayCounter to the front from any app, one that shows your current session time in a small popup without leaving your game, and one that opens a note box for the session you're playing. All three work while PlayCounter runs in the tray.",
+          "No shortcut has a key until you give it one. Click a field, like the one next to <b>Bring PlayCounter to front</b>, and press the keys you want. They work from any app.",
+        ),
+      },
+      {
+        id: "play",
+        view: "settings",
+        settingsGroup: "play",
+        anchor: row("liveTimerEnabled"),
+        optional: true,
+        interactive: true,
+        manualAdvance: true,
+        persistentInteraction: true,
+        allow: [
+          row("liveTimerEnabled"),
+          row("liveTimerCorner"),
+          row("playtimeReminder"),
+        ],
+        title: t("A clock over your game"),
+        body: t(
+          "<b>Live timer</b> puts a small clock into your game's window, and <b>Playtime reminder</b> says when a break is due. Both stay off until you turn them on. The guide “{{guide}}” shows them.",
+          { guide: t("While you play") },
         ),
       },
       {
         id: "notifications",
         view: "settings",
         settingsGroup: "popups",
-        anchor: a("settings-notifications"),
+        anchor: row("desktopOverlaysEnabled"),
         optional: true,
         interactive: true,
         manualAdvance: true,
@@ -80,71 +113,37 @@ export function settingsGuide(): TourDefinition {
         allow: [a("settings-notifications")],
         title: t("Desktop popups"),
         body: t(
-          "Short popups on your desktop while you play. Turn the main switch on first, then pick which events are worth a popup: first-time detections, every game start, session summaries, milestones, or new discoveries.",
+          "<b>Show desktop popups</b> is the main switch. <b>Popup monitor</b> picks the screen, and <b>Show a popup for</b> lists what earns one: choices that need review, game starts, milestones and more.",
         ),
       },
       {
         id: "launcher",
         view: "settings",
         settingsGroup: "launching",
-        anchor: a("settings-launcher"),
+        anchor: row("rememberLaunchPaths"),
         optional: true,
         interactive: true,
         manualAdvance: true,
         persistentInteraction: true,
-        allow: [a("settings-launcher")],
-        title: t("Game launching"),
+        allow: [row("rememberLaunchPaths"), row("gameLaunching")],
+        title: t("Start games from PlayCounter"),
         body: t(
-          "Remember launch paths lets PlayCounter keep the location of the games it recognizes on this PC. With it on, Launch games directly adds Play buttons to My Games, Hide to tray when a game starts tucks PlayCounter away once a game you started is running, and Controller navigation lets you move through PlayCounter with a gamepad. Show Install in Steam puts an install button on imported Steam games that are no longer installed.\n\nSaved paths stay on this PC and are left out of backups.",
-        ),
-      },
-      {
-        id: "emulators",
-        view: "settings",
-        settingsGroup: "emulators",
-        anchor: a("settings-emulators"),
-        interactive: true,
-        manualAdvance: true,
-        persistentInteraction: true,
-        allow: [a("settings-emulators")],
-        title: t("Emulator games"),
-        body: t(
-          "Detect emulator games finds the game running inside {{emulatorLabelList}}, so it gets its own cover and playtime instead of counting as the emulator. Look up recognized content sends only the recognized file name or disc ID to find the game.\n\nThe Track emulator games guide shows this in action.",
-          { emulatorLabelList: emulatorLabelList("or") },
+          "<b>Remember launch paths</b> lets PlayCounter keep where your games are on this PC. With it on, <b>Launch games directly</b> adds Play buttons to My Games. The guide “{{guide}}” shows the rest.",
+          { guide: t("Launch games directly") },
         ),
       },
       {
         id: "sharing",
         view: "settings",
         settingsGroup: "discovery",
-        anchor: a("settings-sharing"),
+        anchor: row("trackTools"),
         interactive: true,
         manualAdvance: true,
         persistentInteraction: true,
-        allow: [a("settings-sharing")],
-        title: t("Help improve detection"),
+        allow: [row("trackTools"), a("settings-sharing")],
+        title: t("Software and what you share"),
         body: t(
-          "When enabled, ignoring an unknown app sends its filename, platform, and anonymous install ID to help improve detection. This setting controls ignore reports; those reports do not include your playtime, history, or notes.",
-        ),
-      },
-      {
-        id: "library-import",
-        view: "settings",
-        settingsGroup: "library",
-        anchor: a("settings-library-import"),
-        title: t("Keep your library up to date"),
-        body: t(
-          "Add new games automatically brings in games you install in Steam, Battle.net, Epic Games, or GOG after your first import from there. Watched folders find games that no launcher knows about. Below them, you can forget everything a launcher import added.\n\nThe Watch folders for new games guide explains both.",
-        ),
-      },
-      {
-        id: "backup",
-        view: "settings",
-        settingsGroup: "backup",
-        anchor: a("settings-backup"),
-        title: t("Backups"),
-        body: t(
-          "PlayCounter backs up your history, games, and notes automatically: once a week by default, keeping the last five. After the guide, you can change the schedule and folder here, back up right away, or export your data for another PC.\n\nThe Back up or move your data guide walks through each option.",
+          "<b>Track software</b> counts apps like Discord on their own page, apart from your games. <b>Share apps you ignore</b> sends an ignored app's file name, your platform and an anonymous ID, never your playtime.",
         ),
       },
       {
@@ -152,9 +151,10 @@ export function settingsGuide(): TourDefinition {
         view: "settings",
         settingsGroup: "about",
         anchor: a("settings-updates"),
-        title: t("Keep PlayCounter current"),
+        additionalAnchors: [a("settings-help")],
+        title: t("Updates and more guides"),
         body: t(
-          "After the guide, use Check for updates whenever you like. This panel shows which version you are running, whether a new one is available, and the release notes.",
+          "<b>Check</b> looks for a new version right away. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.",
         ),
       },
     ],

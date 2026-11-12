@@ -11,6 +11,7 @@ import { Button, IconButton, useEscapeKey } from "./primitives";
 import { formatNumericDateTime, getT } from "../i18n";
 
 const t = getT("shell");
+const dialogsT = getT("dialogs");
 
 export function NotificationsPanel({
   onClose,
@@ -38,8 +39,14 @@ export function NotificationsPanel({
           title: t("Reply to your feedback"),
           createdAt: new Date().toISOString(),
           feedbackMessage: t("Can I keep a separate note for a speedrun?"),
+          // The menu item and the button carry the app's own names, so the
+          // sample can't send anyone to an item that was renamed.
           body: t(
-            "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.",
+            "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.",
+            {
+              journal: dialogsT("Journal"),
+              addPlaythrough: dialogsT("Add playthrough"),
+            },
           ),
           readAt: undefined,
           action: undefined,

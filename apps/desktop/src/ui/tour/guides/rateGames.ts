@@ -1,14 +1,17 @@
 import { Layers } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, gtaTourCard } from "./shared";
+import { a, gtaTourCard, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
+
+// The practice card's menu, and its flyout for tiers.
+const cardMenu = [a("demo-library-menu"), a("demo-context-menu")];
 
 export function rateGamesGuide(): TourDefinition {
   return {
     id: "rate-games",
-    version: 1,
+    version: 2,
     kind: "guide",
     category: "library",
     icon: Layers,
@@ -19,15 +22,15 @@ export function rateGamesGuide(): TourDefinition {
     duration: t("2 min"),
     practice: true,
     finishView: "games",
-    release: "1.4.3",
+    release: NEXT_RELEASE,
     steps: [
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-library-cards"),
+        anchor: gtaTourCard,
         title: t("Rank your games, S to F"),
         body: t(
-          "A tier is your own verdict on a game: S is the best, F the worst. It stays on this PC. Practice with the sample World of Warcraft and GTA V cards below. Nothing in this practice library is saved.",
+          "A tier is your own verdict on a game: S is the best, F the worst. It stays on this PC. These are sample games: nothing is saved.",
         ),
       },
       {
@@ -38,14 +41,13 @@ export function rateGamesGuide(): TourDefinition {
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
-        allow: [
-          a("demo-library-stage"),
-          a("demo-library-menu"),
-          a("demo-tier-menu"),
-        ],
+        allow: [a("demo-library-stage"), ...cardMenu, a("demo-tier-menu")],
         title: t("Give GTA V a tier"),
         body: t(
-          "Right-click the GTA V card, open Tier and choose S – Best, or any letter you like. The letter appears on the cover, and the guide moves on by itself.",
+          "The letter appears on the cover. The same menu changes or clears it.",
+        ),
+        task: t(
+          "Right-click the GTA V card, open <b>Tier</b> and pick a letter, for example <b>S – Best</b>.",
         ),
       },
       {
@@ -58,30 +60,33 @@ export function rateGamesGuide(): TourDefinition {
         allow: [a("demo-library-stage")],
         title: t("Sort by tier"),
         body: t(
-          "Open the sort menu and choose Sort: Tier. GTA V moves ahead of World of Warcraft, because games without a tier go last. Inside a tier, the most played game comes first. My Games has the same menu.",
+          "Games without a tier go last. Inside a tier, the most played game comes first.",
         ),
+        task: t("Open the sort menu and choose <b>Sort: Tier</b>."),
       },
       {
         id: "filter",
         view: "games",
         anchor: a("demo-filters-toggle"),
-        anchorTargets: [a("demo-filter-tier-S")],
+        // The letter the player picked, whichever it was.
+        anchorTargets: [a("demo-filter-tier-picked")],
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [a("demo-organization")],
         title: t("Show one tier"),
         body: t(
-          "We opened Filters. Under Tier, choose the letter you gave GTA V. Only GTA V stays, because World of Warcraft has no tier yet; No tier shows exactly the games you have not rated. Saved on a shelf, these filters make an “S tier” shelf that keeps itself up to date.",
+          "We opened <b>Filters</b>. <b>No tier</b> shows the games you have not rated. Saved on a shelf, a tier filter makes a shelf that keeps itself up to date.",
         ),
+        task: t("Under <b>Tier</b>, click the letter you gave GTA V."),
       },
       {
         id: "finish",
         view: "games",
-        anchor: a("demo-library-cards"),
+        anchor: gtaTourCard,
         title: t("Your verdict, everywhere"),
         body: t(
-          "Both samples are back, sorted by tier. In your own library, Game details shows your tier next to the IGDB rating, and you can change it there too. Customize → Tiers on cards hides the letters without deleting them. Everything from this practice disappears when you finish.",
+          "In My Games, right-click a game and open <b>Tier</b>. Game details shows your tier next to the IGDB rating. <b>Tiers on cards</b> under <b>Customize</b> hides the letters.",
         ),
       },
     ],

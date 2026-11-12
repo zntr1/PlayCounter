@@ -2,31 +2,23 @@ import { AlertTriangle, Download, Gamepad2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { getT } from "../../i18n";
 import { importExeCandidates } from "../../library/exeCandidates";
-import { searchLibraryGames } from "../../library/gameLookup";
 import {
   requiresExecutableChoice,
   startsUnchecked,
 } from "../../library/importGroups";
 import { importProfile } from "../../library/importProfiles";
-import {
-  browseGameFile,
-  importOneGame,
-  lookUpPickedGame,
-  pickGameFile,
-  pickImportGame,
-  replaceImportMatch,
-  setImportChoices,
-  setReplacementChoices,
-  skipImportGame,
-  unskipImportGame,
-  type ImportSession,
-} from "../../library/importSession";
+import type { ImportSession } from "../../library/importSession";
 import type { ScannedExecutable } from "../../library/types";
 import { useAppStore } from "../../store";
 import { GameCover } from "../GameCover";
 import { Button } from "../primitives";
 import { GameFilePicker } from "./GameFilePicker";
 import { GameMatchPicker } from "./GameMatchPicker";
+import {
+  useImportActions,
+  useImportLibrary,
+  useIsSampleImport,
+} from "./importHost";
 import { IMPORT_PANE_HEIGHT } from "./ImportQueue";
 import {
   lastPlayedText,
@@ -50,6 +42,7 @@ export function ImportGameDetail({
   /** The game to show after this one is skipped. */
   nextToDecide: string | null;
 }) {
+  const actions = useImportActions();
   const { game } = row;
   const id = game.externalId;
   const lastPlayed = lastPlayedText(game);
@@ -148,6 +141,7 @@ export function ImportGameDetail({
             {offersWrongGame && !replacing ? (
               <button
                 type="button"
+                data-tour="import-wrong-game"
                 onClick={() => setDoubted(true)}
                 className="mt-3 rounded text-sm font-semibold text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
               >
@@ -165,7 +159,7 @@ export function ImportGameDetail({
               {t("Skipped for now")}
               <button
                 type="button"
-                onClick={() => unskipImportGame(id)}
+                onClick={() => actions.unskip(id)}
                 className="rounded font-semibold text-accent-ink hover:underline"
               >
                 {t("Decide now")}
@@ -233,7 +227,8 @@ function DecisionActions({
   /** The game to show after this one is skipped or imported. */
   nextToDecide: string | null;
 }) {
-  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
+  const actions = useImportActions();
+  const { ignoredProcesses } = useImportLibrary();
   const { game } = row;
   const id = game.externalId;
   const requiresFile = requiresExecutableChoice(
@@ -247,7 +242,7 @@ function DecisionActions({
     (!requiresFile || Boolean(session.manualExecutables[id]));
   return (
     <div className="flex min-w-0 shrink-0 flex-wrap justify-end gap-2 border-t border-border px-5 py-3">
-      <Button variant="ghost" onClick={() => skipImportGame(id, nextToDecide)}>
+      <Button variant="ghost" onClick={() => actions.skip(id, nextToDecide)}>
         {t("Skip for now")}
       </Button>
       <Button
@@ -255,6 +250,7 @@ function DecisionActions({
         icon={Download}
         loading={session.importing.has(id)}
         disabled={!canImport}
+        data-tour="import-game-import"
         onClick={() => {
           const { movedOn } = session;
           if (
@@ -262,7 +258,7 @@ function DecisionActions({
             Date.now() - movedOn.at < MOVED_ON_CLICK_PAUSE_MS
           )
             return;
-          void importOneGame(id, nextToDecide);
+          actions.importOne(id, nextToDecide);
         }}
       >
         {t("Import")}
@@ -282,6 +278,8 @@ function ImportDecision({
   /** "Wrong game?" is open on a matched game. */
   replacing: boolean;
 }) {
+  const actions = useImportActions();
+  const sample = useIsSampleImport();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const profile = importProfile(session.providerId);
   const { game } = row;
@@ -290,26 +288,27 @@ function ImportDecision({
   const pickedId = row.needsGame ? pick?.id : undefined;
   // Asked as soon as the game is shown, so Import does not wait for the server.
   useEffect(() => {
-    if (pickedId !== undefined) void lookUpPickedGame(pickedId);
-  }, [pickedId]);
+    if (pickedId !== undefined) actions.lookUpPickedGame(pickedId);
+  }, [actions, pickedId]);
   const launcherTitle = game.name ?? row.title;
   const candidates = session.choices[id] ?? row.resolved?.candidates ?? [];
   return (
     <div className="grid gap-5 rounded-xl border border-accent/30 bg-surface-hover/40 p-4">
       {row.needsGame ? (
-        <section>
+        <section data-tour="import-pick-game">
           <h4 className="mb-2.5 text-sm font-semibold text-text">
             {t("Which game is “{{title}}”?", { title: launcherTitle })}
           </h4>
           <GameMatchPicker
             key={id}
+            practice={sample}
             title={launcherTitle}
             candidates={candidates}
             selectedId={pick?.igdbId ?? null}
-            onSelect={(choice) => pickImportGame(id, choice)}
-            onResults={(games) => setImportChoices(id, games)}
+            onSelect={(choice) => actions.pickGame(id, choice)}
+            onResults={(games) => actions.setChoices(id, games)}
             search={(query, signal) =>
-              searchLibraryGames(apiEndpoint, query, {
+              actions.searchGames(apiEndpoint, query, {
                 signal,
                 mainGamesAndRemastersOnly: profile.mainGamesOnlySearch,
               })
@@ -352,14 +351,16 @@ function MatchReplacement({
   session: ImportSession;
   row: ImportRow;
 }) {
+  const actions = useImportActions();
+  const sample = useIsSampleImport();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const profile = importProfile(session.providerId);
   const id = row.game.externalId;
   const pickedId = row.replacement?.id;
   // Asked as soon as it is picked, so Import does not wait for the server.
   useEffect(() => {
-    if (pickedId !== undefined) void lookUpPickedGame(pickedId);
-  }, [pickedId]);
+    if (pickedId !== undefined) actions.lookUpPickedGame(pickedId);
+  }, [actions, pickedId]);
   const matched = row.resolved?.game;
   if (!matched) return null;
   const launcherTitle = row.game.name ?? matched.name;
@@ -370,6 +371,7 @@ function MatchReplacement({
         {t("Which game is “{{title}}”?", { title: launcherTitle })}
       </h4>
       <GameMatchPicker
+        practice={sample}
         title={launcherTitle}
         candidates={[
           matched,
@@ -377,10 +379,10 @@ function MatchReplacement({
         ]}
         matchedId={matched.igdbId}
         selectedId={row.replacement?.igdbId ?? matched.igdbId ?? null}
-        onSelect={(choice) => replaceImportMatch(id, choice)}
-        onResults={(games) => setReplacementChoices(id, games)}
+        onSelect={(choice) => actions.replaceMatch(id, choice)}
+        onResults={(games) => actions.setReplacementChoices(id, games)}
         search={(query, signal) =>
-          searchLibraryGames(apiEndpoint, query, {
+          actions.searchGames(apiEndpoint, query, {
             signal,
             mainGamesAndRemastersOnly: profile.mainGamesOnlySearch,
           })
@@ -398,7 +400,8 @@ function FileQuestion({
   session: ImportSession;
   row: ImportRow;
 }) {
-  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
+  const actions = useImportActions();
+  const { ignoredProcesses } = useImportLibrary();
   const id = row.game.externalId;
   const candidates = importExeCandidates(
     row.game.executables,
@@ -417,7 +420,7 @@ function FileQuestion({
       ? [browsed, ...candidates]
       : candidates;
   return (
-    <section>
+    <section data-tour="import-pick-file">
       <h4 className="mb-2.5 text-sm font-semibold text-text">
         {t("Which file starts the game?")}
       </h4>
@@ -425,8 +428,8 @@ function FileQuestion({
         gameName={row.title}
         options={options}
         value={session.manualExecutables[id]}
-        onPick={(relativePath) => pickGameFile(id, relativePath)}
-        onBrowse={() => void browseGameFile(id)}
+        onPick={(relativePath) => actions.pickFile(id, relativePath)}
+        onBrowse={() => actions.browseFile(id)}
         browsing={session.browsing === id}
       />
     </section>

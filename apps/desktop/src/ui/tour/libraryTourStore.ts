@@ -7,8 +7,6 @@ import {
 import type { Toast } from "../../store";
 import { TOUR_DEMO_GAME } from "./tourDemoGame";
 
-export const LIBRARY_TOUR_GRID_COLUMNS = 3;
-
 export const LIBRARY_TOUR_GAME = {
   ...TOUR_DEMO_GAME,
   gameName: TOUR_DEMO_GAME.name,
@@ -52,14 +50,18 @@ export function createLibraryTourStore(
       ).toISOString(),
       durationSeconds,
     })),
+    // My Games as it looks before anyone customized it, whatever the
+    // player's own library is set to.
     settings: {
       ...settings,
-      libraryGridColumns: LIBRARY_TOUR_GRID_COLUMNS,
+      libraryCardSize: "grid",
+      libraryGridColumns: null,
       libraryShowShelves: true,
       libraryShowOriginBadges: true,
       libraryShowMatchBadges: true,
       libraryShowStatusBadges: true,
       libraryShowNoteBadges: true,
+      libraryShowTierBadges: true,
       libraryShowTrackingWarnings: true,
     },
     notice: null,

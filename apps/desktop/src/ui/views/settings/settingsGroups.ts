@@ -33,13 +33,17 @@ export function availableSettingsGroups() {
   return SETTINGS_GROUP_IDS.filter(settingsGroupAvailable);
 }
 
-// Controls inside an available group that only Windows shows.
+// Controls inside an available group that only Windows shows. Each entry is
+// the start of a name: "settings-watch-folders" covers the row, its Add
+// folder button, a watched folder, its Remove button and the dismissed list.
 const WINDOWS_ONLY_TOUR_ANCHORS = [
   "settings-auto-add",
   "settings-watch-folders",
-  "settings-watch-folders-add",
-  "settings-watch-folders-dismissed",
+  "settings-row-controllerCounting",
 ];
+
+// Shown on a Mac, but switched off there: the hotkeys that need an overlay.
+const NOT_ON_MACOS_TOUR_ANCHORS = ["settings-section-playing"];
 
 /** Whether a Quick Tour step that opens `group` finds its control on this
  *  computer. The tour asks before it opens the group, so it can't look. */
@@ -48,13 +52,11 @@ export function settingsTourAnchorAvailable(
   anchor: string | undefined,
 ) {
   if (!settingsGroupAvailable(group)) return false;
-  if (
-    anchor &&
-    currentPlatform() !== "windows" &&
-    WINDOWS_ONLY_TOUR_ANCHORS.some((name) =>
-      anchor.includes(`data-tour="${name}"`),
-    )
-  )
-    return false;
+  if (!anchor) return true;
+  const names = (list: string[]) =>
+    list.some((name) => anchor.includes(`data-tour="${name}`));
+  const platform = currentPlatform();
+  if (platform !== "windows" && names(WINDOWS_ONLY_TOUR_ANCHORS)) return false;
+  if (platform === "macos" && names(NOT_ON_MACOS_TOUR_ANCHORS)) return false;
   return true;
 }

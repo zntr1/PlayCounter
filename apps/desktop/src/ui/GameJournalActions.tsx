@@ -97,12 +97,17 @@ export function GameJournalMenu({
         label={t("Status")}
         icon={CircleDot}
         mark={
-          journal.status ? <GameStatusIcon status={journal.status} /> : undefined
+          journal.status ? (
+            <GameStatusIcon status={journal.status} />
+          ) : undefined
         }
+        dataTour={practice ? "demo-menu-status" : undefined}
+        menuDataTour={practice ? "demo-status-menu" : undefined}
       >
         {GAME_STATUS_LIST.map((status) => (
           <ContextMenuItem
             key={status}
+            dataTour={practice ? `demo-status-${status}` : undefined}
             selected={journal.status === status}
             onClick={() => {
               onClose();
@@ -118,6 +123,7 @@ export function GameJournalMenu({
         ))}
         {journal.status ? (
           <ContextMenuItem
+            dataTour={practice ? "demo-menu-clear-status" : undefined}
             icon={X}
             onClick={() => {
               onClose();
@@ -137,11 +143,12 @@ export function GameJournalMenu({
       >
         <GameTierMenuItems game={game} onClose={onClose} />
       </ContextMenuSubmenu>
-      {showShelves && (handShelves.length || !practice) ? (
+      {showShelves ? (
         // A game can sit on several shelves: a pick adds or removes one.
         <ContextMenuSubmenu
           label={t("Shelves")}
           icon={FolderHeart}
+          dataTour={practice ? "demo-menu-shelves" : undefined}
           menuDataTour={practice ? "demo-shelf-menu" : undefined}
         >
           {handShelves.map((shelf) => {
@@ -149,6 +156,7 @@ export function GameJournalMenu({
             return (
               <ContextMenuItem
                 key={shelf.id}
+                dataTour={practice ? `demo-shelf-${shelf.id}` : undefined}
                 icon={shelfHides(shelf) ? EyeOff : FolderHeart}
                 selected={member}
                 onClick={() => {
@@ -166,21 +174,17 @@ export function GameJournalMenu({
               </ContextMenuItem>
             );
           })}
-          {/* The guide makes its shelf from the shelf row. */}
-          {practice ? null : (
-            <>
-              {handShelves.length ? <ContextMenuSeparator /> : null}
-              <ContextMenuItem
-                icon={Plus}
-                onClick={() => {
-                  onClose();
-                  openNewShelf(game);
-                }}
-              >
-                {t("New shelf")}
-              </ContextMenuItem>
-            </>
-          )}
+          {handShelves.length ? <ContextMenuSeparator /> : null}
+          <ContextMenuItem
+            dataTour={practice ? "demo-menu-new-shelf" : undefined}
+            icon={Plus}
+            onClick={() => {
+              onClose();
+              openNewShelf(game);
+            }}
+          >
+            {t("New shelf")}
+          </ContextMenuItem>
         </ContextMenuSubmenu>
       ) : null}
     </>
@@ -251,6 +255,7 @@ export function GameTierMenuItems({
       ))}
       {journal.tier ? (
         <ContextMenuItem
+          dataTour={practice ? "demo-menu-clear-tier" : undefined}
           icon={X}
           onClick={() => {
             onClose();

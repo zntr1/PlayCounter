@@ -721,5 +721,10 @@
   "{{name}} now uses the selected banner.": "{{name}} now uses the selected banner.",
   "Banner update failed": "Banner update failed",
   "Copy an image, then try Paste banner again.": "Copy an image, then try Paste banner again.",
-  "Paste banner failed": "Paste banner failed"
+  "Paste banner failed": "Paste banner failed",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "Sample: nothing was changed. “{{entry}}” works on your own games.",
+  "Sample renamed to {{name}}. Nothing was saved.": "Sample renamed to {{name}}. Nothing was saved.",
+  "Match applied to the sample. Nothing was saved to your library.": "Match applied to the sample. Nothing was saved to your library.",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "Sample timer stopped after {{time}}. On your own games that time becomes a session."
 }

@@ -52,7 +52,10 @@ import { appLocale, applyFormats, applyLanguage } from "../../i18n";
 import { openKeyboardShortcuts } from "../openSettings";
 import { tours } from "../tour/tourDefinitions";
 import { nextStepIndex } from "../tour/tourNavigation";
-import type { SettingsGroupId } from "./settings/settingsGroups";
+import {
+  settingsTourAnchorAvailable,
+  type SettingsGroupId,
+} from "./settings/settingsGroups";
 import type { LibraryImportEntry } from "../../library/types";
 
 let container: HTMLDivElement;
@@ -624,9 +627,19 @@ describe("Quick Tour steps open the group they point into", () => {
     }));
     const missing: string[] = [];
     for (const { tour, step } of settingsSteps()) {
-      await renderSettings(step.settingsGroup);
+      // With its guide running: a guide may show a sample (a watched folder).
+      await act(async () => {
+        useAppStore.getState().startTour(tour);
+        useAppStore.getState().goToTourStep(
+          tours()
+            .find((entry) => entry.id === tour)!
+            .steps.findIndex((entry) => entry.id === step.id),
+        );
+      });
+      await renderSettings();
       if (!document.querySelector(step.anchor!))
         missing.push(`${tour}/${step.id} → ${step.anchor}`);
+      await act(async () => useAppStore.getState().endTour("dismissed"));
     }
     expect(missing).toEqual([]);
   });
@@ -646,11 +659,87 @@ describe("Quick Tour steps open the group they point into", () => {
     mocks.platform.value = "windows";
     expect(
       guide.steps[nextStepIndex(guide.steps, from, 1, nothingOnScreen)].id,
-    ).toBe("notifications");
+    ).toBe("play");
+    // While you play, Desktop popups and Game launching don't exist there.
     mocks.platform.value = "macos";
     expect(
       guide.steps[nextStepIndex(guide.steps, from, 1, nothingOnScreen)].id,
-    ).toBe("emulators");
+    ).toBe("sharing");
+  });
+
+  it("skips a step whose row or section this computer doesn't use", () => {
+    const anchor = (name: string) => `[data-tour="${name}"]`;
+    mocks.platform.value = "windows";
+    for (const name of [
+      "settings-watch-folders-folder",
+      "settings-watch-folders-remove",
+      "settings-auto-add",
+      "settings-section-playing",
+    ])
+      expect(
+        settingsTourAnchorAvailable(
+          name === "settings-section-playing" ? "shortcuts" : "library",
+          anchor(name),
+        ),
+        name,
+      ).toBe(true);
+    // Watched folders and new launcher installs are Windows only.
+    mocks.platform.value = "linux";
+    expect(
+      settingsTourAnchorAvailable(
+        "library",
+        anchor("settings-watch-folders-remove"),
+      ),
+    ).toBe(false);
+    expect(
+      settingsTourAnchorAvailable("library", anchor("settings-page-head")),
+    ).toBe(true);
+    expect(
+      settingsTourAnchorAvailable(
+        "shortcuts",
+        anchor("settings-section-playing"),
+      ),
+    ).toBe(true);
+    // On a Mac the keys for playing are listed, but switched off.
+    mocks.platform.value = "macos";
+    expect(
+      settingsTourAnchorAvailable(
+        "shortcuts",
+        anchor("settings-section-playing"),
+      ),
+    ).toBe(false);
+    expect(
+      settingsTourAnchorAvailable(
+        "shortcuts",
+        anchor("settings-row-showWindowHotkey"),
+      ),
+    ).toBe(true);
+  });
+
+  it("gives every row and every section a name a guide can ring", async () => {
+    await renderSettings("shortcuts");
+    expect(
+      [...container.querySelectorAll("section[data-tour]")].map((section) =>
+        section.getAttribute("data-tour"),
+      ),
+    ).toEqual([
+      "settings-section-app",
+      "settings-section-playing",
+      "settings-section-counters",
+      "settings-section-screenshots",
+    ]);
+    expect(
+      container
+        .querySelector('[data-row="pauseTimerHotkey"]')
+        ?.getAttribute("data-tour"),
+    ).toBe("settings-row-pauseTimerHotkey");
+    // A row that had its own name keeps it.
+    await click(menuItem("Discovery"));
+    expect(
+      container
+        .querySelector('[data-row="shareIgnoredApps"]')
+        ?.getAttribute("data-tour"),
+    ).toBe("settings-sharing");
   });
 });
 

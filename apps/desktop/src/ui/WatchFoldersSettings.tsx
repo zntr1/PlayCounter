@@ -4,6 +4,7 @@ import { chooseWatchFolder } from "../library/watchFolders";
 import {
   readWatchFolders,
   removeWatchFolder,
+  type WatchFolderRecord,
 } from "../library/watchFolderState";
 import { useAppStore } from "../store";
 import { restoreDismissedWatchFolder } from "../tracker";
@@ -16,6 +17,18 @@ import {
 
 const t = getT("settings");
 
+// What the guide "Watch folders for new games" shows in place of the player's
+// own folders, so every control it names is on screen. Its buttons do nothing.
+const TOUR_SAMPLE: WatchFolderRecord = {
+  folders: ["D:\\Games"], // i18n-exempt: sample folder
+  seen: {},
+  pending: {},
+  dismissed: [
+    // i18n-exempt: sample folder
+    { folderPath: "D:\\Games\\Old Demo", exeName: "demo.exe" },
+  ],
+};
+
 /** Folders PlayCounter watches for games that no launcher knows about. */
 export function WatchFoldersSettings({
   level = 0,
@@ -25,9 +38,14 @@ export function WatchFoldersSettings({
     (state) => state.settings.rememberLaunchPaths !== false,
   );
   const addToast = useAppStore((state) => state.addToast);
-  const [record, setRecord] = useState(readWatchFolders);
+  const sample = useAppStore(
+    (state) => state.activeTour?.tourId === "watch-folders",
+  );
+  const [ownRecord, setRecord] = useState(readWatchFolders);
+  const record = sample ? TOUR_SAMPLE : ownRecord;
 
   async function addFolder() {
+    if (sample) return;
     try {
       const next = await chooseWatchFolder();
       if (next) setRecord(next);
@@ -99,6 +117,7 @@ export function WatchFoldersSettings({
                 {record.folders.map((folder) => (
                   <li
                     key={folder}
+                    data-tour="settings-watch-folders-folder"
                     className="flex items-center gap-3 border-border/60 bg-bg/35 py-1.5 pl-3 pr-2 [&:not(:first-child)]:border-t"
                   >
                     <FolderOpen
@@ -113,11 +132,14 @@ export function WatchFoldersSettings({
                       {folder}
                     </span>
                     <Button
+                      data-tour="settings-watch-folders-remove"
                       variant="ghost"
                       icon={Trash2}
                       className="h-[30px] px-2.5 text-[13px]"
                       aria-label={t("Stop watching {{folder}}", { folder })}
-                      onClick={() => setRecord(removeWatchFolder(folder))}
+                      onClick={() => {
+                        if (!sample) setRecord(removeWatchFolder(folder));
+                      }}
                     >
                       {t("Remove")}
                     </Button>
@@ -150,12 +172,13 @@ export function WatchFoldersSettings({
                         icon={RotateCcw}
                         className="h-[30px] px-2.5 text-[13px]"
                         aria-label={t("Restore {{path}}", { path })}
-                        onClick={() =>
+                        onClick={() => {
+                          if (sample) return;
                           void restoreDismissedWatchFolder(
                             path,
                             exeName,
-                          ).finally(() => setRecord(readWatchFolders()))
-                        }
+                          ).finally(() => setRecord(readWatchFolders()));
+                        }}
                       >
                         {t("Restore")}
                       </Button>

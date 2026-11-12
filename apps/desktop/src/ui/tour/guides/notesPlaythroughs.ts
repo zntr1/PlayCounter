@@ -1,14 +1,14 @@
 import { NotebookPen } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, libraryTourCard } from "./shared";
+import { a, libraryTourCard, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
 
 export function notesPlaythroughsGuide(): TourDefinition {
   return {
     id: "notes-playthroughs",
-    version: 2,
+    version: 3,
     kind: "guide",
     category: "library",
     icon: NotebookPen,
@@ -16,34 +16,30 @@ export function notesPlaythroughsGuide(): TourDefinition {
     description: t(
       "Write a note, start a new playthrough, and move a session into it.",
     ),
-    duration: t("3 min"),
+    duration: t("4 min"),
     practice: true,
     finishView: "games",
-    release: "1.1.17",
+    release: NEXT_RELEASE,
     nextTourId: "organize-library",
     steps: [
-      {
-        id: "intro",
-        view: "games",
-        anchor: a("demo-library-cards"),
-        title: t("Remember where you left off"),
-        body: t(
-          "Every game has a journal: a note, playthroughs, and the sessions that belong to each playthrough. Practice with the sample World of Warcraft card below. Everything you change here is thrown away when the guide ends. Your own games are not touched.",
-        ),
-      },
       {
         id: "open-journal",
         view: "games",
         anchor: libraryTourCard,
         anchorTargets: [a("demo-menu-journal")],
         interactive: true,
-        allow: [libraryTourCard, a("demo-library-menu")],
+        manualAdvance: true,
+        allow: [
+          libraryTourCard,
+          a("demo-library-menu"),
+          a("demo-context-menu"),
+        ],
         advanceOn: { type: "anchor-present", selector: a("demo-journal") },
-        skipTo: "note",
-        title: t("Right-click World of Warcraft"),
+        title: t("Open a game's journal"),
         body: t(
-          "Choose Journal. Later you can also open it with the Journal button that appears when you point at a game's cover, or by clicking the note icon on the cover.",
+          "Every game has a journal for notes and playthroughs. This is a sample card: nothing is saved, and your own games stay as they are.",
         ),
+        task: t("Right-click the card and choose <b>Journal</b>."),
         keyboardHint: t("Keyboard: focus the card and press Shift+F10."),
       },
       {
@@ -57,7 +53,10 @@ export function notesPlaythroughsGuide(): TourDefinition {
         allow: [a("demo-journal-note")],
         title: t("Write a note for next time"),
         body: t(
-          "Type something like “Finish the Westfall quests, then head to Stormwind.” Click Save note, or simply click somewhere else: the note is saved either way, and the guide moves on. This note belongs to Default playthrough, the playthrough every game starts with.",
+          "This note belongs to <b>Default playthrough</b>, the one every game starts with. Clicking somewhere else saves it too.",
+        ),
+        task: t(
+          "Type where you stopped, for example “Finish the Westfall quests”, and click <b>Save note</b>.",
         ),
       },
       {
@@ -71,25 +70,45 @@ export function notesPlaythroughsGuide(): TourDefinition {
         allow: [a("demo-new-playthrough")],
         title: t("Start a new playthrough"),
         body: t(
-          "Click Add playthrough under the list, type a name such as “Speedrun” and press Enter. Each playthrough gets its own note, its own playtime, and its own list of sessions. Everything you played before stays in Default playthrough.",
+          "Each playthrough has its own note, playtime and sessions. What you played before stays in <b>Default playthrough</b>.",
+        ),
+        task: t(
+          "Click <b>Add playthrough</b>, type a name such as “Speedrun” and press <kbd>Enter</kbd>.",
         ),
       },
       {
         id: "active-run",
         view: "games",
-        anchor: a("demo-playthrough-active"),
-        additionalAnchors: [a("demo-note-input")],
+        // Default playthrough in the list, then Make active once it is open.
+        anchor: `${a("demo-playthrough-list")} [role="option"]:first-child`,
+        anchorTargets: [`${a("demo-playthrough-active")}:not(:disabled)`],
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
-        allow: [
-          a("demo-playthrough-list"),
-          a("demo-playthrough-actions"),
-          a("demo-journal-note"),
-        ],
+        allow: [a("demo-playthrough-list"), a("demo-playthrough-actions")],
         title: t("Choose where new sessions go"),
         body: t(
-          "The playthrough marked Active is where your next sessions are counted. A new playthrough becomes active right away. Click any playthrough in the list to look at it, and use Make active to switch. Now write a note for your new playthrough. Each playthrough keeps its own note; the note from Default playthrough is not copied over.",
+          "New sessions count towards the playthrough marked <b>Active</b>. A new playthrough becomes active right away.",
+        ),
+        task: t(
+          "Click <b>Default playthrough</b> in the list, then <b>Make active</b>.",
+        ),
+      },
+      {
+        id: "run-note",
+        view: "games",
+        anchor: a("demo-note-input"),
+        additionalAnchors: [a("demo-note-save")],
+        interactive: true,
+        manualAdvance: true,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        allow: [a("demo-journal-note")],
+        title: t("Give the playthrough its own note"),
+        body: t(
+          "Each playthrough keeps its own note. The note of <b>Default playthrough</b> is not copied over.",
+        ),
+        task: t(
+          "Write a line for your new playthrough and click <b>Save note</b>.",
         ),
       },
       {
@@ -108,9 +127,30 @@ export function notesPlaythroughsGuide(): TourDefinition {
           a("demo-playthrough-list"),
           a("demo-library-menu"),
         ],
-        title: t("Move an earlier session into your new playthrough"),
+        title: t("Move a session to your playthrough"),
         body: t(
-          "We switched to Default playthrough so you can see its sessions. Every session has a playthrough label on the right. Click the label on a sample session and choose the playthrough you created. The session and its playtime move over, and the game's total stays the same. The same label is available on every session in My History.",
+          "Each session shows its playthrough. Moving a session moves its playtime; the game's total stays the same. My History shows the label once a game has a second playthrough.",
+        ),
+        task: t(
+          "Click <b>Default playthrough</b> on a session and pick the playthrough you created.",
+        ),
+      },
+      {
+        id: "session-note",
+        view: "games",
+        anchor: a("demo-playthrough-sessions"),
+        // The open note, then the pen that opens it.
+        anchorTargets: [a("demo-session-note-editor"), a("demo-session-note")],
+        interactive: true,
+        manualAdvance: true,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        allow: [a("demo-playthrough-sessions")],
+        title: t("Write a note for one session"),
+        body: t(
+          "A session can carry its own note, the log entry for that evening. My History shows it under the session too.",
+        ),
+        task: t(
+          "Click <b>Add session note</b>, the pen on a session row, write a line and press <kbd>Enter</kbd>.",
         ),
       },
       {
@@ -124,29 +164,38 @@ export function notesPlaythroughsGuide(): TourDefinition {
         allow: [a("demo-playthrough-actions")],
         title: t("Finish a playthrough"),
         body: t(
-          "Click Mark finished. The playthrough keeps its note and sessions, so you can look them up any time. If it was the active playthrough, new sessions go back to Default playthrough until you make another one active. Finishing a playthrough does not change the game's progress status; you set that separately.",
+          "A finished playthrough keeps its note and sessions. If it was active, new sessions go to <b>Default playthrough</b> again. The game's progress status does not change.",
         ),
+        task: t("Click <b>Mark finished</b>."),
       },
       {
         id: "popups",
         view: "games",
-        anchor: a("demo-popup-preview"),
-        anchorTargets: [a("demo-note-input")],
+        anchor: a("demo-popup-session-notes"),
+        // The note box, then the button that opens it, once they are there.
+        anchorTargets: [
+          a("demo-popup-note-box"),
+          `${a("demo-popup-saved")} .desktop-overlay-action`,
+        ],
         interactive: true,
         manualAdvance: true,
-        allow: [a("demo-library-stage"), a("demo-library-modal")],
-        title: t("Preview your note in desktop popups"),
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        allow: [a("demo-popup-preview")],
+        title: t("Take notes from the popup"),
         body: t(
-          "Turn on Notes in game-start popups to preview the active playthrough's note. Playthrough names is a separate switch. Choose Session saved, turn on Session notes in popups, and try the button. In the real popup it opens a small box for a note about that session; here it opens the sample journal. All three real preferences are independent and off by default.",
+          "A popup can show your note when a game starts and offer a note box when a session is saved. The real switches are in Settings under Desktop popups, and off until you turn them on.",
+        ),
+        task: t(
+          "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the popup and write a line.",
         ),
       },
       {
         id: "finish",
         view: "games",
-        anchor: a("demo-library-cards"),
-        title: t("Use notes in your own games"),
+        anchor: libraryTourCard,
+        title: t("Use it with your own games"),
         body: t(
-          "When you start one of your own games, Now Playing shows the note of its active playthrough. In Settings → Desktop popups, turn on Notes in game-start popups to see it in the popup as well. Turn on Session notes in popups to add a button to saved-session popups so you can write down what happened. Both options are off by default. Under Keyboard shortcuts you can also set a Quick session note hotkey. Replay this guide any time from ? Help.",
+          "In My Games, right-click a game and choose <b>Journal</b>. While you play, Now Playing shows the active playthrough's note, and a hotkey from Settings opens a quick session note.",
         ),
       },
     ],

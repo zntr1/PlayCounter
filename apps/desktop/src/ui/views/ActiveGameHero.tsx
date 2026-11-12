@@ -71,12 +71,14 @@ type ActiveGameHeroProps = {
   onReport?: () => void;
   /** Only for a timer: Stop sits next to its clock. */
   onStopTimer?: () => void;
-  /** Pause / Resume next to the clock; absent on tour cards. */
+  /** Pause / Resume next to the clock. */
   onTogglePause?: () => void;
   /** How long the running pause has lasted, while paused. */
   pausedForSeconds?: number;
   /** The game's counters under the figures; absent on tour cards. */
   showCounters?: boolean;
+  /** A guide's sample session: its name for a ring. The clock box, Pause
+   *  and Stop then carry `demo-session-…` names of their own. */
   tourAnchor?: string;
 };
 
@@ -434,7 +436,10 @@ export function ActiveGameHero({
       </div>
 
       <div className="active-hero-figures relative mx-7 mb-7 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] divide-x divide-border/60 rounded-xl border border-border/60">
-        <div className="px-6 py-4">
+        <div
+          className="px-6 py-4"
+          data-tour={tourAnchor ? "demo-session-clock" : undefined}
+        >
           <div className="flex items-center justify-between gap-3">
             <FigureLabel icon={Play}>{t("This session")}</FigureLabel>
             {paused ? (
@@ -467,6 +472,7 @@ export function ActiveGameHero({
                         })
                   }
                   title={paused ? t("Resume") : t("Pause")}
+                  data-tour={tourAnchor ? "demo-session-pause" : undefined}
                   onClick={onTogglePause}
                   className={
                     paused
@@ -488,6 +494,7 @@ export function ActiveGameHero({
                     gameName: session.gameName,
                   })}
                   title={t("Stop")}
+                  data-tour={tourAnchor ? "demo-session-stop" : undefined}
                   onClick={onStopTimer}
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-danger/50 bg-danger/10 text-danger transition hover:border-danger-solid hover:bg-danger-solid hover:text-white hover:shadow-[0_0_18px_rgb(var(--color-danger-solid)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
                 >

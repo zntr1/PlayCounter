@@ -1,14 +1,17 @@
 import { ListChecks } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { a, gtaTourCard, libraryTourCard, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
+
+// The practice card's menu.
+const cardMenu = [a("demo-library-menu"), a("demo-context-menu")];
 
 export function libraryProgressGuide(): TourDefinition {
   return {
     id: "library-progress",
-    version: 2,
+    version: 3,
     kind: "guide",
     category: "library",
     icon: ListChecks,
@@ -19,16 +22,17 @@ export function libraryProgressGuide(): TourDefinition {
     duration: t("3 min"),
     practice: true,
     finishView: "games",
-    release: "1.1.17",
+    release: NEXT_RELEASE,
     nextTourId: "rate-games",
     steps: [
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-library-cards"),
+        anchor: libraryTourCard,
+        additionalAnchors: [gtaTourCard],
         title: t("Track what you want to play next"),
         body: t(
-          "A progress status is your own label for a game: In progress, On hold, Finished, Want to play, and more. It has nothing to do with whether the game is running right now. This guide uses sample cards and temporary settings; your library and preferences stay unchanged.",
+          "A progress status is your own label for a game: In progress, On hold, Finished, Want to play and more. These are sample games and sample settings: nothing is saved.",
         ),
       },
       {
@@ -42,42 +46,28 @@ export function libraryProgressGuide(): TourDefinition {
         allow: [a("demo-organization")],
         title: t("Find games without a status"),
         body: t(
-          "We opened Filters. Under Progress, choose No status to show only games that have no status yet. Both sample games start without one. In your own library, narrow the view with search, a shelf, or filters first, so you only select the games you really want to change.",
+          "We opened <b>Filters</b>. Narrow the view first, so you only change the games you mean. Both sample games start without a status.",
         ),
+        task: t("Under <b>Progress</b>, choose <b>No status</b>."),
       },
       {
         id: "select",
         view: "games",
         anchor: a("demo-library-select"),
-        interactive: true,
-        allow: [a("demo-library-stage")],
-        advanceOn: {
-          type: "anchor-present",
-          selector: a("demo-bulk-actions"),
-        },
-        skipTo: "select-games",
-        title: t("Turn on selection"),
-        body: t(
-          "Click Select. A checkbox appears on every card so you can pick several games at once. The guide continues as soon as selection is on.",
-        ),
-      },
-      {
-        id: "select-games",
-        view: "games",
-        anchor: a("demo-library-select"),
+        // The next card to tick, then the count once both are ticked.
         anchorTargets: [
           `${a("demo-library-cards")} [role="checkbox"][aria-checked="false"]`,
           a("demo-bulk-count"),
         ],
-        additionalAnchors: [`${a("demo-bulk-select-all")}:not(:disabled)`],
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [a("demo-library-stage")],
-        title: t("Select a few games or all of them"),
+        title: t("Select several games"),
         body: t(
-          "Click both sample cards to select them; the highlight moves on to the next card that is not selected yet. Shift-click selects everything between two cards. Select all results (or Ctrl/Cmd+A) selects every game in the current view. Changing the search, shelf, or filters clears your selection.",
+          "In selection mode a click ticks a card. <kbd>Shift</kbd>-click takes everything in between, <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> every game in view.",
         ),
+        task: t("Click <b>Select</b>, then click both sample cards."),
       },
       {
         id: "apply",
@@ -94,23 +84,26 @@ export function libraryProgressGuide(): TourDefinition {
         allow: [a("demo-library-stage"), a("demo-library-menu")],
         title: t("Set their status together"),
         body: t(
-          "Click Set status and choose In progress. If you skipped the last step, both samples are selected for you. Clear status removes the status from the selected games.",
+          "The bar counts the selected games. <b>Clear status</b> in the same menu takes a status away again.",
         ),
+        task: t("Click <b>Set status</b> and choose <b>In progress</b>."),
       },
       {
-        id: "open-customize",
+        id: "status-menu",
         view: "games",
-        anchor: a("demo-customize-toggle"),
+        anchor: libraryTourCard,
+        anchorTargets: [a("demo-status-finished"), a("demo-menu-status")],
+        additionalAnchors: [gtaTourCard],
         interactive: true,
-        allow: [a("demo-library-stage")],
-        advanceOn: {
-          type: "anchor-present",
-          selector: a("demo-library-customize"),
-        },
-        skipTo: "customize",
-        title: t("Open the card options"),
+        manualAdvance: true,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        allow: [a("demo-library-stage"), ...cardMenu, a("demo-status-menu")],
+        title: t("Change one game from its menu"),
         body: t(
-          "Games with a status leave the No status view, so we cleared the filters and every sample game is back. Click Customize. This is where you set how many cards fit in a row and which details show on the covers.",
+          "A single game needs no selection: its right-click menu has the same statuses.",
+        ),
+        task: t(
+          "Right-click a card, open <b>Status</b> and choose <b>Finished</b>.",
         ),
       },
       {
@@ -121,10 +114,13 @@ export function libraryProgressGuide(): TourDefinition {
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
-        allow: [a("demo-library-stage")],
+        allow: [a("demo-library-stage"), a("demo-library-menu")],
         title: t("Choose how many cards fit in a row"),
         body: t(
-          "Move the Cards per row slider. The sample grid starts at three, with fewer columns in small windows. Fewer cards per row means bigger covers; more cards fit more games on screen. These are the same controls as Customize in My Games, but here they only change the practice library.",
+          "Fewer cards per row means bigger covers. <b>Standard cards</b> and <b>Large cards</b>, the buttons beside the gear, bring back their own layout.",
+        ),
+        task: t(
+          "Click the gear, <b>Customize</b>, and move the <b>Cards per row</b> slider.",
         ),
       },
       {
@@ -132,23 +128,26 @@ export function libraryProgressGuide(): TourDefinition {
         view: "games",
         anchor: a("demo-customize-toggle"),
         anchorTargets: [a("demo-show-status")],
-        additionalAnchors: [a("demo-show-notes"), a("demo-show-shelves")],
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
-        allow: [a("demo-library-stage")],
-        title: t("Choose which details to show"),
+        allow: [a("demo-library-stage"), a("demo-library-menu")],
+        title: t("Choose what the cards show"),
         body: t(
-          "Switch Status on cards or Notes on cards off and on again to watch the badges on the sample covers disappear and return. Shelves hides or shows the whole shelf row above the library. Hiding a badge only changes what you see; your statuses, notes, and shelves are kept.",
+          "Hiding a badge only changes what you see. Your statuses, notes and shelves are kept.",
+        ),
+        task: t(
+          "Switch <b>Status on cards</b> off and on again and watch the sample covers.",
         ),
       },
       {
         id: "finish",
         view: "games",
-        anchor: a("demo-library-cards"),
+        anchor: a("demo-library-select"),
+        additionalAnchors: [a("demo-customize-toggle")],
         title: t("Ready for your own library"),
         body: t(
-          "In My Games, use Select to change a batch of games at once, or right-click a single card and choose Journal. Choices you make in the real Customize panel are remembered the next time you open PlayCounter. Everything from this practice disappears when you finish.",
+          "In My Games, use <b>Select</b> for several games, or right-click one and open <b>Status</b>. What you set under <b>Customize</b> stays for the next start.",
         ),
       },
     ],

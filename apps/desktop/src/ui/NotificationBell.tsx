@@ -3,13 +3,19 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { IconButton } from "./primitives";
+import { findTour } from "./tour/tourDefinitions";
 import { getT } from "../i18n";
 
 const t = getT("shell");
 
 export function NotificationBell() {
+  // The guide "Find replies to your feedback": its first step points at the
+  // sidebar, every later one at a sample reply under the bell.
   const feedbackStep = useAppStore((s) =>
-    s.activeTour?.tourId === "feedback-replies" ? s.activeTour.stepIndex : null,
+    s.activeTour?.tourId === "feedback-replies"
+      ? (findTour("feedback-replies")?.steps[s.activeTour.stepIndex]?.id ??
+        null)
+      : null,
   );
   const demo = feedbackStep !== null;
   const [open, setOpen] = useState(false);
@@ -55,7 +61,7 @@ export function NotificationBell() {
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}
-      {(demo ? feedbackStep > 0 : open) ? (
+      {(demo ? feedbackStep !== "send" : open) ? (
         <NotificationsPanel
           demo={demo}
           onClose={() => {

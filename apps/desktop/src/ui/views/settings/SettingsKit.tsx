@@ -5,6 +5,7 @@ import type { DesktopOverlayKind } from "../../../desktopOverlays";
 import { getT } from "../../../i18n";
 import { cn } from "../../cn";
 import { Button } from "../../primitives";
+import { GuideLink } from "../../tour/GuideLink";
 
 const t = getT("settings");
 
@@ -21,13 +22,15 @@ const levelClass = (level: RowLevel, kind: "row" | "hint") =>
       ? `settings-${kind}-l2`
       : undefined;
 
-/** One group of Settings: its header, then its sections. */
+/** One group of Settings: its header, then its sections. `guide` is the
+ *  guide its "Show me how" link starts. */
 export function SettingsPage({
   group,
   icon: Icon,
   title,
   description,
   dataTour,
+  guide,
   foot,
   children,
 }: {
@@ -36,6 +39,7 @@ export function SettingsPage({
   title: string;
   description: string;
   dataTour?: string;
+  guide?: string;
   foot?: string;
   children: ReactNode;
 }) {
@@ -45,7 +49,10 @@ export function SettingsPage({
       data-tour={dataTour}
       className="settings-page grid gap-[18px]"
     >
-      <header className="flex items-start gap-3.5">
+      <header
+        data-tour="settings-page-head"
+        className="flex items-start gap-3.5"
+      >
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-accent-tint text-accent-ink ring-1 ring-inset ring-accent/25">
           <Icon size={20} aria-hidden="true" />
         </span>
@@ -57,6 +64,9 @@ export function SettingsPage({
             {description}
           </p>
         </div>
+        {guide ? (
+          <GuideLink tourId={guide} className="ml-auto mt-1 shrink-0" />
+        ) : null}
       </header>
       {children}
       {foot ? <SettingsNote>{foot}</SettingsNote> : null}
@@ -112,7 +122,8 @@ export function SettingsSection({
 }
 
 /** A setting: name and explanation on the left, its control on the right,
- *  anything longer (a list, a path, a warning) below. */
+ *  anything longer (a list, a path, a warning) below. A guide rings the row
+ *  as `settings-row-<id>`, unless the row has a name of its own. */
 export function SettingsRow({
   id,
   title,
@@ -137,7 +148,7 @@ export function SettingsRow({
   return (
     <div
       data-row={id}
-      data-tour={dataTour}
+      data-tour={dataTour ?? `settings-row-${id}`}
       className={cn(
         "settings-row",
         levelClass(level, "row"),

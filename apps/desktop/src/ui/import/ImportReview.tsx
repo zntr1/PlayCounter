@@ -17,12 +17,7 @@ import {
 } from "../../library/importGroups";
 import { importProfile } from "../../library/importProfiles";
 import {
-  importSelectedGames,
   selectableGameIds,
-  setGameSelected,
-  setGamesSelected,
-  showImportGame,
-  showImportGroup,
   type ImportSession,
 } from "../../library/importSession";
 import { useAppStore } from "../../store";
@@ -30,6 +25,7 @@ import { Panel } from "../components";
 import { Button } from "../primitives";
 import { ImportError } from "./ImportError";
 import { ImportGameDetail } from "./ImportGameDetail";
+import { useImportActions, useImportLibrary } from "./importHost";
 import { ImportQueue } from "./ImportQueue";
 import { importRows, type ImportRow } from "./importRows";
 import { ImportShelves } from "./ImportShelves";
@@ -42,8 +38,7 @@ const tc = getT("common");
 /** Rows of the scan, sorted onto the four shelves. Showing, checking or
  *  skipping a game leaves them as they are. */
 export function useImportGroups(session: ImportSession) {
-  const libraryImports = useAppStore((state) => state.libraryImports);
-  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
+  const { libraryImports, ignoredProcesses } = useImportLibrary();
   const { providerId, scan, resolved, saved, replacements, completed } =
     session;
   return useMemo(() => {
@@ -55,7 +50,10 @@ export function useImportGroups(session: ImportSession) {
       replacements,
       completed,
     };
-    const selectable = selectableGameIds(source);
+    const selectable = selectableGameIds(source, {
+      libraryImports,
+      ignoredProcesses,
+    });
     const rows = importRows(
       source,
       libraryImports,
@@ -112,7 +110,10 @@ export function ImportSourceBar({
     profile.choice === "accountOrInstalled" ||
     (profile.choice === "localAccounts" && session.accounts.length > 1);
   return (
-    <Panel className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+    <Panel
+      dataTour="import-source"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
+    >
       <LauncherLogo providerId={providerId} />
       <div className="min-w-0">
         <div className="font-semibold text-text">
@@ -164,7 +165,10 @@ function usePaneHeight(
   useLayoutEffect(() => {
     const root = rootRef.current;
     const panes = panesRef.current;
-    const content = root?.closest<HTMLElement>("[data-controller-content]");
+    // The app's content area, or the guide's sample of this page.
+    const content = root?.closest<HTMLElement>(
+      "[data-controller-content], [data-import-content]",
+    );
     if (!root || !panes || !content || typeof ResizeObserver === "undefined")
       return;
     const measure = () => {
@@ -203,7 +207,8 @@ export function ImportReview({
   onChange: () => void;
   onSignOut: () => void;
 }) {
-  const libraryImports = useAppStore((state) => state.libraryImports);
+  const actions = useImportActions();
+  const { libraryImports } = useImportLibrary();
   const rootRef = useRef<HTMLDivElement>(null);
   const panesRef = useRef<HTMLDivElement>(null);
   const paneHeight = usePaneHeight(rootRef, panesRef);
@@ -281,7 +286,7 @@ export function ImportReview({
       <ImportShelves
         groups={groups}
         active={group}
-        onSelect={showImportGroup}
+        onSelect={actions.showGroup}
       />
       <div
         ref={panesRef}
@@ -301,10 +306,10 @@ export function ImportReview({
           currentId={current?.game.externalId ?? null}
           selected={session.selected}
           skipped={session.skipped}
-          onShow={showImportGame}
-          onSelected={setGameSelected}
+          onShow={actions.showGame}
+          onSelected={actions.setGameSelected}
           onSelectAll={(checked) =>
-            setGamesSelected(
+            actions.setGamesSelected(
               shelf
                 .filter((row) => row.selectable)
                 .map((row) => row.game.externalId),
@@ -345,7 +350,8 @@ export function ImportReview({
             icon={group === "imported" ? RefreshCw : Download}
             loading={session.phase === "importing"}
             disabled={chosen.length === 0 || session.capability !== "supported"}
-            onClick={() => void importSelectedGames(chosen)}
+            onClick={() => actions.importSelected(chosen)}
+            data-tour="import-selected"
             className="px-5 py-2.5 text-[15px]"
           >
             {group === "imported"

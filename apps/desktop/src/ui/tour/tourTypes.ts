@@ -63,7 +63,19 @@ export type TourStep = {
   ownBackdrop?: boolean;
   /** Entering the step puts the Discovered sample back to its start. */
   resetsDiscoveredSample?: boolean;
+  /** The step needs the sample card's Details open on this tab. The card
+   *  opens it by itself, also when the step is reached by Skip, Back or a
+   *  click in the checklist (tourDemoDetails.ts). */
+  sampleDetails?: SampleDetailsTab;
 };
+
+/** The tabs of Game Details (DetailsTab in GameDetailsDialog.tsx). */
+export type SampleDetailsTab =
+  | "general"
+  | "achievements"
+  | "howLongToBeat"
+  | "files"
+  | "counters";
 
 export type TourDefinition = {
   id: string;

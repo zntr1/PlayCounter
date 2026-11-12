@@ -1,145 +1,171 @@
 import { SlidersHorizontal } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, sampleCardAllow, sampleCardDialogs } from "./shared";
+import { a, NEXT_RELEASE, sampleCardAllow } from "./shared";
 
 const t = getT("tour");
+
+/** Everything the sample card can open and a step may let the player touch:
+ *  the card, its menu with every flyout, and the dialogs behind them. */
+export const sampleCardSurfaces = [
+  ...sampleCardAllow,
+  a("demo-appearance-menu"),
+  a("demo-status-menu"),
+  a("demo-tier-menu"),
+  a("demo-shelf-menu"),
+];
+
+/** A step the player tries on the sample: it finishes once the entry it
+ *  rings was used, and "Skip step" only steps over this one. */
+const tryIt = {
+  view: "games",
+  anchor: a("demo-game-card"),
+  interactive: true,
+  manualAdvance: true,
+  allow: sampleCardSurfaces,
+  advanceOn: { type: "event", name: "demo.step-completed" },
+} as const;
 
 export function gameActionsGuide(): TourDefinition {
   return {
     id: "game-actions",
-    version: 4,
+    version: 5,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "library",
     icon: SlidersHorizontal,
     title: t("Manage a game in your library"),
     description: t(
-      "Practice history, playtime, matching, and removal actions.",
+      "Try a card's right-click menu on a sample: details, history, playtime, matching, removing.",
     ),
-    duration: t("2 min"),
+    duration: t("3 min"),
     demoGame: true,
     finishView: "games",
+    nextTourId: "log-playtime",
     steps: [
       {
         id: "intro",
         view: "games",
         anchor: a("demo-game-card"),
-        title: t("More actions for every game"),
+        title: t("A menu for every game"),
         body: t(
-          "Every card in My Games has a right-click menu. It's where you fix playtime, correct a wrong match, or get rid of a game.\n\nWe'll use a sample card, so nothing in your library can change.",
+          "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.",
         ),
       },
       {
+        ...tryIt,
         id: "open-menu",
-        view: "games",
-        interactive: true,
-        anchor: a("demo-game-card"),
-        allow: [a("demo-game-card")],
         advanceOn: {
           type: "anchor-present",
-          selector: a("demo-menu-show-history"),
+          selector: a("demo-context-menu"),
         },
-        skipTo: "history",
-        title: t("Right-click the sample card"),
+        title: t("Open the card's menu"),
         body: t(
-          "Which items you get depends on where the game came from. This sample is a community match, so you see what a matched game offers. A game you added yourself has a few different items.",
+          "Point at a cover and its <b>More</b> button opens the same menu.",
         ),
+        task: t("Right-click the sample card."),
       },
       {
+        ...tryIt,
         id: "details",
-        view: "games",
-        anchor: a("demo-game-card"),
-        anchorTargets: [a("demo-game-details"), a("demo-menu-details")],
-        interactive: true,
-        manualAdvance: true,
-        allow: [
-          a("demo-game-card"),
-          a("demo-context-menu"),
-          a("demo-library-modal"),
-          a("demo-library-menu"),
+        // The tab row once Details is open, not the whole dialog.
+        anchorTargets: [
+          `${a("demo-game-details")} [role="tablist"]`,
+          a("demo-menu-details"),
         ],
-        title: t("Look inside the game details"),
+        title: t("Open Details"),
         body: t(
-          "Choose Open Details and try General and Files. General brings together the game's information and playtime. Files separates known executable matches from saved local launch paths. A known filename alone does not mean the game is installed. This sample uses local data only.",
+          "<b>General</b> shows the game's facts and playtime. <b>Files</b> lists the game files PlayCounter tracks it by. <b>How long to beat</b> shows how long others needed.",
+        ),
+        task: t(
+          "Click <b>Open Details</b>, look through the tabs, then close the dialog.",
         ),
       },
       {
+        ...tryIt,
         id: "history",
-        view: "games",
-        anchor: a("demo-game-card"),
-        anchorTargets: [...sampleCardDialogs, a("demo-menu-show-history")],
-        interactive: true,
-        manualAdvance: true,
-        allow: sampleCardAllow,
-        title: t("See only this game's sessions"),
+        anchorTargets: [
+          a("demo-game-action-done"),
+          a("demo-menu-show-history"),
+        ],
+        title: t("Show History"),
         body: t(
-          "Try Show History to open sample sessions. In your library, it opens My History filtered to the game you chose.",
+          "On your own games this opens <b>My History</b> with only this game's sessions. The sample shows sample sessions.",
         ),
+        task: t("Click <b>Show History</b>, then <b>Done</b>."),
       },
       {
         id: "playtime",
         view: "games",
         anchor: a("demo-game-card"),
-        anchorTargets: [
-          ...sampleCardDialogs,
-          a("demo-playtime-menu"),
-          a("demo-menu-playtime"),
-        ],
+        anchorTargets: [a("demo-playtime-menu"), a("demo-menu-playtime")],
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardAllow,
-        title: t("Add playtime that's missing"),
+        allow: sampleCardSurfaces,
+        title: t("Three ways to fix playtime"),
         body: t(
-          "Open Playtime for two options: Log missed session adds one session with the date and length you enter. Adjust total playtime changes only the lifetime number - useful when you carry a total over from a launcher.",
+          "<b>Log missed session</b> adds one session to your history. <b>Adjust total playtime</b> sets the lifetime number. <b>Start timer</b> counts play on a console or another PC.",
         ),
       },
       {
+        ...tryIt,
         id: "matches",
-        view: "games",
-        anchor: a("demo-game-card"),
         anchorTargets: [
-          ...sampleCardDialogs,
+          a("demo-match-check-use"),
           a("demo-menu-check-matches"),
           a("demo-menu-matching"),
         ],
-        interactive: true,
-        manualAdvance: true,
-        allow: sampleCardAllow,
-        title: t("Look the game up again"),
+        title: t("Check for matches"),
         body: t(
-          "Open Matching and choose Check for Matches. This sample opens bundled results for you to review. In the real library, it checks IGDB and Community matches for the filename again; a custom game can become a matched game.",
+          "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.",
+        ),
+        task: t(
+          "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.",
         ),
       },
       {
+        ...tryIt,
         id: "wrong-match",
-        view: "games",
-        anchor: a("demo-game-card"),
         anchorTargets: [
-          ...sampleCardDialogs,
+          a("demo-action-result"),
           a("demo-menu-report-match"),
           a("demo-menu-matching"),
         ],
-        additionalAnchors: [a("demo-menu-convert-custom")],
-        interactive: true,
-        manualAdvance: true,
-        allow: sampleCardAllow,
-        title: t("Fix a wrong match"),
+        title: t("Report a wrong match"),
         body: t(
-          "Report Wrong Match starts a review of the correct game. Try the sample review; nothing is submitted. You can also try Convert to Custom Game and enter a name. The sample keeps its playtime and shows your custom name.",
+          "The report asks what the file really is: another game, an app, or a file that is not the game. For a game with several files it first asks which file.",
+        ),
+        task: t(
+          "Open <b>Matching</b>, click <b>Report Wrong Match</b> and pick an answer.",
         ),
       },
       {
+        ...tryIt,
+        id: "convert",
+        anchorTargets: [
+          a("demo-menu-convert-custom"),
+          a("demo-menu-matching"),
+        ],
+        title: t("Convert to a custom game"),
+        body: t(
+          "For a game file no database knows correctly: you name the game yourself. Its playtime stays, and the change is only on this PC.",
+        ),
+        task: t(
+          "Open <b>Matching</b>, click <b>Convert to Custom Game</b> and confirm the name.",
+        ),
+      },
+      {
+        // The last step is for reading; either entry can still be tried.
         id: "remove",
         view: "games",
         anchor: a("demo-game-card"),
-        anchorTargets: [...sampleCardDialogs, a("demo-menu-remove")],
-        additionalAnchors: [a("demo-menu-ignore")],
+        anchorTargets: [a("demo-action-result"), a("demo-menu-ignore")],
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardAllow,
-        title: t("Remove is not the same as ignore"),
+        allow: sampleCardSurfaces,
+        title: t("Remove or ignore"),
         body: t(
-          "Remove from Library takes the game out of My Games and asks whether to keep its sessions. If you keep them, notes, playthroughs, and shelf membership stay too. The game can return the next time you play it.\n\nIgnore Game does the same, and blocks the file on top - so PlayCounter never picks it up again. Try both on the sample; nothing is removed or blocked for real.",
+          "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.",
         ),
       },
     ],

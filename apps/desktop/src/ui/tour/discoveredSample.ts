@@ -6,6 +6,7 @@ import type { DiscoveredExecutable } from "../views/DiscoveredView";
 import { findTour } from "./tourDefinitions";
 import { TOUR_DEMO_GAME } from "./tourDemoGame";
 import { emitTourEvent } from "./tourEvents";
+import type { TourStep } from "./tourTypes";
 
 const t = getT("tour");
 

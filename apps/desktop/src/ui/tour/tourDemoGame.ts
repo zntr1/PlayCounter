@@ -1,7 +1,101 @@
 import type { EmulatorMapping } from "../../emulators/types";
 import type { ActiveSession } from "../../store";
-import type { Session } from "@playcounter/shared";
+import type { Game, Session } from "@playcounter/shared";
 import type { GameSummary } from "../views/MyGamesView";
+import type { SampleDetailsTab, TourStep } from "./tourTypes";
+
+/** What the sample card in My Games shows when a step starts. */
+export type SampleStage = {
+  /** Its right-click menu is open. */
+  menu: boolean;
+  /** This flyout of the menu is open too (its `data-tour` name). */
+  flyout: string | null;
+  /** "Log a missed session" is open. */
+  logSession: boolean;
+  /** The cover's hover buttons show without the pointer on the card. */
+  hoverButtons: boolean;
+  /** Details is open on this tab (the step's `sampleDetails`). */
+  details: SampleDetailsTab | null;
+};
+
+type StagedStep = Pick<
+  TourStep,
+  | "anchor"
+  | "anchorTargets"
+  | "additionalAnchors"
+  | "retreatWhenMissing"
+  | "sampleDetails"
+>;
+
+const tourNames = (selectors: readonly (string | undefined)[]) =>
+  selectors.flatMap((selector) =>
+    [...(selector ?? "").matchAll(/data-tour="([^"]+)"/g)].map(
+      (match) => match[1],
+    ),
+  );
+
+// How the sample card's `data-tour` names start. The names themselves are
+// written out where they are rendered (views/MyGamesView.tsx).
+const MENU_ROOTS = ["demo-context-menu", "demo-library-menu"];
+const MENU_ENTRY = "demo-menu-";
+const CARD_BUTTON = "demo-card-";
+const LOG_SESSION = "demo-log-session-";
+
+/** The sample card sets itself up from what a step rings, never from the
+ *  step's place in its guide: a step that rings a menu entry gets the menu,
+ *  one that rings a flyout gets that flyout, the dialog step gets its
+ *  dialog. A step added to a guide needs nothing else. */
+export function sampleStageForStep(step: StagedStep | undefined): SampleStage {
+  // What the step cannot do without, then what it would like to ring.
+  const needs = tourNames([step?.retreatWhenMissing, step?.anchor]);
+  const names = [...needs, ...tourNames(step?.anchorTargets ?? [])];
+  const logSession = needs.some((name) => name.startsWith(LOG_SESSION));
+  const flyout =
+    names.find(
+      (name) => !MENU_ROOTS.includes(name) && /^demo-[a-z]+-menu$/.test(name),
+    ) ?? null;
+  return {
+    menu:
+      !logSession &&
+      (flyout !== null ||
+        names.some(
+          (name) => MENU_ROOTS.includes(name) || name.startsWith(MENU_ENTRY),
+        )),
+    flyout: logSession ? null : flyout,
+    logSession,
+    hoverButtons: names.some((name) => name.startsWith(CARD_BUTTON)),
+    details: step?.sampleDetails ?? null,
+  };
+}
+
+/** Whether a step rings this entry of the sample card: "details" is the menu
+ *  entry demo-menu-details or the cover button demo-card-details. Done on
+ *  such a step, the entry's action finishes the step. */
+export function stepAsksForSampleEntry(
+  step: StagedStep | undefined,
+  entry: string,
+) {
+  return tourNames([
+    step?.anchor,
+    ...(step?.anchorTargets ?? []),
+    ...(step?.additionalAnchors ?? []),
+  ]).some((name) => name === MENU_ENTRY + entry || name === CARD_BUTTON + entry);
+}
+
+/** What "Check for Matches" finds for the sample's game file: the community
+ *  match and IGDB's entry. Bundled, so nothing is looked up. */
+export function tourSampleMatches(): Game[] {
+  const match = {
+    id: TOUR_DEMO_GAME.gameId,
+    name: TOUR_DEMO_GAME.name,
+    coverUrl: TOUR_DEMO_GAME.coverUrl,
+    releaseYear: 2004,
+  };
+  return [
+    { ...match, source: "community" },
+    { ...match, source: "igdb" },
+  ];
+}
 
 export function tourSessionsForGame(game: GameSummary): Session[] {
   const count = Math.max(0, game.sessionCount);

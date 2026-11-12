@@ -5,8 +5,8 @@ import { a, discoveredAction, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
 
-/** An exercise on the sample review card: one button, done when it is used.
- *  discoveredSample.ts knows which button finishes which step. */
+/** An exercise on the sample review card. The button a step rings is its
+ *  exercise: using it finishes the step (discoveredSample.ts). */
 const exercise = (button: string) =>
   ({
     view: "discovered",

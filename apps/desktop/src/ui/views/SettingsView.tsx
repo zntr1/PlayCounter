@@ -91,7 +91,10 @@ export function SettingsView() {
     <div className="settings-shell">
       <div className="settings-layout">
         <nav aria-label={t("Settings")} className="settings-menu">
-          <div className="settings-menu-search relative">
+          <div
+            data-tour="settings-search"
+            className="settings-menu-search relative"
+          >
             <Search
               size={16}
               aria-hidden="true"
@@ -219,6 +222,7 @@ function GroupPage({
       title={group.title()}
       description={group.description()}
       dataTour={group.dataTour}
+      guide={group.guide}
       foot={group.foot?.()}
     >
       {group.sections.map((section) => (
@@ -246,6 +250,7 @@ function SectionView({
       title={section.title?.()}
       description={section.description?.()}
       danger={section.danger}
+      dataTour={`settings-section-${section.id}`}
       hint={off ? <SectionTurnOnFirst setting={off} /> : null}
     >
       {rows(nodes, 0, off !== null, settings)}

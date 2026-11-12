@@ -1,17 +1,20 @@
 import { MessageSquareReply } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { a, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
 
+// From the second step on, the bell shows a sample reply (NotificationBell.tsx).
+// The card then sits left of the open panel.
 export function feedbackRepliesGuide(): TourDefinition {
+  const panel = a("demo-feedback-panel");
   return {
     id: "feedback-replies",
-    version: 2,
+    version: 3,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "settings",
-    release: "1.1.17",
     icon: MessageSquareReply,
     title: t("Find replies to your feedback"),
     description: t("See where replies to your feedback show up."),
@@ -21,31 +24,39 @@ export function feedbackRepliesGuide(): TourDefinition {
         id: "send",
         view: "keep",
         anchor: a("send-feedback"),
-        title: t("Report a bug or suggest a feature"),
+        title: t("Tell us what you think"),
         body: t(
-          "Use Help & Feedback to report a bug, ask a question, or suggest a feature. When we answer, the reply shows up right here in PlayCounter. This guide shows a sample reply and does not send anything.",
+          "<b>Help & Feedback</b> is where you report a bug, wish for a feature or tell us anything else. This guide shows a sample reply: nothing is sent.",
         ),
       },
       {
         id: "bell",
         view: "keep",
-        anchor: a("demo-feedback-notification"),
-        positionAnchor: a("demo-feedback-panel"),
-        additionalAnchors: [a("notifications-bell")],
+        anchor: a("notifications-bell"),
+        positionAnchor: panel,
         title: t("Replies appear under the bell"),
         body: t(
-          "Replies show up in Notifications, together with other PlayCounter updates. This one is a sample; your real notifications and unread count are not changed.",
+          "An answer shows up under the bell, in <b>Notifications</b>, next to other news from PlayCounter. This one is a sample: your own notifications and the unread count stay as they are.",
         ),
       },
       {
         id: "context",
         view: "keep",
         anchor: a("demo-feedback-original"),
-        positionAnchor: a("demo-feedback-panel"),
-        additionalAnchors: [a("demo-feedback-reply")],
+        positionAnchor: panel,
         title: t("Your message stays with the answer"),
         body: t(
-          "Your own message is quoted above the reply, so you always know what the answer is about. Replies are delivered to the PlayCounter installation that sent the feedback, so check the bell on this PC after you send something.",
+          "<b>Your feedback</b> is quoted above the reply, so you still know what the answer is about weeks later.",
+        ),
+      },
+      {
+        id: "reply",
+        view: "keep",
+        anchor: a("demo-feedback-reply"),
+        positionAnchor: panel,
+        title: t("The answer comes to this PC"),
+        body: t(
+          "A reply goes to the PlayCounter installation that sent the feedback. So after you write to us, look at the bell on this PC, not on another one.",
         ),
       },
     ],

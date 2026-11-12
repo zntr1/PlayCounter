@@ -39,6 +39,7 @@ import {
   type FilterableLibraryGame,
   type GameJournal,
   type GameStatus,
+  type GameTier,
   type LibraryFilters,
   type PersonalShelf,
   type ShelfHidePlace,
@@ -314,6 +315,7 @@ export function LibraryOrganizationToolbar({
   selectionAction,
   leading,
   trailing,
+  practiceTier,
 }: {
   showShelves: boolean;
   selection: string;
@@ -332,6 +334,9 @@ export function LibraryOrganizationToolbar({
   leading?: React.ReactNode;
   /** Sits after Filters: sort, view toggle, customize. */
   trailing?: React.ReactNode;
+  /** The guide's practice only: the tier its player gave the sample game, so
+   *  the guide can point at that letter among the filters. */
+  practiceTier?: GameTier;
 }) {
   const practice = useLibraryPractice();
   const shelves = usePersonalLibraryState((s) => s.personalShelves);
@@ -801,7 +806,13 @@ export function LibraryOrganizationToolbar({
             {GAME_TIERS.map((value) => (
               <Pill
                 key={value}
-                data-tour={practice ? `demo-filter-tier-${value}` : undefined}
+                data-tour={
+                  practice
+                    ? value === practiceTier
+                      ? "demo-filter-tier-picked"
+                      : `demo-filter-tier-${value}`
+                    : undefined
+                }
                 selected={filters.tier === value}
                 onClick={() =>
                   setFilter("tier", filters.tier === value ? undefined : value)
@@ -1098,35 +1109,38 @@ export function LibraryOrganizationToolbar({
           >
             {t("Edit")}
           </ContextMenuItem>
-          {/* Each tick saves at once; the menu stays open for the next. The
-              guide's practice leaves hiding out, like its shelf dialog. */}
-          {!practice ? (
-            <ContextMenuSubmenu label={t("Hide in")} icon={EyeOff}>
-              <HidingNote
-                shelf={menuShelf}
-                className={
-                  menuShelf.hiddenIn?.length
-                    ? "mx-2 my-1 max-w-60"
-                    : "max-w-60 px-3 py-1.5"
+          {/* Each tick saves at once; the menu stays open for the next. */}
+          <ContextMenuSubmenu
+            label={t("Hide in")}
+            icon={EyeOff}
+            dataTour={practice ? "demo-shelf-hide" : undefined}
+            menuDataTour={practice ? "demo-shelf-hide-menu" : undefined}
+          >
+            <HidingNote
+              shelf={menuShelf}
+              className={
+                menuShelf.hiddenIn?.length
+                  ? "mx-2 my-1 max-w-60"
+                  : "max-w-60 px-3 py-1.5"
+              }
+            />
+            {SHELF_HIDE_PLACES.map((place) => (
+              <ContextMenuItem
+                key={place}
+                dataTour={practice ? `demo-shelf-hide-${place}` : undefined}
+                selected={Boolean(menuShelf.hiddenIn?.includes(place))}
+                disabled={Boolean(menuShelf.filters)}
+                onClick={() =>
+                  save({
+                    ...menuShelf,
+                    hiddenIn: toggledPlaces(menuShelf.hiddenIn, place),
+                  })
                 }
-              />
-              {SHELF_HIDE_PLACES.map((place) => (
-                <ContextMenuItem
-                  key={place}
-                  selected={Boolean(menuShelf.hiddenIn?.includes(place))}
-                  disabled={Boolean(menuShelf.filters)}
-                  onClick={() =>
-                    save({
-                      ...menuShelf,
-                      hiddenIn: toggledPlaces(menuShelf.hiddenIn, place),
-                    })
-                  }
-                >
-                  {hidePlaceLabel(place)}
-                </ContextMenuItem>
-              ))}
-            </ContextMenuSubmenu>
-          ) : null}
+              >
+                {hidePlaceLabel(place)}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubmenu>
           <ContextMenuItem
             icon={Trash2}
             danger
@@ -1210,13 +1224,11 @@ export function LibraryOrganizationToolbar({
                 )}
               </p>
             ) : null}
-            {!practice ? (
-              <ShelfHideSection
-                shelf={typeof editor === "object" ? editor : null}
-                places={hiddenDraft}
-                onChange={setHiddenDraft}
-              />
-            ) : null}
+            <ShelfHideSection
+              shelf={typeof editor === "object" ? editor : null}
+              places={hiddenDraft}
+              onChange={setHiddenDraft}
+            />
           </form>
         </Modal>
       ) : null}

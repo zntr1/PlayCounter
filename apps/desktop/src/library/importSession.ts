@@ -737,9 +737,13 @@ export function selectableGameIds(
     ImportSession,
     "providerId" | "scan" | "resolved" | "saved" | "completed"
   >,
+  /** My Games and the ignore list to judge by: the app's, unless given. */
+  app: {
+    libraryImports: ReadonlyMap<string, unknown>;
+    ignoredProcesses: ReadonlySet<string>;
+  } = useAppStore.getState(),
 ) {
   const { providerId } = current;
-  const app = useAppStore.getState();
   const ids = new Set<string>();
   for (const game of current.scan?.games ?? []) {
     const inLibrary = app.libraryImports.has(

@@ -34,7 +34,8 @@ import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
-import { findTour } from "../tour/tourDefinitions";
+import { findTour, type TourStep } from "../tour/tourDefinitions";
+import { emitTourEvent } from "../tour/tourEvents";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { ActiveGameHero } from "./ActiveGameHero";
 import {
@@ -51,10 +52,36 @@ import {
 import { getT } from "../../i18n";
 
 const t = getT("nowPlaying");
+const tourT = getT("tour");
 
 const TOUR_NOW_PLAYING_SESSION_ID = -1;
+const TOUR_SESSION_ANCHOR = "now-playing-demo";
 const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
 const EMPTY_SECONDS: Record<string, number> = {};
+
+/** A guide step that rings the sample session, or a part of it
+ *  (`demo-session-…`), gets the sample session. A step that rings its Stop
+ *  button gets it as a timer started by hand, the only session with Stop. */
+export function sampleSessionForStep(
+  step: Pick<TourStep, "anchor" | "anchorTargets" | "allow"> | undefined,
+) {
+  const names = [
+    step?.anchor,
+    ...(step?.anchorTargets ?? []),
+    ...(step?.allow ?? []),
+  ].flatMap((selector) =>
+    [...(selector ?? "").matchAll(/data-tour="([^"]+)"/g)].map(
+      (match) => match[1],
+    ),
+  );
+  return {
+    shown: names.some(
+      (name) =>
+        name === TOUR_SESSION_ANCHOR || name.startsWith("demo-session-"),
+    ),
+    timer: names.includes("demo-session-stop"),
+  };
+}
 
 export function NowPlayingView() {
   const allActiveSessions = useAppStore((state) => state.activeSessions);
@@ -97,6 +124,12 @@ export function NowPlayingView() {
   const [tourSessionStartedAt, setTourSessionStartedAt] = useState(() =>
     new Date(Date.now() - 137_000).toISOString(),
   );
+  // The sample session's own pause. It lives here, so pausing the sample
+  // never reaches a real session or the saved data.
+  const [tourPause, setTourPause] = useState<{
+    pausedAt?: string;
+    pausedMs: number;
+  }>({ pausedMs: 0 });
   const [reportTarget, setReportTarget] = useState<ActiveSession | null>(null);
   const [correctionTarget, setCorrectionTarget] =
     useState<ActiveSession | null>(null);
@@ -107,8 +140,8 @@ export function NowPlayingView() {
   const activeTourStep = activeTour
     ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
     : undefined;
-  const showTourSession =
-    activeTour?.tourId === "core" && activeTourStep?.id === "now";
+  const { shown: showTourSession, timer: tourSessionIsTimer } =
+    sampleSessionForStep(activeTourStep);
   const tourSession = useMemo<ActiveSession>(
     () => ({
       id: TOUR_NOW_PLAYING_SESSION_ID,
@@ -118,8 +151,10 @@ export function NowPlayingView() {
       coverUrl: TOUR_DEMO_GAME.coverUrl,
       startedAt: tourSessionStartedAt,
       checkpointedAt: tourSessionStartedAt,
+      ...tourPause,
+      ...(tourSessionIsTimer ? { timer: true } : {}),
     }),
-    [tourSessionStartedAt],
+    [tourPause, tourSessionIsTimer, tourSessionStartedAt],
   );
   const displayedActiveSessions = showTourSession
     ? [tourSession]
@@ -159,6 +194,35 @@ export function NowPlayingView() {
       setTourSessionStartedAt(new Date(Date.now() - 137_000).toISOString());
     }
   }, [showTourSession]);
+
+  // Every step starts with the sample counting, also after Back or a jump:
+  // a pause left open ends here.
+  const enteredTourStepAt = activeTour?.enteredStepAt;
+  useEffect(() => {
+    setTourPause((pause) =>
+      pause.pausedAt ? { pausedMs: endedPauseMs(pause) } : pause,
+    );
+  }, [enteredTourStepAt]);
+
+  function toggleTourPause() {
+    if (!tourPause.pausedAt) {
+      setTourPause({ ...tourPause, pausedAt: new Date().toISOString() });
+      return;
+    }
+    setTourPause({ pausedMs: endedPauseMs(tourPause) });
+    // Paused and resumed: the guide's task is done.
+    emitTourEvent(
+      "demo.step-completed",
+      tourT("Resumed. The paused time was not counted."),
+    );
+  }
+
+  function stopTourTimer() {
+    emitTourEvent(
+      "demo.step-completed",
+      tourT("The sample timer stopped. A real one is saved to My History."),
+    );
+  }
 
   async function handleNegativeReport(session: ActiveSession) {
     setReportTarget(null);
@@ -254,18 +318,20 @@ export function NowPlayingView() {
                 }
                 onReport={() => setReportTarget(activeSession)}
                 onStopTimer={
-                  activeSession.timer
-                    ? () => void stopGameTimer(activeSession.id)
-                    : undefined
+                  !activeSession.timer
+                    ? undefined
+                    : isTourSession
+                      ? stopTourTimer
+                      : () => void stopGameTimer(activeSession.id)
                 }
                 onTogglePause={
                   isTourSession
-                    ? undefined
+                    ? toggleTourPause
                     : () => void togglePauseSession(activeSession.id)
                 }
                 showCounters={!isTourSession}
                 statusLabel={t("Now playing")}
-                tourAnchor={isTourSession ? "now-playing-demo" : undefined}
+                tourAnchor={isTourSession ? TOUR_SESSION_ANCHOR : undefined}
               />
             );
           })}
@@ -368,6 +434,12 @@ export function NowPlayingView() {
       ) : null}
     </>
   );
+}
+
+/** A sample pause that just ended, added to the pauses before it. */
+function endedPauseMs(pause: { pausedAt?: string; pausedMs: number }) {
+  const ms = pause.pausedAt ? Date.now() - Date.parse(pause.pausedAt) : 0;
+  return pause.pausedMs + (Number.isFinite(ms) ? Math.max(0, ms) : 0);
 }
 
 // "Wrong game?" on a tracked session: pick the right one from the database

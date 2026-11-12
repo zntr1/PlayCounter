@@ -853,6 +853,7 @@ function JournalSessionRows({
   editingNote: boolean;
   onEditingNoteChange: (editing: boolean) => void;
 }) {
+  const practice = useLibraryPractice();
   const noteLabel = session.note
     ? t("Edit session note")
     : t("Add session note");
@@ -868,6 +869,7 @@ function JournalSessionRows({
         </td>
         <td className="px-2 py-1.5 text-right">
           <IconButton
+            data-tour={practice ? "demo-session-note" : undefined}
             icon={NotebookPen}
             aria-label={noteLabel}
             title={noteLabel}
@@ -877,7 +879,11 @@ function JournalSessionRows({
       </tr>
       {session.note || editingNote ? (
         <tr className="!border-t-0">
-          <td colSpan={4} className="px-3 pb-2.5">
+          <td
+            data-tour={practice ? "demo-session-note-editor" : undefined}
+            colSpan={4}
+            className="px-3 pb-2.5"
+          >
             <SessionNote
               session={session}
               editing={editingNote}

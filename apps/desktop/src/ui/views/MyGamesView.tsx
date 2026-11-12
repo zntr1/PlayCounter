@@ -7,7 +7,9 @@ import {
 } from "../LibraryAppearanceControls";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import {
+  PersonalLibraryContext,
   useLibraryPractice,
+  usePersonalLibraryApi,
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
 import {
@@ -138,6 +140,7 @@ import {
   type ActiveSession,
   type ExeCacheEntry,
   type GameMetadata,
+  type LaunchTarget,
   type PendingCommunitySuggestionTarget,
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
@@ -285,11 +288,17 @@ import {
   TOUR_DEMO_GAME,
   TOUR_DEMO_EMULATOR,
   TOUR_GTA_GAME_ID,
+  sampleStageForStep,
+  stepAsksForSampleEntry,
+  tourSampleMatches,
+  tourSessionsForGame,
 } from "../tour/tourDemoGame";
-import { emitTourEvent, useTourDemo } from "../tour/TourUI";
+import { emitTourEvent, tourDoneFlash, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
+import { createLibraryTourStore } from "../tour/libraryTourStore";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
 import { StatsPractice } from "../tour/TourStatsPractice";
+import { GameJournalHost } from "../GameJournalDialog";
 import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
@@ -503,11 +512,13 @@ type PendingStopTracking = {
   aliases: GameAliasRef[];
 } | null;
 
+// The sample of the guides: found by its game file and matched by the
+// community, like a game PlayCounter picked up by itself. In every guide, so
+// its menu has what such a real card's menu has.
 function makeTourDemoGame(
   addedSeconds: number,
   addedSessions: number,
   showSourceBadges: boolean,
-  source: GameSource | null = null,
   adjustmentSeconds = 0,
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
@@ -516,12 +527,8 @@ function makeTourDemoGame(
     gameId: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    source,
-    sources: showSourceBadges
-      ? ["community", "igdb", "custom"]
-      : source
-        ? [source]
-        : [],
+    source: "community",
+    sources: showSourceBadges ? ["community", "igdb", "custom"] : ["community"],
     aliases: [],
     totalSeconds: totalSeconds + adjustmentSeconds,
     sessionSeconds: totalSeconds,
@@ -590,6 +597,23 @@ export function makeCoreTourDemoGames(): GameSummary[] {
       providerFloorSeconds: 0,
     },
   ];
+}
+
+/** A sample card's own library: Favorites, Status, Tier, Shelves and the
+ *  journal work on it like on a real card, and nothing reaches the player's. */
+function createSampleLibrary(game: GameSummary) {
+  const library = createLibraryTourStore(useAppStore.getState().settings);
+  library.setState({ recentSessions: tourSessionsForGame(game) });
+  return library;
+}
+
+/** Where a sample's game file would be: only shown, never opened. */
+function sampleLaunchPath(game: GameSummary) {
+  const exeName = game.exeNames[0];
+  if (!exeName || game.emulatorIds.length > 0) return null;
+  return game.gameId === TOUR_DEMO_GAME.gameId
+    ? TOUR_DEMO_GAME.exePath
+    : `C:\\Games\\${game.name}\\${exeName}`; // i18n-exempt: sample path
 }
 
 function matchedEntriesByGame(
@@ -1062,6 +1086,13 @@ export function MyGamesView({
       adjustmentSeconds: 0,
     });
     setLibraryTab("all");
+    // The sample sits under All games: no shelf chip of the player's stays
+    // selected next to it.
+    if (tourDemo.active) {
+      setShelfSelection("all");
+      setLibraryFilters({});
+      setFiltersOpen(false);
+    }
   }, [renderContent, tourDemo.active, tourDemo.resetToken]);
 
   // Hovering a card with Shift held shows its CardShiftPanel.
@@ -1906,12 +1937,14 @@ export function MyGamesView({
         demoPlaytime.addedSeconds,
         demoPlaytime.addedSessions,
         tourDemo.tourId === "source-badges",
-        tourDemo.tourId === "game-actions" ? "community" : null,
         demoPlaytime.adjustmentSeconds,
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
+  // While a guide shows its sample, My Games shows the sample only: the
+  // grid, the numbers beside the title and the shelf chips.
+  const sampleOnly = tourDemo.active;
   const allLibraryGames = tourDemo.active ? demoGames : games;
   // Only shelves empty across the full library should preview every game.
   const allShelfCounts = useMemo(
@@ -2016,10 +2049,9 @@ export function MyGamesView({
   }).map((tab) => ({
     ...tab,
     count:
-      tab.id === "all" && isCoreTourDemo
+      tab.id === "all" && sampleOnly
         ? demoGames.length
-        : filterByLibraryTab(matchingGames, tab.id).length +
-          (tab.id === "all" ? demoGames.length : 0),
+        : filterByLibraryTab(matchingGames, tab.id).length,
   }));
   const activeLibraryTab = resolveLibraryTab(libraryTab, tabs);
   useEffect(() => {
@@ -2139,20 +2171,16 @@ export function MyGamesView({
       ),
     [displayedGames, bulkSelection.selected],
   );
+  // The guide opens All games (see the effect above); on another source
+  // there is no sample to show.
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
-  const libraryGames =
-    isCoreTourDemo && activeLibraryTab === "all"
-      ? demoGames
-      : [...demoForTab, ...tabGames];
-  const visibleGames =
-    isCoreTourDemo && activeLibraryTab === "all"
-      ? demoGames
-      : [...demoForTab, ...displayedGames];
+  const libraryGames = sampleOnly ? demoForTab : tabGames;
+  const visibleGames = sampleOnly ? demoForTab : displayedGames;
   const layout = myGamesLayout({
     libraryGameCount: allLibraryGames.length,
     tabs,
     requestedTab: libraryTab,
-    activeTabGameCount: sourceGames.length + demoForTab.length,
+    activeTabGameCount: sampleOnly ? demoForTab.length : sourceGames.length,
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
@@ -2278,9 +2306,7 @@ export function MyGamesView({
     publishLibrarySources({
       tabs,
       activeTab: activeLibraryTab,
-      gameCount: isCoreTourDemo
-        ? demoGames.length
-        : matchingGames.length + demoGames.length,
+      gameCount: sampleOnly ? demoGames.length : matchingGames.length,
       visible: layout.showTabs,
       canHideEmptySources:
         hasImportedGames && hasEmptyProviderTabs(providerTabInputs),
@@ -3438,30 +3464,48 @@ export function GameLibraryCard({
     name: string;
     source: GameSource;
   } | null>(null);
-  const game = useMemo(
-    () =>
-      demo
+  // Sessions logged on a sample whose list does not count them itself (the
+  // practice library).
+  const [demoLogged, setDemoLogged] = useState({ seconds: 0, sessions: 0 });
+  const game = useMemo(() => {
+    if (!demo) return originalGame;
+    const recordedSeconds = originalGame.recordedSeconds + demoLogged.seconds;
+    return {
+      ...originalGame,
+      ...(demoIdentity
+        ? { ...demoIdentity, sources: [demoIdentity.source] }
+        : {}),
+      totalSeconds: originalGame.totalSeconds + demoLogged.seconds,
+      sessionSeconds: originalGame.sessionSeconds + demoLogged.seconds,
+      recordedSeconds,
+      sessionCount: originalGame.sessionCount + demoLogged.sessions,
+      ...(demoTotal !== null
         ? {
-            ...originalGame,
-            ...(demoIdentity
-              ? { ...demoIdentity, sources: [demoIdentity.source] }
-              : {}),
-            ...(demoTotal !== null
-              ? {
-                  totalSeconds: demoTotal,
-                  adjustmentSeconds: demoTotal - originalGame.recordedSeconds,
-                }
-              : {}),
+            totalSeconds: demoTotal,
+            adjustmentSeconds: demoTotal - recordedSeconds,
           }
-        : originalGame,
-    [demo, demoTotal, demoIdentity, originalGame],
-  );
+        : {}),
+    };
+  }, [demo, demoTotal, demoIdentity, demoLogged, originalGame]);
   const libraryPractice = useLibraryPractice();
-  const openGameJournal = usePersonalLibraryState((s) => s.openGameJournal);
+  // The two kinds of sample cards: one in My Games while a guide with a
+  // sample game runs, and the cards of the practice library.
+  const guideSample = demo && !libraryPractice;
+  // Favorites, Status, Tier, Shelves and the journal of a sample in My Games
+  // live in a library of its own, thrown away with the card. The practice
+  // library brings its own.
+  const [sampleLibrary] = useState(() =>
+    guideSample ? createSampleLibrary(originalGame) : null,
+  );
+  const openLibraryJournal = usePersonalLibraryState((s) => s.openGameJournal);
+  const openGameJournal: typeof openLibraryJournal = (target) =>
+    sampleLibrary
+      ? sampleLibrary.getState().openGameJournal(target)
+      : openLibraryJournal(target);
   const controllerKind = useControllerKind();
   // The tour walks through both halves, so its demo card always shows them.
-  const originVisible = (demo && !libraryPractice) || showOrigin;
-  const matchVisible = (demo && !libraryPractice) || showMatch;
+  const originVisible = guideSample || showOrigin;
+  const matchVisible = guideSample || showMatch;
   const averageSeconds = Math.round(
     game.sessionSeconds / Math.max(1, game.sessionCount),
   );
@@ -3486,20 +3530,28 @@ export function GameLibraryCard({
     "history" | "matching" | "remove" | "ignore" | "launch" | null
   >(null);
   const [demoRemoved, setDemoRemoved] = useState(false);
-  const [demoLaunchPath, setDemoLaunchPath] = useState<string | null>(
-    TOUR_DEMO_GAME.exePath,
+  // What a sample entry answered, shown on the card until the next one.
+  const [sampleResult, setSampleResult] = useState<string | null>(null);
+  // The game file a sample pretends to have been started from.
+  const [demoLaunchPath, setDemoLaunchPath] = useState<string | null>(() =>
+    demo ? sampleLaunchPath(originalGame) : null,
   );
-  const showDemoContextMenu = useAppStore(
-    (state) =>
-      (state.activeTour?.tourId === "log-playtime" &&
-        [2, 3, 6].includes(state.activeTour.stepIndex)) ||
-      (state.activeTour?.tourId === "game-actions" &&
-        state.activeTour.stepIndex >= 2) ||
-      (state.activeTour?.tourId === "launch-games" &&
-        state.activeTour.stepIndex === 3),
-  );
+  // A sample's own timer (Playtime › Start timer): when it was started.
+  const [sampleTimerStartedAt, setSampleTimerStartedAt] = useState<
+    string | null
+  >(null);
   const activeTour = useAppStore((state) => state.activeTour);
   const launchTourDemo = demo && activeTour?.tourId === "launch-games";
+  // The running guide's step, and what it needs from the sample in My Games:
+  // read from the step itself, never from its number (sampleStageForStep).
+  const tourStep = useMemo(
+    () =>
+      guideSample && activeTour
+        ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
+        : undefined,
+    [guideSample, activeTour?.tourId, activeTour?.stepIndex],
+  );
+  const stage = useMemo(() => sampleStageForStep(tourStep), [tourStep]);
   const setLibraryFeaturedGame = useAppStore(
     (state) => state.setLibraryFeaturedGame,
   );
@@ -3520,7 +3572,7 @@ export function GameLibraryCard({
       coverUrl: game.coverUrl,
     },
     onDragGame,
-    (demo && !libraryPractice) || (selectionMode && !selected),
+    guideSample || (selectionMode && !selected),
   );
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -3528,10 +3580,7 @@ export function GameLibraryCard({
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const [bannerBusy, setBannerBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(
-    () =>
-      demo &&
-      activeTour?.tourId === "log-playtime" &&
-      activeTour.stepIndex === 4,
+    () => stage.logSession,
   );
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
@@ -3552,18 +3601,21 @@ export function GameLibraryCard({
           ),
     [game.igdbId, playcounterLibrary],
   );
-  const [showDetails, setShowDetails] = useState(detailsOnly?.open ?? false);
+  const [showDetails, setShowDetails] = useState(
+    detailsOnly?.open ?? stage.details !== null,
+  );
   // "Achievements" in the card menu opens Details on that tab.
   const [detailsTab, setDetailsTab] = useState<DetailsTab>(
-    detailsOnly?.tab ?? "general",
+    detailsOnly?.tab ?? stage.details ?? "general",
   );
-  const openDetails = (tab: "general" | "achievements" = "general") => {
+  const openDetails = (tab: DetailsTab = "general") => {
     setDetailsTab(tab);
     setShowDetails(true);
   };
+  // A sample always has the entry: its Details carries sample achievements.
   const hasGameAchievements = useMemo(
-    () => achievementSources(game).length > 0,
-    [game],
+    () => demo || achievementSources(game).length > 0,
+    [demo, game],
   );
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -3595,56 +3647,122 @@ export function GameLibraryCard({
     start?: () => void;
   } | null>(null);
 
-  const closeDemoDialogs = () => {
+  /** Puts away what a sample has open, except what `keep` names. */
+  const closeDemoDialogs = (
+    keep: { logSession?: boolean; details?: boolean } = {},
+  ) => {
     setDemoAction(null);
-    setShowDetails(false);
+    if (!keep.details) setShowDetails(false);
     setShowConvert(false);
+    setShowRename(false);
     setReportOpen(false);
+    setFilePick(null);
     setShowAdjustPlaytime(false);
-    setShowAddPlaytime(false);
+    if (!keep.logSession) setShowAddPlaytime(false);
     setShowMatchCheck(false);
     setDemoRemoved(false);
+    setSampleResult(null);
+    setSampleTimerStartedAt(null);
+    sampleLibrary?.getState().openGameJournal(null);
   };
-  // Next on a free-practice step closes whatever the learner opened there,
-  // including when the next step shows another view.
-  const previousDemoStep = useRef(activeTour);
-  useEffect(() => {
-    const left = previousDemoStep.current;
-    previousDemoStep.current = activeTour;
-    if (!demo || libraryPractice || !left) return;
-    if (
-      left.tourId === activeTour?.tourId &&
-      left.stepIndex === activeTour.stepIndex
-    )
-      return;
-    if (findTour(left.tourId)?.steps[left.stepIndex]?.manualAdvance) {
-      contextMenu.close();
-      closeDemoDialogs();
-    }
-  }, [activeTour?.tourId, activeTour?.stepIndex]);
 
-  useEffect(() => {
-    if (!demo || libraryPractice) return;
-    if (!showDemoContextMenu) {
-      contextMenu.close();
-      return;
+  // The entry of the card a sample action started from ("details",
+  // "log-session", …). Done on a step that rings it, it finishes the step.
+  const sampleEntry = useRef<string | null>(null);
+  const taskJustDone = useRef(false);
+  const startSample = (entry: string) => {
+    if (!demo) return;
+    sampleEntry.current = entry;
+    setSampleResult(null);
+  };
+  /** A sample action is done. Its message goes to the guide's card and, with
+   *  `onCard`, onto the sample card. */
+  const finishSample = (message?: string, onCard = true) => {
+    const entry = sampleEntry.current;
+    sampleEntry.current = null;
+    if (message) {
+      if (onCard) setSampleResult(message);
+      emitTourEvent("demo.action-completed", message);
     }
-    closeDemoDialogs();
-    const frame = requestAnimationFrame(() => {
-      const rect = cardRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      contextMenu.openAt({
-        x: rect.left + rect.width / 2,
-        y: rect.top + Math.min(rect.height / 2, 160),
+    if (guideSample && entry && stepAsksForSampleEntry(tourStep, entry)) {
+      taskJustDone.current = true;
+      emitTourEvent("demo.step-completed", message);
+    }
+  };
+  /** A sample shows every entry a real card has. One that cannot work on a
+   *  sample answers with this. */
+  const sampleOnly = (entry: string, label: string) => {
+    contextMenu.close();
+    startSample(entry);
+    finishSample(
+      t("Sample: nothing was changed. “{{entry}}” works on your own games.", {
+        entry: label,
+      }),
+    );
+  };
+  /** The `data-tour` name of an entry, on samples only. */
+  const sampleName = (name: string) => (demo ? name : undefined);
+
+  // The sample in My Games follows the guide. On every step it puts away
+  // what was opened on the step before and opens what the new step needs:
+  // its menu, a flyout, a dialog (sampleStageForStep). After a finished task
+  // it waits while the guide's card says "Done", so the result stays in view.
+  const menuOpen = useRef(false);
+  menuOpen.current = contextMenu.open;
+  useEffect(() => {
+    if (!guideSample || !tourStep) return;
+    let frame = 0;
+    const setStage = () => {
+      taskJustDone.current = false;
+      closeDemoDialogs({
+        logSession: stage.logSession,
+        details: stage.details !== null,
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [
-    demo,
-    showDemoContextMenu,
-    showDemoContextMenu ? activeTour?.stepIndex : null,
-  ]);
-  const hasActiveSession = useAppStore((state) =>
+      if (stage.logSession) setShowAddPlaytime(true);
+      if (stage.details) openDetails(stage.details);
+      if (!stage.menu) {
+        contextMenu.close();
+        return;
+      }
+      // A menu the player opened stays where it is.
+      if (menuOpen.current) return;
+      frame = requestAnimationFrame(() => {
+        const rect = cardRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        contextMenu.openAt({
+          x: rect.left + rect.width / 2,
+          y: rect.top + Math.min(rect.height / 2, 160),
+        });
+      });
+    };
+    const timer = window.setTimeout(
+      setStage,
+      taskJustDone.current ? tourDoneFlash.ms : 0,
+    );
+    return () => {
+      window.clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
+  }, [guideSample, activeTour?.tourId, tourStep?.id]);
+
+  // A sample's timer counts on the card only; no session is started.
+  const sampleTimerSession = useMemo<ActiveSession | undefined>(
+    () =>
+      sampleTimerStartedAt
+        ? {
+            id: game.gameId,
+            gameId: game.gameId,
+            gameName: game.name,
+            exeName: game.exeNames[0] ?? "",
+            coverUrl: game.coverUrl,
+            startedAt: sampleTimerStartedAt,
+            checkpointedAt: sampleTimerStartedAt,
+            timer: true,
+          }
+        : undefined,
+    [game, sampleTimerStartedAt],
+  );
+  const hasRealSession = useAppStore((state) =>
     state.activeSessions.some((session) =>
       game.aliases.some(
         (alias) =>
@@ -3653,7 +3771,8 @@ export function GameLibraryCard({
       ),
     ),
   );
-  const timerSession = useAppStore((state) =>
+  const hasActiveSession = hasRealSession || sampleTimerSession !== undefined;
+  const realTimerSession = useAppStore((state) =>
     state.activeSessions.find(
       (session) =>
         session.timer &&
@@ -3664,6 +3783,7 @@ export function GameLibraryCard({
         ),
     ),
   );
+  const timerSession = sampleTimerSession ?? realTimerSession;
   // The game runs on this PC (not a timer), so it can be closed. Only the
   // id: a checkpoint of the running session must not re-render the card.
   const runningSessionId = useAppStore(
@@ -3679,19 +3799,20 @@ export function GameLibraryCard({
           ),
       )?.id,
   );
+  // A sample's Play shows "Starting…" like a real launch, then says on the
+  // card what happened: nothing was started.
   useEffect(() => {
-    if (!launching || !launchTourDemo) return;
+    if (!launching || !demo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
-      emitTourEvent(
-        "mygames.demo-launch-attempted",
-        t("Sample launch complete. No program was started."),
-      );
+      const message = t("Sample launch complete. No program was started.");
+      emitTourEvent("mygames.demo-launch-attempted", message);
+      finishSample(message);
     }, DEMO_LAUNCH_MS);
     return () => window.clearTimeout(timeout);
-  }, [launchTourDemo, launching]);
+  }, [demo, launching]);
   useEffect(() => {
-    if (!launching || hasActiveSession || launchTourDemo) return;
+    if (!launching || hasActiveSession || demo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
       onReleaseLaunch(launchKey);
@@ -3707,15 +3828,15 @@ export function GameLibraryCard({
     return () => window.clearTimeout(timeout);
   }, [
     addToast,
+    demo,
     game.name,
     hasActiveSession,
     launchKey,
-    launchTourDemo,
     launching,
     onReleaseLaunch,
   ]);
   useEffect(() => {
-    if (!launching || !hasActiveSession) return;
+    if (!launching || !hasActiveSession || demo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
       onReleaseLaunch(launchKey);
@@ -3862,8 +3983,31 @@ export function GameLibraryCard({
     emulatorAutoLaunchTargets,
     emulatorManualLaunchTargets,
   });
+  // A sample has Play and Launch options like a real card found by its game
+  // file: in the launch guide always, elsewhere when the player lets
+  // PlayCounter launch games. Its file is a made-up path; nothing is started.
+  const sampleLaunch =
+    demo &&
+    sampleLaunchPath(originalGame) !== null &&
+    (launchTourDemo || canLaunchExecutables);
+  // The files Launch options lists: a sample's made-up one, or the real ones.
+  const launchFiles = useMemo<LaunchTarget[]>(
+    () =>
+      !demo
+        ? ownedLaunchTargets
+        : sampleLaunch && demoLaunchPath
+          ? [
+              {
+                exeName: game.exeNames[0] ?? "",
+                path: demoLaunchPath,
+                owner: { gameId: game.gameId, source: game.source },
+              },
+            ]
+          : [],
+    [demo, sampleLaunch, demoLaunchPath, game, ownedLaunchTargets],
+  );
   const showPlayButton =
-    (launchTourDemo && Boolean(demoLaunchPath)) ||
+    (sampleLaunch && Boolean(demoLaunchPath)) ||
     (!demo && canLaunchExecutables && hasPrimaryLaunchTarget);
   // An imported Steam game that is no longer installed offers Steam's
   // installer where Play would be.
@@ -3877,7 +4021,7 @@ export function GameLibraryCard({
   const showLaunchFooter =
     showPlayButton ||
     showInstallInSteam ||
-    launchTourDemo ||
+    sampleLaunch ||
     (!demo &&
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
@@ -3914,7 +4058,8 @@ export function GameLibraryCard({
     game.name,
     launching,
     hasActiveSession,
-    launchBlocked,
+    // A sample starts nothing, so no real launch holds it back.
+    !demo && launchBlocked,
   );
   const playState =
     xboxLaunchEntry && !manualTarget
@@ -4059,8 +4204,9 @@ export function GameLibraryCard({
 
   // The user's own file can get another game here, as long as no suggestion
   // for it waits for review (cancel that first).
-  const canChangeGame =
-    !demo && primaryLocalLink !== undefined && !pendingCommunitySuggestion;
+  const canChangeGame = demo
+    ? game.source === "custom"
+    : primaryLocalLink !== undefined && !pendingCommunitySuggestion;
   // The game's files, in the name's tooltip.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
@@ -4163,7 +4309,7 @@ export function GameLibraryCard({
     canCheckMatches,
   );
   const showLaunchActions =
-    launchTourDemo ||
+    sampleLaunch ||
     (!demo &&
       (canConfigureLaunch ||
         (canLaunchExecutables && gameEmulatorMappings.length > 0)));
@@ -4196,6 +4342,14 @@ export function GameLibraryCard({
   function submitRename() {
     const name = renameName.trim();
     if (!name) return;
+    if (demo) {
+      setDemoIdentity({ name, source: "custom" });
+      setShowRename(false);
+      finishSample(
+        t("Sample renamed to {{name}}. Nothing was saved.", { name }),
+      );
+      return;
+    }
     renameCustomGame(game.gameId, name);
     addToast({
       tone: "success",
@@ -4216,7 +4370,8 @@ export function GameLibraryCard({
   }
 
   function openMatchCheck() {
-    if (!checksLibraryGame) {
+    // A sample has its one file and bundled matches (tourSampleMatches).
+    if (!checksLibraryGame && !demo) {
       if (checkableFiles.length > 1) {
         setFilePick("check");
         return;
@@ -4227,11 +4382,11 @@ export function GameLibraryCard({
   }
 
   function openConvert() {
-    if (convertibleFiles.length > 1) {
+    if (!demo && convertibleFiles.length > 1) {
       setFilePick("convert");
       return;
     }
-    setMatchFile(convertibleFiles[0]?.exeName ?? null);
+    setMatchFile(demo ? null : (convertibleFiles[0]?.exeName ?? null));
     setConvertName(game.name);
     setShowConvert(true);
   }
@@ -4268,8 +4423,7 @@ export function GameLibraryCard({
     if (demo) {
       setDemoIdentity({ name, source: "custom" });
       setShowConvert(false);
-      emitTourEvent(
-        "demo.action-completed",
+      finishSample(
         t(
           "Sample converted to {{name}}. Its time is kept and nothing is shared.",
           { name },
@@ -4287,6 +4441,14 @@ export function GameLibraryCard({
   }
 
   const handleApplyMatch = (match: Game, pendingCommunity: boolean) => {
+    if (demo) {
+      setDemoIdentity({ name: match.name, source: match.source });
+      setShowMatchCheck(false);
+      finishSample(
+        t("Match applied to the sample. Nothing was saved to your library."),
+      );
+      return;
+    }
     const exeName = flowExeName;
     if (!exeName) return;
     if (pendingCommunity && match.source === "community") {
@@ -4653,6 +4815,15 @@ export function GameLibraryCard({
 
   const handleStartTimer = () => {
     contextMenu.close();
+    if (demo) {
+      setSampleTimerStartedAt(new Date().toISOString());
+      finishSample(
+        t(
+          "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.",
+        ),
+      );
+      return;
+    }
     startGameTimer({
       gameId: game.gameId,
       igdbId: game.igdbId,
@@ -4667,6 +4838,32 @@ export function GameLibraryCard({
     });
   };
 
+  /** A session lands on a sample: in the list that counts its sessions, or
+   *  on the card itself. */
+  const addSampleSession = (durationSeconds: number) => {
+    if (demoTotal !== null) setDemoTotal(demoTotal + durationSeconds);
+    if (onDemoPlaytimeLogged) onDemoPlaytimeLogged(durationSeconds);
+    else
+      setDemoLogged((current) => ({
+        seconds: current.seconds + durationSeconds,
+        sessions: current.sessions + 1,
+      }));
+  };
+
+  const handleStopSampleTimer = () => {
+    contextMenu.close();
+    if (!sampleTimerSession) return;
+    const seconds = playedSeconds(sampleTimerSession, Date.now());
+    setSampleTimerStartedAt(null);
+    if (seconds > 0) addSampleSession(seconds);
+    finishSample(
+      t(
+        "Sample timer stopped after {{time}}. On your own games that time becomes a session.",
+        { time: formatClock(seconds) },
+      ),
+    );
+  };
+
   const handleAddPlaytime = (
     durationSeconds: number,
     endedAt: string,
@@ -4674,8 +4871,7 @@ export function GameLibraryCard({
   ) => {
     if (demo) {
       setShowAddPlaytime(false);
-      if (demoTotal !== null) setDemoTotal(demoTotal + durationSeconds);
-      onDemoPlaytimeLogged?.(durationSeconds);
+      addSampleSession(durationSeconds);
       addToast({
         tone: "success",
         title: t("Tutorial session added"),
@@ -4692,6 +4888,8 @@ export function GameLibraryCard({
         ),
       });
       emitTourEvent("mygames.demo-session-logged");
+      // The card itself shows the result: its playtime and sessions grew.
+      finishSample(undefined);
       return;
     }
     addManualSession({
@@ -4725,8 +4923,7 @@ export function GameLibraryCard({
       setShowAdjustPlaytime(false);
       if (onDemoTotalAdjusted) onDemoTotalAdjusted(targetSeconds);
       else setDemoTotal(targetSeconds);
-      emitTourEvent(
-        "demo.action-completed",
+      finishSample(
         t("Sample total updated to {{duration}}. No session was added.", {
           duration: formatDuration(targetSeconds),
         }),
@@ -4936,16 +5133,18 @@ export function GameLibraryCard({
     alongsideOthers = false,
   ) {
     contextMenu.close();
-    if (launchTourDemo) {
+    if (demo) {
+      startSample("play");
       // Show the usual Starting… state first; the sample finishes on a timer.
-      if (demoLaunchPath) setLaunching(true);
-      else
-        emitTourEvent(
-          "mygames.demo-launch-attempted",
-          t(
-            "This sample has no saved launch file. Set one in Launch options to restore Play.",
-          ),
-        );
+      if (demoLaunchPath) {
+        setLaunching(true);
+        return;
+      }
+      const message = t(
+        "This sample has no saved launch file. Set one in Launch options to restore Play.",
+      );
+      emitTourEvent("mygames.demo-launch-attempted", message);
+      finishSample(message);
       return;
     }
     if (!target) {
@@ -5320,7 +5519,9 @@ export function GameLibraryCard({
   }
 
   function handlePreferredLaunch() {
-    if (manualTarget) {
+    if (demo) {
+      void handleLaunch();
+    } else if (manualTarget) {
       void handleLaunch(manualTarget);
     } else if (xboxLaunchEntry) {
       void handleXboxLaunch();
@@ -5340,7 +5541,8 @@ export function GameLibraryCard({
   }
 
   function handleLaunchFooterClick(element: HTMLElement) {
-    if (launchTourDemo && !demoLaunchPath) {
+    if (sampleLaunch && !demoLaunchPath) {
+      startSample("launch-file");
       setDemoAction("launch");
       return;
     }
@@ -5361,6 +5563,12 @@ export function GameLibraryCard({
 
   async function handleSetLaunchFile() {
     contextMenu.close();
+    if (demo) {
+      // No file picker on a sample: a dialog with its made-up file instead.
+      startSample("launch-file");
+      setDemoAction("launch");
+      return;
+    }
     try {
       const target = await chooseLaunchTarget(
         game.exeNames,
@@ -5389,6 +5597,14 @@ export function GameLibraryCard({
 
   function handleForgetLaunchFile() {
     contextMenu.close();
+    if (demo) {
+      startSample("forget-launch-file");
+      setDemoLaunchPath(null);
+      finishSample(
+        t("Sample launch path forgotten. Game history is unchanged."),
+      );
+      return;
+    }
     if (!primaryLaunchTarget) return;
     if (manualTarget && primaryLaunchTarget === manualTarget) {
       forgetManualLaunchTarget(manualTarget.owner);
@@ -5406,6 +5622,7 @@ export function GameLibraryCard({
 
   async function handleOpenInExplorer() {
     contextMenu.close();
+    if (demo) return sampleOnly("open-explorer", t("Open in Explorer"));
     if (!primaryLaunchTarget) return;
     try {
       await revealGameExecutable(primaryLaunchTarget);
@@ -5443,13 +5660,19 @@ export function GameLibraryCard({
       />
     ) : showDetails ? (
       <GameDetailsDialog
+        // A guide's step can ask for another tab while Details is open.
+        key={demo ? detailsTab : undefined}
         game={game}
         initialTab={detailsTab}
         launchKey={`${launchKey}:details`}
         launchBlocked={launchBlocked}
         onAcquireLaunch={onAcquireLaunch}
         onReleaseLaunch={onReleaseLaunch}
-        onClose={() => setShowDetails(false)}
+        onClose={() => {
+          setShowDetails(false);
+          // Looked at and closed: that is what a guide asks for.
+          if (demo) finishSample();
+        }}
         onDemoHistory={() => {
           setShowDetails(false);
           setDemoAction("history");
@@ -5470,23 +5693,32 @@ export function GameLibraryCard({
       />
     ) : null;
 
+  // One menu for real cards and for both kinds of sample cards: an entry
+  // added here shows on the samples too. On a sample, an entry runs its
+  // sample version, or answers with sampleOnly when it cannot work there.
+  // Every entry carries a `data-tour` name on samples, so a guide can ring it
+  // (MyGamesSampleMenu.test.tsx compares the menus).
   const renderContextMenu = () => {
     if (!contextMenu.open) return null;
-    if (libraryPractice)
-      return (
-        <ContextMenu
-          open
-          position={contextMenu.position}
-          onClose={contextMenu.close}
-          dataTour="demo-library-menu"
-          focusFirstItem
-        >
-          <GameJournalMenu
-            game={{ ...game, gameName: game.name }}
-            onClose={contextMenu.close}
-          />
-        </ContextMenu>
-      );
+    // The flyouts of the practice library carry its menu's name: the guide
+    // lets clicks through there without listing each one.
+    const flyoutName = (name: string) =>
+      libraryPractice ? "demo-library-menu" : sampleName(name);
+    const journalMenu = (
+      <GameJournalMenu
+        heading={false}
+        game={{ ...game, gameName: game.name }}
+        onClose={contextMenu.close}
+      />
+    );
+    const pinLabel =
+      bannerShelf && !demo
+        ? featuredInBanner
+          ? t("Use library banner")
+          : t("Pin to shelf banner")
+        : featuredInBanner
+          ? t("Unpin from banner")
+          : t("Pin to banner");
     return (
       <ContextMenu
         open={contextMenu.open}
@@ -5495,13 +5727,16 @@ export function GameLibraryCard({
         returnFocusRef={contextMenu.anchorRef}
         ariaLabel={t("{{game}} actions", { game: game.name })}
         className="min-w-56"
-        dataTour={demo ? "demo-context-menu" : undefined}
+        dataTour={
+          libraryPractice ? "demo-library-menu" : sampleName("demo-context-menu")
+        }
         focusFirstItem
       >
         {showPlayButton ? (
           <ContextMenuItem
             icon={Play}
-            disabled={hasActiveSession || launching || launchBlocked}
+            dataTour={sampleName("demo-menu-play")}
+            disabled={hasActiveSession || launching || (!demo && launchBlocked)}
             onClick={handlePreferredLaunch}
           >
             {t("Play")}
@@ -5516,9 +5751,10 @@ export function GameLibraryCard({
         ) : null}
         <ContextMenuItem
           icon={Info}
-          dataTour={demo ? "demo-menu-details" : undefined}
+          dataTour={sampleName("demo-menu-details")}
           onClick={() => {
             contextMenu.close();
+            startSample("details");
             openDetails();
           }}
         >
@@ -5527,8 +5763,10 @@ export function GameLibraryCard({
         {hasGameAchievements ? (
           <ContextMenuItem
             icon={Trophy}
+            dataTour={sampleName("demo-menu-achievements")}
             onClick={() => {
               contextMenu.close();
+              startSample("achievements");
               openDetails("achievements");
             }}
           >
@@ -5536,46 +5774,45 @@ export function GameLibraryCard({
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
-          dataTour={demo ? "demo-menu-show-history" : undefined}
+          dataTour={sampleName("demo-menu-show-history")}
           icon={History}
-          onClick={handleShowHistory}
+          onClick={() => {
+            startSample("show-history");
+            handleShowHistory();
+          }}
         >
           {t("Show History")}
         </ContextMenuItem>
-        {!demo ? (
-          <ContextMenuItem
-            icon={featuredInBanner ? PinOff : Pin}
-            onClick={() => {
-              contextMenu.close();
-              const featuredGame = featuredInBanner
-                ? null
-                : {
-                    gameId: game.gameId,
-                    source: game.source,
-                    igdbId: game.igdbId,
-                  };
-              if (bannerShelf)
-                saveBannerShelf({ ...bannerShelf, featuredGame });
-              else setLibraryFeaturedGame(featuredGame);
-            }}
-          >
-            {bannerShelf
-              ? featuredInBanner
-                ? t("Use library banner")
-                : t("Pin to shelf banner")
-              : featuredInBanner
-                ? t("Unpin from banner")
-                : t("Pin to banner")}
-          </ContextMenuItem>
-        ) : null}
-        {!demo ? <ContextMenuSeparator /> : null}
-        {!demo ? (
-          <GameJournalMenu
-            heading={false}
-            game={{ ...game, gameName: game.name }}
-            onClose={contextMenu.close}
-          />
-        ) : null}
+        <ContextMenuItem
+          icon={featuredInBanner ? PinOff : Pin}
+          dataTour={sampleName("demo-menu-pin-banner")}
+          onClick={() => {
+            // The banner above My Games is the player's own.
+            if (demo) return sampleOnly("pin-banner", pinLabel);
+            contextMenu.close();
+            const featuredGame = featuredInBanner
+              ? null
+              : {
+                  gameId: game.gameId,
+                  source: game.source,
+                  igdbId: game.igdbId,
+                };
+            if (bannerShelf) saveBannerShelf({ ...bannerShelf, featuredGame });
+            else setLibraryFeaturedGame(featuredGame);
+          }}
+        >
+          {pinLabel}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        {sampleLibrary ? (
+          // Favorites, Status, Tier and Shelves of a sample in My Games go to
+          // its own library, never to the player's.
+          <PersonalLibraryContext.Provider value={sampleLibrary}>
+            {journalMenu}
+          </PersonalLibraryContext.Provider>
+        ) : (
+          journalMenu
+        )}
         <ContextMenuSeparator />
         {showLaunchOptions ? (
           <ContextMenuSubmenu

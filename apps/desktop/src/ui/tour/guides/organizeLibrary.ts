@@ -1,14 +1,19 @@
 import { Star } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, libraryTourCard } from "./shared";
+import { a, libraryTourCard, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
+
+// The practice card's menu.
+const cardMenu = [a("demo-library-menu"), a("demo-context-menu")];
+// A shelf in the card menu's Shelves flyout: the entries with a tick.
+const shelfInMenu = `${a("demo-shelf-menu")} [role="menuitemradio"]`;
 
 export function organizeLibraryGuide(): TourDefinition {
   return {
     id: "organize-library",
-    version: 2,
+    version: 3,
     kind: "guide",
     category: "library",
     icon: Star,
@@ -19,16 +24,17 @@ export function organizeLibraryGuide(): TourDefinition {
     duration: t("3 min"),
     practice: true,
     finishView: "games",
-    release: "1.1.17",
+    release: NEXT_RELEASE,
     nextTourId: "library-progress",
     steps: [
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-organization"),
+        anchor: a("demo-favorites"),
+        additionalAnchors: [a("demo-new-shelf")],
         title: t("Make a library that fits you"),
         body: t(
-          "Favorites keep the games you play most within reach. Shelves let you group games any way you like, and a game can sit on several shelves at once. Practice with the sample World of Warcraft and GTA V cards below. Nothing in this practice library is saved.",
+          "<b>Favorites</b> keep the games you play most within reach. Shelves group games any way you like. These are sample games: nothing is saved.",
         ),
       },
       {
@@ -40,10 +46,13 @@ export function organizeLibraryGuide(): TourDefinition {
         interactive: true,
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
-        allow: [a("demo-library-stage"), a("demo-library-menu")],
+        allow: [a("demo-library-stage"), ...cardMenu],
         title: t("Keep a favorite close"),
         body: t(
-          "Drag a sample card onto Favorites, or right-click the card and choose Add to Favorites. A star appears on its cover, and the guide moves on by itself.",
+          "A favorite gets a star on its cover and shows under <b>Favorites</b>.",
+        ),
+        task: t(
+          "Right-click a card and choose <b>Add to Favorites</b>. Dragging the card onto <b>Favorites</b> works too.",
         ),
       },
       {
@@ -53,22 +62,26 @@ export function organizeLibraryGuide(): TourDefinition {
         anchorTargets: [a("demo-shelf-name")],
         additionalAnchors: [a("demo-shelf-save")],
         interactive: true,
+        manualAdvance: true,
         advanceOn: { type: "event", name: "library.demo-shelf-created" },
-        skipTo: "fill-shelf",
         allow: [a("demo-organization"), a("demo-library-modal")],
         title: t("Create your own shelf"),
         body: t(
-          "Click Favorites anytime to see only your favorites. Now click New shelf, type a name such as “Online Games”, and press Enter. The new shelf starts empty, ready for the games you choose.",
+          "A shelf is a list you name yourself: co-op games, the backlog, anything. It starts empty.",
+        ),
+        task: t(
+          "Click <b>New shelf</b>, type a name such as “Online Games” and press <kbd>Enter</kbd>.",
         ),
       },
       {
         id: "fill-shelf",
         view: "games",
         anchor: a("demo-personal-shelf"),
+        // The dialog of New shelf, the shelf in the open flyout, then Shelves.
         anchorTargets: [
-          a("demo-journal-shelf-choice"),
-          a("demo-journal-shelf"),
-          a("demo-menu-journal"),
+          a("demo-shelf-name"),
+          shelfInMenu,
+          a("demo-menu-shelves"),
         ],
         additionalAnchors: [libraryTourCard],
         interactive: true,
@@ -76,13 +89,37 @@ export function organizeLibraryGuide(): TourDefinition {
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [
           a("demo-library-stage"),
-          a("demo-library-menu"),
+          ...cardMenu,
           a("demo-shelf-menu"),
           a("demo-library-modal"),
         ],
         title: t("Put games on your shelf"),
         body: t(
-          "We switched back to All games. Drag a sample card onto your new shelf. Without dragging: right-click a card, choose Journal, then Add to shelf. While you drag, a shelf that cannot take the game tells you why.",
+          "A game can sit on several shelves at once. <b>New shelf</b> in the same menu creates a shelf with the game already on it.",
+        ),
+        task: t(
+          "Right-click a card, open <b>Shelves</b> and pick your shelf. Dragging the card onto the shelf works too.",
+        ),
+      },
+      {
+        id: "hide-shelf",
+        view: "games",
+        anchor: a("demo-personal-shelf"),
+        anchorTargets: [a("demo-shelf-hide-all"), a("demo-shelf-hide")],
+        interactive: true,
+        manualAdvance: true,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        allow: [
+          a("demo-organization"),
+          a("demo-library-menu"),
+          a("demo-shelf-hide-menu"),
+        ],
+        title: t("Hide a shelf's games"),
+        body: t(
+          "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.",
+        ),
+        task: t(
+          "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.",
         ),
       },
       {
@@ -96,8 +133,9 @@ export function organizeLibraryGuide(): TourDefinition {
         allow: [a("demo-organization")],
         title: t("Let a shelf fill itself"),
         body: t(
-          "A shelf can also fill itself from filters. We opened your shelf and its Filters. Under Progress, choose In progress. You can combine filters for progress, playtime, emulator, and how long a game has not been played.",
+          "A shelf can also fill itself from filters. We opened your shelf and its <b>Filters</b>; the cards below show what matches.",
         ),
+        task: t("Under <b>Progress</b>, choose <b>In progress</b>."),
       },
       {
         id: "save-filters",
@@ -111,18 +149,19 @@ export function organizeLibraryGuide(): TourDefinition {
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [a("demo-organization"), a("demo-library-menu")],
-        title: t("Save the filters to your shelf"),
-        body: t(
-          "The cards below now preview every game with that status; the sample World of Warcraft already has it. Click Save filters. From now on, games join or leave this shelf on their own as they match the filters. To change them later, right-click the shelf and choose Edit filters. Remove saved filters brings back the games you added by hand. A shelf with saved filters does not accept dragged games, and tells you so when you try.",
-        ),
+        title: t("Save the filters"),
+        body: t("From now on, games join or leave this shelf on their own."),
+        task: t("Click <b>Save filters</b>."),
       },
       {
         id: "finish",
         view: "games",
-        anchor: a("demo-organization"),
-        title: t("My Games remembers your view"),
+        anchor: a("demo-favorites"),
+        // The player's shelf, if the guide left one.
+        anchorTargets: [a("demo-filtered-shelf"), a("demo-personal-shelf")],
+        title: t("Shelves in your own library"),
         body: t(
-          "Your search and the shelf you selected stay in place when you switch to another page and come back. Next up: give several games a progress status at once and choose what their cards show.",
+          "In My Games, right-click a game and open <b>Shelves</b>, or drag it onto a shelf. With many shelves, the ones that do not fit one row wait behind “+N more”.",
         ),
       },
     ],

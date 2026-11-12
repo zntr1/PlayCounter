@@ -1,15 +1,16 @@
 import { Archive } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { a, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
 
+// Every step only points: Import replaces data and Reset deletes it.
 export function backupDataGuide(): TourDefinition {
   return {
     id: "backup-data",
-    version: 3,
-    release: "1.1.17",
+    version: 4,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "settings",
     icon: Archive,
@@ -23,29 +24,20 @@ export function backupDataGuide(): TourDefinition {
         id: "intro",
         view: "settings",
         settingsGroup: "backup",
-        title: t("Your data stays portable"),
+        anchor: a("settings-page-head"),
+        title: t("What a backup holds"),
         body: t(
-          "Open Settings and find Backup & transfer whenever you want to protect your local data or move PlayCounter to another PC. This guide explains both actions without opening a file dialog or changing your data.",
-        ),
-      },
-      {
-        id: "overview",
-        view: "settings",
-        settingsGroup: "backup",
-        anchor: a("settings-backup"),
-        title: t("Backup & transfer"),
-        body: t(
-          "A backup is a single JSON file. It contains your play history, your games, your notes, playthroughs, shelves, and app settings. Saved launch paths are not included; they stay on this PC.",
+          "A backup is one JSON file with your play history, games, notes, playthroughs, shelves and settings. This guide only points at <b>Backup & transfer</b>: nothing is saved, imported or reset.",
         ),
       },
       {
         id: "automatic",
         view: "settings",
         settingsGroup: "backup",
-        anchor: a("settings-backup-enabled"),
-        title: t("Automatic backups"),
+        anchor: a("settings-backup-automatic"),
+        title: t("Backups happen by themselves"),
         body: t(
-          "By default, PlayCounter saves a backup once a week and keeps the last five. If a backup was missed because PlayCounter was not running, it is saved the next time you open the app. This guide only points at the controls; it does not change your settings or create a backup.",
+          "Unless you change it, <b>Automatic backups</b> save one backup a week and keep the last five. A backup missed while PlayCounter was closed is caught up the next time it opens.",
         ),
       },
       {
@@ -53,24 +45,30 @@ export function backupDataGuide(): TourDefinition {
         view: "settings",
         settingsGroup: "backup",
         anchor: a("settings-backup-interval"),
-        additionalAnchors: [
-          a("settings-backup-keep"),
-          a("settings-backup-now"),
-        ],
-        title: t("Choose how often, and how many to keep"),
+        additionalAnchors: [a("settings-backup-keep")],
+        title: t("How often, and how many"),
         body: t(
-          "Schedule switches between daily and weekly backups. Keep sets how many backups stay on disk; once the limit is reached, the oldest automatic backup is deleted. Back up now saves a backup right away.",
+          "<b>Schedule</b> switches between daily and weekly. <b>Keep</b> sets how many automatic backups stay in the folder: when a new one is saved, the oldest one goes.",
         ),
       },
       {
         id: "folder",
         view: "settings",
         settingsGroup: "backup",
-        anchor: a("settings-backup-choose-folder"),
-        additionalAnchors: [a("settings-backup-open-folder")],
-        title: t("Know where your backups are"),
+        anchor: a("settings-backup-folder"),
+        title: t("Where your backups are"),
         body: t(
-          "Automatic backups go to PlayCounter's app data folder unless you pick another one with Choose folder. Open folder shows the files. For extra safety, pick a folder that is synced to the cloud or included in your own backups.",
+          "Backups go to PlayCounter's own folder until <b>Choose folder</b> picks another one. A folder that syncs to the cloud keeps them safe if this PC breaks. <b>Open folder</b> shows the files.",
+        ),
+      },
+      {
+        id: "stays",
+        view: "settings",
+        settingsGroup: "backup",
+        anchor: a("settings-section-transfer"),
+        title: t("What stays on this PC"),
+        body: t(
+          "Before you use <b>Move to another PC</b>: saved launch paths, ignored apps, watched folders and launcher sign-ins are not in a backup. They stay on this PC.",
         ),
       },
       {
@@ -78,9 +76,9 @@ export function backupDataGuide(): TourDefinition {
         view: "settings",
         settingsGroup: "backup",
         anchor: a("settings-backup-export"),
-        title: t("Export your data"),
+        title: t("Take your data with you"),
         body: t(
-          "Choose Export to save the current local data as a JSON file. Keep that file somewhere safe or copy it to the PC where you want to continue using PlayCounter.",
+          "<b>Export</b> saves the same file wherever you like, for example on a USB stick or in a cloud folder. Copy it to the other PC.",
         ),
       },
       {
@@ -88,9 +86,29 @@ export function backupDataGuide(): TourDefinition {
         view: "settings",
         settingsGroup: "backup",
         anchor: a("settings-backup-import"),
-        title: t("Import a backup"),
+        title: t("Bring a backup back"),
         body: t(
-          "Choose Import and select a PlayCounter backup file. Import replaces the current local data; PlayCounter automatically creates a safety backup of the current state first. The button stays locked during this guide to avoid an accidental import.",
+          "<b>Import</b> replaces everything on this PC with the file you pick. PlayCounter first saves a safety backup of what is there now.",
+        ),
+      },
+      {
+        id: "reset",
+        view: "settings",
+        settingsGroup: "backup",
+        anchor: a("settings-section-reset"),
+        title: t("Reset, if you ever need it"),
+        body: t(
+          "<b>Restore default settings</b> resets your preferences and keeps games and history. <b>Start over</b> clears the library, the history and the settings. Your backup files stay either way.",
+        ),
+      },
+      {
+        id: "finish",
+        view: "settings",
+        settingsGroup: "backup",
+        anchor: a("settings-backup-now"),
+        title: t("Make your first backup"),
+        body: t(
+          "After the guide, click <b>Back up now</b> once. Then you know where the file lands, and a fresh backup already exists.",
         ),
       },
     ],
