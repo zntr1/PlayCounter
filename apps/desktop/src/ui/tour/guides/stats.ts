@@ -1,14 +1,22 @@
 import { ChartColumn } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { NEXT_RELEASE, a } from "./shared";
 
 const t = getT("tour");
 
 export function statsGuide(): TourDefinition {
+  // The sample history, its menus and its dialogs.
+  const practice = [
+    a("demo-library-stage"),
+    a("demo-library-menu"),
+    a("demo-history-playtime-menu"),
+    a("demo-library-modal"),
+  ];
   return {
     id: "stats",
-    version: 2,
+    version: 3,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "playtime",
     icon: ChartColumn,
@@ -17,56 +25,82 @@ export function statsGuide(): TourDefinition {
     duration: t("2 min"),
     simulation: "stats",
     finishView: "history",
+    nextTourId: "game-achievements",
     steps: [
       {
         id: "intro",
         view: "history",
-        anchor: a("demo-stats"),
-        title: t("Your history, with sample sessions"),
+        anchor: a("demo-history-total"),
+        title: t("Your playtime in one number"),
         body: t(
-          "This practice history contains six completed sessions spread over several weeks. Next you'll explore ranges, charts, and session actions; your own history stays unchanged.",
+          "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.",
         ),
+      },
+      {
+        id: "ranges",
+        view: "history",
+        anchor: a("demo-history-ranges"),
+        interactive: true,
+        manualAdvance: true,
+        allow: practice,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        title: t("Pick a time span"),
+        body: t(
+          "The range decides what the whole page counts: the number, the sessions and the charts. <b>Pick dates</b> takes any days, months or years you like.",
+        ),
+        task: t("Click <b>7 days</b>."),
+      },
+      {
+        id: "compare",
+        view: "history",
+        anchor: a("demo-history-ranges"),
+        anchorTargets: [a("demo-history-stepper")],
+        additionalAnchors: [a("demo-history-compare")],
+        interactive: true,
+        manualAdvance: true,
+        allow: practice,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        title: t("Compare with the time before"),
+        body: t(
+          "The line under the number compares the range with the one before it. The arrows beside the active range step one period back or forward.",
+        ),
+        task: t("Click the left arrow next to <b>7 days</b>."),
       },
       {
         id: "sessions",
         view: "history",
-        anchor: a("demo-stats"),
-        anchorTargets: [`${a("demo-stats")} ${a("history-hero")}`],
+        anchor: a("demo-history-row"),
         interactive: true,
         manualAdvance: true,
-        allow: [
-          a("demo-library-stage"),
-          a("demo-library-menu"),
-          a("demo-library-modal"),
-        ],
-        title: t("Compare a week with all time"),
+        allow: practice,
+        title: t("One row per session"),
         body: t(
-          "Use the range chips to scope the page. Notice how hours and session count change. A highlight takes you to the sessions behind it. Right-click a session to filter by game, open its journal, or practice deleting it.",
+          "A row shows the game, when you played and for how long. Its right-click menu holds notes, <b>Playthroughs</b>, <b>Filter for this game</b>, <b>Playtime</b> and <b>Delete Session</b>.",
         ),
       },
       {
         id: "charts",
         view: "history",
-        anchor: a("demo-stats"),
+        anchor: a("demo-history-tab-insights"),
+        anchorTargets: [a("demo-history-chart-playtime")],
+        additionalAnchors: [a("demo-history-tab-games")],
         interactive: true,
         manualAdvance: true,
-        allow: [
-          a("demo-library-stage"),
-          a("demo-library-menu"),
-          a("demo-library-modal"),
-        ],
-        title: t("Explore Insights and Games"),
+        allow: practice,
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        title: t("Charts for your range"),
         body: t(
-          "Insights is open now. Change the range and inspect the charts. Games ranks your playtime by game. Sessions returns to the timeline. Imported launcher totals do not invent past sessions for these charts.",
+          "<b>Insights</b> draws the range: <b>Playtime over time</b>, <b>Game seasons</b>, <b>Cover calendar</b>, <b>Pace</b>, <b>Play habits</b> and <b>When you play</b>.",
         ),
+        task: t("Open the <b>Games</b> tab."),
       },
       {
-        id: "milestones",
+        id: "games",
         view: "history",
-        anchor: a("demo-stats"),
-        title: t("Milestones and launcher achievements"),
+        anchor: a("demo-history-games"),
+        title: t("Your most played games"),
         body: t(
-          "PlayCounter milestones reward local tracking, such as reaching a playtime goal. Provider achievements come from supported launcher imports and belong to individual games. They are separate systems. Find local milestones under Achievements. Imported provider achievements appear in the details of supported games.",
+          "<b>Games</b> ranks your playtime by game. In the app, a click on a game shows its sessions. Your own numbers are one click away: <b>Open My History</b>. Milestones come in the next guide.",
         ),
       },
     ],

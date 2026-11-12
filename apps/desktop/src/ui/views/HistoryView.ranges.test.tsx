@@ -15,6 +15,8 @@ import { getSessionGameKey } from "../../historyStats";
 import { STORAGE_KEY } from "../../persistence";
 import { useAppStore } from "../../store";
 import { resetGameColors } from "../charts/gameColors";
+import { findTour } from "../tour/tourDefinitions";
+import { StatsPractice } from "../tour/TourStatsPractice";
 import { HistoryView } from "./HistoryView";
 
 /* Plan: docs/history-ranges-plan.md (numbers are its sentences). Today is
@@ -213,17 +215,22 @@ describe("tabs", () => {
   // replacing the saved one.
   it("lets the stats guide open its tab without saving it", async () => {
     useAppStore.getState().setHistoryTab("games");
-    // step 2 of the stats guide is "charts"
     useAppStore.setState({
       activeTour: {
         tourId: "stats",
-        stepIndex: 2,
+        stepIndex: findTour("stats")!.steps.findIndex(
+          (step) => step.id === "charts",
+        ),
         returnView: "history",
         enteredStepAt: NOW,
       },
     });
-    await render();
+    // The guide's sample history is this page on a store of its own.
+    await act(() => root.render(<StatsPractice />));
     expect(selectedTab()).toBe("history-tab-insights");
+    // Looking at another tab of the sample doesn't save it either.
+    await click(container.querySelector("#history-tab-sessions"));
+    expect(selectedTab()).toBe("history-tab-sessions");
     expect(useAppStore.getState().settings.historyTab).toBe("games");
   });
 

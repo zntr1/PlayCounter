@@ -39,6 +39,7 @@ import { formatDuration } from "../../components";
 import { localDateTimeValue } from "../../dateTimeInput";
 import { GameCover } from "../../GameCover";
 import { NumberDrum } from "./NumberDrum";
+import { useLibraryPractice } from "../../PersonalLibraryContext";
 import { Button, Input, Modal, Pill, type ModalSize } from "../../primitives";
 
 const t = getT("history");
@@ -68,6 +69,12 @@ function formatTime(ms: number) {
   });
 }
 
+/** What a guide rings in these boxes on its sample history. */
+function useGuideName() {
+  const practice = useLibraryPractice();
+  return (name: string) => (practice ? name : undefined);
+}
+
 /* Same look as the delete box: the game in the header, its cover next to
    what can be changed. */
 function SessionChangeModal({
@@ -81,6 +88,7 @@ function SessionChangeModal({
   submitIcon,
   canSubmit,
   size = "sm",
+  guideName,
   children,
 }: {
   labelId: string;
@@ -93,10 +101,15 @@ function SessionChangeModal({
   submitIcon: LucideIcon;
   canSubmit: boolean;
   size?: ModalSize;
+  /** The box's name for a guide: "demo-history-edit", -split, -combine. */
+  guideName: string;
   children: ReactNode;
 }) {
+  const guide = useGuideName();
   return (
     <Modal
+      dataTour={guide(guideName)}
+      backdropDataTour={guide("demo-library-modal")}
       size={size}
       labelId={labelId}
       eyebrow={t("My History")}
@@ -115,6 +128,7 @@ function SessionChangeModal({
             variant="primary"
             icon={submitIcon}
             disabled={!canSubmit}
+            data-tour={guide("demo-history-change-submit")}
           >
             {submitLabel}
           </Button>
@@ -196,18 +210,21 @@ function TimeFieldCard({
   label,
   picked,
   onPick,
+  dataTour,
   children,
 }: {
   labelId: string;
   label: string;
   picked: boolean;
   onPick: () => void;
+  dataTour?: string;
   children: ReactNode;
 }) {
   return (
     <div
       role="group"
       aria-labelledby={labelId}
+      data-tour={dataTour}
       onClick={onPick}
       className={clsx(
         "flex h-full cursor-pointer flex-col rounded-lg border p-3.5 transition",
@@ -331,6 +348,7 @@ export function EditSessionDialog({
   onConfirm: (times: SessionTimes) => void;
 }) {
   const ids = useId();
+  const guide = useGuideName();
   const [form, setForm] = useState<EditForm>(() => {
     const { startMs, endMs } = sessionTimes(session);
     const start = localDateTimeValue(new Date(startMs));
@@ -499,6 +517,7 @@ export function EditSessionDialog({
       submitIcon={Pencil}
       canSubmit={canSubmit}
       size="wide"
+      guideName="demo-history-edit"
     >
       <form
         id="edit-history-session-form"
@@ -528,6 +547,7 @@ export function EditSessionDialog({
             label={t("Length")}
             picked={filledField !== "length"}
             onPick={() => pick("length")}
+            dataTour={guide("demo-history-edit-length")}
           >
             <div className="mt-auto flex items-center justify-center gap-3 pt-3">
               <NumberDrum
@@ -605,6 +625,7 @@ export function SplitSessionDialog({
   onCancel,
   onConfirm,
 }: DialogProps & { onConfirm: (pause: SessionTimes) => void }) {
+  const guide = useGuideName();
   const times = sessionTimes(session);
   const sliderMin = Math.ceil(times.startMs / minuteMs);
   const sliderMax = Math.floor(times.endMs / minuteMs);
@@ -667,6 +688,7 @@ export function SplitSessionDialog({
       submitIcon={Scissors}
       canSubmit={canSubmit}
       size="wide"
+      guideName="demo-history-split"
     >
       <form
         id="split-history-session-form"
@@ -739,6 +761,7 @@ export function SplitSessionDialog({
           <div
             role="group"
             aria-labelledby="split-history-session-break"
+            data-tour={guide("demo-history-split-break")}
             className="mt-2 flex flex-wrap gap-2"
           >
             {breakPresets.map((minutes) => (
@@ -946,6 +969,7 @@ export function CombineSessionDialog({
   neighbours: SessionNeighbours;
   onConfirm: (other: Session) => void;
 }) {
+  const guide = useGuideName();
   const { startMs, endMs } = sessionTimes(session);
   const options = [
     neighbours.before
@@ -1023,6 +1047,7 @@ export function CombineSessionDialog({
       submitIcon={Merge}
       canSubmit={Boolean(picked)}
       size="wide"
+      guideName="demo-history-combine"
     >
       <form
         id="combine-history-sessions-form"
@@ -1096,7 +1121,10 @@ export function CombineSessionDialog({
           </div>
           <Operator icon={Equal} />
           {combined && picked && bar ? (
-            <div className="rounded-lg border border-border bg-surface-hover p-3.5 text-sm">
+            <div
+              data-tour={guide("demo-history-combine-result")}
+              className="rounded-lg border border-border bg-surface-hover p-3.5 text-sm"
+            >
               <div className="flex items-start gap-3">
                 <SessionCover
                   session={session}

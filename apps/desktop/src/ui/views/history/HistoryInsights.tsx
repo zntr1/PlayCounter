@@ -30,6 +30,7 @@ import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
+import { useLibraryPractice } from "../../PersonalLibraryContext";
 import { appLocale, weekdayNames, getT } from "../../../i18n";
 import { CoverCalendarPager } from "./CoverCalendarPager";
 import { GameSeasons } from "./GameSeasons";
@@ -179,6 +180,16 @@ function formatPercent(share: number) {
   return `${Math.round(share * 100)} %`;
 }
 
+/** Whether a chart is folded away. A guide's sample history starts with all
+ *  charts open and keeps its own state, so the player's stay as they are. */
+function useChartSection(sectionId: string, practice: boolean) {
+  const saved = useSectionCollapse(sectionId);
+  const [collapsed, setCollapsed] = useState(false);
+  return practice
+    ? { collapsed, toggle: () => setCollapsed((current) => !current) }
+    : saved;
+}
+
 export const HistoryInsights = memo(function HistoryInsights({
   sessions,
   selection,
@@ -208,12 +219,13 @@ export const HistoryInsights = memo(function HistoryInsights({
   /** Opens a game's sessions. */
   onSelectGame: (key: string) => void;
 }) {
-  const playtimeSection = useSectionCollapse("history.playtime");
-  const calendarSection = useSectionCollapse("history.calendar");
-  const paceSection = useSectionCollapse("history.pace");
-  const seasonsSection = useSectionCollapse("history.seasons");
-  const habitsSection = useSectionCollapse("history.habits");
-  const rhythmSection = useSectionCollapse("history.rhythm");
+  const practice = useLibraryPractice();
+  const playtimeSection = useChartSection("history.playtime", practice);
+  const calendarSection = useChartSection("history.calendar", practice);
+  const paceSection = useChartSection("history.pace", practice);
+  const seasonsSection = useChartSection("history.seasons", practice);
+  const habitsSection = useChartSection("history.habits", practice);
+  const rhythmSection = useChartSection("history.rhythm", practice);
   const [litGame, setLitGame] = useState<string | null>(null);
   const {
     chart,
@@ -312,7 +324,12 @@ export const HistoryInsights = memo(function HistoryInsights({
 
   return (
     <div className="grid min-w-0 gap-6">
-      <Panel dataTour="history-playtime-chart" className="min-w-0 p-5">
+      <Panel
+        dataTour={
+          practice ? "demo-history-chart-playtime" : "history-playtime-chart"
+        }
+        className="min-w-0 p-5"
+      >
         <SectionHeading
           id="playtime-chart-heading"
           title={t("Playtime over time")}
