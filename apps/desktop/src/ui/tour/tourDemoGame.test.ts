@@ -121,8 +121,8 @@ describe("what the sample card shows when a step starts", () => {
     expect(stageOf("log-playtime", "result").menu).toBe(false);
     expect(stageOf("log-playtime", "alternative").menu).toBe(true);
     expect(stageOf("game-actions", "open-menu").menu).toBe(false);
-    expect(stageOf("launch-games", "learned").menu).toBe(false);
-    expect(stageOf("launch-games", "set-forget").menu).toBe(true);
+    expect(stageOf("launch-games", "play").menu).toBe(false);
+    expect(stageOf("launch-games", "launch-file").menu).toBe(true);
   });
 
   it("knows which entry of the sample card a step asks for", () => {

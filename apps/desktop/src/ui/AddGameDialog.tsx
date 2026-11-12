@@ -25,6 +25,7 @@ import { Button, Input, Modal } from "./primitives";
 import { Trans } from "react-i18next";
 import { getT } from "../i18n";
 import { nativeText } from "../nativeText";
+import { TOUR_DEMO_GAME, tourSampleGames } from "./tour/tourDemoGame";
 
 const t = getT("dialogs");
 
@@ -44,6 +45,7 @@ type Step =
 export function AddGameDialog({
   libraryIgdbIds,
   forGame,
+  sample,
   onClose,
 }: {
   /** Games already in My Games, so adding one again without a file is refused. */
@@ -51,17 +53,28 @@ export function AddGameDialog({
   /** A game in My Games without a known .exe ("Set launch file"): no search,
    *  and a file is required. */
   forGame?: GameMetadata;
+  /** A guide's practice (add-game): the search answers from bundled titles,
+   *  the file is a made-up one, and Add game only shows what it would give.
+   *  Nothing is looked up, saved or sent. `onDone` closes it from Done. */
+  sample?: { prefilled: boolean; onDone: () => void };
   onClose: () => void;
 }) {
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const addToast = useAppStore((state) => state.addToast);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<GameMetadata[]>([]);
+  const [query, setQuery] = useState(
+    sample?.prefilled ? TOUR_DEMO_GAME.name : "",
+  );
+  const [results, setResults] = useState<GameMetadata[]>(() =>
+    sample?.prefilled ? tourSampleGames(TOUR_DEMO_GAME.name) : [],
+  );
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState<GameMetadata | null>(
-    forGame ?? null,
+    forGame ??
+      (sample?.prefilled ? tourSampleGames(TOUR_DEMO_GAME.name)[0] : null),
   );
+  // A sample's Add game: shown instead of the dialog's form.
+  const [sampleAdded, setSampleAdded] = useState(false);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState("");
   const [step, setStep] = useState<Step>({ kind: "pick" });
@@ -77,6 +90,19 @@ export function AddGameDialog({
 
   async function runSearch() {
     if (!isSearchableGameQuery(query)) return;
+    if (sample) {
+      const games = tourSampleGames(query);
+      setResults(games);
+      setSelected(games[0] ?? null);
+      setMessage(
+        games.length > 0
+          ? ""
+          : t(
+              "No matching games found. Try the English title or another spelling.",
+            ),
+      );
+      return;
+    }
     searchController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
@@ -108,6 +134,11 @@ export function AddGameDialog({
   }
 
   async function pickFile() {
+    if (sample) {
+      setFilePath(TOUR_DEMO_GAME.exePath);
+      setFileError("");
+      return;
+    }
     const path = await open({
       multiple: false,
       directory: false,
@@ -141,6 +172,10 @@ export function AddGameDialog({
 
   async function add() {
     if (!selected || busy) return;
+    if (sample) {
+      setSampleAdded(true);
+      return;
+    }
     setBusy(true);
     setFileError("");
     if (!filePath) {
@@ -271,7 +306,10 @@ export function AddGameDialog({
   }
 
   const filePart = (
-    <div className="grid gap-2 rounded-lg border border-border bg-bg/50 p-3">
+    <div
+      data-tour="demo-add-game-file"
+      className="grid gap-2 rounded-lg border border-border bg-bg/50 p-3"
+    >
       <p className="text-xs font-semibold text-text">
         {forGame ? t("Game file") : t("Game file (optional)")}
       </p>
@@ -324,66 +362,79 @@ export function AddGameDialog({
     </div>
   );
 
-  const footer =
-    step.kind === "other" ? (
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          icon={ArrowLeft}
-          disabled={busy}
-          onClick={() => setStep({ kind: "pick" })}
-        >
-          {t("Back")}
-        </Button>
-      </div>
-    ) : step.kind === "share" ? (
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          variant="ghost"
-          icon={ArrowLeft}
-          disabled={busy}
-          onClick={() => setStep({ kind: "pick" })}
-        >
-          {t("Back")}
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={() => selected && void linkTo(step.file, selected, "custom")}
-        >
-          {t("Add on this PC only")}
-        </Button>
-        <Button
-          variant="primary"
-          autoFocus
-          loading={busy}
-          onClick={() => void share(step.file)}
-        >
-          {t("Add and share")}
-        </Button>
-      </div>
-    ) : (
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>
-          {t("Cancel")}
-        </Button>
-        <Button
-          variant="primary"
-          icon={forGame ? FolderSearch : Plus}
-          loading={busy}
-          disabled={
-            !selected || (forGame || alreadyInLibrary ? !filePath : false)
-          }
-          onClick={() => void add()}
-        >
-          {forGame ? t("Set launch file") : t("Add game")}
-        </Button>
-      </div>
-    );
+  const footer = sampleAdded ? (
+    <div className="flex justify-end">
+      <Button
+        variant="primary"
+        autoFocus
+        data-tour="demo-add-game-done"
+        onClick={() => sample?.onDone()}
+      >
+        {t("Done")}
+      </Button>
+    </div>
+  ) : step.kind === "other" ? (
+    <div className="flex justify-end">
+      <Button
+        variant="ghost"
+        icon={ArrowLeft}
+        disabled={busy}
+        onClick={() => setStep({ kind: "pick" })}
+      >
+        {t("Back")}
+      </Button>
+    </div>
+  ) : step.kind === "share" ? (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button
+        variant="ghost"
+        icon={ArrowLeft}
+        disabled={busy}
+        onClick={() => setStep({ kind: "pick" })}
+      >
+        {t("Back")}
+      </Button>
+      <Button
+        variant="secondary"
+        disabled={busy}
+        onClick={() => selected && void linkTo(step.file, selected, "custom")}
+      >
+        {t("Add on this PC only")}
+      </Button>
+      <Button
+        variant="primary"
+        autoFocus
+        loading={busy}
+        onClick={() => void share(step.file)}
+      >
+        {t("Add and share")}
+      </Button>
+    </div>
+  ) : (
+    <div className="flex justify-end gap-2">
+      <Button variant="ghost" onClick={onClose}>
+        {t("Cancel")}
+      </Button>
+      <Button
+        variant="primary"
+        data-tour="demo-add-game-confirm"
+        icon={forGame ? FolderSearch : Plus}
+        loading={busy}
+        disabled={
+          !selected || (forGame || alreadyInLibrary ? !filePath : false)
+        }
+        onClick={() => void add()}
+      >
+        {forGame ? t("Set launch file") : t("Add game")}
+      </Button>
+    </div>
+  );
 
   return (
     <Modal
       size="lg"
+      dataTour="demo-add-game-dialog"
+      backdropDataTour="demo-add-game-backdrop"
       labelId="add-game-dialog-title"
       eyebrow={t("My Games")}
       title={forGame ? t("Set launch file") : t("Add game")}
@@ -399,7 +450,24 @@ export function AddGameDialog({
       onClose={onClose}
       footer={footer}
     >
-      {step.kind === "other" && selected ? (
+      {sampleAdded && selected ? (
+        <div data-tour="demo-add-game-result" className="grid gap-3">
+          <GameChoice
+            game={selected}
+            note={t("{{name}} added", { name: selected.name })}
+          />
+          <p className="text-sm leading-6 text-text-muted">
+            {filePath
+              ? t("Play starts {{exeName}}.", {
+                  exeName: TOUR_DEMO_GAME.exeName,
+                })
+              : t("It's in My Games now. Log past playtime from its card.")}
+          </p>
+          <p className="text-xs leading-5 text-text-muted">
+            {t("This is a sample: nothing was added to your library.")}
+          </p>
+        </div>
+      ) : step.kind === "other" && selected ? (
         <div className="grid gap-4">
           <p className="text-sm leading-6 text-text-muted">
             <Trans
@@ -496,6 +564,7 @@ export function AddGameDialog({
           >
             <Input
               autoFocus
+              data-tour="demo-add-game-search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t("Search by game title or IGDB ID")}
@@ -516,6 +585,7 @@ export function AddGameDialog({
           {results.length > 0 ? (
             <div
               role="listbox"
+              data-tour="demo-add-game-results"
               aria-label={t("Search results")}
               className="grid max-h-64 gap-1.5 overflow-y-auto pr-1"
             >

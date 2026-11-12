@@ -1,5 +1,5 @@
 import type { EmulatorMapping } from "../../emulators/types";
-import type { ActiveSession } from "../../store";
+import type { ActiveSession, GameMetadata } from "../../store";
 import type { Game, Session } from "@playcounter/shared";
 import type { GameSummary } from "../views/MyGamesView";
 import type { SampleDetailsTab, TourStep } from "./tourTypes";
@@ -205,5 +205,49 @@ export function emulatorTourDemoActive(
   if (tourId !== EMULATOR_TOUR_ID) return false;
   return (
     emulatorId === undefined || emulatorId === TOUR_DEMO_EMULATOR.emulatorId
+  );
+}
+
+/** The titles the guides' Add game search can find: bundled, so nothing is
+ *  looked up. A title or an IGDB number picks them, like the real search. */
+export function tourSampleGames(query: string): GameMetadata[] {
+  const games: GameMetadata[] = [
+    {
+      id: TOUR_DEMO_GAME.gameId,
+      igdbId: 1,
+      name: TOUR_DEMO_GAME.name,
+      coverUrl: TOUR_DEMO_GAME.coverUrl,
+      releaseYear: 2004,
+      source: "igdb",
+    },
+    {
+      id: TOUR_DEMO_EMULATOR.gameId,
+      igdbId: 2,
+      name: TOUR_DEMO_EMULATOR.gameName,
+      coverUrl: TOUR_DEMO_EMULATOR.coverUrl,
+      releaseYear: 2002,
+      source: "igdb",
+    },
+    {
+      id: TOUR_GTA_GAME_ID,
+      igdbId: 3,
+      name: "Grand Theft Auto V", // i18n-exempt: sample game name
+      coverUrl: "/tour/gta-v-cover.webp",
+      releaseYear: 2013,
+      source: "igdb",
+    },
+    {
+      id: -3,
+      igdbId: 4,
+      name: "Diablo IV", // i18n-exempt: sample game name
+      coverUrl: "/tour/diablo-iv-cover.webp",
+      releaseYear: 2023,
+      source: "igdb",
+    },
+  ];
+  const text = query.trim().toLowerCase();
+  return games.filter(
+    (game) =>
+      game.name.toLowerCase().includes(text) || String(game.igdbId) === text,
   );
 }

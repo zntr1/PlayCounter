@@ -294,6 +294,7 @@ import {
 } from "../tour/tourDemoGame";
 import { emitTourEvent, tourDoneFlash, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
+import { GuideLink } from "../tour/GuideLink";
 import { createLibraryTourStore } from "../tour/libraryTourStore";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
 import { StatsPractice } from "../tour/TourStatsPractice";
@@ -519,6 +520,9 @@ function makeTourDemoGame(
   addedSessions: number,
   showSourceBadges: boolean,
   adjustmentSeconds = 0,
+  /** The "Add a game yourself" guide: a game the player added, so its menu has
+   *  Change Game… and Suggest to Community. */
+  custom = false,
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
   return {
@@ -526,8 +530,12 @@ function makeTourDemoGame(
     gameId: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    source: "community",
-    sources: showSourceBadges ? ["community", "igdb", "custom"] : ["community"],
+    source: custom ? "custom" : "community",
+    sources: custom
+      ? ["custom"]
+      : showSourceBadges
+        ? ["community", "igdb", "custom"]
+        : ["community"],
     aliases: [],
     totalSeconds: totalSeconds + adjustmentSeconds,
     sessionSeconds: totalSeconds,
@@ -812,6 +820,19 @@ export function MyGamesView({
     skippedCount: number;
   } | null>(null);
   const [addingGame, setAddingGame] = useState(false);
+  // The "Add a game yourself" guide practises the dialog on bundled titles.
+  // Its steps say whether the dialog is open, so a step reached from anywhere
+  // finds it as it needs it.
+  const addGameSample = tourDemo.active && tourDemo.tourId === "add-game";
+  const addGameStep = useAppStore((state) =>
+    state.activeTour?.tourId === "add-game"
+      ? findTour("add-game")?.steps[state.activeTour.stepIndex]?.id
+      : undefined,
+  );
+  useEffect(() => {
+    if (addGameStep === undefined) return;
+    setAddingGame(addGameStep === "search" || addGameStep === "result");
+  }, [addGameStep]);
   const [levelingUp, setLevelingUp] = useState(false);
   const isOffline = useIsOffline();
   const query = useAppStore((state) => state.libraryQuery);
@@ -1893,6 +1914,7 @@ export function MyGamesView({
         demoPlaytime.addedSessions,
         tourDemo.tourId === "source-badges",
         demoPlaytime.adjustmentSeconds,
+        tourDemo.tourId === "add-game",
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
@@ -2647,7 +2669,12 @@ export function MyGamesView({
                       variant="secondary"
                       icon={Plus}
                       data-controller-item="view-link"
-                      disabled={tourDemo.active || isOffline}
+                      data-tour="demo-add-game-button"
+                      disabled={
+                        tourDemo.active
+                          ? tourDemo.tourId !== "add-game"
+                          : isOffline
+                      }
                       title={
                         isOffline
                           ? t("Needs a connection")
@@ -3135,7 +3162,22 @@ export function MyGamesView({
       {addingGame ? (
         <AddGameDialog
           libraryIgdbIds={
-            new Set(ownGames.flatMap((game) => game.igdbId ?? []))
+            new Set(
+              addGameSample
+                ? []
+                : ownGames.flatMap((game) => game.igdbId ?? []),
+            )
+          }
+          sample={
+            addGameSample
+              ? {
+                  prefilled: addGameStep === "result",
+                  onDone: () => {
+                    setAddingGame(false);
+                    emitTourEvent("demo.step-completed");
+                  },
+                }
+              : undefined
           }
           onClose={() => setAddingGame(false)}
         />
@@ -3299,6 +3341,7 @@ function EmptyLibraryPanel({
               "You can also import games and past playtime. It's completely optional.",
             )}
           </p>
+          <GuideLink tourId="import-library" className="mt-2" />
           <div className="mt-4 flex flex-wrap justify-center gap-3">
             {importProviders.map((config) => (
               <Button
@@ -6423,7 +6466,11 @@ export function GameLibraryCard({
           exeName={game.exeNames[0] ?? "Wow.exe"}
           onClose={() => setDemoAction(null)}
           onConfirm={(choice) => {
-            setDemoIdentity({ name: choice.name, source: "igdb" });
+            // A game the player added stays their own after Change Game….
+            setDemoIdentity({
+              name: choice.name,
+              source: originalGame.source === "custom" ? "custom" : "igdb",
+            });
             setDemoAction(null);
             finishSample(
               t(
