@@ -612,7 +612,7 @@ export function ImportTourPractice({ stepId }: { stepId: string }) {
             // A new scan finds the sample account as the step needs it.
             onScanAgain={() =>
               apply(() =>
-                latest.current,
+                sampleAt(step.current === "start" ? "ready" : step.current),
               )
             }
             onChange={() => {}}
