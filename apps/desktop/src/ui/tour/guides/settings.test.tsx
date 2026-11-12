@@ -180,14 +180,14 @@ describe("pages this computer doesn't have", () => {
       "appearance",
       "shortcuts",
       "play",
-      "notifications",
       "launcher",
+      "library",
       "sharing",
       "updates",
     ]);
   });
 
-  it("leaves out While you play, Desktop popups and Game launching on a Mac", () => {
+  it("leaves out While you play, Game launching and auto-add on a Mac", () => {
     mocks.platform.value = "macos";
     expect(walk()).toEqual([
       "intro",
@@ -199,11 +199,10 @@ describe("pages this computer doesn't have", () => {
     ]);
   });
 
-  it("leaves out only Game launching on Linux", () => {
+  it("leaves out Game launching and auto-add on Linux", () => {
     mocks.platform.value = "linux";
     expect(walk()).not.toContain("launcher");
     expect(walk()).toContain("play");
-    expect(walk()).toContain("notifications");
   });
 });
 

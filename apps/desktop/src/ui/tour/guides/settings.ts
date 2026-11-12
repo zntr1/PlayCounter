@@ -102,21 +102,6 @@ export function settingsGuide(): TourDefinition {
         ),
       },
       {
-        id: "notifications",
-        view: "settings",
-        settingsGroup: "popups",
-        anchor: row("desktopOverlaysEnabled"),
-        optional: true,
-        interactive: true,
-        manualAdvance: true,
-        persistentInteraction: true,
-        allow: [a("settings-notifications")],
-        title: t("Desktop popups"),
-        body: t(
-          "<b>Show desktop popups</b> is the main switch. <b>Popup monitor</b> picks the screen, and <b>Show a popup for</b> lists what earns one: choices that need review, game starts, milestones and more.",
-        ),
-      },
-      {
         id: "launcher",
         view: "settings",
         settingsGroup: "launching",
@@ -130,6 +115,21 @@ export function settingsGuide(): TourDefinition {
         body: t(
           "<b>Remember launch paths</b> lets PlayCounter keep where your games are on this PC. With it on, <b>Launch games directly</b> adds Play buttons to My Games. The guide “{{guide}}” shows the rest.",
           { guide: t("Launch games directly") },
+        ),
+      },
+      {
+        id: "library",
+        view: "settings",
+        settingsGroup: "library",
+        anchor: a("settings-auto-add"),
+        optional: true,
+        interactive: true,
+        manualAdvance: true,
+        persistentInteraction: true,
+        allow: [a("settings-auto-add")],
+        title: t("New games join by themselves"),
+        body: t(
+          "After a first import, new installs from Steam, Battle.net, Epic Games and GOG join your library on their own, and so do new PlayStation games you play. Xbox needs another import. Sign-ins are in <b>Launcher accounts</b>.",
         ),
       },
       {
