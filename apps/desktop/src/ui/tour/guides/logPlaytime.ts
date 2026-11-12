@@ -1,8 +1,7 @@
 import { Clock } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { sampleCardSurfaces } from "./gameActions";
-import { a, NEXT_RELEASE } from "./shared";
+import { a, NEXT_RELEASE, sampleCardAllow } from "./shared";
 
 const t = getT("tour");
 
@@ -39,7 +38,7 @@ export function logPlaytimeGuide(): TourDefinition {
         interactive: true,
         anchor: a("demo-game-card"),
         // Whatever a cover button opens instead can be used and closed too.
-        allow: sampleCardSurfaces,
+        allow: sampleCardAllow,
         advanceOn: {
           type: "anchor-present",
           selector: a("demo-menu-playtime"),
@@ -117,7 +116,7 @@ export function logPlaytimeGuide(): TourDefinition {
         anchor: a("demo-card-log-session"),
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardSurfaces,
+        allow: sampleCardAllow,
         advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Faster: the clock button"),
         body: t(
@@ -132,7 +131,7 @@ export function logPlaytimeGuide(): TourDefinition {
         anchorTargets: [a("demo-menu-start-timer"), a("demo-menu-playtime")],
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardSurfaces,
+        allow: sampleCardAllow,
         advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Time play on a console"),
         body: t(
@@ -151,7 +150,7 @@ export function logPlaytimeGuide(): TourDefinition {
         ],
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardSurfaces,
+        allow: sampleCardAllow,
         title: t("Only know the total?"),
         body: t(
           "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.",

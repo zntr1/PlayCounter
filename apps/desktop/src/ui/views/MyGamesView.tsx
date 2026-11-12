@@ -664,13 +664,10 @@ function sourceRank(source: GameSource | null | undefined) {
 
 function formatLastPlayed(value: string) {
   const date = new Date(value);
-  return `${formatNumericDate(date)} ${date.toLocaleTimeString(
-    appLocale(),
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  )}`;
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(appLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
 }
 
 function formatGameActivity(game: GameSummary) {
@@ -1162,7 +1159,7 @@ export function MyGamesView({
 
   // The quick add box reads the same places through myGamesKeys
   // (library/myGamesKeys.ts): a new place here goes there too.
-  const games = useMemo(() => {
+  const ownGames = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
     const isIgnored = (exeName: string) =>
       matchesProcessPatternSet(exeName, ignoredExeNames);
@@ -1870,47 +1867,6 @@ export function MyGamesView({
     userIgnoredProcesses,
   ]);
 
-  // Details opened outside the grid (Now Playing's "Counters", the banner).
-  // Not on the game's card, which may not be built yet or is hidden by a
-  // search, filter, tab or shelf: a copy of the card without the card
-  // (detailsOnly) opens it, so it has every action the card's Details has.
-  const detailsRequest = useGameDetailsRequest((state) => state.request);
-  const [detailsHost, setDetailsHost] = useState<
-    (GameDetailsRequest & { id: number; open: boolean }) | null
-  >(null);
-  useEffect(() => {
-    if (!detailsRequest) return;
-    // Taken once: coming back to My Games later doesn't open it again.
-    useGameDetailsRequest.setState({ request: null });
-    setDetailsHost((current) => ({
-      ...detailsRequest,
-      id: (current?.id ?? 0) + 1,
-      open: true,
-    }));
-  }, [detailsRequest]);
-  useEffect(() => {
-    // Opened once. When the copy is built again (back from the tray, the
-    // first visit to My Games), Details stays closed.
-    if (detailsHost?.open) setDetailsHost({ ...detailsHost, open: false });
-  }, [detailsHost]);
-  const detailsGame = useMemo(
-    () =>
-      detailsHost
-        ? games.find((game) =>
-            game.aliases.some(
-              (alias) =>
-                alias.gameId === detailsHost.gameId &&
-                alias.source === detailsHost.source,
-            ),
-          )
-        : undefined,
-    [detailsHost, games],
-  );
-  useEffect(() => {
-    // Not in the library: nothing to open, and nothing to open later either.
-    if (detailsHost && !detailsGame) setDetailsHost(null);
-  }, [detailsHost, detailsGame]);
-
   const demoGames = useMemo<GameSummary[]>(() => {
     if (!tourDemo.active) return [];
     if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
@@ -1941,20 +1897,59 @@ export function MyGamesView({
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
-  const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
   // While a guide shows its sample, My Games shows the sample only: the
-  // grid, the numbers beside the title and the shelf chips.
+  // grid, the numbers beside the title, the shelf chips and the sources.
+  // The player's own games stay out of it, the running one included.
   const sampleOnly = tourDemo.active;
-  const allLibraryGames = tourDemo.active ? demoGames : games;
+  const games = sampleOnly ? demoGames : ownGames;
+
+  // Details opened outside the grid (Now Playing's "Counters", the banner).
+  // Not on the game's card, which may not be built yet or is hidden by a
+  // search, filter, tab or shelf: a copy of the card without the card
+  // (detailsOnly) opens it, so it has every action the card's Details has.
+  const detailsRequest = useGameDetailsRequest((state) => state.request);
+  const [detailsHost, setDetailsHost] = useState<
+    (GameDetailsRequest & { id: number; open: boolean }) | null
+  >(null);
+  useEffect(() => {
+    if (!detailsRequest) return;
+    // Taken once: coming back to My Games later doesn't open it again.
+    useGameDetailsRequest.setState({ request: null });
+    setDetailsHost((current) => ({
+      ...detailsRequest,
+      id: (current?.id ?? 0) + 1,
+      open: true,
+    }));
+  }, [detailsRequest]);
+  useEffect(() => {
+    // Opened once. When the copy is built again (back from the tray, the
+    // first visit to My Games), Details stays closed.
+    if (detailsHost?.open) setDetailsHost({ ...detailsHost, open: false });
+  }, [detailsHost]);
+  const detailsGame = useMemo(
+    () =>
+      detailsHost
+        ? ownGames.find((game) =>
+            game.aliases.some(
+              (alias) =>
+                alias.gameId === detailsHost.gameId &&
+                alias.source === detailsHost.source,
+            ),
+          )
+        : undefined,
+    [detailsHost, ownGames],
+  );
+  useEffect(() => {
+    // Not in the library: nothing to open, and nothing to open later either.
+    if (detailsHost && !detailsGame) setDetailsHost(null);
+  }, [detailsHost, detailsGame]);
+
+  const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
+  const allLibraryGames = games;
   // Only shelves empty across the full library should preview every game.
   const allShelfCounts = useMemo(
-    () =>
-      countShelfGames(
-        tourDemo.active ? demoGames : games,
-        journalFor,
-        personalShelves,
-      ),
-    [games, demoGames, tourDemo.active, journalFor, personalShelves],
+    () => countShelfGames(games, journalFor, personalShelves),
+    [games, journalFor, personalShelves],
   );
   // Apply shelf rules before the source selection so every badge describes
   // the games available in that source within the current view.
@@ -2185,11 +2180,12 @@ export function MyGamesView({
     importSupported: importableProviderTabs(platform).length > 0,
   });
   const hidesNew = personalShelves.some((shelf) => shelfHides(shelf, "new"));
+  // The banner is always one of the player's games (hidden during a guide).
   const defaultFeatured = useMemo(
     () =>
       pickFeaturedGame(
         hidesNew
-          ? games.filter(
+          ? ownGames.filter(
               (game) =>
                 !journalHiddenIn(
                   journalFor({ ...game, gameName: game.name }),
@@ -2197,18 +2193,18 @@ export function MyGamesView({
                   "new",
                 ),
             )
-          : games,
+          : ownGames,
         featuredSetting,
       ),
-    [featuredSetting, games, hidesNew, journalFor, personalShelves],
+    [featuredSetting, ownGames, hidesNew, journalFor, personalShelves],
   );
   const featured = useMemo(() => {
     const shelfPin = selectedShelf?.featuredGame;
     const pinned = shelfPin
-      ? games.find((game) => matchesFeaturedGame(game, shelfPin))
+      ? ownGames.find((game) => matchesFeaturedGame(game, shelfPin))
       : undefined;
     return pinned ? { game: pinned, pinned: true } : defaultFeatured;
-  }, [defaultFeatured, games, selectedShelf?.featuredGame]);
+  }, [defaultFeatured, ownGames, selectedShelf?.featuredGame]);
   const shelfBannerPinned = Boolean(
     featured &&
     selectedShelf?.featuredGame &&
@@ -2220,7 +2216,9 @@ export function MyGamesView({
     showHero &&
     layout.panel !== "empty-library" &&
     featured !== null &&
-    !isCoreTourDemo;
+    // The banner is the player's own; a sample's "Pin to banner" answers with
+    // a sample result instead.
+    !sampleOnly;
   // The New row holds the new games of what the list shows: tab, shelf and
   // filters. "Recently added" already puts them first, and search results
   // are short enough to show them (docs/new-games-row-plan.md).
@@ -3119,7 +3117,9 @@ export function MyGamesView({
       )}
       {addingGame ? (
         <AddGameDialog
-          libraryIgdbIds={new Set(games.flatMap((game) => game.igdbId ?? []))}
+          libraryIgdbIds={
+            new Set(ownGames.flatMap((game) => game.igdbId ?? []))
+          }
           onClose={() => setAddingGame(false)}
         />
       ) : null}
@@ -3664,10 +3664,12 @@ export function GameLibraryCard({
     setSampleResult(null);
     setSampleTimerStartedAt(null);
     sampleLibrary?.getState().openGameJournal(null);
+    sampleEntry.current = null;
   };
 
   // The entry of the card a sample action started from ("details",
   // "log-session", …). Done on a step that rings it, it finishes the step.
+  // Every entry sets it where it is clicked.
   const sampleEntry = useRef<string | null>(null);
   const taskJustDone = useRef(false);
   const startSample = (entry: string) => {
@@ -3685,9 +3687,21 @@ export function GameLibraryCard({
       emitTourEvent("demo.action-completed", message);
     }
     if (guideSample && entry && stepAsksForSampleEntry(tourStep, entry)) {
-      taskJustDone.current = true;
+      // The step moves on: the next stage waits while its card says "Done".
+      if (
+        tourStep?.advanceOn?.type === "event" &&
+        tourStep.advanceOn.name === "demo.step-completed"
+      )
+        taskJustDone.current = true;
       emitTourEvent("demo.step-completed", message);
     }
+  };
+  /** "Log missed session", from the menu or the cover's clock button.
+   *  Opening the dialog is what a step ringing either one asks for. */
+  const openLogSession = (entry: string) => {
+    startSample(entry);
+    setShowAddPlaytime(true);
+    if (demo) finishSample();
   };
   /** A sample shows every entry a real card has. One that cannot work on a
    *  sample answers with this. */
@@ -3702,6 +3716,43 @@ export function GameLibraryCard({
   };
   /** The `data-tour` name of an entry, on samples only. */
   const sampleName = (name: string) => (demo ? name : undefined);
+  /** Favorites, Status, Tier, Shelves and the journal of a sample in My Games
+   *  read and write its own library, never the player's. */
+  const inSampleLibrary = (node: React.ReactNode) =>
+    sampleLibrary ? (
+      <PersonalLibraryContext.Provider value={sampleLibrary}>
+        {node}
+      </PersonalLibraryContext.Provider>
+    ) : (
+      node
+    );
+  /** What the last sample action answered, on the card. */
+  const sampleResultNote = (className: string) =>
+    sampleResult ? (
+      <p
+        role="status"
+        data-tour="demo-action-result"
+        className={clsx(
+          "rounded-md border border-accent/30 bg-accent-tint px-2 py-1.5 text-[11px] leading-4 text-accent-ink",
+          className,
+        )}
+      >
+        {sampleResult}
+      </p>
+    ) : null;
+  // "New shelf" of a sample in My Games: the shelf editor belongs to the
+  // player's library, so the sample answers instead.
+  const answerNewShelf = useRef(() => {});
+  answerNewShelf.current = () => sampleOnly("new-shelf", t("New shelf"));
+  useEffect(
+    () =>
+      sampleLibrary?.subscribe((state) => {
+        if (!state.newShelfGame) return;
+        state.openNewShelf(null);
+        answerNewShelf.current();
+      }),
+    [sampleLibrary],
+  );
 
   // The sample in My Games follows the guide. On every step it puts away
   // what was opened on the step before and opens what the new step needs:
@@ -3712,6 +3763,7 @@ export function GameLibraryCard({
   useEffect(() => {
     if (!guideSample || !tourStep) return;
     let frame = 0;
+    let timer = 0;
     const setStage = () => {
       taskJustDone.current = false;
       closeDemoDialogs({
@@ -3735,10 +3787,13 @@ export function GameLibraryCard({
         });
       });
     };
-    const timer = window.setTimeout(
-      setStage,
-      taskJustDone.current ? tourDoneFlash.ms : 0,
-    );
+    // Right away, so nothing of the step before is left over when the new
+    // step starts (its view may be another one).
+    // What the task opened stays a moment in any case: the player sees it
+    // open before it goes.
+    if (taskJustDone.current)
+      timer = window.setTimeout(setStage, Math.max(tourDoneFlash.ms, 100));
+    else setStage();
     return () => {
       window.clearTimeout(timer);
       cancelAnimationFrame(frame);
@@ -4816,6 +4871,7 @@ export function GameLibraryCard({
   const handleStartTimer = () => {
     contextMenu.close();
     if (demo) {
+      startSample("start-timer");
       setSampleTimerStartedAt(new Date().toISOString());
       finishSample(
         t(
@@ -4853,6 +4909,7 @@ export function GameLibraryCard({
   const handleStopSampleTimer = () => {
     contextMenu.close();
     if (!sampleTimerSession) return;
+    startSample("stop-timer");
     const seconds = playedSeconds(sampleTimerSession, Date.now());
     setSampleTimerStartedAt(null);
     if (seconds > 0) addSampleSession(seconds);
@@ -5134,7 +5191,7 @@ export function GameLibraryCard({
   ) {
     contextMenu.close();
     if (demo) {
-      startSample("play");
+      // The entry it came from (Play, Launch options › Play) is set there.
       // Show the usual Starting… state first; the sample finishes on a timer.
       if (demoLaunchPath) {
         setLaunching(true);
@@ -5520,6 +5577,7 @@ export function GameLibraryCard({
 
   function handlePreferredLaunch() {
     if (demo) {
+      startSample("play");
       void handleLaunch();
     } else if (manualTarget) {
       void handleLaunch(manualTarget);
@@ -5671,7 +5729,7 @@ export function GameLibraryCard({
         onClose={() => {
           setShowDetails(false);
           // Looked at and closed: that is what a guide asks for.
-          if (demo) finishSample();
+          finishSample();
         }}
         onDemoHistory={() => {
           setShowDetails(false);
@@ -5728,9 +5786,13 @@ export function GameLibraryCard({
         ariaLabel={t("{{game}} actions", { game: game.name })}
         className="min-w-56"
         dataTour={
-          libraryPractice ? "demo-library-menu" : sampleName("demo-context-menu")
+          libraryPractice
+            ? "demo-library-menu"
+            : sampleName("demo-context-menu")
         }
-        focusFirstItem
+        // Focus on the first entry would close the flyout a guide's step
+        // opened (see stage.flyout).
+        focusFirstItem={!stage.flyout}
       >
         {showPlayButton ? (
           <ContextMenuItem
@@ -5804,22 +5866,15 @@ export function GameLibraryCard({
           {pinLabel}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        {sampleLibrary ? (
-          // Favorites, Status, Tier and Shelves of a sample in My Games go to
-          // its own library, never to the player's.
-          <PersonalLibraryContext.Provider value={sampleLibrary}>
-            {journalMenu}
-          </PersonalLibraryContext.Provider>
-        ) : (
-          journalMenu
-        )}
+        {inSampleLibrary(journalMenu)}
         <ContextMenuSeparator />
         {showLaunchOptions ? (
           <ContextMenuSubmenu
             label={t("Launch options")}
             icon={FolderSearch}
-            dataTour={demo ? "demo-menu-launch-options" : undefined}
-            menuDataTour={demo ? "demo-launch-menu" : undefined}
+            defaultOpen={stage.flyout === "demo-launch-menu"}
+            dataTour={sampleName("demo-menu-launch-options")}
+            menuDataTour={flyoutName("demo-launch-menu")}
           >
             {steamActions.showOpenInLauncher ? (
               <>
@@ -5888,18 +5943,6 @@ export function GameLibraryCard({
                 </ContextMenuItem>
               </>
             ) : null}
-            {launchTourDemo ? (
-              <ContextMenuItem
-                dataTour="demo-menu-launch-file"
-                icon={FolderSearch}
-                onClick={() => {
-                  contextMenu.close();
-                  setDemoAction("launch");
-                }}
-              >
-                {t("Set or change launch file…")}
-              </ContextMenuItem>
-            ) : null}
             {showPickLaunchFile ? (
               <ContextMenuItem
                 icon={FolderSearch}
@@ -5911,55 +5954,61 @@ export function GameLibraryCard({
                 {t("Set launch file…")}
               </ContextMenuItem>
             ) : null}
-            {!demo && canConfigureLaunch ? (
+            {(demo ? sampleLaunch : canConfigureLaunch) ? (
               <>
-                {ownedLaunchTargets.length > 0
-                  ? ownedLaunchTargets.map((target) => (
-                      <ContextMenuItem
-                        key={target.exeName.toLowerCase()}
-                        icon={Play}
-                        disabled={
-                          hasActiveSession || launching || launchBlocked
-                        }
-                        title={
-                          hasActiveSession
-                            ? t("Already running")
-                            : launching
-                              ? t("Starting…")
-                              : launchBlocked
-                                ? t("Another game is starting")
-                                : undefined
-                        }
-                        onClick={() => void handleLaunch(target)}
-                      >
-                        {ownedLaunchTargets.length > 1
-                          ? t("Play ({{exeName}})", {
-                              exeName: target.exeName,
-                            })
-                          : t("Play")}
-                      </ContextMenuItem>
-                    ))
-                  : null}
+                {launchFiles.map((target) => {
+                  const blocked = !demo && launchBlocked;
+                  return (
+                    <ContextMenuItem
+                      key={target.exeName.toLowerCase()}
+                      icon={Play}
+                      dataTour={sampleName("demo-menu-launch-play")}
+                      disabled={hasActiveSession || launching || blocked}
+                      title={
+                        hasActiveSession
+                          ? t("Already running")
+                          : launching
+                            ? t("Starting…")
+                            : blocked
+                              ? t("Another game is starting")
+                              : undefined
+                      }
+                      onClick={() => {
+                        startSample("launch-play");
+                        void handleLaunch(target);
+                      }}
+                    >
+                      {launchFiles.length > 1
+                        ? t("Play ({{exeName}})", {
+                            exeName: target.exeName,
+                          })
+                        : t("Play")}
+                    </ContextMenuItem>
+                  );
+                })}
                 <ContextMenuItem
                   icon={FolderSearch}
+                  dataTour={sampleName("demo-menu-launch-file")}
                   onClick={() => void handleSetLaunchFile()}
                 >
-                  {ownedLaunchTargets.length > 0
+                  {launchFiles.length > 0
                     ? t("Change launch file…")
                     : t("Set launch file…")}
                 </ContextMenuItem>
-                {primaryLaunchTarget ? (
+                {launchFiles[0] ? (
                   <ContextMenuItem
                     icon={FolderOpen}
-                    title={primaryLaunchTarget.path}
+                    dataTour={sampleName("demo-menu-open-explorer")}
+                    title={launchFiles[0].path}
                     onClick={() => void handleOpenInExplorer()}
                   >
                     {t("Open in Explorer")}
                   </ContextMenuItem>
                 ) : null}
-                {ownedLaunchTargets.length > 0 ? (
+                {launchFiles.length > 0 ? (
                   <ContextMenuItem
                     icon={Trash2}
+                    dataTour={sampleName("demo-menu-forget-launch-file")}
                     onClick={handleForgetLaunchFile}
                   >
                     {t("Forget launch file")}
@@ -6042,159 +6091,202 @@ export function GameLibraryCard({
         ) : null}
         <ContextMenuSubmenu
           label={t("Playtime")}
-          defaultOpen={
-            demo &&
-            activeTour?.tourId === "log-playtime" &&
-            activeTour.stepIndex === 3
-          }
+          defaultOpen={stage.flyout === "demo-playtime-menu"}
           icon={Clock3}
-          dataTour={demo ? "demo-menu-playtime" : undefined}
-          menuDataTour={demo ? "demo-playtime-menu" : undefined}
+          dataTour={sampleName("demo-menu-playtime")}
+          menuDataTour={flyoutName("demo-playtime-menu")}
         >
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-log-session" : undefined}
+            dataTour={sampleName("demo-menu-log-session")}
             icon={ClockPlus}
             onClick={() => {
               contextMenu.close();
-              setShowAddPlaytime(true);
+              openLogSession("log-session");
             }}
           >
             {t("Log missed session")}
           </ContextMenuItem>
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-adjust-playtime" : undefined}
+            dataTour={sampleName("demo-menu-adjust-playtime")}
             icon={Clock3}
             onClick={() => {
               contextMenu.close();
+              startSample("adjust-playtime");
               setShowAdjustPlaytime(true);
             }}
           >
             {t("Adjust total playtime")}
           </ContextMenuItem>
-          {demo ? null : timerSession ? (
+          {timerSession ? (
             <StopTimerMenuItem
               session={timerSession}
+              dataTour={sampleName("demo-menu-stop-timer")}
               onClick={() => {
+                if (demo) return handleStopSampleTimer();
                 contextMenu.close();
                 void stopGameTimer(timerSession.id);
               }}
             />
           ) : !hasActiveSession ? (
-            <ContextMenuItem icon={Timer} onClick={handleStartTimer}>
+            <ContextMenuItem
+              icon={Timer}
+              dataTour={sampleName("demo-menu-start-timer")}
+              onClick={handleStartTimer}
+            >
               {t("Start timer")}
             </ContextMenuItem>
           ) : null}
         </ContextMenuSubmenu>
-        {!demo || canEditCover ? (
-          <ContextMenuSubmenu label={t("Appearance")} icon={Palette}>
-            {canEditCover ? (
-              <ContextMenuItem
-                dataTour={demo ? "demo-menu-rename" : undefined}
-                icon={Pencil}
-                onClick={() => {
-                  contextMenu.close();
-                  setRenameName(game.name);
-                  setShowRename(true);
-                }}
-              >
-                {t("Rename Game")}
-              </ContextMenuItem>
-            ) : null}
-            {!demo ? (
-              <>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    setArtPickerTab("banner");
-                    setShowArtPicker(true);
-                  }}
-                >
-                  {t("Choose banner…")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    bannerInputRef.current?.click();
-                  }}
-                >
-                  {t("Upload banner")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  icon={Clipboard}
-                  onClick={() => void pasteArt("banner")}
-                >
-                  {t("Paste banner")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    setArtPickerTab("cover");
-                    setShowArtPicker(true);
-                  }}
-                >
-                  {t("Choose cover…")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    coverInputRef.current?.click();
-                  }}
-                >
-                  {t("Upload cover")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-paste-cover" : undefined}
-                  icon={Clipboard}
-                  onClick={() => void pasteArt("cover")}
-                >
-                  {t("Paste Cover")}
-                </ContextMenuItem>
-                {canEditCover && game.coverUrl ? (
-                  <ContextMenuItem
-                    dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                    icon={Trash2}
-                    onClick={handleClearCover}
-                  >
-                    {t("Delete Cover")}
-                  </ContextMenuItem>
-                ) : !canEditCover && coverPicked ? (
-                  <ContextMenuItem
-                    icon={RotateCcw}
-                    onClick={handleResetPickedCover}
-                  >
-                    {t("Restore Cover")}
-                  </ContextMenuItem>
-                ) : null}
-              </>
-            ) : null}
-          </ContextMenuSubmenu>
-        ) : null}
+        <ContextMenuSubmenu
+          label={t("Appearance")}
+          icon={Palette}
+          defaultOpen={stage.flyout === "demo-appearance-menu"}
+          dataTour={sampleName("demo-menu-appearance")}
+          menuDataTour={flyoutName("demo-appearance-menu")}
+        >
+          {canEditCover ? (
+            <ContextMenuItem
+              dataTour={sampleName("demo-menu-rename")}
+              icon={Pencil}
+              onClick={() => {
+                contextMenu.close();
+                startSample("rename");
+                setRenameName(game.name);
+                setShowRename(true);
+              }}
+            >
+              {t("Rename Game")}
+            </ContextMenuItem>
+          ) : null}
+          {/* Artwork of a sample is bundled: each entry answers with a
+              sample result. */}
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-choose-banner")}
+            onClick={() => {
+              if (demo) return sampleOnly("choose-banner", t("Choose banner…"));
+              contextMenu.close();
+              setArtPickerTab("banner");
+              setShowArtPicker(true);
+            }}
+          >
+            {t("Choose banner…")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-upload-banner")}
+            onClick={() => {
+              if (demo) return sampleOnly("upload-banner", t("Upload banner"));
+              contextMenu.close();
+              bannerInputRef.current?.click();
+            }}
+          >
+            {t("Upload banner")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={Clipboard}
+            dataTour={sampleName("demo-menu-paste-banner")}
+            onClick={() =>
+              demo
+                ? sampleOnly("paste-banner", t("Paste banner"))
+                : void pasteArt("banner")
+            }
+          >
+            {t("Paste banner")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-choose-cover")}
+            onClick={() => {
+              if (demo) return sampleOnly("choose-cover", t("Choose cover…"));
+              contextMenu.close();
+              setArtPickerTab("cover");
+              setShowArtPicker(true);
+            }}
+          >
+            {t("Choose cover…")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-upload-cover")}
+            onClick={() => {
+              if (demo) return sampleOnly("upload-cover", t("Upload cover"));
+              contextMenu.close();
+              coverInputRef.current?.click();
+            }}
+          >
+            {t("Upload cover")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            dataTour={sampleName("demo-menu-paste-cover")}
+            icon={Clipboard}
+            onClick={() =>
+              demo
+                ? sampleOnly("paste-cover", t("Paste Cover"))
+                : void pasteArt("cover")
+            }
+          >
+            {t("Paste Cover")}
+          </ContextMenuItem>
+          {canEditCover && game.coverUrl ? (
+            <ContextMenuItem
+              dataTour={sampleName("demo-menu-delete-cover")}
+              icon={Trash2}
+              onClick={() =>
+                demo
+                  ? sampleOnly("delete-cover", t("Delete Cover"))
+                  : handleClearCover()
+              }
+            >
+              {t("Delete Cover")}
+            </ContextMenuItem>
+          ) : !canEditCover && coverPicked ? (
+            <ContextMenuItem
+              icon={RotateCcw}
+              dataTour={sampleName("demo-menu-restore-cover")}
+              onClick={() =>
+                demo
+                  ? sampleOnly("restore-cover", t("Restore Cover"))
+                  : handleResetPickedCover()
+              }
+            >
+              {t("Restore Cover")}
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenuSubmenu>
         {showMatchingActions ? (
           <ContextMenuSubmenu
             label={t("Matching")}
             icon={Search}
-            dataTour={demo ? "demo-menu-matching" : undefined}
-            menuDataTour={demo ? "demo-matching-menu" : undefined}
+            defaultOpen={stage.flyout === "demo-matching-menu"}
+            dataTour={sampleName("demo-menu-matching")}
+            menuDataTour={flyoutName("demo-matching-menu")}
           >
             {canCheckMatches ? (
               <ContextMenuItem
-                dataTour={demo ? "demo-menu-check-matches" : undefined}
+                dataTour={sampleName("demo-menu-check-matches")}
                 icon={Search}
                 onClick={() => {
                   contextMenu.close();
-                  if (demo) setDemoAction("matching");
-                  else openMatchCheck();
+                  startSample("check-matches");
+                  openMatchCheck();
                 }}
               >
                 {t("Check for Matches")}
               </ContextMenuItem>
             ) : null}
             {canChangeGame ? (
-              <ContextMenuItem icon={Replace} onClick={openChangeGame}>
+              <ContextMenuItem
+                icon={Replace}
+                dataTour={sampleName("demo-menu-change-game")}
+                onClick={() => {
+                  if (!demo) return openChangeGame();
+                  // The bundled sample search, never the real one.
+                  contextMenu.close();
+                  startSample("change-game");
+                  setDemoAction("matching");
+                }}
+              >
                 {t("Change Game…")}
               </ContextMenuItem>
             ) : null}
@@ -6212,11 +6304,12 @@ export function GameLibraryCard({
                   </ContextMenuItem>
                 ) : canSuggestToCommunity ? (
                   <ContextMenuItem
-                    dataTour={demo ? "demo-menu-suggest-community" : undefined}
+                    dataTour={sampleName("demo-menu-suggest-community")}
                     icon={Send}
                     onClick={() => {
                       contextMenu.close();
                       if (demo) {
+                        startSample("suggest-community");
                         setDemoAction("matching");
                         return;
                       }
@@ -6229,10 +6322,11 @@ export function GameLibraryCard({
                 {canReportMatch ? (
                   <>
                     <ContextMenuItem
-                      dataTour={demo ? "demo-menu-report-match" : undefined}
+                      dataTour={sampleName("demo-menu-report-match")}
                       icon={Flag}
                       onClick={() => {
                         contextMenu.close();
+                        startSample("report-match");
                         openReport();
                       }}
                     >
@@ -6240,10 +6334,11 @@ export function GameLibraryCard({
                     </ContextMenuItem>
                     {canConvertToCustom ? (
                       <ContextMenuItem
-                        dataTour={demo ? "demo-menu-convert-custom" : undefined}
+                        dataTour={sampleName("demo-menu-convert-custom")}
                         icon={Gamepad2}
                         onClick={() => {
                           contextMenu.close();
+                          startSample("convert-custom");
                           openConvert();
                         }}
                       >
@@ -6267,11 +6362,13 @@ export function GameLibraryCard({
         <ContextMenuSeparator />
         {onStopTracking || demo ? (
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-ignore" : undefined}
+            dataTour={sampleName("demo-menu-ignore")}
             icon={Ban}
             onClick={() => {
-              if (demo) setDemoAction("ignore");
-              else onStopTracking?.(game);
+              if (demo) {
+                startSample("ignore");
+                setDemoAction("ignore");
+              } else onStopTracking?.(game);
               contextMenu.close();
             }}
           >
@@ -6279,12 +6376,14 @@ export function GameLibraryCard({
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
-          dataTour={demo ? "demo-menu-remove" : undefined}
+          dataTour={sampleName("demo-menu-remove")}
           icon={Trash2}
           danger
           onClick={() => {
-            if (demo) setDemoAction("remove");
-            else onRemove(game);
+            if (demo) {
+              startSample("remove");
+              setDemoAction("remove");
+            } else onRemove(game);
             contextMenu.close();
           }}
         >
@@ -6294,6 +6393,11 @@ export function GameLibraryCard({
     );
   };
 
+  // Looked at and closed: what a step that rings Show History asks for.
+  const closeDemoAction = () => {
+    setDemoAction(null);
+    finishSample();
+  };
   const renderDemoAction = () => {
     if (!demo || !demoAction) return null;
     if (demoAction === "matching")
@@ -6304,8 +6408,7 @@ export function GameLibraryCard({
           onConfirm={(choice) => {
             setDemoIdentity({ name: choice.name, source: "igdb" });
             setDemoAction(null);
-            emitTourEvent(
-              "demo.action-completed",
+            finishSample(
               t(
                 "Sample reviewed as {{name}}. Nothing was submitted or saved to your library.",
                 { name: choice.name },
@@ -6331,8 +6434,7 @@ export function GameLibraryCard({
           onConfirm={(clearHistory) => {
             setDemoAction(null);
             setDemoRemoved(true);
-            emitTourEvent(
-              "demo.action-completed",
+            finishSample(
               clearHistory
                 ? t(
                     "Sample ignored and its history cleared. Nothing on this PC was blocked.",
@@ -6353,8 +6455,7 @@ export function GameLibraryCard({
           onConfirm={(clearHistory) => {
             setDemoAction(null);
             setDemoRemoved(true);
-            emitTourEvent(
-              "demo.action-completed",
+            finishSample(
               clearHistory
                 ? t(
                     "Sample removed together with its history, notes, playthroughs, and shelf membership.",
@@ -6377,9 +6478,11 @@ export function GameLibraryCard({
             ? t("Sample history")
             : t("Sample launch file")
         }
-        onClose={() => setDemoAction(null)}
+        onClose={closeDemoAction}
         footer={
-          <Button onClick={() => setDemoAction(null)}>{t("Done")}</Button>
+          <Button data-tour="demo-game-action-done" onClick={closeDemoAction}>
+            {t("Done")}
+          </Button>
         }
       >
         {demoAction === "history" ? (
@@ -6457,6 +6560,12 @@ export function GameLibraryCard({
       {launchFileDialog}
       {closeGameDialog}
       {renderDemoAction()}
+      {sampleLibrary ? (
+        // The sample's own journal, opened from its menu or cover.
+        <PersonalLibraryContext.Provider value={sampleLibrary}>
+          <GameJournalHost />
+        </PersonalLibraryContext.Provider>
+      ) : null}
       {showAddPlaytime ? (
         <AddPlaytimeDialog
           game={game}
@@ -6498,21 +6607,32 @@ export function GameLibraryCard({
         ) : (
           <MatchCheckDialog
             game={game}
-            exeName={flowExeName ?? ""}
-            current={flowFileGame}
+            // A sample checks its one file against bundled matches; nothing
+            // is looked up, and the player's own files play no part.
+            sampleMatches={demo ? tourSampleMatches() : undefined}
+            exeName={demo ? (game.exeNames[0] ?? "") : (flowExeName ?? "")}
+            current={
+              demo ? { gameId: game.gameId, source: game.source } : flowFileGame
+            }
             onCancel={() => setShowMatchCheck(false)}
             onApply={handleApplyMatch}
             onReport={() => {
               setShowMatchCheck(false);
-              openReport(flowExeName);
+              if (demo) startSample("report-match");
+              openReport(demo ? undefined : flowExeName);
             }}
             onSearchCommunity={
-              canSuggestToCommunity || localSearchOnly
+              demo
                 ? () => {
                     setShowMatchCheck(false);
-                    openSearch();
+                    setDemoAction("matching");
                   }
-                : undefined
+                : canSuggestToCommunity || localSearchOnly
+                  ? () => {
+                      setShowMatchCheck(false);
+                      openSearch();
+                    }
+                  : undefined
             }
           />
         )
@@ -6536,24 +6656,38 @@ export function GameLibraryCard({
             if (demo) {
               setReportOpen(false);
               setDemoRemoved(true);
-              emitTourEvent(
-                "demo.action-completed",
-                t("Sample ignored. No anonymous report was sent."),
-              );
+              finishSample(t("Sample ignored. No anonymous report was sent."));
             } else void handleNegativeReport(exeName);
           }}
-          onSoftware={
-            demo
-              ? undefined
-              : () => {
-                  setReportOpen(false);
-                  setSoftwareOpen(true);
-                }
-          }
-          onIgnoreApp={demo ? undefined : handleIgnoreApp}
-          onNotThisGame={
-            demo ? undefined : (exeName) => void handleNotThisGame(exeName)
-          }
+          // A sample offers every answer the real dialog has; each one ends
+          // with a sample result and changes nothing.
+          onSoftware={() => {
+            setReportOpen(false);
+            if (!demo) return setSoftwareOpen(true);
+            finishSample(
+              t(
+                "Sample counted as an app. On your own games its time moves to the Software page.",
+              ),
+            );
+          }}
+          onIgnoreApp={(exeName) => {
+            if (!demo) return handleIgnoreApp(exeName);
+            setReportOpen(false);
+            setDemoRemoved(true);
+            finishSample(
+              t("Sample ignored as an app. Nothing was reported or blocked."),
+            );
+          }}
+          onNotThisGame={(exeName) => {
+            if (!demo) return void handleNotThisGame(exeName);
+            setReportOpen(false);
+            finishSample(
+              t(
+                "{{file}} no longer counts for the sample. Nothing was reported or saved.",
+                { file: exeName },
+              ),
+            );
+          }}
         />
       ) : null}
       {softwareOpen && flowExeName ? (
@@ -6739,9 +6873,11 @@ export function GameLibraryCard({
             cover in another ratio (SteamGridDB grids are 2:3) would otherwise
             stretch the whole card. */}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
-          {(!demo || libraryPractice) && !compact ? (
-            <GameJournalBadges game={{ ...game, gameName: game.name }} />
-          ) : null}
+          {!compact
+            ? inSampleLibrary(
+                <GameJournalBadges game={{ ...game, gameName: game.name }} />,
+              )
+            : null}
           {shownCover ? (
             <GameCover
               src={shownCover}
@@ -6818,47 +6954,50 @@ export function GameLibraryCard({
                 trackingWarningVisible &&
                   "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
                 trackingWarningVisible ? "top-12" : "top-2",
-                launchTourDemo && "translate-x-0 opacity-100",
+                // A step about these buttons shows them without the pointer.
+                (launchTourDemo || stage.hoverButtons) &&
+                  "translate-x-0 opacity-100",
               )}
             >
               <IconButton
                 icon={Info}
+                data-tour={sampleName("demo-card-details")}
                 aria-label={t("Open details for {{name}}", { name: game.name })}
                 title={t("Open details")}
-                onClick={() => openDetails()}
+                onClick={() => {
+                  startSample("details");
+                  openDetails();
+                }}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
-              {!demo || libraryPractice ? (
-                <IconButton
-                  icon={BookOpen}
-                  aria-label={t("Open journal for {{name}}", {
-                    name: game.name,
-                  })}
-                  title={t("Journal")}
-                  onClick={() =>
-                    openGameJournal({
-                      game: { ...game, gameName: game.name },
-                      tab: "note",
-                    })
-                  }
-                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-                />
-              ) : null}
               <IconButton
-                icon={ClockPlus}
-                aria-label={t("Log a missed session for {{name}}", {
+                icon={BookOpen}
+                data-tour={sampleName("demo-card-journal")}
+                aria-label={t("Open journal for {{name}}", {
                   name: game.name,
                 })}
-                title={t("Log missed session")}
-                onClick={(event) =>
-                  demo
-                    ? openDemoMenu(event.currentTarget)
-                    : setShowAddPlaytime(true)
+                title={t("Journal")}
+                onClick={() =>
+                  openGameJournal({
+                    game: { ...game, gameName: game.name },
+                    tab: "note",
+                  })
                 }
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               <IconButton
+                icon={ClockPlus}
+                data-tour={sampleName("demo-card-log-session")}
+                aria-label={t("Log a missed session for {{name}}", {
+                  name: game.name,
+                })}
+                title={t("Log missed session")}
+                onClick={() => openLogSession("log-session")}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+              <IconButton
                 icon={MoreHorizontal}
+                data-tour={sampleName("demo-card-more")}
                 aria-label={t("More actions for {{name}}", { name: game.name })}
                 aria-haspopup="menu"
                 title={t("More")}
@@ -6997,6 +7136,7 @@ export function GameLibraryCard({
               </span>
             </div>
           )}
+          {sampleResultNote("mt-2")}
 
           {/* Persistent Community Prompts */}
           {game.communityUpgradeExeName && !compact ? (
@@ -7146,7 +7286,7 @@ export function GameLibraryCard({
                       ? t("Choose emulator game…")
                       : t("Set launch file…")
             }
-            data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+            data-tour={sampleName("demo-launch-play")}
             disabled={showPlayButton && playState.disabled}
             onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
             className={clsx(
@@ -7315,12 +7455,12 @@ export function GameLibraryCard({
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
-          {!demo || libraryPractice ? (
+          {inSampleLibrary(
             <GameJournalBadges
               game={{ ...game, gameName: game.name }}
               compact
-            />
-          ) : null}
+            />,
+          )}
           {shownCover ? (
             <GameCover
               src={shownCover}
@@ -7394,6 +7534,7 @@ export function GameLibraryCard({
                 game.emulatorLabels.join(", ")}
             </span>
           </div>
+          {sampleResultNote("mt-2 w-fit max-w-full")}
 
           {primaryEmulatorCandidate && primaryEmulatorMapping ? (
             <button
@@ -7507,7 +7648,7 @@ export function GameLibraryCard({
             <IconButton
               aria-label={playState.ariaLabel}
               title={playState.title}
-              data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+              data-tour={sampleName("demo-launch-play")}
               disabled={playState.disabled}
               onClick={handlePreferredLaunch}
               className={clsx(
@@ -7561,23 +7702,21 @@ export function GameLibraryCard({
             <div
               className={clsx(
                 "flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
-                launchTourDemo && "opacity-100",
+                (launchTourDemo || stage.hoverButtons) && "opacity-100",
               )}
             >
               <IconButton
                 icon={ClockPlus}
+                data-tour={sampleName("demo-card-log-session")}
                 aria-label={t("Log a missed session for {{name}}", {
                   name: game.name,
                 })}
                 title={t("Log missed session")}
-                onClick={(event) =>
-                  demo
-                    ? openDemoMenu(event.currentTarget)
-                    : setShowAddPlaytime(true)
-                }
+                onClick={() => openLogSession("log-session")}
               />
               <IconButton
                 icon={MoreHorizontal}
+                data-tour={sampleName("demo-card-more")}
                 aria-label={t("More actions for {{name}}", { name: game.name })}
                 aria-haspopup="menu"
                 title={t("More")}
@@ -7618,9 +7757,11 @@ const MemoizedGameLibraryCard = memo(GameLibraryCard);
 function StopTimerMenuItem({
   session,
   onClick,
+  dataTour,
 }: {
   session: ActiveSession;
   onClick: () => void;
+  dataTour?: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -7630,6 +7771,7 @@ function StopTimerMenuItem({
   return (
     <ContextMenuItem
       icon={Square}
+      dataTour={dataTour}
       className="tabular-nums [&>svg]:fill-current"
       onClick={onClick}
     >
@@ -7714,7 +7856,9 @@ function CardShiftPanel({
           </span>
           {seconds === null ? (
             <span className="shrink-0 text-xs text-text-faint">
-              {provider === "battlenet" ? t("Not available") : t("Not reported")}
+              {provider === "battlenet"
+                ? t("Not available")
+                : t("Not reported")}
             </span>
           ) : (
             <span className="shrink-0 font-mono font-semibold text-text">
@@ -8566,6 +8710,7 @@ function MatchCheckDialog({
   onApply,
   onReport,
   onSearchCommunity,
+  sampleMatches,
 }: {
   game: GameSummary;
   /** The file being checked, picked by the user when the card has more. */
@@ -8577,8 +8722,12 @@ function MatchCheckDialog({
   /** "Report wrong match…": the full report picker for this file. */
   onReport: () => void;
   onSearchCommunity?: () => void;
+  /** A guide's sample: these are the results, nothing is looked up. */
+  sampleMatches?: Game[];
 }) {
-  const isOffline = useIsOffline();
+  const sample = sampleMatches !== undefined;
+  // A sample's bundled results need no connection.
+  const isOffline = useIsOffline() && !sample;
   const [state, setState] = useState<"loading" | "error" | "done">("loading");
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
@@ -8609,7 +8758,14 @@ function MatchCheckDialog({
           hiddenCount: hidden,
           pendingCommunityGameIds: pendingIds,
           flaggedIdentifier: flag,
-        } = await findGameMatches(exeName);
+        } = sampleMatches
+          ? {
+              games: sampleMatches,
+              hiddenCount: 0,
+              pendingCommunityGameIds: undefined,
+              flaggedIdentifier: undefined,
+            }
+          : await findGameMatches(exeName);
         if (cancelled) return;
         const pendingIdSet = new Set(pendingIds ?? []);
         setCandidates(sortMatchCandidates(games));
@@ -8688,6 +8844,7 @@ function MatchCheckDialog({
           <Button
             variant="primary"
             icon={Check}
+            data-tour={sample ? "demo-match-check-use" : undefined}
             disabled={!selection || isOffline || isCurrentMatch(selection)}
             onClick={() => {
               if (selection && !isCurrentMatch(selection))
@@ -8709,6 +8866,8 @@ function MatchCheckDialog({
 
   return (
     <Modal
+      dataTour={sample ? "demo-match-check-dialog" : undefined}
+      backdropDataTour={sample ? "demo-library-modal" : undefined}
       size="md"
       labelId="match-check-title"
       eyebrow={t("Database match")}

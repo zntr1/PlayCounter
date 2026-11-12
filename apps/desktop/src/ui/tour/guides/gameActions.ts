@@ -5,16 +5,6 @@ import { a, NEXT_RELEASE, sampleCardAllow } from "./shared";
 
 const t = getT("tour");
 
-/** Everything the sample card can open and a step may let the player touch:
- *  the card, its menu with every flyout, and the dialogs behind them. */
-export const sampleCardSurfaces = [
-  ...sampleCardAllow,
-  a("demo-appearance-menu"),
-  a("demo-status-menu"),
-  a("demo-tier-menu"),
-  a("demo-shelf-menu"),
-];
-
 /** A step the player tries on the sample: it finishes once the entry it
  *  rings was used, and "Skip step" only steps over this one. */
 const tryIt = {
@@ -22,7 +12,7 @@ const tryIt = {
   anchor: a("demo-game-card"),
   interactive: true,
   manualAdvance: true,
-  allow: sampleCardSurfaces,
+  allow: sampleCardAllow,
   advanceOn: { type: "event", name: "demo.step-completed" },
 } as const;
 
@@ -101,7 +91,7 @@ export function gameActionsGuide(): TourDefinition {
         anchorTargets: [a("demo-playtime-menu"), a("demo-menu-playtime")],
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardSurfaces,
+        allow: sampleCardAllow,
         title: t("Three ways to fix playtime"),
         body: t(
           "<b>Log missed session</b> adds one session to your history. <b>Adjust total playtime</b> sets the lifetime number. <b>Start timer</b> counts play on a console or another PC.",
@@ -126,8 +116,12 @@ export function gameActionsGuide(): TourDefinition {
       {
         ...tryIt,
         id: "wrong-match",
+        // The answers once the report is open; "It's a different game" hands
+        // over to the sample search.
         anchorTargets: [
           a("demo-action-result"),
+          a("demo-report-dialog"),
+          a("demo-sample-search"),
           a("demo-menu-report-match"),
           a("demo-menu-matching"),
         ],
@@ -142,10 +136,7 @@ export function gameActionsGuide(): TourDefinition {
       {
         ...tryIt,
         id: "convert",
-        anchorTargets: [
-          a("demo-menu-convert-custom"),
-          a("demo-menu-matching"),
-        ],
+        anchorTargets: [a("demo-menu-convert-custom"), a("demo-menu-matching")],
         title: t("Convert to a custom game"),
         body: t(
           "For a game file no database knows correctly: you name the game yourself. Its playtime stays, and the change is only on this PC.",
@@ -162,7 +153,7 @@ export function gameActionsGuide(): TourDefinition {
         anchorTargets: [a("demo-action-result"), a("demo-menu-ignore")],
         interactive: true,
         manualAdvance: true,
-        allow: sampleCardSurfaces,
+        allow: sampleCardAllow,
         title: t("Remove or ignore"),
         body: t(
           "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.",

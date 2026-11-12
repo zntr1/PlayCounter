@@ -133,7 +133,10 @@ async function readMenu(): Promise<Entry[]> {
     expect(flyout, `${entry.label} has no flyout`).not.toBeNull();
     for (const inner of flyout!.querySelectorAll("[data-context-menu-item]")) {
       const innerEntry = read(inner);
-      entries.push({ ...innerEntry, label: `${entry.label} › ${innerEntry.label}` });
+      entries.push({
+        ...innerEntry,
+        label: `${entry.label} › ${innerEntry.label}`,
+      });
     }
   }
   await act(async () =>
@@ -387,9 +390,12 @@ it("logs a session and sets a total on a practice library card too, on the sampl
       .querySelector<HTMLElement>('[data-tour="demo-menu-log-session"]')!
       .click(),
   );
-  const dialog = document.querySelector('[data-tour="demo-log-session-dialog"]')!;
-  const minutes =
-    dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[1];
+  const dialog = document.querySelector(
+    '[data-tour="demo-log-session-dialog"]',
+  )!;
+  const minutes = dialog.querySelectorAll<HTMLInputElement>(
+    'input[type="number"]',
+  )[1];
   await act(async () => {
     Object.getOwnPropertyDescriptor(
       HTMLInputElement.prototype,
@@ -457,7 +463,9 @@ it("shows only the sample in the grid, the header numbers and the shelf chips wh
   expect(container.textContent).not.toContain("Elden Ring");
   // One game, its two hours and three sessions; no number of the real library.
   const toolbar = container.querySelector('[data-tour="games-toolbar"]')!;
-  expect(toolbar.querySelector("[title='1 of 1 tracked games']")).not.toBeNull();
+  expect(
+    toolbar.querySelector("[title='1 of 1 tracked games']"),
+  ).not.toBeNull();
   expect(
     toolbar.querySelector('[data-library-shelf="all"]')!.textContent,
   ).toMatch(/All games\s*1$/);
@@ -465,7 +473,7 @@ it("shows only the sample in the grid, the header numbers and the shelf chips wh
     toolbar.querySelector('[data-library-shelf="favorites"]')!.textContent,
   ).toMatch(/Favorites\s*0$/);
   expect(container.querySelector("#library-tabpanel p")!.textContent).toBe(
-    "Showing 1 games.",
+    "Showing 1 game.",
   );
 
   await act(() => useAppStore.getState().endTour("dismissed"));
@@ -483,13 +491,18 @@ it("ends the sample Play with a result on the card and tells the guide", async (
     const play = sampleCard().querySelector<HTMLElement>(
       '[data-tour="demo-launch-play"]',
     );
-    expect(play, "the launch guide shows Play without the setting").not.toBeNull();
+    expect(
+      play,
+      "the launch guide shows Play without the setting",
+    ).not.toBeNull();
     await act(async () => play!.click());
     expect(sampleCard().textContent).toContain("Starting World of Warcraft");
     expect(result()).toBe("");
 
     await act(async () => vi.advanceTimersByTime(3_000));
-    expect(sampleCard().textContent).not.toContain("Starting World of Warcraft");
+    expect(sampleCard().textContent).not.toContain(
+      "Starting World of Warcraft",
+    );
     expect(result()).toContain("No program was started");
     expect(
       heard.filter((detail) => detail.name === "mygames.demo-launch-attempted"),

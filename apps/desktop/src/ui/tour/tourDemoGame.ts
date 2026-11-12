@@ -79,7 +79,9 @@ export function stepAsksForSampleEntry(
     step?.anchor,
     ...(step?.anchorTargets ?? []),
     ...(step?.additionalAnchors ?? []),
-  ]).some((name) => name === MENU_ENTRY + entry || name === CARD_BUTTON + entry);
+  ]).some(
+    (name) => name === MENU_ENTRY + entry || name === CARD_BUTTON + entry,
+  );
 }
 
 /** What "Check for Matches" finds for the sample's game file: the community

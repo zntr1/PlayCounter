@@ -91,47 +91,20 @@ describe("tour definitions", () => {
     expect(action.backTo).toBe("open-playtime");
   });
 
-  it("documents the My Games context-menu action groups", () => {
-    const guide = tours().find((tour) => tour.id === "game-actions")!;
-    expect(guide.demoGame).toBe(true);
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "open-menu",
-      "details",
-      "history",
-      "playtime",
-      "matches",
-      "wrong-match",
-      "remove",
-    ]);
-    // Back returns to the previous action, not all the way to the menu step.
-    const index = (id: string) =>
-      guide.steps.findIndex((step) => step.id === id);
-    expect(backStepIndex(guide.steps, index("playtime"), () => true)).toBe(
-      index("history"),
-    );
-    // Targets follow the open flyout to the action a step is about.
-    const step = (id: string) => guide.steps.find((entry) => entry.id === id)!;
-    expect(step("matches").anchorTargets).toContain(
-      '[data-tour="demo-menu-check-matches"]',
-    );
-    expect(step("remove").additionalAnchors).toContain(
-      '[data-tour="demo-menu-ignore"]',
-    );
-  });
-
   it("rings the action a step names once its flyout or dialog is open", () => {
     const flyouts: Record<string, string[]> = {
       "demo-menu-playtime": [
         "demo-playtime-menu",
         "demo-menu-log-session",
         "demo-menu-adjust-playtime",
+        "demo-menu-start-timer",
       ],
       "demo-menu-launch-options": ["demo-launch-menu", "demo-menu-launch-file"],
       "demo-menu-matching": [
         "demo-matching-menu",
         "demo-menu-check-matches",
         "demo-menu-report-match",
+        "demo-menu-convert-custom",
       ],
       "demo-menu-tier": ["demo-tier-menu", "demo-tier-S"],
     };

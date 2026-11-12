@@ -22,6 +22,7 @@ export const sampleCardDialogs = [
   a("demo-game-details"),
   a("demo-game-name-dialog"),
   a("demo-report-dialog"),
+  a("demo-match-check-dialog"),
   a("demo-remove-dialog"),
   a("demo-ignore-dialog"),
   a("demo-game-action-dialog"),
@@ -31,13 +32,18 @@ export const sampleCardDialogs = [
   a("demo-action-result"),
 ];
 
-/** Everything a free-practice step on the sample card may touch. */
+/** Everything a free-practice step on the sample card may touch: the card,
+ *  its menu with every flyout, and the dialogs behind them. */
 export const sampleCardAllow = [
   a("demo-game-card"),
   a("demo-context-menu"),
   a("demo-playtime-menu"),
   a("demo-launch-menu"),
+  a("demo-appearance-menu"),
   a("demo-matching-menu"),
+  a("demo-status-menu"),
+  a("demo-tier-menu"),
+  a("demo-shelf-menu"),
   a("demo-library-menu"),
   a("demo-library-modal"),
   a("demo-log-session-backdrop"),
