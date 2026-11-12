@@ -1,7 +1,7 @@
 import { SlidersHorizontal } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE, sampleCardAllow } from "./shared";
+import { a, sampleCardAllow } from "./shared";
 
 const t = getT("tour");
 
@@ -20,7 +20,6 @@ export function gameActionsGuide(): TourDefinition {
   return {
     id: "game-actions",
     version: 5,
-    release: NEXT_RELEASE,
     kind: "guide",
     category: "library",
     icon: SlidersHorizontal,

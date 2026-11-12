@@ -1,7 +1,7 @@
 import { Layers } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, gtaTourCard, NEXT_RELEASE } from "./shared";
+import { a, gtaTourCard } from "./shared";
 
 const t = getT("tour");
 
@@ -22,7 +22,7 @@ export function rateGamesGuide(): TourDefinition {
     duration: t("2 min"),
     practice: true,
     finishView: "games",
-    release: NEXT_RELEASE,
+    release: "1.4.3",
     steps: [
       {
         id: "intro",

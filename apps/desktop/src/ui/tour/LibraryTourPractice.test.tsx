@@ -343,9 +343,11 @@ it("focuses direct launching without allowing the adjacent path-removal setting"
   await act(() =>
     root.render(
       <>
-        <div data-tour="settings-launcher">
+        <div data-tour="settings-row-rememberLaunchPaths">
           <input data-decoy type="checkbox" defaultChecked />
-          <input data-tour="settings-launch-direct" type="checkbox" />
+        </div>
+        <div data-tour="settings-row-gameLaunching">
+          <input data-direct type="checkbox" />
         </div>
         <TourOverlay />
       </>,
@@ -356,9 +358,7 @@ it("focuses direct launching without allowing the adjacent path-removal setting"
     useAppStore.getState().goToTourStep(1);
   });
   await frame();
-  expect(document.activeElement?.getAttribute("data-tour")).toBe(
-    "settings-launch-direct",
-  );
+  expect(document.activeElement?.hasAttribute("data-direct")).toBe(true);
   const decoy = document.querySelector<HTMLInputElement>("[data-decoy]")!;
   await act(() => decoy.click());
   expect(decoy.checked).toBe(true);
@@ -645,9 +645,9 @@ it("places feedback instructions outside the notification panel beneath the bell
     expect(document.body.dataset.tourDock).toBe(
       window.innerWidth < 1200 ? "bottom" : "side",
     );
-    // The spotlight still targets the reply detail.
+    // The spotlight sits on the bell, then on the quoted message.
     expect(target().getAttribute("data-tour")).toBe(
-      step === "bell" ? "demo-feedback-notification" : "demo-feedback-original",
+      step === "bell" ? "notifications-bell" : "demo-feedback-original",
     );
   }
 });
@@ -871,7 +871,8 @@ it("lets a dialog opened from a highlighted setting take clicks and keys, below 
   const confirmed = vi.fn();
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
     function (this: Element) {
-      return this.getAttribute("data-tour") === "settings-launcher"
+      return this.getAttribute("data-tour") ===
+        "settings-row-rememberLaunchPaths"
         ? new DOMRect(200, 100, 500, 400)
         : new DOMRect(0, 0, 0, 0);
     },
@@ -879,7 +880,7 @@ it("lets a dialog opened from a highlighted setting take clicks and keys, below 
   function Section() {
     const [open, setOpen] = useState(false);
     return (
-      <div data-tour="settings-launcher">
+      <div data-tour="settings-row-rememberLaunchPaths">
         <button data-open onClick={() => setOpen(true)}>
           Turn off
         </button>
@@ -949,9 +950,11 @@ it("does not start the hotkey recorder when the guide reaches Keyboard shortcuts
     root.render(
       <>
         <div data-tour="settings-shortcuts">
-          <input readOnly aria-label="Bring PlayCounter to front hotkey" />
-          <button disabled>Save</button>
-          <button>Clear</button>
+          <div data-tour="settings-row-showWindowHotkey">
+            <input readOnly aria-label="Bring PlayCounter to front hotkey" />
+            <button disabled>Save</button>
+            <button>Clear</button>
+          </div>
         </div>
         <TourOverlay />
       </>,

@@ -20,7 +20,7 @@ import {
   indexOf,
   stepOf,
 } from "./guideRules.test.kit";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 vi.mock("../../../tracker");
 vi.mock("../../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -154,7 +154,7 @@ const exercises: Record<string, () => Promise<void>> = {
 describe("the guide", () => {
   it("is reworked for the next release and follows the step rules", () => {
     expect(guide.version).toBe(3);
-    expect(guide.release).toBe(NEXT_RELEASE);
+    expect(guide.release).toBeUndefined();
     expectStepRules(guide);
   });
 

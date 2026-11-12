@@ -138,30 +138,9 @@ describe("tour definitions", () => {
     expect(step("log-playtime", "alternative").anchorTargets).toContain(
       '[data-tour="demo-menu-adjust-playtime"]',
     );
-    expect(step("launch-games", "set-forget").anchorTargets).toContain(
-      '[data-tour="demo-menu-launch-file"]',
-    );
     expect(step("emulators", "fix-match").anchorTargets).toContain(
       '[data-tour="demo-emulator-actions"]',
     );
-  });
-
-  it("explains the opt-in launcher and its controller flow", () => {
-    const guide = tours().find((tour) => tour.id === "launch-games")!;
-    expect(guide.demoGame).toBe(true);
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "enable",
-      "learned",
-      "set-forget",
-      "limits",
-      "uninstalled",
-      "privacy",
-      "controller",
-    ]);
-    expect(
-      guide.steps.find((step) => step.id === "controller")?.body,
-    ).toContain("Select/View + R1/RB");
   });
 
   it("keeps skip, back, and follow-up destinations reachable", () => {

@@ -2410,21 +2410,38 @@ export function MyGamesView({
           className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 text-sm"
         >
           <h3 className="font-semibold">
-            {t("Badge examples: origin and recognition")}
+            {t("Badge examples: recognition and origin")}
           </h3>
-          <div className="flex flex-wrap items-center gap-3">
+          <div
+            data-tour="demo-match-examples"
+            className="flex flex-wrap items-center gap-3"
+          >
+            <span className="text-text-muted">{t("File match")}</span>
+            <SourceBadge source="community" dataTour="demo-legend-community" />
+            <SourceBadge source="igdb" dataTour="demo-legend-igdb" />
+            {/* A custom match, as it is added, sent and approved. */}
+            <span
+              data-tour="demo-legend-custom"
+              className="inline-flex flex-wrap items-center gap-3"
+            >
+              <SourceBadge source="custom" />
+              <SourceBadge source="custom" approval="pending" />
+              <SourceBadge source="custom" approval="approved" />
+            </span>
+          </div>
+          <div
+            data-tour="demo-launcher-examples"
+            className="flex flex-wrap items-center gap-3"
+          >
             <span className="text-text-muted">{t("Launcher origin")}</span>
             <ProviderBadge provider="steam" />
             <ProviderBadge provider="xbox" />
             <ProviderBadge provider="battlenet" />
             <ProviderBadge provider="epic" />
             <ProviderBadge provider="gog" />
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+            <ProviderBadge provider="playstation" />
             <span className="text-text-muted">{t("Emulator")}</span>
             <EmulatorBadge emulatorId="dolphin" label="Dolphin" />
-            <span className="text-text-muted">{t("File match")}</span>
-            <SourceBadge source="community" />
           </div>
           <p className="text-xs text-text-muted">
             {t(
@@ -2728,6 +2745,7 @@ export function MyGamesView({
                       aria-expanded={customizeMenu.open}
                       aria-controls="library-customize"
                       data-controller-item="library-customize"
+                      data-tour="library-customize"
                       onClick={customizeMenu.toggle}
                       className="h-9 w-9 rounded-lg"
                     />

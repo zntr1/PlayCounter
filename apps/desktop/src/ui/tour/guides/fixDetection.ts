@@ -1,7 +1,7 @@
 import { ScanSearch } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition, TourStep } from "../tourTypes";
-import { a, discoveredAction, NEXT_RELEASE } from "./shared";
+import { a, discoveredAction } from "./shared";
 
 const t = getT("tour");
 
@@ -21,7 +21,6 @@ export function fixDetectionGuide(): TourDefinition {
   return {
     id: "fix-detection",
     version: 3,
-    release: NEXT_RELEASE,
     kind: "guide",
     category: "detection",
     icon: ScanSearch,

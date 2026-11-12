@@ -1,7 +1,7 @@
 import { MessageSquareReply } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 
@@ -12,7 +12,7 @@ export function feedbackRepliesGuide(): TourDefinition {
   return {
     id: "feedback-replies",
     version: 3,
-    release: NEXT_RELEASE,
+    release: "1.1.17",
     kind: "guide",
     category: "settings",
     icon: MessageSquareReply,

@@ -2,7 +2,7 @@ import { Gamepad2 } from "lucide-react";
 import { adapterFor, EMULATORS } from "../../../emulators/registry";
 import { appLocale, getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 
@@ -20,7 +20,7 @@ export function emulatorsGuide(): TourDefinition {
   return {
     id: "emulators",
     version: 5,
-    release: NEXT_RELEASE,
+    release: "1.1.17",
     kind: "guide",
     category: "detection",
     icon: Gamepad2,

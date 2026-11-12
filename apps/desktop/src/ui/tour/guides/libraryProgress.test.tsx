@@ -51,7 +51,7 @@ const columns = () => q("demo-library-cards").style.gridTemplateColumns;
 
 describe("Progress & card layout", () => {
   it("keeps the rules for every step", () => {
-    expect(guideProblems(guide, { version: 3 })).toEqual([]);
+    expect(guideProblems(guide, { version: 3, release: "1.1.17" })).toEqual([]);
     expect(guide.nextTourId).toBe("rate-games");
   });
 

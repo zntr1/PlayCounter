@@ -1,7 +1,7 @@
 import { Clock } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE, sampleCardAllow } from "./shared";
+import { a, sampleCardAllow } from "./shared";
 
 const t = getT("tour");
 
@@ -9,7 +9,6 @@ export function logPlaytimeGuide(): TourDefinition {
   return {
     id: "log-playtime",
     version: 4,
-    release: NEXT_RELEASE,
     kind: "guide",
     category: "playtime",
     icon: Clock,

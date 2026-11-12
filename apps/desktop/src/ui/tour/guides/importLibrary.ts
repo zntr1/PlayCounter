@@ -1,7 +1,7 @@
 import { Download } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition, TourStep } from "../tourTypes";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 const importT = getT("import");
@@ -31,7 +31,7 @@ export function importLibraryGuide(): TourDefinition {
   return {
     id: "import-library",
     version: 3,
-    release: NEXT_RELEASE,
+    release: "1.2.2",
     kind: "guide",
     category: "library",
     icon: Download,

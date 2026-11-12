@@ -47,7 +47,7 @@ import {
   stepOf,
 } from "./guideRules.test.kit";
 import { importLibraryGuide } from "./importLibrary";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const guide = importLibraryGuide();
 
@@ -161,7 +161,7 @@ const tasks: Record<string, () => Promise<void>> = {
 describe("the guide", () => {
   it("is reworked for the next release and follows the step rules", () => {
     expect(guide.version).toBe(3);
-    expect(guide.release).toBe(NEXT_RELEASE);
+    expect(guide.release).toBe("1.2.2");
     expect(guide.simulation).toBe("import");
     // The bar's button carries its count; the app's texts know it by its key.
     expectStepRules({

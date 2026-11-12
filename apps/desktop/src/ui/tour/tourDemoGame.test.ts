@@ -72,9 +72,10 @@ describe("what the sample card shows when a step starts", () => {
   });
 
   it("shows the cover's hover buttons for a step that rings one", () => {
-    expect(
-      sampleStageForStep({ anchor: a("demo-card-log-session") }),
-    ).toEqual({ ...closed, hoverButtons: true });
+    expect(sampleStageForStep({ anchor: a("demo-card-log-session") })).toEqual({
+      ...closed,
+      hoverButtons: true,
+    });
   });
 
   it("opens Details on the tab a step asks for", () => {

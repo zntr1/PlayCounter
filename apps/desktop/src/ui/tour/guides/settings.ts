@@ -1,7 +1,7 @@
 import { Settings } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 
@@ -15,7 +15,6 @@ export function settingsGuide(): TourDefinition {
   return {
     id: "settings",
     version: 5,
-    release: NEXT_RELEASE,
     kind: "guide",
     category: "settings",
     icon: Settings,

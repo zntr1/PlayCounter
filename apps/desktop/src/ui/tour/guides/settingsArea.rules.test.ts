@@ -24,6 +24,15 @@ const GUIDES = {
   "while-you-play": 1,
 } as const;
 
+// A reworked guide keeps the release it first appeared in; a new one is NEXT_RELEASE.
+const RELEASES: Record<string, string | undefined> = {
+  settings: undefined,
+  "backup-data": "1.1.17",
+  "watch-folders": "1.2.2",
+  "feedback-replies": "1.1.17",
+  "while-you-play": NEXT_RELEASE,
+};
+
 const guide = (id: string) => tours().find((tour) => tour.id === id)!;
 const mine = () => Object.keys(GUIDES).map(guide);
 const steps = () =>
@@ -53,7 +62,7 @@ describe("the guides around Settings follow the rules", () => {
   it("carry the next version and the next release", () => {
     for (const [id, version] of Object.entries(GUIDES)) {
       expect(guide(id).version, id).toBe(version);
-      expect(guide(id).release, id).toBe(NEXT_RELEASE);
+      expect(guide(id).release, id).toBe(RELEASES[id]);
     }
   });
 

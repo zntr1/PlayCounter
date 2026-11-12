@@ -8,7 +8,6 @@ import { findTour } from "../tourDefinitions";
 import { backStepIndex } from "../tourNavigation";
 import { TourOverlay } from "../TourUI";
 import { boldNames as bold, expectStepRules } from "./guideRules.test.kit";
-import { NEXT_RELEASE } from "./shared";
 
 vi.mock("../../../tracker");
 vi.mock("../../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -36,7 +35,7 @@ describe("the guide's steps", () => {
       "alternative",
     ]);
     expect(guide().version).toBe(4);
-    expect(guide().release).toBe(NEXT_RELEASE);
+    expect(guide().release).toBeUndefined();
   });
 
   it("follow the rules of every guide", () => {

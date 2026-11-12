@@ -1,14 +1,18 @@
 import { Tag } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { a, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
 
+// The panel above the sample card (MyGamesView.tsx, `demo-origin-examples`)
+// shows every badge. The guide rings those, not the 29 px seals on the card,
+// which can sit below the window's edge.
 export function sourceBadgesGuide(): TourDefinition {
   return {
     id: "source-badges",
-    version: 2,
+    version: 3,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "detection",
     icon: Tag,
@@ -21,24 +25,16 @@ export function sourceBadgesGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
+        anchor: a("demo-match-examples"),
         title: t("How was this game recognized?"),
         body: t(
-          "A badge tells you how PlayCounter connected the file you started to a game. There are three ways, and we'll show all of them on this sample card - nothing is added to your library.",
-        ),
-      },
-      {
-        id: "origins",
-        view: "games",
-        anchor: a("demo-origin-examples"),
-        title: t("Where it came from, and how it was recognized"),
-        body: t(
-          "Steam, Xbox, Battle.net, Epic Games, GOG, and PlayStation badges describe a library's launcher origin. Dolphin and other emulator badges describe how the game ran. Community, IGDB, and Custom describe the file match. A game can have both kinds of badge. These examples do not claim that any launcher or game is installed.",
+          "A badge tells you how PlayCounter connected a game's file to a game: Community, IGDB and Custom. This is a sample: nothing is saved.",
         ),
       },
       {
         id: "community",
         view: "games",
-        anchor: a("demo-source-community"),
+        anchor: a("demo-legend-community"),
         title: t("Community"),
         body: t(
           "The PlayCounter community database links file names to the right games. You can share a match that's missing - once it's reviewed and approved, everyone's PlayCounter recognizes that file automatically.",
@@ -47,19 +43,37 @@ export function sourceBadgesGuide(): TourDefinition {
       {
         id: "igdb",
         view: "games",
-        anchor: a("demo-source-igdb"),
+        anchor: a("demo-legend-igdb"),
         title: "IGDB",
         body: t(
-          "IGDB is a large public game database. Some of its entries record the name of the game's .exe file - bg3.exe for Baldur's Gate 3, for example. When it's there, PlayCounter finds the game right away.\n\nPlenty of entries don't have it, though. That's the gap the Community database fills.",
+          "IGDB is a large public game database. Some entries record the game's .exe name, like bg3.exe for Baldur's Gate 3, and PlayCounter finds those right away. Many don't; the Community database fills that gap.",
         ),
       },
       {
         id: "custom",
         view: "games",
-        anchor: a("demo-source-custom"),
+        anchor: a("demo-legend-custom"),
         title: t("Custom"),
         body: t(
-          "You added this game yourself. The name and the file it points to stay on this PC, unless you send it to the Community database later.",
+          "You added this game yourself. Once you send the match to the community, a clock means it is waiting to be reviewed, and a check means it was approved.",
+        ),
+      },
+      {
+        id: "where",
+        view: "games",
+        anchor: a("library-customize"),
+        title: t("Where badges sit, and hiding them"),
+        body: t(
+          "Match badges are the seals at the top left of a cover; rest the pointer on one to read it. <b>Customize</b> › <b>Card details</b> has <b>File match info</b> and <b>Source badges</b> to hide them.",
+        ),
+      },
+      {
+        id: "origins",
+        view: "games",
+        anchor: a("demo-launcher-examples"),
+        title: t("Launcher and emulator badges"),
+        body: t(
+          "In the app, a launcher badge sits beside a game's name: Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. An emulator badge like Dolphin shows how it ran. Neither means the game is installed.",
         ),
       },
     ],

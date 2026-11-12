@@ -249,9 +249,10 @@ describe("the guide to do next", () => {
     expect(says(nextCard(), "Continue")).toBe(true);
   });
 
-  it("offers a guide again that was finished in an older version", async () => {
+  it("skips a guide that was finished in an older version", async () => {
     await openHub({ core: 2, shelves: 1 });
-    expect(says(nextCard(), "Favorites & shelves")).toBe(true);
+    expect(says(nextCard(), "Favorites & shelves")).toBe(false);
+    expect(says(nextCard(), "While you play")).toBe(true);
   });
 
   it("offers nothing to start when every guide is done", async () => {
@@ -301,14 +302,14 @@ describe("New", () => {
 });
 
 describe("Updated", () => {
-  it("marks a guide finished in an older version and counts it as not done", async () => {
+  it("marks a guide finished in an older version and still counts it as done", async () => {
     await openHub({ shelves: 1, backup: 3 });
     expect(says(tile("shelves"), "Updated")).toBe(true);
-    expect(says(tile("shelves"), "Replay")).toBe(false);
-    expect(says(tile("shelves"), "Start")).toBe(true);
-    expect(tile("shelves")!.querySelector("svg.lucide-check")).toBeNull();
-    expect(topicHeading("library")).toBe("Your library 0/2");
-    expect(progress()).toBe("1 of 5 guides done");
+    expect(says(tile("shelves"), "Replay")).toBe(true);
+    expect(says(tile("shelves"), "Start")).toBe(false);
+    expect(tile("shelves")!.querySelector("svg.lucide-check")).not.toBeNull();
+    expect(topicHeading("library")).toBe("Your library 1/2");
+    expect(progress()).toBe("2 of 5 guides done");
     // A guide finished in its current version is not "updated".
     expect(says(tile("backup"), "Updated")).toBe(false);
     // Never started: nothing to update.
@@ -319,7 +320,14 @@ describe("Updated", () => {
     await openHub({ covers: 1 }, NEXT_RELEASE);
     expect(says(tile("covers"), "Updated")).toBe(true);
     expect(says(tile("covers"), "New")).toBe(false);
-    expect(progress()).toBe("0 of 5 guides done · 1 new");
+    expect(progress()).toBe("1 of 5 guides done · 1 new");
+  });
+
+  it("counts in the ring, the topics and the next guide", async () => {
+    await openHub({ core: 2, shelves: 1, timer: 1, backup: 3, covers: 1 });
+    expect(progress()).toBe("5 of 5 guides done");
+    expect(topicHeading("library")).toBe("Your library 2/2");
+    expect(nextCard()!.textContent).toContain("You finished every guide");
   });
 });
 

@@ -50,7 +50,7 @@ const shelves = () =>
 
 describe("Favorites & shelves", () => {
   it("keeps the rules for every step", () => {
-    expect(guideProblems(guide, { version: 3 })).toEqual([]);
+    expect(guideProblems(guide, { version: 3, release: "1.1.17" })).toEqual([]);
     expect(guide.nextTourId).toBe("library-progress");
   });
 

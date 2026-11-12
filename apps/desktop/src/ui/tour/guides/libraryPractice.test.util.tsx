@@ -233,13 +233,19 @@ export function guideProblems(
     version,
     maxSteps = 9,
     composed = [],
-  }: { version: number; maxSteps?: number; composed?: string[] },
+    release = NEXT_RELEASE,
+  }: {
+    version: number;
+    maxSteps?: number;
+    composed?: string[];
+    release?: string;
+  },
 ) {
   const problems: string[] = [];
   const say = (step: string, problem: string) =>
     problems.push(`${tour.id}/${step}: ${problem}`);
   if (tour.version !== version) say("-", `version is ${tour.version}`);
-  if (tour.release !== NEXT_RELEASE) say("-", `release is ${tour.release}`);
+  if (tour.release !== release) say("-", `release is ${tour.release}`);
   if (tour.steps.length < 4 || tour.steps.length > maxSteps)
     say("-", `${tour.steps.length} steps`);
   tour.steps.forEach((step, index) => {

@@ -21,7 +21,7 @@ import {
   indexOf,
   stepOf,
 } from "./guideRules.test.kit";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 vi.mock("../../../tracker");
 vi.mock("../../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -118,7 +118,7 @@ const allText = () =>
 describe("the guide", () => {
   it("is reworked for the next release and follows the step rules", () => {
     expect(guide.version).toBe(5);
-    expect(guide.release).toBe(NEXT_RELEASE);
+    expect(guide.release).toBe("1.1.17");
     expectStepRules(guide);
   });
 

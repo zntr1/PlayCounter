@@ -1,7 +1,7 @@
 import { FolderSearch } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 
@@ -13,7 +13,7 @@ export function watchFoldersGuide(): TourDefinition {
   return {
     id: "watch-folders",
     version: 2,
-    release: NEXT_RELEASE,
+    release: "1.2.2",
     kind: "guide",
     category: "library",
     icon: FolderSearch,

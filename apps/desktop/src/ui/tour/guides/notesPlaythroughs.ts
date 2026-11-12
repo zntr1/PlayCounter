@@ -1,7 +1,7 @@
 import { NotebookPen } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, libraryTourCard, NEXT_RELEASE } from "./shared";
+import { a, libraryTourCard } from "./shared";
 
 const t = getT("tour");
 
@@ -19,7 +19,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
     duration: t("4 min"),
     practice: true,
     finishView: "games",
-    release: NEXT_RELEASE,
+    release: "1.1.17",
     nextTourId: "organize-library",
     steps: [
       {

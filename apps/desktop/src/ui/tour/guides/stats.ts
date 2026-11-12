@@ -1,7 +1,7 @@
 import { ChartColumn } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { NEXT_RELEASE, a } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 
@@ -16,7 +16,6 @@ export function statsGuide(): TourDefinition {
   return {
     id: "stats",
     version: 3,
-    release: NEXT_RELEASE,
     kind: "guide",
     category: "playtime",
     icon: ChartColumn,

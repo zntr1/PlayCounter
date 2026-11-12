@@ -122,72 +122,12 @@ describe("guide ring targets", () => {
 
 const BODY_LIMIT = 220;
 
-const TOO_LONG = new Set<string>([
-  "core/now",
-  "core/games",
-  "import-library/intro",
-  "import-library/review",
-  "import-library/totals",
-  "import-library/auto-add",
-  "watch-folders/intro",
-  "watch-folders/add",
-  "watch-folders/results",
-  "watch-folders/dismissed",
-  "watch-folders/auto-add",
-  "notes-playthroughs/intro",
-  "notes-playthroughs/note",
-  "notes-playthroughs/create-run",
-  "notes-playthroughs/active-run",
-  "notes-playthroughs/move-session",
-  "notes-playthroughs/finish-run",
-  "notes-playthroughs/popups",
-  "notes-playthroughs/finish",
-  "organize-library/intro",
-  "organize-library/save-filters",
-  "library-progress/intro",
-  "library-progress/filter",
-  "library-progress/select-games",
-  "library-progress/customize",
-  "library-progress/card-details",
-  "library-progress/finish",
-  "rate-games/filter",
-  "rate-games/finish",
-  "launch-games/set-forget",
-  "launch-games/limits",
-  "launch-games/uninstalled",
-  "launch-games/controller",
-  "game-actions/details",
-  "game-actions/remove",
-  "fix-detection/wizard",
-  "stats/milestones",
-  "settings/appearance",
-  "settings/shortcuts",
-  "settings/launcher",
-  "settings/emulators",
-  "settings/library-import",
-  "settings/backup",
-  "backup-data/automatic",
-  "backup-data/folder",
-  "backup-data/import",
-  "feedback-replies/context",
-  "emulators/intro",
-  "emulators/settings",
-  "emulators/menu",
-  "source-badges/origins",
-  "source-badges/igdb",
-]);
+const TOO_LONG = new Set<string>(["core/now", "core/games"]);
 
 // "provider" is "launcher" in the app; the Discovered "wizard" is its review.
 const NOT_OUR_WORDS = /\b(providers?|wizard)\b/i;
 
-const OLD_WORDS = new Set<string>([
-  "import-library/intro",
-  "import-library/review",
-  "import-library/totals",
-  "fix-detection/filters",
-  "stats/milestones",
-  "emulators/library",
-]);
+const OLD_WORDS = new Set<string>([]);
 
 describe("guide texts", () => {
   const steps = tours().flatMap((tour) =>

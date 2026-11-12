@@ -33,7 +33,7 @@ import {
   target,
   unmountHistory,
 } from "./historyPractice.test.util";
-import { NEXT_RELEASE, a } from "./shared";
+import { a } from "./shared";
 import { statsGuide } from "./stats";
 
 beforeEach(mountHistory);
@@ -49,7 +49,7 @@ describe("Read your stats: the guide", () => {
 
   it("is reworked for the next release and leads on to Achievements & trophies", () => {
     expect(guide.version).toBe(3);
-    expect(guide.release).toBe(NEXT_RELEASE);
+    expect(guide.release).toBeUndefined();
     expect(guide.nextTourId).toBe("game-achievements");
   });
 

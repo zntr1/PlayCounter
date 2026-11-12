@@ -46,7 +46,9 @@ describe("Notes & playthroughs", () => {
   it("keeps the rules for every step", () => {
     // Ten steps: the brief's split and the session note are one more than
     // the rule's nine (reported to the lead).
-    expect(guideProblems(guide, { version: 3, maxSteps: 10 })).toEqual([]);
+    expect(
+      guideProblems(guide, { version: 3, maxSteps: 10, release: "1.1.17" }),
+    ).toEqual([]);
     expect(guide.nextTourId).toBe("organize-library");
   });
 

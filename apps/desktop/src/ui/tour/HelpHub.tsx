@@ -29,7 +29,7 @@ import type { TourProgress } from "./tourState";
 const t = getT("tour");
 
 /** done: finished as the guide is today. updated: finished before the guide
- *  changed, which counts as not done. */
+ *  changed; it still counts as finished, with an "Updated" pill. */
 type GuideState = "done" | "updated" | "open";
 
 function guideState(tour: TourDefinition, progress: TourProgress): GuideState {
@@ -133,9 +133,9 @@ function GuideHub({
         state === "open" && appVersion !== null && tour.release === appVersion,
     };
   });
-  const doneCount = guides.filter((guide) => guide.state === "done").length;
+  const doneCount = guides.filter((guide) => guide.state !== "open").length;
   const newCount = guides.filter((guide) => guide.isNew).length;
-  const unfinished = guides.filter((guide) => guide.state !== "done");
+  const unfinished = guides.filter((guide) => guide.state === "open");
   const next =
     unfinished.find((guide) => guide.tour.id === CORE_TOUR_ID) ??
     unfinished[0] ??
@@ -150,7 +150,7 @@ function GuideHub({
       return {
         ...category,
         total: all.length,
-        done: all.filter((guide) => guide.state === "done").length,
+        done: all.filter((guide) => guide.state !== "open").length,
         shown: all.filter(
           (guide) =>
             !searching ||
@@ -459,7 +459,7 @@ function GuideTile({
   isNew: boolean;
   onStart: () => void;
 }) {
-  const done = state === "done";
+  const done = state !== "open";
   const Icon = done ? Check : tour.icon;
   return (
     <button

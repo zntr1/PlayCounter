@@ -53,6 +53,7 @@ describe("Rate your games", () => {
     expect(
       guideProblems(guide, {
         version: 2,
+        release: "1.4.3",
         // Built by the app: "Sort: {{label}}" and "<tier>S</tier> – Best".
         composed: ["Sort: Tier", "S – Best"],
       }),
