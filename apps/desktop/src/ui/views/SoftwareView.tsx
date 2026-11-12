@@ -9,7 +9,13 @@ import {
   List,
   Undo2,
 } from "lucide-react";
-import { useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { useAppStore, type ExeCacheEntry } from "../../store";
 import {
   setToolArt,
@@ -36,6 +42,11 @@ import {
 } from "../ContextMenu";
 import { ExeIcon } from "../ExeIcon";
 import { Button, Modal } from "../primitives";
+import { emitTourEvent } from "../tour/tourEvents";
+import {
+  SAMPLE_SOFTWARE_TOUR_ID,
+  sampleSoftwareRows,
+} from "../tour/softwareSample";
 import { appLocale, getT } from "../../i18n";
 
 const t = getT("software");
@@ -44,7 +55,7 @@ const t = getT("software");
    purpose: no sessions, no Now Playing, no stats. Just how long each app ran,
    counted only while it runs and the PC is awake. */
 
-type SoftwareRow = {
+export type SoftwareRow = {
   toolKey: string;
   name: string;
   /** Art picked on this PC, else the shared art; empty for the app icon. */
@@ -128,8 +139,15 @@ export function SoftwareView() {
   );
   const [artTarget, setArtTarget] = useState<SoftwareRow | null>(null);
   const [detailsKey, setDetailsKey] = useState<string | null>(null);
+  // While the guide runs, sample apps stand in for the counted ones, whether
+  // or not tracking is on. Nothing here reaches the tracker or the settings.
+  const sample = useAppStore(
+    (state) => state.activeTour?.tourId === SAMPLE_SOFTWARE_TOUR_ID,
+  );
+  const sampleStep = useAppStore((state) => state.activeTour?.stepIndex ?? 0);
+  useEffect(() => setDetailsKey(null), [sampleStep]);
 
-  const rows = useMemo(
+  const realRows = useMemo(
     () =>
       buildSoftwareRows({
         exeCache,
@@ -142,10 +160,15 @@ export function SoftwareView() {
       }),
     [exeCache, processes, toolUsage, userIgnoredProcesses],
   );
+  const sampleRows = useMemo(
+    () => (sample ? sampleSoftwareRows() : []),
+    [sample],
+  );
+  const rows = sample ? sampleRows : realRows;
 
   const detailsRow = rows.find((row) => row.toolKey === detailsKey) ?? null;
 
-  if (!trackTools) {
+  if (!trackTools && !sample) {
     return (
       <Panel className="flex flex-col items-start gap-3 px-5 py-5">
         <div className="text-sm text-text-muted">
@@ -160,6 +183,7 @@ export function SoftwareView() {
     );
   }
 
+  const shownLayout = sample ? "grid" : layout;
   const format = (seconds: number) =>
     seconds < 60 ? "–" : formatDuration(seconds, showDurationDays);
 
@@ -171,7 +195,7 @@ export function SoftwareView() {
             "Counted only while an app runs and your PC is awake. Never part of your game stats.",
           )}
         </p>
-        {rows.length > 0 ? (
+        {rows.length > 0 && !sample ? (
           <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
             {(
               [
@@ -205,12 +229,16 @@ export function SoftwareView() {
             "No software yet. Discord, Spotify and launchers show up here once they run. Other apps can be tracked from Discovered with “Track as software”.",
           )}
         </Panel>
-      ) : layout === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
+      ) : shownLayout === "grid" ? (
+        <div
+          data-tour={sample ? "demo-software-cards" : undefined}
+          className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4"
+        >
           {rows.map((row) => (
             <SoftwareCard
               key={row.toolKey}
               row={row}
+              sample={sample}
               format={format}
               onOpen={() => setDetailsKey(row.toolKey)}
               onChangeArt={() => setArtTarget(row)}
@@ -223,6 +251,7 @@ export function SoftwareView() {
             <SoftwareRowItem
               key={row.toolKey}
               row={row}
+              sample={sample}
               format={format}
               onOpen={() => setDetailsKey(row.toolKey)}
               onChangeArt={() => setArtTarget(row)}
@@ -246,7 +275,17 @@ export function SoftwareView() {
         <SoftwareDetailsDialog
           row={detailsRow}
           format={format}
-          onClose={() => setDetailsKey(null)}
+          sample={sample}
+          onClose={() => {
+            setDetailsKey(null);
+            if (sample)
+              emitTourEvent(
+                "demo.step-completed",
+                t(
+                  "Software has no sessions, only time per day. That is what one app's numbers show.",
+                ),
+              );
+          }}
         />
       ) : null}
     </div>
@@ -283,10 +322,12 @@ function lastUsedLabel(row: SoftwareRow, now = Date.now()) {
 function SoftwareDetailsDialog({
   row,
   format,
+  sample,
   onClose,
 }: {
   row: SoftwareRow;
   format: (seconds: number) => string;
+  sample: boolean;
   onClose: () => void;
 }) {
   const { details, summary } = row;
@@ -321,6 +362,7 @@ function SoftwareDetailsDialog({
   return (
     <Modal
       labelId="software-details-title"
+      dataTour={sample ? "demo-software-details" : undefined}
       eyebrow={t("Software")}
       title={row.name}
       subtitle={row.exeNames.join(", ")}
@@ -425,11 +467,14 @@ function SoftwareIconTile({ exePath }: { exePath: string | null }) {
 
 function SoftwareCard({
   row,
+  sample,
   format,
   onOpen,
   onChangeArt,
 }: {
   row: SoftwareRow;
+  /** A guide's sample app: no menu that could change a real one. */
+  sample: boolean;
   format: (seconds: number) => string;
   onOpen: () => void;
   onChangeArt: () => void;
@@ -437,7 +482,8 @@ function SoftwareCard({
   const contextMenu = useContextMenu();
   return (
     <article
-      {...contextMenu.props}
+      {...(sample ? {} : contextMenu.props)}
+      data-tour={sample ? "demo-software-card" : undefined}
       role="button"
       tabIndex={0}
       aria-label={t("{{name}}, details", { name: row.name })}
@@ -491,22 +537,26 @@ function SoftwareCard({
           </div>
         ) : null}
       </div>
-      <SoftwareMenu
-        row={row}
-        contextMenu={contextMenu}
-        onChangeArt={onChangeArt}
-      />
+      {sample ? null : (
+        <SoftwareMenu
+          row={row}
+          contextMenu={contextMenu}
+          onChangeArt={onChangeArt}
+        />
+      )}
     </article>
   );
 }
 
 function SoftwareRowItem({
   row,
+  sample,
   format,
   onOpen,
   onChangeArt,
 }: {
   row: SoftwareRow;
+  sample: boolean;
   format: (seconds: number) => string;
   onOpen: () => void;
   onChangeArt: () => void;
@@ -520,7 +570,8 @@ function SoftwareRowItem({
 
   return (
     <div
-      {...contextMenu.props}
+      {...(sample ? {} : contextMenu.props)}
+      data-tour={sample ? "demo-software-card" : undefined}
       role="button"
       tabIndex={0}
       aria-label={t("{{name}}, details", { name: row.name })}
@@ -577,11 +628,13 @@ function SoftwareRowItem({
         label={t("Total")}
         value={format(row.summary.totalSeconds)}
       />
-      <SoftwareMenu
-        row={row}
-        contextMenu={contextMenu}
-        onChangeArt={onChangeArt}
-      />
+      {sample ? null : (
+        <SoftwareMenu
+          row={row}
+          contextMenu={contextMenu}
+          onChangeArt={onChangeArt}
+        />
+      )}
     </div>
   );
 }

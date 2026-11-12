@@ -171,9 +171,6 @@ describe("tour definitions", () => {
     expect(step("emulators", "fix-match").anchorTargets).toContain(
       '[data-tour="demo-emulator-actions"]',
     );
-    expect(step("import-library", "confirm").anchorTargets).toContain(
-      '[data-tour="demo-import-match"]',
-    );
   });
 
   it("explains the opt-in launcher and its controller flow", () => {

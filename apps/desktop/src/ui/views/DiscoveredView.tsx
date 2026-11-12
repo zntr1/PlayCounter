@@ -1316,7 +1316,7 @@ export function TriageWizardCard({
               fallback={<AppWindow size={28} className="text-text-faint" />}
             />
           </div>
-          <div className="min-w-0 flex-1">
+          <div data-tour="discovered-evidence" className="min-w-0 flex-1">
             <h3
               className="truncate text-2xl font-bold text-text"
               title={productName ?? executable.exeName}
