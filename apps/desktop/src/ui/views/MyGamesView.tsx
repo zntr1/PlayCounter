@@ -295,6 +295,7 @@ import {
 } from "../tour/tourDemoGame";
 import { emitTourEvent, tourDoneFlash, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
+import { cn } from "../cn";
 import { GuideLink } from "../tour/GuideLink";
 import { createLibraryTourStore } from "../tour/libraryTourStore";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
@@ -3810,7 +3811,7 @@ export function GameLibraryCard({
       <p
         role="status"
         data-tour="demo-action-result"
-        className={clsx(
+        className={cn(
           "rounded-md border border-accent/30 bg-accent-tint px-2 py-1.5 text-[11px] leading-4 text-accent-ink",
           className,
         )}

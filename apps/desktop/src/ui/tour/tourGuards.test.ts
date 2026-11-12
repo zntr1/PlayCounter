@@ -122,7 +122,7 @@ describe("guide ring targets", () => {
 
 const BODY_LIMIT = 220;
 
-const TOO_LONG = new Set<string>(["core/now", "core/games"]);
+const TOO_LONG = new Set<string>([]);
 
 // "provider" is "launcher" in the app; the Discovered "wizard" is its review.
 const NOT_OUR_WORDS = /\b(providers?|wizard)\b/i;
