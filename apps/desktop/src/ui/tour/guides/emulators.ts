@@ -1,16 +1,26 @@
 import { Gamepad2 } from "lucide-react";
-import { emulatorLabelList } from "../../../emulators/registry";
-import { getT } from "../../../i18n";
+import { adapterFor, EMULATORS } from "../../../emulators/registry";
+import { appLocale, getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a } from "./shared";
+import { a, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
+
+/** Two emulators as an example, in the app's language: "Dolphin and PCSX2". */
+function exampleEmulators() {
+  const labels = (["dolphin", "pcsx2"] as const).map(
+    (id) => adapterFor(id).label,
+  );
+  return new Intl.ListFormat(appLocale(), { type: "conjunction" }).format(
+    labels,
+  );
+}
 
 export function emulatorsGuide(): TourDefinition {
   return {
     id: "emulators",
-    version: 4,
-    release: "1.1.17",
+    version: 5,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "detection",
     icon: Gamepad2,
@@ -21,15 +31,17 @@ export function emulatorsGuide(): TourDefinition {
     duration: t("2 min"),
     demoGame: true,
     finishView: "games",
+    nextTourId: "source-badges",
     steps: [
       {
         id: "intro",
         view: "settings",
         settingsGroup: "emulators",
+        anchor: a("settings-emulators"),
         title: t("Games inside emulators"),
         body: t(
-          "PlayCounter can recognize games inside {{emulatorLabelList}}. This guide uses a sample Dolphin setup. You can confirm and change its match; nothing is saved or shared.",
-          { emulatorLabelList: emulatorLabelList("and") },
+          "PlayCounter recognizes games inside {{count}} emulators, such as {{examples}}. This guide uses a sample Dolphin setup: nothing is saved or sent.",
+          { count: EMULATORS.length, examples: exampleEmulators() },
         ),
       },
       {
@@ -37,18 +49,20 @@ export function emulatorsGuide(): TourDefinition {
         view: "settings",
         settingsGroup: "emulators",
         anchor: a("settings-emulators"),
-        title: t("Enable emulator detection"),
+        anchorTargets: ['[data-row="emulatorDetection"]'],
+        title: t("Detection is on by default"),
         body: t(
-          "This is where you enable emulator detection. PlayCounter uses local launch details to identify the loaded game. Lookups send the recognized title or disc ID, never a full local path or window title. This step only shows the setting.",
+          "<b>Detect emulator games</b> is on by default. Turn it off here if you never play in emulators. Lookups send the recognized title or disc ID, never a full local path or window title.",
         ),
       },
       {
         id: "menu",
         view: "keep",
-        anchor: a("nav-emulators"),
-        title: t("Live view and saved emulator pages"),
+        anchor: a("nav-dolphin"),
+        additionalAnchors: [a("nav-emulator-group")],
+        title: t("Emulator pages in the sidebar"),
         body: t(
-          "An emulator page is added the first time PlayCounter sees that emulator running, and stays afterward. Now Emulating works differently: it appears while an emulator is running. Both sit under Library and are hidden if detection is off or all known emulators are ignored. This guide supplies Dolphin as an example.",
+          "An emulator page is added the first time PlayCounter sees it running. With two or more emulators, the sidebar folds them under one Emulators row.",
         ),
       },
       {
@@ -58,16 +72,16 @@ export function emulatorsGuide(): TourDefinition {
         additionalAnchors: [a("nav-emulating")],
         title: t("See the loaded game"),
         body: t(
-          "Now Emulating shows the loaded game, its running timer, and the emulator. If the game cannot be identified, a picker asks you to choose it. This session is a sample.",
+          "<b>Now Emulating</b> shows the loaded game, its running timer and the emulator while one runs. If the game is unclear, a picker asks you to choose. This session is a sample.",
         ),
       },
       {
         id: "emulator-page",
         view: "dolphin",
         anchor: a("nav-dolphin"),
-        title: t("The Dolphin page stays"),
+        title: t("The emulator page stays"),
         body: t(
-          "This page holds Dolphin playtime, sessions, and all of its game matches. You can open it even when Dolphin is not running.",
+          "This page holds Dolphin's playtime, sessions and linked games, even when Dolphin is closed. Every supported emulator works the same way.",
         ),
       },
       {
@@ -82,30 +96,21 @@ export function emulatorsGuide(): TourDefinition {
       {
         id: "confirm",
         view: "dolphin",
-        anchor: a("demo-emulator-linked"),
-        anchorTargets: [
-          a("demo-emulator-confirmation"),
-          a("demo-sample-search"),
-          a("demo-emulator-result"),
-          a("demo-emulator-confirm"),
-        ],
-        interactive: true,
-        manualAdvance: true,
-        allow: [
-          a("demo-emulator-linked"),
-          a("demo-emulator-result"),
-          a("demo-library-modal"),
-        ],
+        anchor: a("demo-emulator-confirm"),
         additionalAnchors: [a("demo-emulator-check-badge")],
+        interactive: true,
+        allow: [a("demo-emulator-confirm")],
+        advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Check this once"),
         body: t(
-          "Check that the title is the game you just started. Click Looks right on the sample. The check badge disappears and its sessions stay intact.",
+          "A guessed match carries a check note. Make sure the title is the game you just started; its sessions stay intact.",
         ),
+        task: t("Click <b>Looks right</b>."),
       },
       {
         id: "fix-match",
         view: "dolphin",
-        anchor: a("demo-emulator-linked"),
+        anchor: a("demo-emulator-actions"),
         anchorTargets: [
           a("demo-emulator-confirmation"),
           a("demo-sample-search"),
@@ -113,26 +118,17 @@ export function emulatorsGuide(): TourDefinition {
           a("demo-emulator-actions"),
         ],
         interactive: true,
-        manualAdvance: true,
         allow: [
           a("demo-emulator-linked"),
           a("demo-emulator-result"),
           a("demo-library-modal"),
         ],
+        advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Correct, forget, or preview sharing"),
         body: t(
-          "Try Change to review a different game. Forget removes the match and keeps recorded History. Share match previews what would go to Community review; it sends nothing here. Cancel leaves the sample as it is.",
+          "<b>Change</b> picks another game. <b>Forget</b> removes the match and keeps History. <b>Share match</b> previews what Community review would get.",
         ),
-      },
-      {
-        id: "pcsx2",
-        view: "settings",
-        settingsGroup: "emulators",
-        anchor: a("settings-emulators"),
-        title: t("PlayStation 2 with PCSX2"),
-        body: t(
-          "With emulator detection enabled on Windows, start a game in PCSX2. PlayCounter records the loaded PS2 game. Its page appears after the emulator is first seen. A learned game file can also support direct launching.",
-        ),
+        task: t("Press one of the three and finish its dialog."),
       },
       {
         id: "library",
@@ -140,7 +136,7 @@ export function emulatorsGuide(): TourDefinition {
         anchor: a("demo-game-card"),
         title: t("One shared library"),
         body: t(
-          "Completed emulator sessions appear in My Games and History with native PC games. This sample card carries a Dolphin badge. Provider origins, emulator badges, and file-match sources describe different things.",
+          "In the app, emulator sessions appear in My Games and History next to your PC games. The guide <b>Understand game badges</b> explains the badge on this card.",
         ),
       },
     ],

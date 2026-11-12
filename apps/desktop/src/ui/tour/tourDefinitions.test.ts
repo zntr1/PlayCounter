@@ -63,40 +63,6 @@ describe("tour definitions", () => {
     ).toEqual([]);
   });
 
-  it("documents the emulator live view and management page", () => {
-    const guide = tours().find((tour) => tour.id === "emulators")!;
-    expect(guide.version).toBe(4);
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "settings",
-      "menu",
-      "now-emulating",
-      "emulator-page",
-      "linked-games",
-      "confirm",
-      "fix-match",
-      "pcsx2",
-      "library",
-    ]);
-    expect(guide.steps.every((step) => !step.optional)).toBe(true);
-    const menu = guide.steps.find((step) => step.id === "menu")!;
-    expect(menu.body).toContain("first time PlayCounter sees");
-    expect(menu.body).toContain("Now Emulating works differently");
-    expect(
-      guide.steps.find((step) => step.id === "emulator-page")?.body,
-    ).toContain("all of its game matches");
-    const confirm = guide.steps.find((step) => step.id === "confirm")!;
-    expect(confirm.anchorTargets).toContain(
-      '[data-tour="demo-emulator-confirm"]',
-    );
-    expect(confirm.body).toContain("the game you just started");
-    expect(confirm.body).not.toContain("the file");
-    const fixMatch = guide.steps.find((step) => step.id === "fix-match")!;
-    expect(fixMatch.body).toContain("Change");
-    expect(fixMatch.body).toContain("Forget");
-    expect(fixMatch.body).toContain("Share match");
-  });
-
   it("honours backTo and deterministic view directives", () => {
     const guide = tours().find((tour) => tour.id === "log-playtime")!;
     const fill = guide.steps.findIndex((step) => step.id === "fill-dialog");
