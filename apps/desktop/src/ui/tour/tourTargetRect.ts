@@ -102,3 +102,43 @@ export function tourTargetRect(element: Element): TourTargetRect | null {
     ? { top, left, width: right - left, height: bottom - top }
     : null;
 }
+
+/** How far apart two targets may be for their rings to touch: a ring is drawn
+ *  6 px outside its target on every side. */
+const RING_REACH = 12;
+
+/** Targets that sit right next to each other share one ring instead of two
+ *  rings that touch or overlap. The result keeps the order of `rects`; a
+ *  merged ring takes the place of its first target. */
+export function mergeTouchingRects(rects: TourTargetRect[]) {
+  const merged = rects.map((rect) => ({ ...rect }));
+  const gap = (
+    from: number,
+    size: number,
+    otherFrom: number,
+    otherSize: number,
+  ) => Math.max(0, otherFrom - (from + size), from - (otherFrom + otherSize));
+  for (let index = 0; index < merged.length; index += 1) {
+    for (let other = index + 1; other < merged.length; other += 1) {
+      const a = merged[index];
+      const b = merged[other];
+      if (
+        gap(a.left, a.width, b.left, b.width) > RING_REACH ||
+        gap(a.top, a.height, b.top, b.height) > RING_REACH
+      )
+        continue;
+      const left = Math.min(a.left, b.left);
+      const top = Math.min(a.top, b.top);
+      merged[index] = {
+        left,
+        top,
+        width: Math.max(a.left + a.width, b.left + b.width) - left,
+        height: Math.max(a.top + a.height, b.top + b.height) - top,
+      };
+      merged.splice(other, 1);
+      // The grown ring may now reach a target it passed before.
+      other = index;
+    }
+  }
+  return merged;
+}

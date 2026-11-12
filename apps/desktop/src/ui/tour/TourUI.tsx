@@ -1,6 +1,7 @@
 import {
   findTourElement,
   findTourTarget,
+  mergeTouchingRects,
   tourFocusTarget,
   tourTargetRect,
   type TourTargetRect,
@@ -104,6 +105,8 @@ function TourRunner() {
   const [outcome, setOutcome] = useState<string | null>(null);
   const [rect, setRect] = useState<TourTargetRect | null>(null);
   const [additionalRects, setAdditionalRects] = useState<TourTargetRect[]>([]);
+  // How many of them the step names itself; the rest frame the practice.
+  const [ownRectCount, setOwnRectCount] = useState(0);
   const [missing, setMissing] = useState(false);
   const [appModalOpen, setAppModalOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -280,18 +283,7 @@ function TourRunner() {
             ? current
             : measured,
         );
-        const measuredAdditional = [
-          ...(step.additionalAnchors ?? []),
-          ...(sandbox
-            ? [
-                '[data-tour="demo-library-stage"]',
-                '[data-tour="demo-journal"]',
-                '[data-tour="demo-library-menu"]',
-                '[data-tour="demo-shelf-editor"]',
-                '[data-tour="demo-sample-search"]',
-              ]
-            : []),
-        ].flatMap((selector) => {
+        const measureAdditional = (selector: string) => {
           const additional = findTourElement(selector);
           const layer = element.closest('[role="dialog"], [role="menu"]');
           if (
@@ -301,10 +293,27 @@ function TourRunner() {
             return [];
           const rect = additional ? tourTargetRect(additional) : null;
           return rect ? [rect] : [];
-        });
+        };
+        const ownRects = (step.additionalAnchors ?? []).flatMap(
+          measureAdditional,
+        );
+        const measuredAdditional = [
+          ...ownRects,
+          ...(sandbox
+            ? [
+                '[data-tour="demo-library-stage"]',
+                '[data-tour="demo-journal"]',
+                '[data-tour="demo-library-menu"]',
+                '[data-tour="demo-shelf-editor"]',
+                '[data-tour="demo-sample-search"]',
+              ]
+            : []
+          ).flatMap(measureAdditional),
+        ];
         setAdditionalRects((current) =>
           sameRects(current, measuredAdditional) ? current : measuredAdditional,
         );
+        setOwnRectCount(ownRects.length);
         setMissing(false);
       } else {
         setRect(null);
@@ -640,17 +649,22 @@ function TourRunner() {
   // both the active control and its enclosing stage or dialog.
   // A ring drawn over an app dialog would sit on top of it; the dialog's own
   // backdrop already sets the section apart.
+  const apartFromTarget = (other: TourTargetRect) =>
+    rect !== null &&
+    (other.left >= rect.left + rect.width ||
+      other.left + other.width <= rect.left ||
+      other.top >= rect.top + rect.height ||
+      other.top + other.height <= rect.top);
+  // Controls the step names share one ring when they sit next to each other.
+  // The frames around the practice keep their own.
   const outlinedRects =
     rect && !appModalOpen
       ? [
-          rect,
-          ...additionalRects.filter(
-            (other) =>
-              other.left >= rect.left + rect.width ||
-              other.left + other.width <= rect.left ||
-              other.top >= rect.top + rect.height ||
-              other.top + other.height <= rect.top,
-          ),
+          ...mergeTouchingRects([
+            rect,
+            ...additionalRects.slice(0, ownRectCount).filter(apartFromTarget),
+          ]),
+          ...additionalRects.slice(ownRectCount).filter(apartFromTarget),
         ]
       : [];
 

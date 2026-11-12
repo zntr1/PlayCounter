@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
-import { afterEach, expect, it, vi } from "vitest";
-import { findTourTarget, tourTargetRect } from "./tourTargetRect";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  findTourTarget,
+  mergeTouchingRects,
+  tourTargetRect,
+  type TourTargetRect,
+} from "./tourTargetRect";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -86,4 +91,55 @@ it("does not draw a ring around a control scrolled out of view", () => {
     new DOMRect(40, 400, 300, 180),
   );
   expect(tourTargetRect(field)).toBeNull();
+});
+
+/* Rings are drawn 6 px outside their target. Two named controls that sit
+   right next to each other (two settings rows, two menu items) would get
+   rings that touch or overlap; they share one ring instead. */
+describe("rings on neighbours", () => {
+  const row = (top: number, height = 56): TourTargetRect => ({
+    left: 300,
+    top,
+    width: 800,
+    height,
+  });
+
+  it("draws one ring around two settings rows that sit under each other", () => {
+    expect(mergeTouchingRects([row(200), row(256)])).toEqual([
+      { left: 300, top: 200, width: 800, height: 112 },
+    ]);
+  });
+
+  it("chains three neighbours into one ring", () => {
+    expect(mergeTouchingRects([row(200), row(312), row(256)])).toEqual([
+      { left: 300, top: 200, width: 800, height: 168 },
+    ]);
+  });
+
+  it("keeps two rings when another row lies between the named ones", () => {
+    const rows = [row(200), row(312)];
+    expect(mergeTouchingRects(rows)).toEqual(rows);
+  });
+
+  it("merges menu items with a hairline between them, and not a far control", () => {
+    const first = { left: 420, top: 500, width: 220, height: 32 };
+    const second = { left: 420, top: 534, width: 220, height: 32 };
+    const sidebar = { left: 12, top: 180, width: 223, height: 44 };
+    expect(mergeTouchingRects([first, second, sidebar])).toEqual([
+      { left: 420, top: 500, width: 220, height: 66 },
+      sidebar,
+    ]);
+  });
+
+  it("leaves a 13 px gap alone: those rings no longer touch", () => {
+    const rows = [row(200), row(269)];
+    expect(mergeTouchingRects(rows)).toEqual(rows);
+    expect(mergeTouchingRects([row(200), row(268)])).toHaveLength(1);
+  });
+
+  it("does not join controls that are level but far apart sideways", () => {
+    const left = { left: 100, top: 300, width: 120, height: 36 };
+    const right = { left: 900, top: 300, width: 120, height: 36 };
+    expect(mergeTouchingRects([left, right])).toEqual([left, right]);
+  });
 });
