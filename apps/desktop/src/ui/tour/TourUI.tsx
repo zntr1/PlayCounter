@@ -5,21 +5,21 @@ import {
   tourTargetRect,
   type TourTargetRect,
 } from "./tourTargetRect";
-import { X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAppStore } from "../../store";
-import { Button } from "../primitives";
 import { CORE_TOUR_ID, findTour } from "./tourDefinitions";
 import { TOUR_EVENT } from "./tourEvents";
-import { backStepIndex, nextStepIndex } from "./tourNavigation";
-import { getT } from "../../i18n";
+import { TourCard } from "./TourCard";
+import {
+  availableStepIndexes,
+  backStepIndex,
+  nextStepIndex,
+} from "./tourNavigation";
 
 export { HelpButton } from "./HelpHub";
 export { emitTourEvent } from "./tourEvents";
 export { WelcomePrompt } from "./WelcomePrompt";
-
-const t = getT("tour");
 
 // A real dialog the app opened from a highlighted control, e.g. a confirmation
 // behind a setting. It belongs to that control: it takes clicks and keys, and
@@ -44,6 +44,13 @@ export function useTourDemo() {
   };
 }
 
+/** How long the card keeps a finished task on screen as "Done" before it
+ *  opens the next step. The guide itself has already moved on, so the ring is
+ *  on the next control at once. Tests run without it. */
+export const tourDoneFlash = {
+  ms: import.meta.env.MODE === "test" ? 0 : 900,
+};
+
 export function TourOverlay() {
   const active = useAppStore((state) => state.activeTour);
   if (!active) return null;
@@ -55,7 +62,27 @@ function TourRunner() {
   const startTour = useAppStore((state) => state.startTour);
   const goTo = useAppStore((state) => state.goToTourStep);
   const finishTour = useAppStore((state) => state.endTour);
-  const skipped = useRef(false);
+  const [skippedSteps, setSkippedSteps] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const markSkipped = (index: number, skipped: boolean) =>
+    setSkippedSteps((current) => {
+      if (current.has(index) === skipped) return current;
+      const next = new Set(current);
+      if (skipped) next.add(index);
+      else next.delete(index);
+      return next;
+    });
+  // The step whose task was just done, shown as "Done" for a moment.
+  const [flash, setFlash] = useState<{
+    stepIndex: number;
+    message: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!flash) return;
+    const timer = window.setTimeout(() => setFlash(null), tourDoneFlash.ms);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
   // Reaching the end finishes the guide, even with a skipped exercise; the
   // last step still suggests replaying it. Closing the last step with ✕ or
   // Escape counts as finishing it too.
@@ -329,13 +356,21 @@ function TourRunner() {
     if (step?.advanceOn?.type !== "event" || !tour) return;
     const eventName = step.advanceOn.name;
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ name?: string }>).detail;
+      const detail = (event as CustomEvent<{ name?: string; message?: string }>)
+        .detail;
       if (detail?.name !== eventName) return;
       const next = nextStepIndex(tour.steps, active.stepIndex, 1, (selector) =>
         Boolean(document.querySelector(selector)),
       );
       // A step with Next still moves on by itself once its task is done.
-      if (next < tour.steps.length) goTo(next);
+      if (next >= tour.steps.length) return;
+      markSkipped(active.stepIndex, false);
+      if (step.task && tourDoneFlash.ms > 0)
+        setFlash({
+          stepIndex: active.stepIndex,
+          message: detail.message ?? null,
+        });
+      goTo(next);
     };
     window.addEventListener(TOUR_EVENT, handler);
     return () => window.removeEventListener(TOUR_EVENT, handler);
@@ -571,7 +606,7 @@ function TourRunner() {
     else goTo(index);
   };
   const skipInteractive = () => {
-    skipped.current = true;
+    markSkipped(active.stepIndex, true);
     let index = step.skipTo
       ? tour.steps.findIndex((candidate) => candidate.id === step.skipTo)
       : active.stepIndex + 1;
@@ -585,11 +620,20 @@ function TourRunner() {
     if (index >= tour.steps.length) endTour("completed");
     else goTo(index, true);
   };
-  const continueWithPersonalization = () => {
-    endTour("completed");
-    startTour("settings");
+  // A task that can simply be stepped over: the same as Next, but the list
+  // remembers that the exercise was not done.
+  const skipStep = () => {
+    if (step.interactive && !step.manualAdvance) return skipInteractive();
+    markSkipped(active.stepIndex, true);
+    advance();
   };
-  const isLast = active.stepIndex === tour.steps.length - 1;
+  const visibleSteps = availableStepIndexes(
+    tour.steps,
+    active.stepIndex,
+    present,
+  );
+  const shown =
+    flash && tour.steps[flash.stepIndex] ? flash.stepIndex : active.stepIndex;
   const hasOwnBackdrop = Boolean(step.ownBackdrop) || appModalOpen;
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
   // Keep the surrounding practice visible without drawing nested rings around
@@ -659,133 +703,30 @@ function TourRunner() {
           }}
         />
       ))}
-      <div
-        ref={cardRef}
-        data-tour-card
-        data-tour-practice-card={tour.practice || undefined}
-        role="dialog"
-        aria-labelledby="tour-step-title"
-        aria-modal={!step.interactive}
-        tabIndex={-1}
+      <TourCard
+        tour={tour}
+        stepIndex={shown}
+        visibleSteps={visibleSteps}
+        done={shown !== active.stepIndex}
+        skippedSteps={skippedSteps}
+        missing={missing && shown === active.stepIndex}
+        outcome={shown === active.stepIndex ? outcome : flash!.message}
+        cardRef={cardRef}
+        outcomeRef={outcomeRef}
         style={cardRight === null ? undefined : { right: cardRight }}
-        className="tour-guide-card pointer-events-auto fixed flex flex-col rounded-2xl border border-border bg-surface text-text shadow-raised outline-none"
-      >
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-accent-ink">
-            {tour.title} · {active.stepIndex + 1}/{tour.steps.length}
-          </div>
-          <button
-            type="button"
-            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text"
-            onClick={() => endTour("dismissed")}
-            aria-label={t("Exit tutorial")}
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="min-h-0 overflow-y-auto px-5 pb-1">
-          <h2 id="tour-step-title" className="mt-2 text-lg font-semibold">
-            {step.title}
-          </h2>
-          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-text-muted">
-            {step.body}
-          </p>
-          {step.keyboardHint ? (
-            <p className="mt-2 text-xs text-text-muted">{step.keyboardHint}</p>
-          ) : null}
-          {missing ? (
-            <p className="mt-2 text-xs text-warning">
-              {t(
-                "This control is not available right now. You can still continue.",
-              )}
-              {tour.practice || tour.demoGame || tour.simulation ? (
-                <button
-                  type="button"
-                  className="ml-1 underline"
-                  onClick={() => goTo(active.stepIndex, true)}
-                >
-                  {t("Show this step")}
-                </button>
-              ) : null}
-            </p>
-          ) : null}
-          {outcome ? (
-            <p
-              ref={outcomeRef}
-              role="status"
-              className="mt-2 text-sm text-success"
-            >
-              {outcome}
-            </p>
-          ) : null}
-          {isLast && skipped.current ? (
-            <p className="mt-2 text-xs text-text-muted">
-              {t(
-                "You skipped an exercise. Replay this guide from Help to try it later.",
-              )}
-            </p>
-          ) : null}
-        </div>
-        {tour.id === CORE_TOUR_ID && isLast ? (
-          <div className="grid shrink-0 gap-2 px-5 py-3">
-            <Button
-              variant="primary"
-              className="w-full"
-              onClick={continueWithPersonalization}
-            >
-              {t("Personalize PlayCounter ({{duration}})", {
-                duration: findTour("settings")?.duration ?? "",
-              })}
-            </Button>
-            <div className="flex items-center justify-between gap-2">
-              <Button onClick={back}>{t("Back")}</Button>
-              <div className="flex gap-2">
-                <Button onClick={openGuides}>{t("View other guides")}</Button>
-                <Button variant="ghost" onClick={() => endTour("completed")}>
-                  {t("Finish")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex shrink-0 items-center justify-between gap-2 px-5 py-3">
-            <Button disabled={active.stepIndex === 0} onClick={back}>
-              {t("Back")}
-            </Button>
-            <div className="flex flex-wrap justify-end gap-2">
-              {isLast && tour.nextTourId ? (
-                <Button
-                  onClick={() => {
-                    endTour("completed");
-                    startTour(tour.nextTourId!);
-                  }}
-                >
-                  {findTour(tour.nextTourId)?.title}
-                </Button>
-              ) : null}
-              {isLast && !tour.nextTourId ? (
-                <Button onClick={openGuides}>{t("More guides")}</Button>
-              ) : null}
-              {step.interactive && !step.manualAdvance ? (
-                <Button onClick={skipInteractive}>{t("Skip step")}</Button>
-              ) : null}
-              {!step.interactive || step.manualAdvance ? (
-                <Button variant="primary" onClick={advance}>
-                  {isLast
-                    ? tour.finishView === "games"
-                      ? t("Open My Games")
-                      : tour.finishView === "history"
-                        ? t("Open My History")
-                        : tour.finishView === "discovered"
-                          ? t("Open Discovered")
-                          : t("Finish")
-                    : t("Next")}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </div>
+        onBack={back}
+        onNext={advance}
+        onSkip={skipStep}
+        onExit={() => endTour("dismissed")}
+        onJump={(index) => goTo(index, true)}
+        onShowStep={() => goTo(active.stepIndex, true)}
+        onStartNext={() => {
+          endTour("completed");
+          if (tour.nextTourId) startTour(tour.nextTourId);
+        }}
+        onMoreGuides={openGuides}
+        onFinish={() => endTour("completed")}
+      />
     </div>,
     document.body,
   );

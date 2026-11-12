@@ -2246,11 +2246,54 @@ body.shift-held
   border-radius: 16px;
   background: rgb(var(--color-bg));
 }
+/* The guide's card fills the column the app leaves free beside it: every step
+   as a checklist, the current one open (TourCard.tsx). */
 .tour-guide-card {
   top: 76px;
   right: 16px;
+  bottom: 16px;
   width: 390px;
-  max-height: calc(100dvh - 92px);
+}
+/* The step count sits in the progress row; the title row shows it only when
+   the card is docked at the bottom. */
+.tour-card-count {
+  display: none;
+}
+/* A line joins the step marks. */
+.tour-step::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: rgb(var(--color-border));
+}
+.tour-step:last-child::before {
+  display: none;
+}
+.tour-step[data-state="was"]::before {
+  background: rgb(var(--color-success) / 0.5);
+}
+@keyframes tour-done-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.tour-done-pop {
+  animation: tour-done-pop 0.35s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-done-pop {
+    animation: none;
+  }
 }
 body[data-tour-dock="side"] [data-tour-viewport] {
   margin-right: 418px;
@@ -2310,6 +2353,37 @@ body[data-tour-dock] [data-modal-backdrop] > [role="dialog"] {
     left: 16px;
     width: auto;
     max-height: var(--tour-guide-height);
+  }
+  /* Docked at the bottom there is no room for the list: one title line with
+     the step count, and the current step only. */
+  .tour-step:not([data-state="now"]),
+  .tour-step-dot,
+  .tour-step::before,
+  .tour-card-icon,
+  .tour-card-meta,
+  .tour-card-progress,
+  .tour-card-keys {
+    display: none;
+  }
+  .tour-card-count {
+    display: block;
+  }
+  .tour-card-head {
+    padding: 10px 12px 2px 18px;
+  }
+  .tour-card-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgb(var(--color-accent-ink));
+  }
+  .tour-steps {
+    padding-top: 2px;
+    padding-bottom: 0;
+  }
+  .tour-step {
+    padding-bottom: 6px;
   }
   body[data-tour-dock] [data-modal-backdrop],
   body[data-tour-dock] [data-tour="demo-log-session-backdrop"] {

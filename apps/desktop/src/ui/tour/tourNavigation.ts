@@ -51,3 +51,15 @@ export function backStepIndex(
   }
   return nextStepIndex(steps, from, -1, anchorPresent);
 }
+
+/** The steps this computer can show, as indexes into `steps`. The current
+ *  step always counts, so the card can number it. */
+export function availableStepIndexes(
+  steps: TourStep[],
+  current: number,
+  anchorPresent: (selector: string) => boolean,
+) {
+  return steps.flatMap((step, index) =>
+    index === current || stepAvailable(step, anchorPresent) ? [index] : [],
+  );
+}

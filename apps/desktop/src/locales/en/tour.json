@@ -393,5 +393,16 @@
   "While you play": "While you play",
   "Live timer, reminder, pause and the hotkeys.": "Live timer, reminder, pause and the hotkeys.",
   "PlayCounter while a game runs": "PlayCounter while a game runs",
-  "A timer on your game, a reminder, and keys that work without leaving it.": "A timer on your game, a reminder, and keys that work without leaving it."
+  "A timer on your game, a reminder, and keys that work without leaving it.": "A timer on your game, a reminder, and keys that work without leaving it.",
+  "Show me how": "Show me how",
+  "Hands-on": "Hands-on",
+  "Step {{current}} of {{total}}": "Step {{current}} of {{total}}",
+  "Done": "Done",
+  "Your turn": "Your turn",
+  "Nice. Moving on…": "Nice. Moving on…",
+  "Next up": "Next up",
+  "Hands-on · {{duration}}": "Hands-on · {{duration}}",
+  "Start": "Start",
+  "<kbd>←</kbd> <kbd>→</kbd> step": "<kbd>←</kbd> <kbd>→</kbd> step",
+  "<kbd>Esc</kbd> exit": "<kbd>Esc</kbd> exit"
 }
