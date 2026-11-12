@@ -292,7 +292,7 @@ export function TourCard({
                           <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-text-faint">
                             {t("Next up")}
                           </span>
-                          <span className="block truncate font-semibold">
+                          <span className="line-clamp-2 font-semibold leading-5">
                             {next.title}
                           </span>
                           <span className="block text-xs text-text-faint">
