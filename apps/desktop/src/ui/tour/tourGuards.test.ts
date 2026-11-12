@@ -71,6 +71,21 @@ export function unrenderedTourNames(names: string[], sources: string[]) {
   });
 }
 
+describe("guide files", () => {
+  it("are all in the Help menu's list", () => {
+    const guideFiles = readdirSync(join(tourDir, "guides")).filter(
+      (file) => !/\.test\.|^shared\.ts$/.test(file),
+    );
+    const index = readFileSync(join(tourDir, "tourDefinitions.ts"), "utf8");
+    expect(
+      guideFiles.filter(
+        (file) => !index.includes(`"./guides/${file.replace(/\.ts$/, "")}"`),
+      ),
+    ).toEqual([]);
+    expect(tours()).toHaveLength(guideFiles.length);
+  });
+});
+
 describe("guide ring targets", () => {
   it("finds a written-out name, a built name, and misses a removed one", () => {
     const sources = [

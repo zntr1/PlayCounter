@@ -1,20 +1,29 @@
+import { addGameGuide } from "./guides/addGame";
+import { backupDataGuide } from "./guides/backupData";
 import { coreGuide } from "./guides/core";
+import { correctHistoryGuide } from "./guides/correctHistory";
+import { countersGuide } from "./guides/counters";
+import { coversBannersGuide } from "./guides/coversBanners";
+import { emulatorsGuide } from "./guides/emulators";
+import { feedbackRepliesGuide } from "./guides/feedbackReplies";
+import { fixDetectionGuide } from "./guides/fixDetection";
+import { gameAchievementsGuide } from "./guides/gameAchievements";
+import { gameActionsGuide } from "./guides/gameActions";
 import { importLibraryGuide } from "./guides/importLibrary";
-import { watchFoldersGuide } from "./guides/watchFolders";
+import { launcherAccountsGuide } from "./guides/launcherAccounts";
+import { launchGamesGuide } from "./guides/launchGames";
+import { libraryProgressGuide } from "./guides/libraryProgress";
+import { logPlaytimeGuide } from "./guides/logPlaytime";
 import { notesPlaythroughsGuide } from "./guides/notesPlaythroughs";
 import { organizeLibraryGuide } from "./guides/organizeLibrary";
-import { libraryProgressGuide } from "./guides/libraryProgress";
 import { rateGamesGuide } from "./guides/rateGames";
-import { launchGamesGuide } from "./guides/launchGames";
-import { logPlaytimeGuide } from "./guides/logPlaytime";
-import { gameActionsGuide } from "./guides/gameActions";
-import { fixDetectionGuide } from "./guides/fixDetection";
-import { statsGuide } from "./guides/stats";
+import { screenshotsGuide } from "./guides/screenshots";
 import { settingsGuide } from "./guides/settings";
-import { backupDataGuide } from "./guides/backupData";
-import { feedbackRepliesGuide } from "./guides/feedbackReplies";
-import { emulatorsGuide } from "./guides/emulators";
 import { sourceBadgesGuide } from "./guides/sourceBadges";
+import { statsGuide } from "./guides/stats";
+import { trackSoftwareGuide } from "./guides/trackSoftware";
+import { watchFoldersGuide } from "./guides/watchFolders";
+import { whileYouPlayGuide } from "./guides/whileYouPlay";
 import type { TourDefinition } from "./tourTypes";
 
 export { isHandsOn, tourCategories } from "./tourTypes";
@@ -27,26 +36,36 @@ export type {
 } from "./tourTypes";
 
 // One file per guide under ./guides. Built on each call, so a guide follows
-// the current language. The order here is the order in the Help menu.
+// the current language. The order here is the order inside each topic of the
+// Help menu.
 export function tours(): TourDefinition[] {
   return [
     coreGuide(),
     importLibraryGuide(),
+    launcherAccountsGuide(),
     watchFoldersGuide(),
+    addGameGuide(),
     notesPlaythroughsGuide(),
     organizeLibraryGuide(),
     libraryProgressGuide(),
     rateGamesGuide(),
-    launchGamesGuide(),
-    logPlaytimeGuide(),
+    coversBannersGuide(),
     gameActionsGuide(),
-    fixDetectionGuide(),
+    logPlaytimeGuide(),
+    whileYouPlayGuide(),
+    correctHistoryGuide(),
     statsGuide(),
+    gameAchievementsGuide(),
+    countersGuide(),
+    screenshotsGuide(),
+    launchGamesGuide(),
+    fixDetectionGuide(),
+    trackSoftwareGuide(),
+    emulatorsGuide(),
+    sourceBadgesGuide(),
     settingsGuide(),
     backupDataGuide(),
     feedbackRepliesGuide(),
-    emulatorsGuide(),
-    sourceBadgesGuide(),
   ];
 }
 

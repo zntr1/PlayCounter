@@ -1,5 +1,9 @@
 import { TOUR_DEMO_GAME, TOUR_GTA_GAME_ID } from "../tourDemoGame";
 
+/** The version the next release gets. Guides written or reworked for it carry
+ *  it as their release, so What's new and the Help menu can show them as new. */
+export const NEXT_RELEASE = "1.7.0";
+
 /** Selector for an element marked `data-tour="name"`. */
 export const a = (name: string) => `[data-tour="${name}"]`;
 
