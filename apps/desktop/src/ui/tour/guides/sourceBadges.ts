@@ -1,7 +1,7 @@
 import { Tag } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE } from "./shared";
+import { a } from "./shared";
 
 const t = getT("tour");
 
@@ -12,7 +12,6 @@ export function sourceBadgesGuide(): TourDefinition {
   return {
     id: "source-badges",
     version: 3,
-    release: NEXT_RELEASE,
     kind: "guide",
     category: "detection",
     icon: Tag,

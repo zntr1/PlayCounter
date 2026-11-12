@@ -856,5 +856,16 @@
   "<b>Pin to banner</b> puts this game in the banner at the top of My Games, until you pin another. On the sample it only answers.": "<b>Pin to banner</b> puts this game in the banner at the top of My Games, until you pin another. On the sample it only answers.",
   "Click <b>Pin to banner</b>.": "Click <b>Pin to banner</b>.",
   "Make your library yours": "Make your library yours",
-  "In the app, right-click any card and open Appearance. The art stays on this PC.": "In the app, right-click any card and open Appearance. The art stays on this PC."
+  "In the app, right-click any card and open Appearance. The art stays on this PC.": "In the app, right-click any card and open Appearance. The art stays on this PC.",
+  "PlayCounter records how long you play, whatever the game came from. Closing the window keeps it tracking in the tray. The cards and sessions in this tour are samples: nothing is saved.": "PlayCounter records how long you play, whatever the game came from. Closing the window keeps it tracking in the tray. The cards and sessions in this tour are samples: nothing is saved.",
+  "A game you are playing shows up here with a running timer, its total playtime and its session count. This is a sample session.": "A game you are playing shows up here with a running timer, its total playtime and its session count. This is a sample session.",
+  "Every game you play gets a card. Point at one for <b>Open details</b>, <b>Journal</b>, <b>Log missed session</b> and <b>More</b>. The search in the title bar finds a game by name.": "Every game you play gets a card. Point at one for <b>Open details</b>, <b>Journal</b>, <b>Log missed session</b> and <b>More</b>. The search in the title bar finds a game by name.",
+  "Achievements and history": "Achievements and history",
+  "<b>Achievements</b> unlock as your hours add up, just for fun. <b>My History</b> lists every past session, with charts of when and how much you play.": "<b>Achievements</b> unlock as your hours add up, just for fun. <b>My History</b> lists every past session, with charts of when and how much you play.",
+  "Apps PlayCounter could not identify wait here. For each one you can match it to a game, add it yourself, count it as software, or ignore it.": "Apps PlayCounter could not identify wait here. For each one you can match it to a game, add it yourself, count it as software, or ignore it.",
+  "Import from your launchers": "Import from your launchers",
+  "<b>Launcher accounts</b> is where you import games and past playtime from your launchers. It is optional: PlayCounter finds games by itself too.": "<b>Launcher accounts</b> is where you import games and past playtime from your launchers. It is optional: PlayCounter finds games by itself too.",
+  "Apps that are not games": "Apps that are not games",
+  "<b>Software</b> counts how long apps like Discord run, apart from your game stats. It shows once you turn on Track software.": "<b>Software</b> counts how long apps like Discord run, apart from your game stats. It shows once you turn on Track software.",
+  "In the app, <b>Help and tutorials</b> opens a guide for every part of PlayCounter. Start with the Settings guide: it comes next.": "In the app, <b>Help and tutorials</b> opens a guide for every part of PlayCounter. Start with the Settings guide: it comes next."
 }

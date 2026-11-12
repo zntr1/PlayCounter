@@ -7,7 +7,6 @@ import { LibraryTestShell } from "../../views/libraryTestShell";
 import { findTour } from "../tourDefinitions";
 import { TourOverlay } from "../TourUI";
 import { boldNames as bold, expectStepRules } from "./guideRules.test.kit";
-import { NEXT_RELEASE } from "./shared";
 
 vi.mock("../../../tracker");
 vi.mock("../../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -33,7 +32,7 @@ describe("the guide's steps", () => {
       "origins",
     ]);
     expect(guide().version).toBe(3);
-    expect(guide().release).toBe(NEXT_RELEASE);
+    expect(guide().release).toBeUndefined();
     expect(guide().demoGame).toBe(true);
   });
 

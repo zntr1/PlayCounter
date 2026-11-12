@@ -190,7 +190,7 @@ export function SoftwareView() {
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-text-muted">
+        <p data-tour="software-intro" className="text-sm text-text-muted">
           {t(
             "Counted only while an app runs and your PC is awake. Never part of your game stats.",
           )}

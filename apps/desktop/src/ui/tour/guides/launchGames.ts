@@ -1,7 +1,7 @@
 import { Play } from "lucide-react";
 import { getT } from "../../../i18n";
 import type { TourDefinition } from "../tourTypes";
-import { a, NEXT_RELEASE, sampleCardAllow, sampleCardDialogs } from "./shared";
+import { a, sampleCardAllow, sampleCardDialogs } from "./shared";
 
 const t = getT("tour");
 
@@ -12,7 +12,7 @@ export function launchGamesGuide(): TourDefinition {
   return {
     id: "launch-games",
     version: 5,
-    release: NEXT_RELEASE,
+    release: "1.2.2",
     kind: "guide",
     category: "detection",
     icon: Play,

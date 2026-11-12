@@ -5,10 +5,14 @@ import { a } from "./shared";
 
 const t = getT("tour");
 
+// The steps follow the sidebar: Now Playing, My Games, Achievements and
+// My History, Discovered, Launcher accounts, Software (only while tracking
+// is on), then Help. TourUI shows the sample cards on the step "games" and
+// Now Playing the sample session on "now": keep those two ids.
 export function coreGuide(): TourDefinition {
   return {
     id: "core",
-    version: 2,
+    version: 3,
     kind: "core",
     nextTourId: "settings",
     category: "getting-started",
@@ -20,9 +24,10 @@ export function coreGuide(): TourDefinition {
       {
         id: "intro",
         view: "keep",
+        anchor: a("header"),
         title: t("PlayCounter in 60 seconds"),
         body: t(
-          "PlayCounter runs in the background and records how long you play. It doesn't matter where the game came from: a launcher, a disc, an emulator, or a single .exe file on your desktop.",
+          "PlayCounter records how long you play, whatever the game came from. Closing the window keeps it tracking in the tray. The cards and sessions in this tour are samples: nothing is saved.",
         ),
       },
       {
@@ -32,53 +37,68 @@ export function coreGuide(): TourDefinition {
         additionalAnchors: [a("nav-now")],
         title: t("Now Playing"),
         body: t(
-          "This is a sample session, not a real one.\n\nThe green Now playing badge and the running timer mean PlayCounter is tracking right now. The timer and total playtime increase while you play. The session count records separate play sessions.",
+          "A game you are playing shows up here with a running timer, its total playtime and its session count. This is a sample session.",
         ),
       },
       {
         id: "games",
         view: "games",
-        anchor: a("core-library-demo"),
-        additionalAnchors: [a("nav-games")],
+        anchor: a("demo-card-details"),
+        additionalAnchors: [
+          a("demo-card-journal"),
+          a("demo-card-log-session"),
+          a("demo-card-more"),
+          a("title-search"),
+        ],
         title: t("My Games"),
         body: t(
-          "Every game you play shows up here with cover, total playtime, and session count. These two cards are only samples. Right-click any real card to edit it, or right-click My Games in the sidebar to import games from your launchers.",
+          "Every game you play gets a card. Point at one for <b>Open details</b>, <b>Journal</b>, <b>Log missed session</b> and <b>More</b>. The search in the title bar finds a game by name.",
         ),
       },
       {
-        id: "history",
-        view: "history",
-        anchor: a("nav-history"),
-        title: t("My History"),
-        body: t(
-          "Search every past session and explore charts of when and how much you play.",
-        ),
-      },
-      {
-        id: "achievements",
+        id: "progress",
         view: "achievements",
-        anchor: a("nav-achievements"),
-        title: t("Achievements"),
+        anchor: a("achievements-hero"),
+        additionalAnchors: [a("nav-history")],
+        title: t("Achievements and history"),
         body: t(
-          "Local milestones unlock as your hours add up - purely for fun.",
+          "<b>Achievements</b> unlock as your hours add up, just for fun. <b>My History</b> lists every past session, with charts of when and how much you play.",
         ),
       },
       {
         id: "discovered",
         view: "discovered",
-        anchor: a("nav-discovered"),
+        anchor: a("discovered-wizard"),
+        anchorTargets: [
+          a("discovered-wizard"),
+          a("discovered-filters"),
+          a("nav-discovered"),
+        ],
+        additionalAnchors: [a("nav-discovered")],
         title: t("Discovered"),
         body: t(
-          "Sort out any app PlayCounter couldn't identify: match it to a game, add it yourself, or ignore it. The badge counts what still needs review.",
+          "Apps PlayCounter could not identify wait here. For each one you can match it to a game, add it yourself, count it as software, or ignore it.",
         ),
       },
       {
-        id: "settings",
-        view: "settings",
-        anchor: a("nav-settings"),
-        title: t("Settings"),
+        id: "accounts",
+        view: "accounts",
+        anchor: a("accounts-card"),
+        additionalAnchors: [a("nav-accounts")],
+        title: t("Import from your launchers"),
         body: t(
-          "Tune startup, desktop popups, colors, emulators, backups, and updates.",
+          "<b>Launcher accounts</b> is where you import games and past playtime from your launchers. It is optional: PlayCounter finds games by itself too.",
+        ),
+      },
+      {
+        id: "software",
+        view: "software",
+        anchor: a("software-intro"),
+        additionalAnchors: [a("nav-software")],
+        optional: true,
+        title: t("Apps that are not games"),
+        body: t(
+          "<b>Software</b> counts how long apps like Discord run, apart from your game stats. It shows once you turn on Track software.",
         ),
       },
       {
@@ -87,7 +107,7 @@ export function coreGuide(): TourDefinition {
         anchor: a("help"),
         title: t("You're set up"),
         body: t(
-          "Before you start playing, take a minute for Settings: make sure Launch on startup is on, pick the popups you want, and choose your accent color.",
+          "In the app, <b>Help and tutorials</b> opens a guide for every part of PlayCounter. Start with the Settings guide: it comes next.",
         ),
       },
     ],
