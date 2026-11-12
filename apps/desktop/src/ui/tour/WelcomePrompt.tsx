@@ -48,8 +48,11 @@ export function WelcomePrompt() {
   };
   return createPortal(
     <ModalFrame onEscape={close}>
-      <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] select-text flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
-        <div className="shrink-0 px-6 pt-6">
+      {/* One column needs about 900 px of height in the longest language. A
+          shorter window gets two: the welcome on the left, the switches and
+          buttons on the right, so both switches show without scrolling. */}
+      <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] select-text flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised [@media(max-height:939px)]:w-[840px] [@media(max-height:939px)]:flex-row">
+        <div className="shrink-0 px-6 pt-6 [@media(max-height:939px)]:w-1/2 [@media(max-height:939px)]:self-center [@media(max-height:939px)]:pb-6">
           <div className="flex flex-col items-center text-center">
             <PlayCounterAnimatedIcon
               size={72}
@@ -80,63 +83,67 @@ export function WelcomePrompt() {
             </p>
           </div>
         </div>
-        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-6 py-4">
-          {launcherAvailable ? (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* Scrolls only if even two columns are too high; the bar is easy
+              to see then. */}
+          <div className="grid min-h-0 flex-1 content-start gap-3 overflow-y-auto px-6 py-4 [&::-webkit-scrollbar-thumb]:border-surface [&::-webkit-scrollbar-thumb]:bg-text-faint/60 [@media(max-height:939px)]:pl-0 [@media(max-height:939px)]:pt-6">
+            {launcherAvailable ? (
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
+                <Switch
+                  checked={enableLauncher}
+                  onChange={(event) => setEnableLauncher(event.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-text">
+                    {t("Use PlayCounter as a launcher")}
+                  </span>
+                  <span className="mt-1 block text-sm leading-5 text-text-muted">
+                    {t(
+                      "Show Play buttons for games PlayCounter can start directly. This is optional, and you can turn it off anytime in Settings if you don't need it or find it annoying.",
+                    )}
+                  </span>
+                </span>
+              </label>
+            ) : null}
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
               <Switch
-                checked={enableLauncher}
-                onChange={(event) => setEnableLauncher(event.target.checked)}
+                checked={enableSoftware}
+                onChange={(event) => setEnableSoftware(event.target.checked)}
                 className="mt-1"
               />
               <span>
                 <span className="block font-semibold text-text">
-                  {t("Use PlayCounter as a launcher")}
+                  {t("Track software")}
                 </span>
                 <span className="mt-1 block text-sm leading-5 text-text-muted">
                   {t(
-                    "Show Play buttons for games PlayCounter can start directly. This is optional, and you can turn it off anytime in Settings if you don't need it or find it annoying.",
+                    "Also count how long apps like Discord, Spotify and launchers run, on their own Software page. They never show up in Now Playing or your game stats. You can change this anytime in Settings.",
                   )}
                 </span>
               </span>
             </label>
-          ) : null}
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
-            <Switch
-              checked={enableSoftware}
-              onChange={(event) => setEnableSoftware(event.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              <span className="block font-semibold text-text">
-                {t("Track software")}
-              </span>
-              <span className="mt-1 block text-sm leading-5 text-text-muted">
-                {t(
-                  "Also count how long apps like Discord, Spotify and launchers run, on their own Software page. They never show up in Now Playing or your game stats. You can change this anytime in Settings.",
-                )}
-              </span>
-            </span>
-          </label>
-        </div>
-        <div className="shrink-0 px-6 pb-6 pt-2">
-          <div className="grid gap-1">
-            <Button
-              variant="primary"
-              className="w-full py-2.5"
-              onClick={() => {
-                close();
-                startTour(CORE_TOUR_ID);
-              }}
-            >
-              {t("Take the tour")}
-            </Button>
-            <Button
-              variant="ghost"
-              className="mx-auto px-2 py-1 text-xs text-text-faint"
-              onClick={close}
-            >
-              {t("Maybe later")}
-            </Button>
+          </div>
+          <div className="shrink-0 px-6 pb-6 pt-2 [@media(max-height:939px)]:pl-0">
+            <div className="grid gap-1">
+              <Button
+                variant="primary"
+                className="w-full py-2.5"
+                onClick={() => {
+                  close();
+                  startTour(CORE_TOUR_ID);
+                }}
+              >
+                {t("Take the tour")}
+              </Button>
+              <Button
+                variant="ghost"
+                className="mx-auto px-2 py-1 text-xs text-text-faint"
+                onClick={close}
+              >
+                {t("Maybe later")}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
