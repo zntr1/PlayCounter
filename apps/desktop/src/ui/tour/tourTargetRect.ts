@@ -1,5 +1,11 @@
-import type { TourTargetRect } from "./tourCardPosition";
 import type { TourStep } from "./tourDefinitions";
+
+export type TourTargetRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
 
 export function findTourElement(selector: string): HTMLElement | null {
   return (

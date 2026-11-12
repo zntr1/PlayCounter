@@ -3,6 +3,7 @@ import {
   findTourTarget,
   tourFocusTarget,
   tourTargetRect,
+  type TourTargetRect,
 } from "./tourTargetRect";
 import { Check, CircleHelp, MessageSquareHeart, X } from "lucide-react";
 import {
@@ -22,7 +23,6 @@ import { useWindowDragRegion } from "../../fullscreen";
 import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
 import { Button, IconButton, Switch } from "../primitives";
-import type { TourTargetRect } from "./tourCardPosition";
 import {
   CORE_TOUR_ID,
   tourCategories,
@@ -701,10 +701,10 @@ function TourRunner() {
   }, [finishTour, step, sandbox]);
 
   useEffect(() => {
-    if (tour?.id === "fix-detection" && step?.id === "intro") {
+    if (step?.resetsDiscoveredSample) {
       window.dispatchEvent(new CustomEvent("playcounter:discovered-reset"));
     }
-  }, [step?.id, tour?.id]);
+  }, [step?.id, step?.resetsDiscoveredSample, tour?.id]);
 
   useEffect(() => {
     if (!tour || !step) return;
@@ -996,7 +996,7 @@ function TourRunner() {
     startTour("settings");
   };
   const isLast = active.stepIndex === tour.steps.length - 1;
-  const hasOwnBackdrop = step.id === "fill-dialog" || appModalOpen;
+  const hasOwnBackdrop = Boolean(step.ownBackdrop) || appModalOpen;
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
   // Keep the surrounding practice visible without drawing nested rings around
   // both the active control and its enclosing stage or dialog.

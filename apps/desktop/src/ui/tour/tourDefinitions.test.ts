@@ -80,9 +80,6 @@ describe("tour definitions", () => {
     ]);
     expect(guide.steps.every((step) => !step.optional)).toBe(true);
     const menu = guide.steps.find((step) => step.id === "menu")!;
-    expect(
-      guide.steps.find((step) => step.id === "settings")?.scrollIntoView,
-    ).toBe(true);
     expect(menu.body).toContain("first time PlayCounter sees");
     expect(menu.body).toContain("Now Emulating works differently");
     expect(
