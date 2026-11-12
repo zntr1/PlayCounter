@@ -60,6 +60,7 @@ import {
   exePublisher,
   peekExeDetails,
   useExeDetails,
+  type ExeDetails,
 } from "../exeDetails";
 import { describeExeFolder, type GameLocation } from "../../exeFolder";
 import { isEmulatorExe } from "../../emulators/registry";
@@ -82,7 +83,9 @@ import {
   Select,
   Switch,
 } from "../primitives";
-import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
+import { useDiscoveredSample } from "../tour/discoveredSample";
+import { GuideLink } from "../tour/GuideLink";
+import { TourSampleSearch } from "../tour/TourSampleSearch";
 import {
   isSearchableGameQuery,
   type CommunityMetadataSearchOptions,
@@ -152,27 +155,26 @@ function showHeart() {
   window.dispatchEvent(new Event("playcounter:heart"));
 }
 
-type DiscoveredExecutable = ProcessSnapshot & {
+export type DiscoveredExecutable = ProcessSnapshot & {
   key: string;
   isRunning: boolean;
   status: DiscoveryStatus;
   cacheEntry: ExeCacheEntry | null;
+  /** A guide's sample app. */
   isTutorial?: boolean;
+  /** A sample app has no file to read its name and publisher from. */
+  details?: ExeDetails;
   /** The game folder a watched folder turned up this file in. */
   foundIn?: string;
   /** One folder's Game.exe ignored on this PC; Restore lifts only that. */
   ignoredFolderKey?: string;
 };
 
-export const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
-  key: `playcounter-tour:${TOUR_DEMO_GAME.exeName.toLowerCase()}`,
-  exeName: TOUR_DEMO_GAME.exeName,
-  exePath: TOUR_DEMO_GAME.exePath,
-  isRunning: true,
-  status: "unmatched",
-  cacheEntry: null,
-  isTutorial: true,
-};
+/** Name and publisher of an app: read from its file, or a sample's own. */
+function useExecutableDetails(executable: DiscoveredExecutable) {
+  const read = useExeDetails(executable.details ? null : executable.exePath);
+  return executable.details ?? read;
+}
 
 type DiscoverySection = {
   id: "running" | "saved";
@@ -305,9 +307,9 @@ function unmatchedRetryAt(cacheEntry: ExeCacheEntry | null, retryDays: number) {
 }
 
 export function DiscoveredView() {
-  const isFixDetectionTour = useAppStore(
-    (state) => state.activeTour?.tourId === "fix-detection",
-  );
+  // While a guide practises here, sample apps stand in for the scanned ones
+  // and no button reaches the tracker.
+  const sample = useDiscoveredSample();
   const [pendingExe, setPendingExe] = useState<string | null>(null);
   const [customGameExe, setCustomGameExe] = useState<string | null>(null);
   const [customGameName, setCustomGameName] = useState("");
@@ -326,8 +328,12 @@ export function DiscoveredView() {
   const [search, setSearch] = useState("");
   const [retryingExe, setRetryingExe] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [activeReviewKey, setActiveReviewKey] = useState<string | null>(null);
-  const isOffline = useIsOffline();
+  const [activeReviewKey, setActiveReviewKey] = useState<string | null>(
+    sample?.startKey ?? null,
+  );
+  // The sample's search results are bundled, so it works without a connection.
+  const offline = useIsOffline();
+  const isOffline = offline && !sample;
   const processes = useAppStore((state) => state.processes);
   const exeCache = useAppStore((state) => state.exeCache);
   const unmatchedRetryDays = useAppStore(
@@ -358,6 +364,20 @@ export function DiscoveredView() {
     return () =>
       window.removeEventListener("playcounter:discovered-reset", handleReset);
   }, []);
+
+  // A guide's step starts the page over, on the app the step is about.
+  const sampleScene = sample?.scene;
+  const sampleStartKey = sample?.startKey ?? null;
+  useEffect(() => {
+    if (!sampleScene) return;
+    setFilter("review");
+    setIgnoredSort("lastAdded");
+    setIgnoredPage(1);
+    setSearch("");
+    setCustomGameExe(null);
+    setCustomGameName("");
+    setActiveReviewKey(sampleStartKey);
+  }, [sampleScene, sampleStartKey]);
 
   // Ctrl+F finds this page's own search field, not the title bar's.
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -418,6 +438,10 @@ export function DiscoveredView() {
   }
 
   async function updateUserIgnored(exeName: string, ignored: boolean) {
+    if (sample) {
+      sample.act(ignored ? "ignore" : "restore", exeName);
+      return true;
+    }
     const key = exeName.toLowerCase();
     setPendingExe(key);
     try {
@@ -449,6 +473,10 @@ export function DiscoveredView() {
 
   async function ignoreExecutable(exeName: string) {
     if (pendingExe) return false;
+    if (sample) {
+      sample.act("ignore", exeName);
+      return true;
+    }
     setPendingExe(exeName.toLowerCase());
     try {
       const outcome = await ignoreDiscoveredProcess(
@@ -482,9 +510,10 @@ export function DiscoveredView() {
   function saveCustomGame(exeName: string) {
     const name = customGameName.trim();
     if (!name) return;
-    addCustomGame(exeName, name, exePathFor(exeName));
     setCustomGameExe(null);
     setCustomGameName("");
+    if (sample) return sample.act("custom", exeName, name);
+    addCustomGame(exeName, name, exePathFor(exeName));
     addToast({
       tone: "success",
       title: t("Added to My Games"),
@@ -554,7 +583,15 @@ export function DiscoveredView() {
     },
   });
 
+  // Software gets a name, art and a sharing choice in its dialog; the sample
+  // stops at the button.
+  function markSoftware(exeName: string) {
+    if (sample) sample.act("software", exeName);
+    else setSoftwareTarget(exeName);
+  }
+
   function startCommunitySuggestion(exeName: string) {
+    if (sample) return sample.act("search", exeName);
     if (isOffline) {
       addToast({
         tone: "info",
@@ -741,16 +778,14 @@ export function DiscoveredView() {
     userIgnoredProcesses,
   ]);
 
-  const allExecutables = useMemo(
+  const scannedExecutables = useMemo(
     () =>
       discoverySections
         .flatMap((section) => section.executables)
         .sort(sortDiscovered),
     [discoverySections],
   );
-  const availableExecutables = isFixDetectionTour
-    ? [TOUR_DISCOVERED_EXECUTABLE, ...allExecutables]
-    : allExecutables;
+  const allExecutables = sample ? sample.executables : scannedExecutables;
   const activeFilter =
     discoveryFilters().find((entry) => entry.id === filter) ??
     discoveryFilters()[0];
@@ -767,11 +802,11 @@ export function DiscoveredView() {
       (executable.exePath?.toLowerCase().includes(needle) ?? false)
     );
   };
-  const searchable = availableExecutables.filter(matchesSearch);
+  const searchable = allExecutables.filter(matchesSearch);
   const matchingExecutables = searchable.filter((executable) =>
     activeFilter.statuses.includes(executable.status),
   );
-  const filteredExecutablesBase =
+  const filteredExecutables =
     filter === "ignored"
       ? sortIgnoredExecutables(matchingExecutables, ignoredSort, [
           ...userIgnoredProcesses,
@@ -780,15 +815,6 @@ export function DiscoveredView() {
       : filter === "review"
         ? sortReviewExecutables(matchingExecutables)
         : matchingExecutables;
-  const filteredExecutables =
-    isFixDetectionTour && filter === "review"
-      ? [
-          TOUR_DISCOVERED_EXECUTABLE,
-          ...filteredExecutablesBase.filter(
-            (executable) => executable.key !== TOUR_DISCOVERED_EXECUTABLE.key,
-          ),
-        ]
-      : filteredExecutablesBase;
   // Ignored splits into the apps you ignored and the ones PlayCounter ignores
   // on its own. Only yours can be restored, so only they are paged.
   const userIgnoredExecutables = filteredExecutables.filter(
@@ -822,14 +848,14 @@ export function DiscoveredView() {
         onIgnore={() => void ignoreExecutable(executable.exeName)}
         isOffline={isOffline}
         onRecheck={() => {
-          if (isOffline) return;
+          if (isOffline || sample) return;
           setRetryingExe(executable.key);
           void recheckExecutable(executable.exeName);
         }}
         onSaveCustomGame={() => saveCustomGame(executable.exeName)}
         onStartCustomGame={() => startCustomGameEntry(executable.exeName)}
         onSuggest={() => startCommunitySuggestion(executable.exeName)}
-        onMarkSoftware={() => setSoftwareTarget(executable.exeName)}
+        onMarkSoftware={() => markSoftware(executable.exeName)}
         onUnignore={() =>
           executable.ignoredFolderKey
             ? restoreFolder(executable)
@@ -872,19 +898,11 @@ export function DiscoveredView() {
     return remaining[Math.min(currentIndex, remaining.length - 1)].key;
   }
 
-  function showTutorialProcessNotice() {
-    addToast({
-      tone: "info",
-      title: t("Tutorial app"),
-      detail: t(
-        "{{exeName}} exists only inside this guide. Nothing was changed or saved.",
-        { exeName: TOUR_DEMO_GAME.exeName },
-      ),
-    });
-  }
-
   return (
-    <div className="grid gap-4">
+    <div
+      data-tour={sample ? "demo-discovery" : undefined}
+      className="grid gap-4"
+    >
       <HeartOverlay />
       <div className="flex flex-wrap items-center gap-2">
         <div
@@ -970,7 +988,7 @@ export function DiscoveredView() {
             onClick={async () => {
               setScanning(true);
               try {
-                await scanProcessesNow();
+                if (!sample) await scanProcessesNow();
               } finally {
                 setScanning(false);
               }
@@ -1010,10 +1028,6 @@ export function DiscoveredView() {
               }}
               onCustomGameNameChange={setCustomGameName}
               onIgnore={async () => {
-                if (activeReviewItem.isTutorial) {
-                  showTutorialProcessNotice();
-                  return;
-                }
                 const nextKey = nextReviewKeyAfter(activeReviewItem.key);
                 const ignored = await ignoreExecutable(
                   activeReviewItem.exeName,
@@ -1022,49 +1036,29 @@ export function DiscoveredView() {
               }}
               isOffline={isOffline}
               onRecheck={() => {
-                if (activeReviewItem.isTutorial) {
-                  showTutorialProcessNotice();
-                  return;
-                }
-                if (isOffline) return;
+                if (isOffline || sample) return;
                 setRetryingExe(activeReviewItem.key);
                 void recheckExecutable(activeReviewItem.exeName);
               }}
-              onSaveCustomGame={() => {
-                if (activeReviewItem.isTutorial) {
-                  showTutorialProcessNotice();
-                  return;
-                }
-                saveCustomGame(activeReviewItem.exeName);
-              }}
+              onSaveCustomGame={() => saveCustomGame(activeReviewItem.exeName)}
               onStartCustomGame={() => {
-                if (activeReviewItem.isTutorial) {
-                  showTutorialProcessNotice();
-                  return;
-                }
                 startCustomGameEntry(
                   activeReviewItem.exeName,
                   exeProductName(
-                    peekExeDetails(activeReviewItem.exePath),
+                    activeReviewItem.details ??
+                      peekExeDetails(activeReviewItem.exePath),
                     activeReviewItem.exeName,
                   ) ?? "",
                 );
               }}
-              onSuggest={() => {
-                if (activeReviewItem.isTutorial) {
-                  showTutorialProcessNotice();
-                  return;
-                }
-                startCommunitySuggestion(activeReviewItem.exeName);
+              onSuggest={() =>
+                startCommunitySuggestion(activeReviewItem.exeName)
+              }
+              onMarkSoftware={() => markSoftware(activeReviewItem.exeName)}
+              onSkip={() => {
+                sample?.act("skip", activeReviewItem.exeName);
+                handleSkip();
               }}
-              onMarkSoftware={() => {
-                if (activeReviewItem.isTutorial) {
-                  showTutorialProcessNotice();
-                  return;
-                }
-                setSoftwareTarget(activeReviewItem.exeName);
-              }}
-              onSkip={handleSkip}
             />
           </div>
         ) : search.trim() ? (
@@ -1087,6 +1081,7 @@ export function DiscoveredView() {
             <p className="text-sm text-text-muted">
               {t("Nothing new to review right now.")}
             </p>
+            <GuideLink tourId="fix-detection" className="mt-4" />
           </div>
         )
       ) : filteredExecutables.length === 0 ? (
@@ -1180,7 +1175,7 @@ export function DiscoveredView() {
           exeName={softwareTarget}
           suggestedName={exeProductName(
             peekExeDetails(
-              availableExecutables.find(
+              allExecutables.find(
                 (executable) => executable.key === softwareTarget.toLowerCase(),
               )?.exePath,
             ),
@@ -1213,6 +1208,14 @@ export function DiscoveredView() {
               ? addSearchedGameLocally()
               : void correction.submit()
           }
+        />
+      ) : null}
+      {sample?.searching ? (
+        <TourSampleSearch
+          share
+          exeName={sample.searching}
+          onClose={sample.closeSearch}
+          onConfirm={sample.confirmSearch}
         />
       ) : null}
     </div>
@@ -1292,7 +1295,7 @@ export function TriageWizardCard({
   onMarkSoftware: () => void;
   onSkip: () => void;
 }) {
-  const details = useExeDetails(executable.exePath);
+  const details = useExecutableDetails(executable);
   const productName = exeProductName(details, executable.exeName);
   const publisher = exePublisher(details);
   const trackedSeconds = trackedSecondsFor(executable.cacheEntry);
@@ -1302,7 +1305,10 @@ export function TriageWizardCard({
       className="animate-fade-in overflow-hidden rounded-xl border border-border bg-surface shadow-md"
     >
       <div className="p-6 sm:p-7">
-        <div className="flex min-w-0 items-start gap-4">
+        <div
+          data-tour="discovered-app"
+          className="flex min-w-0 items-start gap-4"
+        >
           <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-border/60 bg-surface-hover">
             <ExeIcon
               exePath={executable.exePath}
@@ -1457,6 +1463,7 @@ export function TriageWizardCard({
               <span>{t("Not a game, but you want its time?")}</span>
               <button
                 type="button"
+                data-tour="discovered-software"
                 disabled={isPending || isRetrying || isCustomGameEntryOpen}
                 title={t(
                   "Discord, Spotify, a launcher: counted on the Software page, never as a game",
@@ -1576,7 +1583,7 @@ function ExeFolderEvidence({
 }) {
   if (!exePath) {
     return (
-      <p className="mt-5 text-sm text-text-faint">
+      <p data-tour="discovered-folder" className="mt-5 text-sm text-text-faint">
         {t("PlayCounter learns the folder the next time this app runs.")}
       </p>
     );
@@ -1589,7 +1596,10 @@ function ExeFolderEvidence({
       ? gameLocationHint(folder.gameLocation)
       : null;
   return (
-    <div className="mt-5 rounded-xl border border-border/70 bg-bg/40 px-4 py-3">
+    <div
+      data-tour="discovered-folder"
+      className="mt-5 rounded-xl border border-border/70 bg-bg/40 px-4 py-3"
+    >
       <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
         {t("Folder")}
       </div>
@@ -1660,7 +1670,7 @@ function ReviewQueue({
     },
   ].filter((group) => group.items.length > 0);
   return (
-    <Panel className="overflow-hidden">
+    <Panel dataTour="discovered-queue" className="overflow-hidden">
       <div
         role="listbox"
         aria-label={t("Apps to review")}
@@ -1701,7 +1711,7 @@ function ReviewQueueRow({
   onSelect: () => void;
 }) {
   const productName = exeProductName(
-    useExeDetails(executable.exePath),
+    useExecutableDetails(executable),
     executable.exeName,
   );
   const folderName = executable.exePath
@@ -2115,7 +2125,9 @@ export function CommunitySuggestionForm({
   selection: CommunityMetadataCandidate | null;
   state: "idle" | "loading" | "loading-more" | "saving" | "saved" | "error";
   title?: string;
-  practice?: boolean;
+  /** A guide's sample search. "share" stands in for Add & Share and keeps
+   *  that dialog's own button. */
+  practice?: boolean | "share";
   /** Generic exe names: the pick is added on this PC and never shared. */
   localOnly?: boolean;
   /** Title and button of a local search, e.g. "Change game". */
@@ -2176,7 +2188,7 @@ export function CommunitySuggestionForm({
         >
           {state === "saving"
             ? t("Adding…")
-            : practice
+            : practice === true
               ? t("Confirm sample match")
               : localOnly
                 ? (localAction ?? t("Add"))

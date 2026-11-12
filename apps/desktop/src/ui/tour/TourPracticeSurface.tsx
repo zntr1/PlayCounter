@@ -4,12 +4,7 @@ import { createPortal } from "react-dom";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type { GameMetadata } from "../../store";
 import { Button, Pill, Select } from "../primitives";
-import {
-  TriageWizardCard,
-  TOUR_DISCOVERED_EXECUTABLE,
-} from "../views/DiscoveredView";
-import { CandidateTile } from "../views/nowPlaying/AmbiguousMatchCard";
-import { TourSampleSearch, TOUR_SAMPLE_CHOICES } from "./TourSampleSearch";
+import { DetectionPractice } from "./DetectionPractice";
 import type { TourDefinition } from "./tourDefinitions";
 import { emitTourEvent } from "./TourUI";
 import { getT } from "../../i18n";
@@ -48,7 +43,7 @@ export function TourPracticeSurface({
           </p>
         </div>
         {tour.simulation === "detection" ? (
-          <DetectionPractice stepId={stepId} />
+          <DetectionPractice />
         ) : tour.simulation === "stats" ? (
           <StatsPractice milestones={stepId === "milestones"} />
         ) : (
@@ -73,136 +68,6 @@ function Result({ children }: { children: ReactNode }) {
     >
       {children}
     </p>
-  );
-}
-
-function DetectionPractice({ stepId }: { stepId: string }) {
-  const [custom, setCustom] = useState(false);
-  const [name, setName] = useState("");
-  const [search, setSearch] = useState(false);
-  const [result, setResult] = useState("");
-  useEffect(() => {
-    setCustom(false);
-    setSearch(false);
-    setResult("");
-  }, [stepId]);
-  if (result)
-    return (
-      <div
-        data-tour={stepId === "ambiguous" ? "demo-ambiguous" : "demo-discovery"}
-        className="grid gap-3"
-      >
-        <Result>{result}</Result>
-        <Button className="justify-self-start" onClick={() => setResult("")}>
-          {t("Try sample again")}
-        </Button>
-      </div>
-    );
-  return (
-    <>
-      {stepId === "ambiguous" ? (
-        <div data-tour="demo-ambiguous" className="grid gap-3">
-          <h3 className="text-lg font-semibold">
-            {t("Which game is Game.exe?")}
-          </h3>
-          <p className="text-sm text-text-muted">
-            {t(
-              "These sample games share a filename. Choose the one you started. In the app, this choice is remembered only on this PC.",
-            )}
-          </p>
-          <div className="grid max-w-lg grid-cols-2 gap-3">
-            {TOUR_SAMPLE_CHOICES.map((choice) => (
-              <CandidateTile
-                key={choice.igdbId}
-                exeName="Game.exe"
-                ended={false}
-                game={{
-                  id: choice.igdbId,
-                  name: choice.name,
-                  source: "igdb",
-                  coverUrl: choice.coverUrl,
-                }}
-                onSelect={(game) =>
-                  setResult(
-                    t(
-                      "Sample selected: {{name}}. This exercise does not create a shared executable match.",
-                      { name: game.name },
-                    ),
-                  )
-                }
-              />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div data-tour="demo-discovery">
-          <TriageWizardCard
-            executable={TOUR_DISCOVERED_EXECUTABLE}
-            customGameName={name}
-            isCustomGameEntryOpen={custom}
-            isOffline={false}
-            isPending={false}
-            isRetrying={false}
-            onCancelCustomGame={() => setCustom(false)}
-            onCustomGameNameChange={setName}
-            onStartCustomGame={() => setCustom(true)}
-            onSaveCustomGame={() => {
-              if (name.trim()) {
-                setResult(
-                  t(
-                    "Sample added as {{name}}. Custom games appear in My Games; no global filename match is created.",
-                    { name: name.trim() },
-                  ),
-                );
-                setCustom(false);
-              }
-            }}
-            onSuggest={() => setSearch(true)}
-            onIgnore={() =>
-              setResult(
-                t(
-                  "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
-                ),
-              )
-            }
-            onMarkSoftware={() =>
-              setResult(
-                t(
-                  "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
-                ),
-              )
-            }
-            onSkip={() =>
-              setResult(
-                t(
-                  "Skipped for now. In Discovered, this app stays in Needs review.",
-                ),
-              )
-            }
-            onRecheck={() =>
-              setResult(
-                t("Sample check complete. Use Add & Share to review a match."),
-              )
-            }
-          />
-        </div>
-      )}
-      {search ? (
-        <TourSampleSearch
-          exeName="Wow.exe"
-          onClose={() => setSearch(false)}
-          onConfirm={(choice) => {
-            setSearch(false);
-            setResult(
-              t(
-                "Sample matched to {{name}}. In the real flow, Add & Share sends a suggestion for review. Nothing was sent here.",
-                { name: choice.name },
-              ),
-            );
-          }}
-        />
-      ) : null}
-    </>
   );
 }
 

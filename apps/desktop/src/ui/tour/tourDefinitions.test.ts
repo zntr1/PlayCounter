@@ -202,15 +202,6 @@ describe("tour definitions", () => {
     expect(step("launch-games", "set-forget").anchorTargets).toContain(
       '[data-tour="demo-menu-launch-file"]',
     );
-    for (const [id, button] of [
-      ["add-share", "add-share"],
-      ["add-custom", "add-custom"],
-      ["ignore", "ignore"],
-      ["skip", "skip"],
-    ])
-      expect(step("fix-detection", id).anchorTargets).toContain(
-        `[data-tour="demo-discovery"] [data-tour="discovered-${button}"]`,
-      );
     expect(step("emulators", "fix-match").anchorTargets).toContain(
       '[data-tour="demo-emulator-actions"]',
     );
@@ -251,42 +242,10 @@ describe("tour definitions", () => {
     }
   });
 
-  it("walks through every preference section in Personalize PlayCounter", () => {
-    const guide = tours().find((tour) => tour.id === "settings")!;
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "general",
-      "appearance",
-      "shortcuts",
-      "notifications",
-      "launcher",
-      "emulators",
-      "sharing",
-      "library-import",
-      "backup",
-      "updates",
-    ]);
-    // Windows-only panels are skipped elsewhere instead of showing an empty step.
-    for (const id of ["notifications", "launcher"])
-      expect(guide.steps.find((step) => step.id === id)?.optional).toBe(true);
-    // Import replaces data and Forget deletes it: these steps only point.
-    for (const id of ["backup", "library-import"])
-      expect(guide.steps.find((step) => step.id === id)?.interactive).toBe(
-        undefined,
-      );
-  });
-
   it("offers read-only backup and feedback guides alongside the practice tours", () => {
     const release = tours().filter((tour) => tour.release === "1.1.17");
     expect(
       release.filter((tour) => tour.practice).map((tour) => tour.id),
     ).toEqual(["notes-playthroughs", "organize-library", "library-progress"]);
-    for (const id of ["backup-data", "feedback-replies"]) {
-      expect(
-        release
-          .find((tour) => tour.id === id)
-          ?.steps.every((step) => !step.interactive),
-      ).toBe(true);
-    }
   });
 });

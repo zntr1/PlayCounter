@@ -1,116 +1,138 @@
 import { ScanSearch } from "lucide-react";
 import { getT } from "../../../i18n";
-import type { TourDefinition } from "../tourTypes";
-import { a, discoveredAction } from "./shared";
+import type { TourDefinition, TourStep } from "../tourTypes";
+import { a, discoveredAction, NEXT_RELEASE } from "./shared";
 
 const t = getT("tour");
+
+/** An exercise on the sample review card: one button, done when it is used.
+ *  discoveredSample.ts knows which button finishes which step. */
+const exercise = (button: string) =>
+  ({
+    view: "discovered",
+    anchor: discoveredAction(button),
+    interactive: true,
+    manualAdvance: true,
+    advanceOn: { type: "event", name: "demo.step-completed" },
+    allow: [a("demo-discovery"), a("demo-library-modal")],
+  }) satisfies Partial<TourStep>;
 
 export function fixDetectionGuide(): TourDefinition {
   return {
     id: "fix-detection",
-    version: 2,
+    version: 3,
+    release: NEXT_RELEASE,
     kind: "guide",
     category: "detection",
     icon: ScanSearch,
     title: t("Fix an unrecognized game"),
-    description: t("Search, review a match, and try a local filename choice."),
+    description: t(
+      "Decide what an unknown app is: a game, software, or nothing to track.",
+    ),
     duration: t("3 min"),
     simulation: "detection",
     finishView: "discovered",
+    nextTourId: "track-software",
     steps: [
       {
         id: "intro",
-        resetsDiscoveredSample: true,
         view: "discovered",
-        anchor: a("demo-discovery"),
-        title: t("When a game isn't recognized"),
+        anchor: discoveredAction("filters"),
+        title: t("Unknown apps wait in Discovered"),
         body: t(
-          "You'll use the real review controls with a sample Wow.exe. Search results are bundled for practice, so this works offline. Nothing here is saved or submitted.",
+          "Apps PlayCounter can't match land in <b>Needs review</b>. <b>Tracked</b> and <b>Ignored</b> show what was decided. These are sample apps: nothing is saved or sent.",
         ),
       },
       {
-        id: "filters",
+        id: "look",
         view: "discovered",
-        anchor: a("demo-discovery"),
-        title: t("Start in Needs review"),
-        body: t(
-          "Discovered groups apps into Needs review, Tracked, and Ignored. The wizard reviews one executable at a time. This sample is running but has no game match yet.",
-        ),
-      },
-      {
-        id: "wizard",
-        view: "discovered",
-        anchor: a("demo-discovery"),
+        anchor: discoveredAction("app"),
+        additionalAnchors: [discoveredAction("folder")],
         title: t("Is this a game?"),
         body: t(
-          "Check the executable name and running status. A file found in a watched folder also shows the folder it came from. You can search and share a game match, keep a custom name only on this PC, ignore a tool, or skip an app you are unsure about.",
+          "The card shows the app's name, its file, whether it runs right now, and its folder. A hint appears when the folder looks like a game's.",
         ),
       },
       {
         id: "add-share",
-        view: "discovered",
-        anchor: a("demo-discovery"),
+        ...exercise("add-share"),
         anchorTargets: [a("demo-sample-search"), discoveredAction("add-share")],
-        interactive: true,
-        manualAdvance: true,
-        allow: [a("demo-library-stage"), a("demo-library-modal")],
-        title: t("Search, check, and confirm"),
+        title: t("Match a game and share it"),
         body: t(
-          "Click Add & Share. Search for World of Warcraft, choose its cover, then confirm the sample match. In your real library, Add & Share submits a suggestion for review. Here the result stays in this guide.",
+          "A shared match is reviewed. After that, PlayCounter recognizes this file for every player.",
+        ),
+        task: t(
+          "Click <b>Add & Share</b>, pick the game and press <b>Add and share</b>.",
         ),
       },
       {
         id: "add-custom",
-        view: "discovered",
-        anchor: a("demo-discovery"),
+        ...exercise("add-custom"),
         anchorTargets: [
           discoveredAction("custom-entry"),
           discoveredAction("add-custom"),
         ],
-        interactive: true,
-        manualAdvance: true,
-        allow: [a("demo-library-stage")],
-        title: t("Keep a custom game local"),
+        title: t("Keep a game to yourself"),
         body: t(
-          "Try Add as Custom, enter a name, and save it. This is useful for private builds, mods, and prototypes. It creates no shared filename match.",
+          "For mods, private builds and prototypes: a custom game is tracked on this PC and not shared.",
         ),
+        task: t(
+          "Click <b>Add as Custom</b>, give it a name and press <b>Save</b>.",
+        ),
+      },
+      {
+        id: "software",
+        ...exercise("software"),
+        title: t("Count an app that is no game"),
+        body: t(
+          "Discord, a launcher, a tool you work in: software is counted on its own page and never as a game.",
+        ),
+        task: t("Click <b>Track as software</b>."),
       },
       {
         id: "ignore",
-        view: "discovered",
-        anchor: a("demo-discovery"),
-        anchorTargets: [discoveredAction("ignore")],
-        interactive: true,
-        manualAdvance: true,
-        allow: [a("demo-library-stage")],
-        title: t("Ignore a tool or launcher"),
+        ...exercise("ignore"),
+        title: t("Ignore a tool or helper"),
         body: t(
-          "Try Ignore. In Discovered, this stops tracking the executable. You can restore it later from Ignored. Your sharing preference separately controls anonymous ignore reports.",
+          "An ignored app is no longer tracked. It moves to <b>Ignored</b> and can be restored there. <b>Share apps you ignore</b> in Settings decides whether it is also reported.",
         ),
+        task: t("Click <b>Ignore</b>."),
       },
       {
         id: "skip",
-        view: "discovered",
-        anchor: a("demo-discovery"),
-        anchorTargets: [discoveredAction("skip")],
-        interactive: true,
-        manualAdvance: true,
-        allow: [a("demo-library-stage")],
-        title: t("Leave an uncertain app for later"),
+        ...exercise("skip"),
+        title: t("Not sure? Skip it"),
         body: t(
-          "Try Skip for now. The app stays in Needs review; skipping does not create a match or ignore it.",
+          "A skipped app stays in <b>Needs review</b>. Nothing is matched or ignored, and the next app comes up.",
         ),
+        task: t("Click <b>Skip for now</b>."),
       },
       {
         id: "ambiguous",
         view: "now",
         anchor: a("demo-ambiguous"),
+        anchorTargets: [
+          a("demo-sample-search"),
+          a("demo-report-dialog"),
+          `${a("demo-ambiguous")} ${a("ambiguous-candidates")}`,
+        ],
         interactive: true,
         manualAdvance: true,
-        allow: [a("demo-library-stage")],
-        title: t("One filename, several possible games"),
+        advanceOn: { type: "event", name: "demo.step-completed" },
+        allow: [a("demo-ambiguous"), a("demo-library-modal")],
+        title: t("One file, several games"),
         body: t(
-          "Choose a game from the sample picker. Now Playing asks this when a filename could belong to several games. Your choice is remembered on this PC; it does not become a global match for everyone else.",
+          "Some file names belong to several games. Now Playing then asks which one you started and remembers it on this PC. The buttons below cover every other case.",
+        ),
+        task: t("Click the cover of the game you started."),
+      },
+      {
+        id: "finish",
+        view: "discovered",
+        anchor: discoveredAction("queue"),
+        title: t("Check Discovered now and then"),
+        body: t(
+          "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.",
         ),
       },
     ],

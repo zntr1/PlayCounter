@@ -24,10 +24,14 @@ export const TOUR_SAMPLE_CHOICES: CommunityMetadataCandidate[] = [
 /** The real search/review form, supplied only with bundled sample results. */
 export function TourSampleSearch({
   exeName,
+  share = false,
   onConfirm,
   onClose,
 }: {
   exeName: string;
+  /** The sample stands in for Add & Share: the form keeps that dialog's
+   *  title and button, so a guide can name them. */
+  share?: boolean;
   onConfirm: (choice: CommunityMetadataCandidate) => void;
   onClose: () => void;
 }) {
@@ -38,8 +42,8 @@ export function TourSampleSearch({
   );
   return (
     <CommunitySuggestionForm
-      practice
-      title={t("Choose the sample game")}
+      practice={share ? "share" : true}
+      title={share ? undefined : t("Choose the sample game")}
       exeName={exeName}
       candidates={choices}
       selection={selection}
