@@ -1,6 +1,6 @@
 import type { EmulatorMapping } from "../../emulators/types";
 import type { ActiveSession, GameMetadata } from "../../store";
-import type { Game, Session } from "@playcounter/shared";
+import type { ArtAssetsResponse, Game, Session } from "@playcounter/shared";
 import type { GameSummary } from "../views/MyGamesView";
 import type { SampleDetailsTab, TourStep } from "./tourTypes";
 
@@ -251,3 +251,22 @@ export function tourSampleGames(query: string): GameMetadata[] {
       game.name.toLowerCase().includes(text) || String(game.igdbId) === text,
   );
 }
+
+/** What the artwork picker offers in the Covers and banners guide: a few
+ *  drawings shipped with the app (public/tour), so nothing is searched. */
+export const TOUR_SAMPLE_ART: ArtAssetsResponse = {
+  covers: [1, 2, 3].map((number) => ({
+    id: -number,
+    url: `/tour/sample-cover-${number}.svg`,
+    thumbUrl: `/tour/sample-cover-${number}.svg`,
+    width: 600,
+    height: 900,
+  })),
+  heroes: [1, 2].map((number) => ({
+    id: -10 - number,
+    url: `/tour/sample-banner-${number}.svg`,
+    thumbUrl: `/tour/sample-banner-${number}.svg`,
+    width: 1920,
+    height: 620,
+  })),
+};

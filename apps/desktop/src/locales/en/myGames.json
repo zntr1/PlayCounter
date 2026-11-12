@@ -730,5 +730,9 @@
   "Sample counted as an app. On your own games its time moves to the Software page.": "Sample counted as an app. On your own games its time moves to the Software page.",
   "Sample ignored as an app. Nothing was reported or blocked.": "Sample ignored as an app. Nothing was reported or blocked.",
   "{{file}} no longer counts for the sample. Nothing was reported or saved.": "{{file}} no longer counts for the sample. Nothing was reported or saved.",
-  "Badge examples: recognition and origin": "Badge examples: recognition and origin"
+  "Badge examples: recognition and origin": "Badge examples: recognition and origin",
+  "Sample cover picked. Nothing was saved to your library.": "Sample cover picked. Nothing was saved to your library.",
+  "Sample banner picked. Nothing was saved to your library.": "Sample banner picked. Nothing was saved to your library.",
+  "Sample cover restored. Nothing was saved to your library.": "Sample cover restored. Nothing was saved to your library.",
+  "Sample banner restored. Nothing was saved to your library.": "Sample banner restored. Nothing was saved to your library."
 }

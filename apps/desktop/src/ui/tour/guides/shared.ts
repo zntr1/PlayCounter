@@ -27,6 +27,7 @@ export const sampleCardDialogs = [
   a("demo-ignore-dialog"),
   a("demo-game-action-dialog"),
   a("demo-sample-search"),
+  a("demo-art-picker"),
   a("demo-adjust-dialog"),
   a("demo-log-session-dialog"),
   a("demo-action-result"),

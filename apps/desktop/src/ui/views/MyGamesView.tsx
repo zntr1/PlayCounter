@@ -287,6 +287,7 @@ import {
   TOUR_DEMO_GAME,
   TOUR_DEMO_EMULATOR,
   TOUR_GTA_GAME_ID,
+  TOUR_SAMPLE_ART,
   sampleStageForStep,
   stepAsksForSampleEntry,
   tourSampleMatches,
@@ -3590,6 +3591,12 @@ export function GameLibraryCard({
     "history" | "matching" | "remove" | "ignore" | "launch" | null
   >(null);
   const [demoRemoved, setDemoRemoved] = useState(false);
+  // A sample's cover and banner picks (Covers and banners guide): only this
+  // card remembers them, nothing is saved.
+  const [demoArt, setDemoArt] = useState<{
+    cover: string | null;
+    banner: string | null;
+  }>({ cover: null, banner: null });
   // What a sample entry answered, shown on the card until the next one.
   const [sampleResult, setSampleResult] = useState<string | null>(null);
   // The game file a sample pretends to have been started from.
@@ -3612,6 +3619,17 @@ export function GameLibraryCard({
     [guideSample, activeTour?.tourId, activeTour?.stepIndex],
   );
   const stage = useMemo(() => sampleStageForStep(tourStep), [tourStep]);
+  // The restore step needs a picked cover to restore: entered from anywhere,
+  // the sample has one.
+  useEffect(() => {
+    if (!guideSample || !stepAsksForSampleEntry(tourStep, "restore-cover"))
+      return;
+    setDemoArt((current) =>
+      current.cover === null
+        ? { ...current, cover: TOUR_SAMPLE_ART.covers[0].url }
+        : current,
+    );
+  }, [guideSample, tourStep]);
   const setLibraryFeaturedGame = useAppStore(
     (state) => state.setLibraryFeaturedGame,
   );
@@ -4218,10 +4236,11 @@ export function GameLibraryCard({
     />
   ) : null;
   const canEditCover = game.source === "custom";
-  const shownCover = useCoverUrl(
+  const storedCover = useCoverUrl(
     { ...game, gameName: game.name },
     game.coverUrl,
   );
+  const shownCover = demo && demoArt.cover ? demoArt.cover : storedCover;
   const coverPicked = useAppStore(
     (state) =>
       pickedCover(state, { ...game, gameName: game.name }) !== undefined,
@@ -5769,6 +5788,37 @@ export function GameLibraryCard({
           canEditCover,
         }}
         initialTab={artPickerTab}
+        sample={
+          demo
+            ? {
+                current: demoArt,
+                onPick: (tab, url) => {
+                  setDemoArt((current) => ({ ...current, [tab]: url }));
+                  finishSample(
+                    tab === "cover"
+                      ? t(
+                          "Sample cover picked. Nothing was saved to your library.",
+                        )
+                      : t(
+                          "Sample banner picked. Nothing was saved to your library.",
+                        ),
+                  );
+                },
+                onRestore: (tab) => {
+                  setDemoArt((current) => ({ ...current, [tab]: null }));
+                  finishSample(
+                    tab === "cover"
+                      ? t(
+                          "Sample cover restored. Nothing was saved to your library.",
+                        )
+                      : t(
+                          "Sample banner restored. Nothing was saved to your library.",
+                        ),
+                  );
+                },
+              }
+            : undefined
+        }
         onClose={() => setShowArtPicker(false)}
       />
     ) : showMoveToPlayCounter ? (
@@ -6224,7 +6274,7 @@ export function GameLibraryCard({
             icon={ImagePlus}
             dataTour={sampleName("demo-menu-choose-banner")}
             onClick={() => {
-              if (demo) return sampleOnly("choose-banner", t("Choose banner…"));
+              startSample("choose-banner");
               contextMenu.close();
               setArtPickerTab("banner");
               setShowArtPicker(true);
@@ -6258,7 +6308,7 @@ export function GameLibraryCard({
             icon={ImagePlus}
             dataTour={sampleName("demo-menu-choose-cover")}
             onClick={() => {
-              if (demo) return sampleOnly("choose-cover", t("Choose cover…"));
+              startSample("choose-cover");
               contextMenu.close();
               setArtPickerTab("cover");
               setShowArtPicker(true);
@@ -6300,15 +6350,22 @@ export function GameLibraryCard({
             >
               {t("Delete Cover")}
             </ContextMenuItem>
-          ) : !canEditCover && coverPicked ? (
+          ) : !canEditCover &&
+            (coverPicked || (demo && demoArt.cover !== null)) ? (
             <ContextMenuItem
               icon={RotateCcw}
               dataTour={sampleName("demo-menu-restore-cover")}
-              onClick={() =>
-                demo
-                  ? sampleOnly("restore-cover", t("Restore Cover"))
-                  : handleResetPickedCover()
-              }
+              onClick={() => {
+                if (!demo) return handleResetPickedCover();
+                contextMenu.close();
+                startSample("restore-cover");
+                setDemoArt((current) => ({ ...current, cover: null }));
+                finishSample(
+                  t(
+                    "Sample cover restored. Nothing was saved to your library.",
+                  ),
+                );
+              }}
             >
               {t("Restore Cover")}
             </ContextMenuItem>

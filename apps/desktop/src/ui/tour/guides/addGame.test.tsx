@@ -202,7 +202,7 @@ describe("the walk through the guide", () => {
     await start("open");
     expect(find(a("demo-add-game-dialog"))).toBeNull();
     await click(a("demo-add-game-button"));
-    await wait(50);
+    await wait(200);
     expect(stepNow()).toBe("search");
     expect(find(a("demo-add-game-dialog"))).not.toBeNull();
   });
@@ -230,7 +230,7 @@ describe("the walk through the guide", () => {
     expect(result!.textContent).toMatch(/sample/i);
     expectNothingLeftThisPc();
     await click(a("demo-add-game-done"));
-    await wait(50);
+    await wait(200);
     expect(find(a("demo-add-game-dialog"))).toBeNull();
     expect(stepNow()).toBe("change-game");
     expectNothingLeftThisPc();
@@ -281,7 +281,7 @@ describe("the walk through the guide", () => {
         .find((button) => button.textContent?.includes("Confirm sample match"))!
         .click(),
     );
-    await wait(50);
+    await wait(200);
     expect(stepNow()).toBe("quick-add");
     expectNothingLeftThisPc();
   });

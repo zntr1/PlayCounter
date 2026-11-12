@@ -9,6 +9,7 @@ import { customHeroArtKey, useAppStore } from "../store";
 import { setCustomGameCover } from "../tracker";
 import { Button, Input, Modal } from "./primitives";
 import { getT } from "../i18n";
+import { TOUR_SAMPLE_ART } from "./tour/tourDemoGame";
 
 const t = getT("dialogs");
 
@@ -35,6 +36,7 @@ export function ArtPickerDialog({
   onClose,
   onPickCover,
   forSharing = false,
+  sample,
 }: {
   game: ArtPickerGame;
   initialTab?: Tab;
@@ -44,6 +46,14 @@ export function ArtPickerDialog({
   onPickCover?: (url: string) => void;
   /** The pick may be shared with the community, so 18+ art stays out. */
   forSharing?: boolean;
+  /** A guide's practice (covers-banners): bundled pictures instead of a
+   *  SteamGridDB search, and a pick or a restore only tells the sample card.
+   *  Nothing is searched, downloaded or saved. */
+  sample?: {
+    current: { cover: string | null; banner: string | null };
+    onPick: (tab: Tab, url: string) => void;
+    onRestore: (tab: Tab) => void;
+  };
 }) {
   const adult = useAppStore(
     (state) => state.settings.showAdultArt === true && !forSharing,
@@ -51,7 +61,10 @@ export function ArtPickerDialog({
   const addToast = useAppStore((state) => state.addToast);
   const setCustomHeroArt = useAppStore((state) => state.setCustomHeroArt);
   const heroKey = customHeroArtKey(game);
-  const currentHero = useAppStore((state) => state.customHeroArt[heroKey]);
+  const storedHero = useAppStore((state) => state.customHeroArt[heroKey]);
+  const currentHero = sample
+    ? (sample.current.banner ?? undefined)
+    : storedHero;
   const coverRef = {
     gameId: game.gameId,
     source: game.source,
@@ -59,9 +72,12 @@ export function ArtPickerDialog({
     gameName: game.name,
   };
   const setCustomCoverArt = useAppStore((state) => state.setCustomCoverArt);
-  const currentCover = useAppStore((state) =>
+  const storedCover = useAppStore((state) =>
     game.canEditCover ? undefined : pickedCover(state, coverRef),
   );
+  const currentCover = sample
+    ? (sample.current.cover ?? undefined)
+    : storedCover;
   const [query, setQuery] = useState(game.name);
   const [results, setResults] = useState<ArtSearchGame[]>([]);
   const [searching, setSearching] = useState(false);
@@ -77,6 +93,13 @@ export function ArtPickerDialog({
   const searchRun = useRef(0);
 
   async function runSearch(term: string) {
+    if (sample) {
+      const entry = { id: -1, name: game.name, verified: true };
+      setResults([entry]);
+      setSelectedGame(entry);
+      setAssets(TOUR_SAMPLE_ART);
+      return;
+    }
     const run = ++searchRun.current;
     setSearching(true);
     setError(null);
@@ -103,7 +126,7 @@ export function ArtPickerDialog({
   }, []);
 
   useEffect(() => {
-    if (!selectedGame) return;
+    if (!selectedGame || sample) return;
     let cancelled = false;
     setLoadingAssets(true);
     setError(null);
@@ -124,6 +147,11 @@ export function ArtPickerDialog({
 
   async function apply(asset: ArtAsset) {
     if (applying !== null) return;
+    if (sample) {
+      sample.onPick(tab, asset.url);
+      onClose();
+      return;
+    }
     if (onPickCover) {
       onPickCover(asset.url);
       onClose();
@@ -172,6 +200,8 @@ export function ArtPickerDialog({
   return (
     <Modal
       size="wide"
+      dataTour={sample ? "demo-art-picker" : undefined}
+      backdropDataTour={sample ? "demo-library-modal" : undefined}
       labelId="art-picker-title"
       icon={ImageIcon}
       eyebrow="SteamGridDB"
@@ -185,7 +215,9 @@ export function ArtPickerDialog({
       footer={
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-text-faint">
-            {t("Art by the SteamGridDB community.")}
+            {sample
+              ? t("Sample pictures. Nothing is searched or saved.")
+              : t("Art by the SteamGridDB community.")}
           </span>
           <div className="flex items-center gap-2">
             {tab === "banner" && currentHero ? (
@@ -193,6 +225,11 @@ export function ArtPickerDialog({
                 variant="ghost"
                 icon={X}
                 onClick={() => {
+                  if (sample) {
+                    sample.onRestore("banner");
+                    onClose();
+                    return;
+                  }
                   setCustomHeroArt(heroKey, null);
                   addToast({
                     tone: "info",
@@ -212,6 +249,11 @@ export function ArtPickerDialog({
                 variant="ghost"
                 icon={X}
                 onClick={() => {
+                  if (sample) {
+                    sample.onRestore("cover");
+                    onClose();
+                    return;
+                  }
                   setCustomCoverArt(
                     pickedCoverKey(useAppStore.getState(), coverRef),
                     null,

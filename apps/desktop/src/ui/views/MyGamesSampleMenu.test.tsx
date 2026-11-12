@@ -317,8 +317,8 @@ it("answers an entry that cannot work on a sample with a sample result", async (
   // Not the player's banner.
   expect(useAppStore.getState().settings).toBe(settings);
 
-  await sampleAction("demo-menu-choose-cover", "demo-menu-appearance");
-  expect(result()).toContain("Choose cover…");
+  await sampleAction("demo-menu-upload-cover", "demo-menu-appearance");
+  expect(result()).toContain("Upload cover");
   await sampleAction("demo-menu-open-explorer", "demo-menu-launch-options");
   expect(result()).toContain("Open in Explorer");
 });
