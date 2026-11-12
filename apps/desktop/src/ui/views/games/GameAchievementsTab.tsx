@@ -102,7 +102,10 @@ export function achievementSources(
   },
 ): AchievementSource[] {
   // The sample game of the guides has one launcher's list, bundled.
-  if (game.gameId !== undefined && isTourDemoGame({ ...game, gameId: game.gameId }))
+  if (
+    game.gameId !== undefined &&
+    isTourDemoGame({ ...game, gameId: game.gameId })
+  )
     return [{ provider: "sample", externalId: "tour" }];
   const signIns = currentPlatform() === "windows";
   const seen = new Set<string>();
@@ -217,7 +220,8 @@ function SampleAchievements() {
         "sign-in",
     [activeTour?.tourId, activeTour?.stepIndex],
   );
-  const needsSignIn = launcher === "gog" && asksSignIn && signedIn !== resetToken;
+  const needsSignIn =
+    launcher === "gog" && asksSignIn && signedIn !== resetToken;
   const action = needsSignIn ? (
     <Button
       variant="primary"

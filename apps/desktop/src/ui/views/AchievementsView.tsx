@@ -294,7 +294,9 @@ export function AchievementsView() {
                 aria-selected={selected}
                 aria-controls={`achievements-panel-${id}`}
                 tabIndex={selected ? 0 : -1}
-                data-tour={guideRunning ? `demo-achievements-tab-${id}` : undefined}
+                data-tour={
+                  guideRunning ? `demo-achievements-tab-${id}` : undefined
+                }
                 onClick={() => {
                   setTab(id);
                   // "Open Game ladders" is done once that tab opens.

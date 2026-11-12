@@ -11,12 +11,7 @@ import {
   Tally5,
   X,
 } from "lucide-react";
-import {
-  useMemo,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import {
   COUNTER_NAME_LIMIT,
@@ -35,8 +30,18 @@ import {
 import { formatHotkey } from "../../hotkeyFormat";
 import { getT } from "../../i18n";
 import { shortcutFromKey } from "../../shortcutKeys";
-import type { ActiveSession, GameIdentityRef } from "../../store";
-import { usePersonalLibraryApi, usePersonalLibraryState } from "../PersonalLibraryContext";
+import {
+  useAppStore,
+  type ActiveSession,
+  type GameIdentityRef,
+} from "../../store";
+import {
+  PersonalLibraryContext,
+  usePersonalLibraryApi,
+  usePersonalLibraryState,
+} from "../PersonalLibraryContext";
+import { completeTourStep, tourCounters } from "../tour/tourDemoDetails";
+import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { useGameJournal } from "../useGameJournal";
 
 const t = getT("nowPlaying");
@@ -174,7 +179,10 @@ export function useCounterKeyRecorder(
           key,
         );
         if (conflict) addToast({ tone: "error", title: conflict });
-        else update(game, counter.id, { key });
+        else {
+          update(game, counter.id, { key });
+          completeTourStep("counters", "key");
+        }
       },
     },
   };
@@ -200,10 +208,13 @@ export function CounterKeyButton({
     ? t("Press a key combination…")
     : (error ??
       (keyLabel
-        ? t("{{key}} counts {{counter}} while the game runs. Click to change.", {
-            key: keyLabel,
-            counter: name,
-          })
+        ? t(
+            "{{key}} counts {{counter}} while the game runs. Click to change.",
+            {
+              key: keyLabel,
+              counter: name,
+            },
+          )
         : t("Set a key that counts {{counter}} while the game runs.", {
             counter: name,
           })));
@@ -231,7 +242,9 @@ export function CounterKeyButton({
             {t("Press a key combination…")}
           </span>
         ) : keyLabel ? (
-          <span className="font-mono text-[11px] font-semibold">{keyLabel}</span>
+          <span className="font-mono text-[11px] font-semibold">
+            {keyLabel}
+          </span>
         ) : null}
       </button>
       {keyLabel && !recording ? (
@@ -252,9 +265,12 @@ export function CounterKeyButton({
 export function CountButtons({
   counter,
   onCount,
+  plusTour,
 }: {
   counter: GameCounter;
   onCount: (delta: 1 | -1) => void;
+  /** The `data-tour` name of "Add one", for a guide that rings it. */
+  plusTour?: string;
 }) {
   const name = counterName(counter);
   return (
@@ -271,6 +287,7 @@ export function CountButtons({
       <button
         type="button"
         title={t("Add one")}
+        data-tour={plusTour}
         aria-label={t("Add one: {{counter}}", { counter: name })}
         onClick={() => onCount(1)}
         className="grid h-8 w-8 place-items-center rounded-full border border-accent/50 bg-accent/10 text-accent-ink transition hover:border-accent hover:bg-accent hover:text-accent-fg hover:shadow-[0_0_18px_rgb(var(--color-accent)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
@@ -303,6 +320,7 @@ export function AddCounterField({
     if (id) {
       onAdded?.(id);
       onDone();
+      completeTourStep("counters", "add");
     } else setTaken(true);
   };
   return (
@@ -405,14 +423,43 @@ const NO_TALLY: CounterTally = {
    gets one quiet line instead, so a game nobody counts in stays calm. */
 
 export function NowPlayingCounters({ session }: { session: ActiveSession }) {
+  const guideRunning = useAppStore((state) => state.activeTour !== null);
+  const resetToken = useAppStore((state) => state.demoResetToken);
+  // The sample session of the guides counts in a library of its own.
+  const sample =
+    guideRunning &&
+    session.id === -1 &&
+    session.gameId === TOUR_DEMO_GAME.gameId &&
+    session.exeName === TOUR_DEMO_GAME.exeName;
+  if (!sample) return <SessionCounters session={session} />;
+  return (
+    <PersonalLibraryContext.Provider
+      key={resetToken}
+      value={tourCounters().store}
+    >
+      <SessionCounters session={session} tourPlus />
+    </PersonalLibraryContext.Provider>
+  );
+}
+
+function SessionCounters({
+  session,
+  tourPlus = false,
+}: {
+  session: ActiveSession;
+  /** The first counter's "Add one" is the one the counters guide rings. */
+  tourPlus?: boolean;
+}) {
   const api = usePersonalLibraryApi();
   const { counters, controller, tallies } = useSessionCounters(session);
   const controllerCounting = useControllerCounting();
   const [adding, setAdding] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const counted = [...tallies.values()].some((tally) => tally.all > 0);
-  const count = (counterId: string, delta: 1 | -1) =>
+  const count = (counterId: string, delta: 1 | -1) => {
     api.getState().changeSessionCount(session.id, counterId, delta);
+    if (delta > 0) completeTourStep("counters", "count");
+  };
   const first = counters[0];
 
   if (!counted) {
@@ -446,6 +493,7 @@ export function NowPlayingCounters({ session }: { session: ActiveSession }) {
               <CountButtons
                 counter={first}
                 onCount={(delta) => count(first.id, delta)}
+                plusTour={tourPlus ? "demo-counter-plus" : undefined}
               />
             ) : null}
           </>
@@ -458,7 +506,7 @@ export function NowPlayingCounters({ session }: { session: ActiveSession }) {
   const tiles = counters.filter((counter) => counter.shown || showHidden);
   return (
     <div className="relative mx-7 mb-7 -mt-3.5 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2.5">
-      {tiles.map((counter) => {
+      {tiles.map((counter, index) => {
         const tally = tallies.get(counter.id) ?? NO_TALLY;
         return (
           <CounterTile
@@ -496,6 +544,9 @@ export function NowPlayingCounters({ session }: { session: ActiveSession }) {
                 <CountButtons
                   counter={counter}
                   onCount={(delta) => count(counter.id, delta)}
+                  plusTour={
+                    tourPlus && index === 0 ? "demo-counter-plus" : undefined
+                  }
                 />
               </span>
             </div>

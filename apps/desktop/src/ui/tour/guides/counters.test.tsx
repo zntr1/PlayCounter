@@ -1,7 +1,5 @@
 // @vitest-environment happy-dom
-import { readdirSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { act, useState } from "react";
+import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +15,11 @@ vi.mock("../../../platform", () => ({
 }));
 
 import { journalCounters } from "../../../counters";
-import { getGameJournal, useAppStore, type ActiveSession } from "../../../store";
+import {
+  getGameJournal,
+  useAppStore,
+  type ActiveSession,
+} from "../../../store";
 import { NowPlayingCounters } from "../../counters/CounterParts";
 import { GameCountersTab } from "../../views/games/GameCountersTab";
 import {
@@ -26,7 +28,8 @@ import {
 } from "../../views/games/GameDetailsDialog";
 import type { GameSummary } from "../../views/MyGamesView";
 import { findTour } from "../tourDefinitions";
-import { tourCounters, useTourSampleDetails } from "../tourDemoDetails";
+import { tourCounters } from "../tourDemoDetails";
+import { sampleStageForStep } from "../tourDemoGame";
 import { TOUR_DEMO_GAME } from "../tourDemoGame";
 import { findTourElement } from "../tourTargetRect";
 import { TourOverlay } from "../TourUI";
@@ -51,82 +54,15 @@ const names = (selector: string | undefined) =>
     (match) => match[1],
   );
 
-const enDir = fileURLToPath(new URL("../../../locales/en/", import.meta.url));
+// Every English text the app can show, from all area files.
 const english = new Set(
-  readdirSync(enDir)
-    .filter((file) => file.endsWith(".json"))
-    .flatMap((file) =>
-      Object.values(
-        JSON.parse(readFileSync(`${enDir}${file}`, "utf8")) as Record<
-          string,
-          string
-        >,
-      ),
-    ),
+  Object.values(
+    import.meta.glob<Record<string, string>>("../../../locales/en/*.json", {
+      eager: true,
+      import: "default",
+    }),
+  ).flatMap((area) => Object.values(area)),
 );
-
-// The sample card of the guides (MyGamesView's makeTourDemoGame).
-const sampleGame: GameSummary = {
-  kind: "tour-demo",
-  gameId: TOUR_DEMO_GAME.gameId,
-  name: TOUR_DEMO_GAME.name,
-  coverUrl: TOUR_DEMO_GAME.coverUrl,
-  source: null,
-  sources: [],
-  aliases: [],
-  totalSeconds: 7_200,
-  sessionSeconds: 7_200,
-  archivedSeconds: 0,
-  adjustmentSeconds: 0,
-  recordedSeconds: 7_200,
-  sessionCount: 3,
-  historyGameKey: null,
-  lastPlayedAt: new Date().toISOString(),
-  exeNames: [TOUR_DEMO_GAME.exeName],
-  emulatorLabels: [],
-  emulatorIds: [],
-  emulatorContentKeys: [],
-  libraryImports: [],
-  providerFloorSeconds: 0,
-};
-
-/** What the sample card in My Games does with its Details: it follows the
- *  running step, and "Open Details" in its menu opens General. */
-function SampleCard() {
-  const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<DetailsTab>("general");
-  useTourSampleDetails(
-    true,
-    (next) => {
-      setTab(next);
-      setOpen(true);
-    },
-    () => setOpen(false),
-  );
-  return (
-    <>
-      <button
-        type="button"
-        data-tour="demo-game-card"
-        onClick={() => {
-          setTab("general");
-          setOpen(true);
-        }}
-      />
-      {open ? (
-        <GameDetailsDialog
-          game={sampleGame}
-          initialTab={tab}
-          launchKey="test"
-          launchBlocked={false}
-          onAcquireLaunch={() => true}
-          onReleaseLaunch={() => {}}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
-    </>
-  );
-}
 
 /** My Games builds the sample card again whenever the guide puts the sample
  *  back to its start. */
@@ -187,7 +123,10 @@ const buttonNamed = (name: string, within: ParentNode = document) =>
   [...within.querySelectorAll("button")].find(
     (entry) => entry.textContent?.trim() === name,
   );
-const dialog = () => document.querySelector<HTMLElement>('[role="dialog"][data-tour="demo-game-details"]');
+const dialog = () =>
+  document.querySelector<HTMLElement>(
+    '[role="dialog"][data-tour="demo-game-details"]',
+  );
 const selectedTab = () =>
   dialog()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
 const counterNames = () =>
@@ -400,9 +339,7 @@ describe("the sample's Counters tab during the guide", () => {
     await startAt("add");
     expect(selectedTab()).toBe("Counters");
     // Back: the guide puts the sample back to its start.
-    await act(async () =>
-      store().goToTourStep(indexOf("counters-tab"), true),
-    );
+    await act(async () => store().goToTourStep(indexOf("counters-tab"), true));
     await tick();
     expect(stepId()).toBe("counters-tab");
     expect(selectedTab()).toBe("General");
@@ -576,4 +513,71 @@ describe("“Show me how” on the empty Counters tab", () => {
     expect(container.textContent).toContain("No counters.");
     expect(link()).toBeNull();
   });
-});
+}); // The sample card of the guides (MyGamesView's makeTourDemoGame).
+const sampleGame: GameSummary = {
+  kind: "tour-demo",
+  gameId: TOUR_DEMO_GAME.gameId,
+  name: TOUR_DEMO_GAME.name,
+  coverUrl: TOUR_DEMO_GAME.coverUrl,
+  source: null,
+  sources: [],
+  aliases: [],
+  totalSeconds: 7_200,
+  sessionSeconds: 7_200,
+  archivedSeconds: 0,
+  adjustmentSeconds: 0,
+  recordedSeconds: 7_200,
+  sessionCount: 3,
+  historyGameKey: null,
+  lastPlayedAt: new Date().toISOString(),
+  exeNames: [TOUR_DEMO_GAME.exeName],
+  emulatorLabels: [],
+  emulatorIds: [],
+  emulatorContentKeys: [],
+  libraryImports: [],
+  providerFloorSeconds: 0,
+};
+
+/** What the sample card in My Games does with its Details (MyGamesView's
+ *  stage, sampleStageForStep): it opens them on the tab the running step
+ *  asks for, and closes them on a step that asks for none. "Open Details" in
+ *  its menu opens General. */
+function SampleCard() {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<DetailsTab>("general");
+  const activeTour = useAppStore((state) => state.activeTour);
+  const tourStep = activeTour
+    ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
+    : undefined;
+  useEffect(() => {
+    const { details } = sampleStageForStep(tourStep);
+    if (details) {
+      setTab(details);
+      setOpen(true);
+    } else setOpen(false);
+  }, [activeTour?.tourId, tourStep?.id]);
+  return (
+    <>
+      <button
+        type="button"
+        data-tour="demo-game-card"
+        onClick={() => {
+          setTab("general");
+          setOpen(true);
+        }}
+      />
+      {open ? (
+        <GameDetailsDialog
+          key={tab}
+          game={sampleGame}
+          initialTab={tab}
+          launchKey="test"
+          launchBlocked={false}
+          onAcquireLaunch={() => true}
+          onReleaseLaunch={() => {}}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}

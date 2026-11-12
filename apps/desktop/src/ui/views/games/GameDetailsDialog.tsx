@@ -664,80 +664,85 @@ export function GameDetailsDialog({
     </div>
   );
 
-  const aboutBody = !game.igdbId && !sample ? (
-    // Community entries added before suggestions carried an IGDB id - and
-    // custom games - have no IGDB identity to look anything up with. Saying
-    // so beats hiding the panel, which just looks like it failed.
-    <p className="text-sm text-text-muted">
-      {game.source === "custom"
-        ? t(
-            "This is your own entry, so there is no database record behind it. Open on IGDB searches by name instead.",
-          )
-        : t(
-            "This game is not linked to an IGDB entry yet, so there is nothing to show here. Open on IGDB searches by name instead.",
-          )}
-    </p>
-  ) : details.status === "loading" ? (
-    <div className="grid gap-2" role="status" aria-label={t("Loading details")}>
-      <SkeletonBar className="h-3 w-full" />
-      <SkeletonBar className="h-3 w-full" />
-      <SkeletonBar className="h-3 w-2/3" />
-    </div>
-  ) : details.status === "offline" ? (
-    <p className="flex items-center gap-2 text-sm text-text-muted">
-      <WifiOff size={14} />
-      {t("Details need a connection to the PlayCounter database.")}
-    </p>
-  ) : details.status === "error" ? (
-    <p className="text-sm text-text-muted">
-      {t(
-        "Details could not be loaded right now. Your summary below comes from this PC and is unaffected.",
-      )}
-    </p>
-  ) : resolved ? (
-    <div className="grid gap-4">
-      {resolved.summary ? (
-        <div>
-          {/* IGDB only has English descriptions. */}
-          <p
-            lang="en"
-            className="whitespace-pre-line text-sm leading-6 text-text-muted"
-          >
-            {resolved.summary}
-          </p>
-          {appLanguage() !== "en" ? (
-            <p className="mt-1 text-xs text-text-faint">
-              {t("Only available in English")}
+  const aboutBody =
+    !game.igdbId && !sample ? (
+      // Community entries added before suggestions carried an IGDB id - and
+      // custom games - have no IGDB identity to look anything up with. Saying
+      // so beats hiding the panel, which just looks like it failed.
+      <p className="text-sm text-text-muted">
+        {game.source === "custom"
+          ? t(
+              "This is your own entry, so there is no database record behind it. Open on IGDB searches by name instead.",
+            )
+          : t(
+              "This game is not linked to an IGDB entry yet, so there is nothing to show here. Open on IGDB searches by name instead.",
+            )}
+      </p>
+    ) : details.status === "loading" ? (
+      <div
+        className="grid gap-2"
+        role="status"
+        aria-label={t("Loading details")}
+      >
+        <SkeletonBar className="h-3 w-full" />
+        <SkeletonBar className="h-3 w-full" />
+        <SkeletonBar className="h-3 w-2/3" />
+      </div>
+    ) : details.status === "offline" ? (
+      <p className="flex items-center gap-2 text-sm text-text-muted">
+        <WifiOff size={14} />
+        {t("Details need a connection to the PlayCounter database.")}
+      </p>
+    ) : details.status === "error" ? (
+      <p className="text-sm text-text-muted">
+        {t(
+          "Details could not be loaded right now. Your summary below comes from this PC and is unaffected.",
+        )}
+      </p>
+    ) : resolved ? (
+      <div className="grid gap-4">
+        {resolved.summary ? (
+          <div>
+            {/* IGDB only has English descriptions. */}
+            <p
+              lang="en"
+              className="whitespace-pre-line text-sm leading-6 text-text-muted"
+            >
+              {resolved.summary}
             </p>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-sm text-text-muted">
-          {t("The database has no description for this game yet.")}
-        </p>
-      )}
-      {(
-        [
-          [t("Genres"), resolved.genres.map(igdbTerm)],
-          [t("Modes"), resolved.gameModes.map(igdbTerm)],
-          [t("Platforms"), resolved.platforms],
-        ] as const
-      )
-        .filter(([, values]) => values.length > 0)
-        .map(([label, values]) => (
-          <div key={label} className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-wider text-text-faint">
-              {label}
-            </span>
-            <Chips values={values} />
+            {appLanguage() !== "en" ? (
+              <p className="mt-1 text-xs text-text-faint">
+                {t("Only available in English")}
+              </p>
+            ) : null}
           </div>
-        ))}
-    </div>
-  ) : (
-    <p className="text-sm text-text-muted">
-      {t("The database has no description for this game yet.")}
-    </p>
-  );
+        ) : (
+          <p className="text-sm text-text-muted">
+            {t("The database has no description for this game yet.")}
+          </p>
+        )}
+        {(
+          [
+            [t("Genres"), resolved.genres.map(igdbTerm)],
+            [t("Modes"), resolved.gameModes.map(igdbTerm)],
+            [t("Platforms"), resolved.platforms],
+          ] as const
+        )
+          .filter(([, values]) => values.length > 0)
+          .map(([label, values]) => (
+            <div key={label} className="flex flex-wrap items-center gap-2">
+              <span className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-wider text-text-faint">
+                {label}
+              </span>
+              <Chips values={values} />
+            </div>
+          ))}
+      </div>
+    ) : (
+      <p className="text-sm text-text-muted">
+        {t("The database has no description for this game yet.")}
+      </p>
+    );
 
   const generalTab = (
     <div className="grid gap-4">
@@ -1139,9 +1144,8 @@ export function GameDetailsDialog({
     <Modal
       dataTour={demo ? "demo-game-details" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
-
       className="game-details-dialog  max-w-6xl h-[90vh]"
-       size="xl"
+      size="xl"
       labelId="game-details-title"
       title={game.name}
       header={header}

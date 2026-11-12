@@ -1,12 +1,17 @@
-import type { GameAchievement, GameDetails, Session } from "@playcounter/shared";
+import type {
+  GameAchievement,
+  GameDetails,
+  Session,
+} from "@playcounter/shared";
 import { DEATHS_COUNTER_ID, type GameCounter } from "../../counters";
 import { emptyJournal, journalKey } from "../../personalLibrary";
 import { currentPlatform } from "../../platform";
-import { useAppStore, type ActiveSession, type GameIdentityRef } from "../../store";
-import type {
-  AwardedMilestone,
-  MilestoneMetrics,
-} from "../../milestones";
+import {
+  useAppStore,
+  type ActiveSession,
+  type GameIdentityRef,
+} from "../../store";
+import type { AwardedMilestone, MilestoneMetrics } from "../../milestones";
 import type { GameLabel } from "../views/achievements/achievementCatalog";
 import { findTour } from "./tourDefinitions";
 import { emitTourEvent } from "./tourEvents";
@@ -200,8 +205,10 @@ function makeCounterLibrary() {
   return library;
 }
 
-let counterLibrary: { key: string; library: ReturnType<typeof makeCounterLibrary> } | null =
-  null;
+let counterLibrary: {
+  key: string;
+  library: ReturnType<typeof makeCounterLibrary>;
+} | null = null;
 
 /** The sample game's counters and its running session, in a library of
  *  their own: the same while a guide runs, new when the guide puts the sample
@@ -217,12 +224,14 @@ export function tourCounters() {
 /* The Achievements page ──────────────────────────────────────────────────── */
 
 /** The tab each step on the Achievements page needs. */
-export const TOUR_ACHIEVEMENTS_PAGE_TABS: Record<string, "milestones" | "games"> =
-  {
-    page: "milestones",
-    tabs: "milestones",
-    ladders: "games",
-  };
+export const TOUR_ACHIEVEMENTS_PAGE_TABS: Record<
+  string,
+  "milestones" | "games"
+> = {
+  page: "milestones",
+  tabs: "milestones",
+  ladders: "games",
+};
 
 /** What a newcomer's Achievements page shows while the guide runs: some
  *  milestones won, more ahead, and game ladders with and without trophies. */
@@ -273,14 +282,15 @@ export function tourSampleAchievementsPage(now: Date = new Date()) {
     gameRung(stardew, 25, 12),
   ];
 
-  const games = new Map<string, { hours: number; name: string; coverUrl: string }>(
-    [
-      [wow.key, { hours: 62, name: wow.name, coverUrl: TOUR_DEMO_GAME.coverUrl }],
-      [stardew.key, { hours: 31, name: stardew.name, coverUrl: "" }],
-      [hades.key, { hours: 24, name: hades.name, coverUrl: "" }],
-      [celeste.key, { hours: 4, name: celeste.name, coverUrl: "" }],
-    ],
-  );
+  const games = new Map<
+    string,
+    { hours: number; name: string; coverUrl: string }
+  >([
+    [wow.key, { hours: 62, name: wow.name, coverUrl: TOUR_DEMO_GAME.coverUrl }],
+    [stardew.key, { hours: 31, name: stardew.name, coverUrl: "" }],
+    [hades.key, { hours: 24, name: hades.name, coverUrl: "" }],
+    [celeste.key, { hours: 4, name: celeste.name, coverUrl: "" }],
+  ]);
   const metrics: MilestoneMetrics = {
     totalHours: 130,
     monthKey,

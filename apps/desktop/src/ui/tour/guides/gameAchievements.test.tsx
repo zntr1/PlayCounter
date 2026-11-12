@@ -207,7 +207,13 @@ describe("Achievements & trophies: the steps", () => {
   it("names both kinds: milestones and game ladders, then the launchers", () => {
     expect(bold(step("tabs").body)).toEqual(["Milestones", "Game ladders"]);
     expect(bold(step("tabs").task)).toEqual(["Game ladders"]);
-    for (const launcher of ["Steam", "Xbox", "GOG", "Epic Games", "PlayStation"])
+    for (const launcher of [
+      "Steam",
+      "Xbox",
+      "GOG",
+      "Epic Games",
+      "PlayStation",
+    ])
       expect(step("open").body, launcher).toContain(launcher);
   });
 
@@ -217,7 +223,9 @@ describe("Achievements & trophies: the steps", () => {
     expect(open.task).toMatch(/right-click/i);
     expect(open.anchor).toBe('[data-tour="demo-game-card"]');
     // First present wins: the entry before the card.
-    expect(open.anchorTargets).toEqual(['[data-tour="demo-menu-achievements"]']);
+    expect(open.anchorTargets).toEqual([
+      '[data-tour="demo-menu-achievements"]',
+    ]);
     expect(open.allow).toEqual([
       '[data-tour="demo-game-card"]',
       '[data-tour="demo-context-menu"]',
@@ -291,7 +299,8 @@ describe("the Achievements page while the guide runs", () => {
     [...container.querySelectorAll<HTMLElement>('[role="tab"]')].find((tab) =>
       tab.textContent?.startsWith(name),
     )!;
-  const ladders = () => container.querySelectorAll("#achievements-panel-games article");
+  const ladders = () =>
+    container.querySelectorAll("#achievements-panel-games article");
 
   it("shows sample milestones and ladders to a newcomer, so every step rings something", async () => {
     await act(async () => store().startTour("game-achievements"));

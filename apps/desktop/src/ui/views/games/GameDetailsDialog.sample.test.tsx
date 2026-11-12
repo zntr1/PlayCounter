@@ -60,7 +60,7 @@ const sampleGame = summary({
 
 let root: Root;
 let container: HTMLDivElement;
-const fetchMock = vi.fn(async () => {
+const fetchMock = vi.fn(async (..._args: unknown[]) => {
   throw new Error("offline");
 });
 
@@ -188,7 +188,9 @@ describe("the sample game's Details", () => {
     );
     expect(figures).toEqual(["hastily", "normally", "completely"]);
     for (const pace of ["Main story", "Main + extras", "Completionist"])
-      expect(text, pace).toMatch(new RegExp(`${pace.replace("+", "\\+")}\\d+h`));
+      expect(text, pace).toMatch(
+        new RegExp(`${pace.replace("+", "\\+")}\\d+h`),
+      );
     expect(text).toMatch(/From [\d.,]+ players on IGDB/);
   });
 
@@ -219,7 +221,8 @@ describe("the sample game's Details", () => {
 
   it("Achievements sorts the sample list like a real one", async () => {
     await open(sampleGame, "achievements");
-    const names = () => rows().map((row) => row.querySelector("h4")!.textContent);
+    const names = () =>
+      rows().map((row) => row.querySelector("h4")!.textContent);
     const newest = names();
     const select = panel().querySelector(
       'select[aria-label="Sort achievements"]',
@@ -277,7 +280,12 @@ describe("the sample game's Details", () => {
   it("sends no request, whatever the player opens or clicks", async () => {
     await open(sampleGame);
     await click(button("Open on IGDB"));
-    for (const name of ["Achievements", "How long to beat", "Files", "Counters"]) {
+    for (const name of [
+      "Achievements",
+      "How long to beat",
+      "Files",
+      "Counters",
+    ]) {
       await click(tab(name));
       for (const label of [
         "Refresh",

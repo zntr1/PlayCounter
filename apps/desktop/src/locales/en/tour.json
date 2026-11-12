@@ -779,5 +779,15 @@
   "Click <b>Add one</b>.": "Click <b>Add one</b>.",
   "Keys for the counter box": "Keys for the counter box",
   "Under Keyboard shortcuts, <b>Open counter box</b> opens all counters over your game. <b>Take one back</b> undoes a press made by mistake.": "Under Keyboard shortcuts, <b>Open counter box</b> opens all counters over your game. <b>Take one back</b> undoes a press made by mistake.",
-  "In the app, open a game's Details, add a counter and set its key. Start the game and press the key whenever it happens.": "In the app, open a game's Details, add a counter and set its key. Start the game and press the key whenever it happens."
+  "In the app, open a game's Details, add a counter and set its key. Start the game and press the key whenever it happens.": "In the app, open a game's Details, add a counter and set its key. Start the game and press the key whenever it happens.",
+  "<b>Launcher accounts</b> in the sidebar lists every launcher you can import from. A number on it means a sign-in needs you. This guide only shows the page: nothing is clicked or changed.": "<b>Launcher accounts</b> in the sidebar lists every launcher you can import from. A number on it means a sign-in needs you. This guide only shows the page: nothing is clicked or changed.",
+  "One card per launcher": "One card per launcher",
+  "The line under a launcher's name says where it stands: signed in and as whom, <b>Not signed in</b> or <b>Needs sign-in</b>. Steam needs no sign-in: its accounts are read on this PC.": "The line under a launcher's name says where it stands: signed in and as whom, <b>Not signed in</b> or <b>Needs sign-in</b>. Steam needs no sign-in: its accounts are read on this PC.",
+  "More actions on a card": "More actions on a card",
+  "Signed in, <b>More</b> holds <b>Check connection</b> and <b>Sign out</b>. Signing out keeps your games and playtime. Battle.net, Epic Games and GOG also offer <b>Find installed games</b>.": "Signed in, <b>More</b> holds <b>Check connection</b> and <b>Sign out</b>. Signing out keeps your games and playtime. Battle.net, Epic Games and GOG also offer <b>Find installed games</b>.",
+  "Launchers end sign-ins now and then. The card then says <b>Needs sign-in</b> and offers <b>Sign in again</b>. After that, <b>Import games</b> brings your playtime up to date.": "Launchers end sign-ins now and then. The card then says <b>Needs sign-in</b> and offers <b>Sign in again</b>. After that, <b>Import games</b> brings your playtime up to date.",
+  "Several accounts of one launcher": "Several accounts of one launcher",
+  "One account per launcher is signed in at a time. For another, sign out, sign in with it and import again. Its hours are added to the first's, and Details lists each account.": "One account per launcher is signed in at a time. For another, sign out, sign in with it and import again. Its hours are added to the first's, and Details lists each account.",
+  "Forget a launcher's imported data": "Forget a launcher's imported data",
+  "Right-click a launcher under My Games in the sidebar and choose <b>Forget imported data</b>, or find it in Settings under <b>Library import</b>. Your tracked sessions stay.": "Right-click a launcher under My Games in the sidebar and choose <b>Forget imported data</b>, or find it in Settings under <b>Library import</b>. Your tracked sessions stay."
 }

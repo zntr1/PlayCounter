@@ -41,6 +41,7 @@ import { Button, Modal, Switch } from "../../primitives";
 import { useGameJournal } from "../../useGameJournal";
 import type { GameSummary } from "../MyGamesView";
 import { Panel } from "./detailsPanels";
+import { GuideLink } from "../../tour/GuideLink";
 
 const t = getT("games");
 
@@ -125,8 +126,7 @@ export function GameCountersTab({ game }: { game: GameSummary }) {
     let seconds = 0;
     for (const session of sessions) {
       const value = session.counts?.[counterId] ?? 0;
-      if (!value || (session.playthroughId ?? null) !== playthroughId)
-        continue;
+      if (!value || (session.playthroughId ?? null) !== playthroughId) continue;
       count += value;
       seconds +=
         "durationSeconds" in session && session.durationSeconds !== null
@@ -144,7 +144,10 @@ export function GameCountersTab({ game }: { game: GameSummary }) {
 
   const playthroughs = [
     { id: null as string | null, name: defaultPlaythroughName() },
-    ...journal.playthroughs.map((p) => ({ id: p.id as string | null, name: p.name })),
+    ...journal.playthroughs.map((p) => ({
+      id: p.id as string | null,
+      name: p.name,
+    })),
   ];
 
   const row = (counter: GameCounter) => (
@@ -215,19 +218,25 @@ export function GameCountersTab({ game }: { game: GameSummary }) {
                 />
               </label>
             ) : null}
-            <Button icon={Plus} onClick={() => setAdding(true)}>
+            <Button
+              icon={Plus}
+              data-tour="demo-counter-add"
+              onClick={() => setAdding(true)}
+            >
               {t("Add counter")}
             </Button>
           </div>
         }
       >
         {adding ? (
-          <AddCounterField
-            game={gameRef}
-            onAdded={setSelectedId}
-            onDone={() => setAdding(false)}
-            className="mb-3"
-          />
+          <div data-tour="demo-counter-name">
+            <AddCounterField
+              game={gameRef}
+              onAdded={setSelectedId}
+              onDone={() => setAdding(false)}
+              className="mb-3"
+            />
+          </div>
         ) : null}
         {selected ? (
           <div className="grid items-start gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
@@ -265,7 +274,8 @@ export function GameCountersTab({ game }: { game: GameSummary }) {
           </div>
         ) : (
           <p className="text-sm italic text-text-faint">
-            {t("No counters. Add one to count deaths, tries or anything else.")}
+            {t("No counters. Add one to count deaths, tries or anything else.")}{" "}
+            <GuideLink tourId="counters" className="not-italic" />
           </p>
         )}
         <div
@@ -461,7 +471,10 @@ function CounterDetail({
       ) : null}
 
       <SubHeading>{t("While you play")}</SubHeading>
-      <SettingRow title={t("Show in the live timer and on Now Playing")}>
+      <SettingRow
+        title={t("Show in the live timer and on Now Playing")}
+        dataTour="demo-counter-shown"
+      >
         <Switch
           aria-label={t("Show in the live timer and on Now Playing")}
           checked={counter.shown}
@@ -475,12 +488,16 @@ function CounterDetail({
         <SettingRow
           title={t("Count with View + D-pad up")}
           description={t("One counter per game.")}
+          dataTour="demo-counter-controller"
         >
           <Switch
             aria-label={t("Count with View + D-pad up")}
             checked={controller}
             onChange={(event) =>
-              setControllerCounter(game, event.target.checked ? counter.id : null)
+              setControllerCounter(
+                game,
+                event.target.checked ? counter.id : null,
+              )
             }
           />
         </SettingRow>
@@ -530,14 +547,19 @@ function SubHeading({ children }: { children: ReactNode }) {
 function SettingRow({
   title,
   description,
+  dataTour,
   children,
 }: {
   title: string;
   description?: ReactNode;
+  dataTour?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 py-2.5 first-of-type:border-t-0">
+    <div
+      data-tour={dataTour}
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 py-2.5 first-of-type:border-t-0"
+    >
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-semibold text-text">{title}</div>
         {description ? (
@@ -565,6 +587,7 @@ function OwnKeyRow({
   return (
     <SettingRow
       title={t("Own key")}
+      dataTour="demo-counter-own-key"
       description={
         <>
           {t("Counts {{counter}} while {{game}} runs.", {
@@ -586,16 +609,13 @@ function OwnKeyRow({
           the key. */}
       <Button
         key="record"
+        data-tour="demo-counter-key"
         variant={recording ? "active" : "secondary"}
         icon={keyLabel || recording ? undefined : Keyboard}
         {...buttonProps}
         className="px-2.5 py-1.5 text-[12.5px] font-semibold"
       >
-        {recording
-          ? recordingLabel
-          : keyLabel
-            ? t("Change")
-            : t("Set a key")}
+        {recording ? recordingLabel : keyLabel ? t("Change") : t("Set a key")}
       </Button>
       {keyLabel && !recording ? (
         <Button
