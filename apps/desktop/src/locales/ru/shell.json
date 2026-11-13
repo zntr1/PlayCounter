@@ -181,5 +181,6 @@
   "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows скрывает игры в эксклюзивном полноэкранном режиме от других приложений. Переключите игру в окно без рамки или оконный режим и попробуйте снова.",
   "Launcher groups": "Группы лаунчеров",
   "Hide empty sources": "Скрывать пустые источники",
-  "Sidebar": "Боковая панель"
+  "Sidebar": "Боковая панель",
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Да. Щёлкните игру правой кнопкой, выберите {{journal}} и нажмите {{addPlaythrough}}. Назовите его Speedrun: у каждого прохождения своя заметка и свой список сессий."
 }

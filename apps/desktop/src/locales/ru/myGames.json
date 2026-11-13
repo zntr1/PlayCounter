@@ -777,5 +777,18 @@
   "{{name}} now uses the selected banner.": "{{name}} теперь использует выбранный баннер.",
   "Banner update failed": "Не удалось обновить баннер",
   "Copy an image, then try Paste banner again.": "Скопируйте изображение и снова попробуйте «Вставить баннер».",
-  "Paste banner failed": "Не удалось вставить баннер"
+  "Paste banner failed": "Не удалось вставить баннер",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "Пример: ничего не изменилось. «{{entry}}» работает с вашими играми.",
+  "Sample renamed to {{name}}. Nothing was saved.": "Пример переименован в {{name}}. Ничего не сохранено.",
+  "Match applied to the sample. Nothing was saved to your library.": "Привязка применена к примеру. В вашу библиотеку ничего не сохранено.",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "Таймер примера запущен. Остановите его в том же меню, а для ваших игр ещё и в разделе «Сейчас в игре».",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "Таймер примера остановлен через {{time}}. В ваших играх это время станет сессией.",
+  "Sample counted as an app. On your own games its time moves to the Software page.": "Пример учтён как приложение. В ваших играх его время переходит на страницу «Программы».",
+  "Sample ignored as an app. Nothing was reported or blocked.": "Пример проигнорирован как приложение. Ничего не отправлено и не заблокировано.",
+  "{{file}} no longer counts for the sample. Nothing was reported or saved.": "{{file}} больше не относится к примеру. Ничего не отправлено и не сохранено.",
+  "Badge examples: recognition and origin": "Примеры значков: распознавание и источник",
+  "Sample cover picked. Nothing was saved to your library.": "Обложка для примера выбрана. В вашу библиотеку ничего не сохранено.",
+  "Sample banner picked. Nothing was saved to your library.": "Баннер для примера выбран. В вашу библиотеку ничего не сохранено.",
+  "Sample cover restored. Nothing was saved to your library.": "Обложка примера возвращена. В вашу библиотеку ничего не сохранено.",
+  "Sample banner restored. Nothing was saved to your library.": "Баннер примера возвращён. В вашу библиотеку ничего не сохранено."
 }

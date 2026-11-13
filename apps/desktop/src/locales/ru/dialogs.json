@@ -258,5 +258,7 @@
   "Add session note": "Добавить заметку о сессии",
   "Edit session note": "Изменить заметку о сессии",
   "Added to {{shelf}}. It's hidden from All games now.": "Добавлено на полку «{{shelf}}». Теперь игра скрыта во «Всех играх».",
-  "Undo": "Отменить"
+  "Undo": "Отменить",
+  "This is a sample: nothing was added to your library.": "Это пример: в вашу библиотеку ничего не добавлено.",
+  "Sample pictures. Nothing is searched or saved.": "Картинки-примеры. Ничего не ищется и не сохраняется."
 }
