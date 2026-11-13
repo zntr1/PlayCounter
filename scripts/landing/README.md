@@ -70,6 +70,11 @@ PlayStation in Now Playing) show the 1.6.0 interface. They come from the
 What's new fixture in `docs/whats-new/capture.cjs`; Cyberpunk 2077's
 time-to-beat numbers in them are samples, not IGDB's. The 1.2.0
 `playcounter-history-v1-2-0` files stay for the repository README.
+The `*-v1-7-0` window shots (Now Playing with counters, the screenshot viewer
+with a caption, the Counters tab, plus the repository README's history, game
+achievements and guides) show the 1.7.0 interface, from the same fixture. The
+pictures inside them are Steam store screenshots of Elden Ring and Cyberpunk
+2077 standing in for a player's own.
 
 The homepage hero is a video frame (`site.trailer` in `site.mjs`, files in
 `landing/videos/`): `site.js` plays a silent preview loop while it is on screen

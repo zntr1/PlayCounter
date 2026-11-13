@@ -3,13 +3,13 @@
 export const site = {
   origin: "https://playcounter.app",
   name: "PlayCounter",
-  version: "1.6.0",
+  version: "1.7.0",
   reviewed: "2026-09-24",
   // Optional, for the release named in `version`: its publish date and the
   // byte size of PlayCounter-Setup.exe, both from the GitHub release. When null,
   // the download line omits the size and the structured data omits the date.
-  releaseDate: "2026-11-07",
-  installerBytes: 7907112,
+  releaseDate: "2026-11-13",
+  installerBytes: 8462592,
   download:
     "https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe",
   releases: "https://github.com/zntr1/PlayCounter/releases/latest",
@@ -41,7 +41,7 @@ export const site = {
     poster: "/videos/playcounter-loop-v1-poster.webp",
   },
   // App views and guide steps, captured from the 1.2.0 UI with an example
-  // library; the -v1-6-0 views from the 1.6.0 UI. "window" images are full
+  // library; the -v1-6-0 and -v1-7-0 views from those UIs. "window" images are full
   // app windows with a 1000px variant; "crop" images are 2x captures and
   // width/height are their display size.
   screenshots: {
@@ -55,11 +55,27 @@ export const site = {
     },
     now: {
       kind: "window",
-      file: "playcounter-now-playing-v1-2-0.webp",
-      small: "playcounter-now-playing-v1-2-0-1000.webp",
+      file: "playcounter-now-playing-v1-7-0.webp",
+      small: "playcounter-now-playing-v1-7-0-1000.webp",
       width: 2000,
       height: 1250,
-      alt: "PlayCounter Now Playing with a live session timer, total playtime and session count for Cyberpunk 2077",
+      alt: "PlayCounter Now Playing for Elden Ring: a live session timer with a pause button, total playtime, session count and counters for bosses and deaths with minus and plus buttons",
+    },
+    screenshots: {
+      kind: "window",
+      file: "playcounter-screenshots-v1-7-0.webp",
+      small: "playcounter-screenshots-v1-7-0-1000.webp",
+      width: 2000,
+      height: 1250,
+      alt: "A screenshot of Elden Ring opened in PlayCounter, with the date it was taken, buttons to open, show in folder or delete it, and the caption “Made it to the castle at last” below the picture",
+    },
+    counters: {
+      kind: "window",
+      file: "playcounter-counters-v1-7-0.webp",
+      small: "playcounter-counters-v1-7-0-1000.webp",
+      width: 2000,
+      height: 1250,
+      alt: "Elden Ring’s Counters tab in PlayCounter: Bosses and Deaths, 240 deaths this playthrough, 7.5 per hour played, a chart of the last 12 sessions and settings for the live timer and an own key",
     },
     history: {
       kind: "window",
@@ -462,6 +478,10 @@ export const faq = [
   [
     "Which emulators are supported?",
     'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and BlueStacks. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+  ],
+  [
+    "Can PlayCounter take screenshots of my games?",
+    "Yes. Set a key under <strong>Settings → While you play → Screenshots</strong>. PlayCounter saves a picture of the game window to your Pictures folder, without Steam or Game Bar, and shows it on the session it was taken in. A second key adds a caption right away; the caption is stored in the picture file. Games in exclusive fullscreen can come out black, so use borderless or windowed mode.",
   ],
   [
     "Which languages is the app available in?",
