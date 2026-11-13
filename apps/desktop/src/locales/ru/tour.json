@@ -239,7 +239,7 @@
   "The card shows the added time and one more session. On your own games the session is in <b>My History</b> and counts for charts, streaks and achievements.": "Карточка показывает добавленное время и ещё одну сессию. В ваших играх сессия попадает в <b>Моя история</b> и учитывается в графиках, сериях и достижениях.",
   "Faster: the clock button": "Быстрее: кнопка с часами",
   "Point at any cover and a clock button appears. It opens the same dialog in one click.": "Наведите курсор на любую обложку, и появится кнопка с часами. Она открывает то же окно одним щелчком.",
-  "Click the clock button on the sample card.": "Нажмите кнопку с часами на примере карточки.",
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Нажмите кнопку с часами на карточке-примере, затем закройте окно или добавьте сессию.",
   "Time play on a console": "Засеките игру на консоли",
   "<b>Start timer</b> counts until you stop it, from this menu or in <b>Now Playing</b>. It keeps counting when PlayCounter restarts.": "<b>Запустить таймер</b> считает, пока вы его не остановите, в этом меню или в <b>Сейчас в игре</b>. Счёт продолжается, даже если PlayCounter перезапустить.",
   "Open <b>Playtime</b> and click <b>Start timer</b>.": "Откройте <b>Время в игре</b> и нажмите <b>Запустить таймер</b>.",

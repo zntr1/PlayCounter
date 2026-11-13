@@ -3778,10 +3778,11 @@ export function GameLibraryCard({
   };
   /** "Log missed session", from the menu or the cover's clock button.
    *  Opening the dialog is what a step ringing either one asks for. */
+  // On a sample the dialog itself is the exercise: closing it or logging a
+  // session finishes the step that asked for it, opening it does not.
   const openLogSession = (entry: string) => {
     startSample(entry);
     setShowAddPlaytime(true);
-    if (demo) finishSample();
   };
   /** A sample shows every entry a real card has. One that cannot work on a
    *  sample answers with this. */
@@ -6693,7 +6694,10 @@ export function GameLibraryCard({
         <AddPlaytimeDialog
           game={game}
           demo={demo}
-          onCancel={() => setShowAddPlaytime(false)}
+          onCancel={() => {
+            setShowAddPlaytime(false);
+            if (demo) finishSample();
+          }}
           onConfirm={handleAddPlaytime}
         />
       ) : null}

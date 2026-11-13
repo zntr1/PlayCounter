@@ -236,7 +236,7 @@
   "The card shows the added time and one more session. On your own games the session is in <b>My History</b> and counts for charts, streaks and achievements.": "卡片显示了增加的时长，游玩次数也多了一次。对你自己的游戏，这条记录会出现在<b>我的历史</b>中，并计入图表、连续记录和成就。",
   "Faster: the clock button": "更快的方法：时钟按钮",
   "Point at any cover and a clock button appears. It opens the same dialog in one click.": "把鼠标移到任意封面上，会出现一个时钟按钮。点一下就能打开同一个对话框。",
-  "Click the clock button on the sample card.": "点击示例卡片上的时钟按钮。",
+  "Click the clock button on the sample card, then close the dialog or log a session.": "点击示例卡片上的时钟按钮，然后关闭对话框或记录一次游玩。",
   "Time play on a console": "统计在主机上的游玩",
   "<b>Start timer</b> counts until you stop it, from this menu or in <b>Now Playing</b>. It keeps counting when PlayCounter restarts.": "<b>开始计时</b>会一直计时，直到你停止它，可以在这个菜单中停止，也可以在<b>正在游玩</b>中停止。PlayCounter 重启后它也会继续计时。",
   "Open <b>Playtime</b> and click <b>Start timer</b>.": "打开<b>游戏时长</b>，点击<b>开始计时</b>。",

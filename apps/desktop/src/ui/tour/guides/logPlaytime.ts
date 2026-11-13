@@ -112,6 +112,8 @@ export function logPlaytimeGuide(): TourDefinition {
         id: "clock",
         view: "games",
         anchor: a("demo-card-log-session"),
+        // Once open, the dialog: closing it or logging a session is the task.
+        anchorTargets: [a("demo-log-session-dialog")],
         interactive: true,
         manualAdvance: true,
         allow: sampleCardAllow,
@@ -120,7 +122,9 @@ export function logPlaytimeGuide(): TourDefinition {
         body: t(
           "Point at any cover and a clock button appears. It opens the same dialog in one click.",
         ),
-        task: t("Click the clock button on the sample card."),
+        task: t(
+          "Click the clock button on the sample card, then close the dialog or log a session.",
+        ),
       },
       {
         id: "timer",

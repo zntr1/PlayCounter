@@ -239,7 +239,7 @@
   "The card shows the added time and one more session. On your own games the session is in <b>My History</b> and counts for charts, streaks and achievements.": "Kafelek pokazuje dodany czas i jedną sesję więcej. Przy własnych grach sesja jest w <b>Moja historia</b> i liczy się do wykresów, serii i osiągnięć.",
   "Faster: the clock button": "Szybciej: przycisk zegara",
   "Point at any cover and a clock button appears. It opens the same dialog in one click.": "Najedź na dowolną okładkę, a pojawi się przycisk zegara. Otwiera to samo okno jednym kliknięciem.",
-  "Click the clock button on the sample card.": "Kliknij przycisk zegara na przykładowym kafelku.",
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Kliknij przycisk zegara na przykładowym kafelku, potem zamknij okno albo dodaj sesję.",
   "Time play on a console": "Mierz grę na konsoli",
   "<b>Start timer</b> counts until you stop it, from this menu or in <b>Now Playing</b>. It keeps counting when PlayCounter restarts.": "<b>Uruchom stoper</b> liczy, dopóki go nie zatrzymasz, z tego menu lub w <b>Teraz grasz</b>. Liczy dalej po ponownym uruchomieniu PlayCounter.",
   "Open <b>Playtime</b> and click <b>Start timer</b>.": "Otwórz <b>Czas gry</b> i kliknij <b>Uruchom stoper</b>.",

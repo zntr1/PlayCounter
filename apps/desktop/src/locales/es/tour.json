@@ -238,7 +238,7 @@
   "The card shows the added time and one more session. On your own games the session is in <b>My History</b> and counts for charts, streaks and achievements.": "La tarjeta muestra el tiempo añadido y una sesión más. En tus juegos reales, la sesión aparece en <b>Mi historial</b> y cuenta para gráficos, rachas y logros.",
   "Faster: the clock button": "Más rápido: el botón del reloj",
   "Point at any cover and a clock button appears. It opens the same dialog in one click.": "Apunta a cualquier portada y aparece un botón de reloj. Abre el mismo diálogo con un clic.",
-  "Click the clock button on the sample card.": "Pulsa el botón del reloj en la tarjeta de ejemplo.",
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Pulsa el botón del reloj en la tarjeta de ejemplo y luego cierra el diálogo o registra una sesión.",
   "Time play on a console": "Cuenta el tiempo en una consola",
   "<b>Start timer</b> counts until you stop it, from this menu or in <b>Now Playing</b>. It keeps counting when PlayCounter restarts.": "<b>Iniciar cronómetro</b> cuenta hasta que lo detengas, desde este menú o en <b>Jugando ahora</b>. Sigue contando aunque PlayCounter se reinicie.",
   "Open <b>Playtime</b> and click <b>Start timer</b>.": "Abre <b>Tiempo de juego</b> y pulsa <b>Iniciar cronómetro</b>.",

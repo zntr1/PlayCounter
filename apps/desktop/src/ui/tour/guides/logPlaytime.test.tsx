@@ -232,15 +232,25 @@ describe("the walk through the guide", () => {
     expect(stepNow()).toBe("open-menu");
   });
 
-  it("opens the dialog from the clock button on the cover and moves on", async () => {
+  it("opens the dialog from the clock button and waits until the player closes it", async () => {
     await start("clock");
     const clock = find(a("demo-card-log-session"));
     expect(clock, "missing the clock button").not.toBeNull();
     expect(clock!.getAttribute("title")).toBe("Log missed session");
     await act(async () => clock!.click());
-    // The dialog, not the menu.
+    // The dialog, not the menu, and it stays open: opening it is not the task.
     expect(find(a("demo-log-session-dialog"))).not.toBeNull();
     expect(find(a("demo-context-menu"))).toBeNull();
+    await wait(1000);
+    expect(stepNow()).toBe("clock");
+    expect(find(a("demo-log-session-dialog"))).not.toBeNull();
+    const cancel = [
+      ...find(
+        a("demo-log-session-dialog"),
+      )!.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((button) => button.textContent?.trim() === "Cancel");
+    expect(cancel, "missing Cancel").toBeDefined();
+    await act(async () => cancel!.click());
     await wait(50);
     expect(stepNow()).toBe("timer");
     // The next step puts the dialog away and opens its menu.
