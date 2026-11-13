@@ -60,7 +60,7 @@ function sampleGuides(): TourDefinition[] {
       version: 2,
       category: "getting-started",
       title: "Quick tour",
-      description: "The essentials in about a minute.",
+      description: "The essentials of PlayCounter in about a minute.",
       duration: "1 min",
       icon: Sparkles,
     }),
@@ -411,6 +411,13 @@ describe("search", () => {
     await type("  artwork ");
     expect(shownTiles()).toEqual(["covers"]);
     expect(shownTopics()).toEqual(["library"]);
+  });
+
+  it("doesn't find a guide by the app's own name", async () => {
+    // "counter" is the Counters guide, not every text that says PlayCounter.
+    await openHub();
+    await type("counter");
+    expect(shownTiles()).toEqual([]);
   });
 
   it("hides the progress and the next guide while a search is typed", async () => {

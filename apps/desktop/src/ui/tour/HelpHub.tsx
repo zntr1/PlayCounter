@@ -154,7 +154,9 @@ function GuideHub({
         shown: all.filter(
           (guide) =>
             !searching ||
+            // The app's name is in many texts and has "counter" inside.
             `${guide.tour.title} ${guide.tour.description}`
+              .replace(/PlayCounter/g, " ")
               .toLowerCase()
               .includes(needle),
         ),
