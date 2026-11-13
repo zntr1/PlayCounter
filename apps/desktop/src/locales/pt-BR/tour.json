@@ -391,12 +391,10 @@
   "A game can sit on several shelves at once. <b>New shelf</b> in the same menu creates a shelf with the game already on it.": "Um jogo pode estar em várias prateleiras ao mesmo tempo. <b>Nova prateleira</b>, no mesmo menu, cria uma prateleira já com o jogo.",
   "Right-click a card, open <b>Shelves</b> and pick your shelf. Dragging the card onto the shelf works too.": "Clique com o botão direito num cartão, abra <b>Prateleiras</b> e escolha a sua. Arrastar o cartão até a prateleira também funciona.",
   "Hide a shelf's games": "Oculte os jogos de uma prateleira",
-  "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "Uma prateleira que você preenche pode manter seus jogos fora de Todos os jogos, Meu histórico e outros lugares. Os jogos continuam na prateleira.",
   "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.": "Clique com o botão direito na sua prateleira, abra <b>Ocultar em</b> e marque <b>Todos os jogos e busca</b>.",
   "A shelf can also fill itself from filters. We opened your shelf and its <b>Filters</b>; the cards below show what matches.": "Uma prateleira também pode se preencher sozinha com filtros. Abrimos sua prateleira e os <b>Filtros</b> dela; os cartões abaixo mostram o que corresponde.",
   "Under <b>Progress</b>, choose <b>In progress</b>.": "Em <b>Progresso</b>, escolha <b>Em andamento</b>.",
   "Save the filters": "Salve os filtros",
-  "From now on, games join or leave this shelf on their own.": "A partir de agora, os jogos entram e saem desta prateleira sozinhos.",
   "Click <b>Save filters</b>.": "Clique em <b>Salvar filtros</b>.",
   "Shelves in your own library": "Prateleiras na sua própria biblioteca",
   "In My Games, right-click a game and open <b>Shelves</b>, or drag it onto a shelf. With many shelves, the ones that do not fit one row wait behind “+N more”.": "Em Meus jogos, clique com o botão direito num jogo e abra <b>Prateleiras</b>, ou arraste-o até uma prateleira. Com muitas prateleiras, as que não cabem numa linha ficam atrás de “+N mais”.",
@@ -619,5 +617,7 @@
   "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "Um pop-up ao iniciar um jogo pode mostrar a nota da campanha. Um pop-up ao salvar uma sessão pode oferecer uma caixa para a nota da sessão. As opções reais ficam em Configurações, em Pop-ups da área de trabalho, e começam desligadas.",
   "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "Clique em <b>Adicionar campanha</b>, digite um nome como “PvP” e pressione <kbd>Enter</kbd>.",
   "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "Ative <b>Notas da sessão nos pop-ups</b>, clique em <b>Adicionar nota da sessão</b> no pop-up de sessão salva, escreva uma linha e clique em <b>Salvar</b>.",
-  "PvP": "PvP"
+  "PvP": "PvP",
+  "Only a shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "Só uma prateleira que você preenche pode manter seus jogos fora de Todos os jogos, Meu histórico e outros lugares. Os jogos continuam na prateleira.",
+  "From now on, games join or leave this shelf on their own, and its hiding pauses until you remove the filters.": "A partir de agora, os jogos entram e saem desta prateleira sozinhos, e a ocultação fica pausada até você remover os filtros."
 }

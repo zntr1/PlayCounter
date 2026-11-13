@@ -391,12 +391,10 @@
   "A game can sit on several shelves at once. <b>New shelf</b> in the same menu creates a shelf with the game already on it.": "Un jeu peut figurer sur plusieurs étagères à la fois. <b>Nouvelle étagère</b>, dans le même menu, crée une étagère où le jeu est déjà.",
   "Right-click a card, open <b>Shelves</b> and pick your shelf. Dragging the card onto the shelf works too.": "Faites un clic droit sur une vignette, ouvrez <b>Étagères</b> et choisissez la vôtre. Glisser la vignette sur l'étagère fonctionne aussi.",
   "Hide a shelf's games": "Masquer les jeux d'une étagère",
-  "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "Une étagère que vous remplissez vous-même peut garder ses jeux hors de Tous les jeux, de Mon historique et d'autres endroits. Les jeux restent sur l'étagère.",
   "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.": "Faites un clic droit sur votre étagère, ouvrez <b>Masquer dans</b> et cochez <b>Tous les jeux et recherche</b>.",
   "A shelf can also fill itself from filters. We opened your shelf and its <b>Filters</b>; the cards below show what matches.": "Une étagère peut aussi se remplir toute seule avec des filtres. Nous avons ouvert votre étagère et ses <b>Filtres</b> ; les vignettes ci-dessous montrent ce qui correspond.",
   "Under <b>Progress</b>, choose <b>In progress</b>.": "Sous <b>Progression</b>, choisissez <b>En cours</b>.",
   "Save the filters": "Enregistrez les filtres",
-  "From now on, games join or leave this shelf on their own.": "Désormais, les jeux entrent dans cette étagère ou en sortent tout seuls.",
   "Click <b>Save filters</b>.": "Cliquez sur <b>Enregistrer les filtres</b>.",
   "Shelves in your own library": "Les étagères dans votre propre bibliothèque",
   "In My Games, right-click a game and open <b>Shelves</b>, or drag it onto a shelf. With many shelves, the ones that do not fit one row wait behind “+N more”.": "Dans Mes jeux, faites un clic droit sur un jeu et ouvrez <b>Étagères</b>, ou glissez-le sur une étagère. Avec beaucoup d'étagères, celles qui ne tiennent pas sur une ligne attendent derrière « +N de plus ».",
@@ -619,5 +617,7 @@
   "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "Une fenêtre au lancement d'un jeu peut afficher la note de la partie. Une fenêtre à l'enregistrement d'une session peut proposer une zone pour la note de session. Les vrais réglages sont dans les Paramètres, sous Fenêtres contextuelles, et désactivés tant que vous ne les activez pas.",
   "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "Cliquez sur <b>Ajouter une partie</b>, tapez un nom comme « PvP » et appuyez sur <kbd>Entrée</kbd>.",
   "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "Activez <b>Notes de session dans les fenêtres</b>, cliquez sur <b>Ajouter une note de session</b> dans la fenêtre de session enregistrée, écrivez une ligne et cliquez sur <b>Enregistrer</b>.",
-  "PvP": "PvP"
+  "PvP": "PvP",
+  "Only a shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "Seule une étagère que vous remplissez vous-même peut garder ses jeux hors de Tous les jeux, de Mon historique et d'autres endroits. Les jeux restent sur l'étagère.",
+  "From now on, games join or leave this shelf on their own, and its hiding pauses until you remove the filters.": "Désormais, les jeux entrent dans cette étagère ou en sortent tout seuls, et le masquage est en pause jusqu'à ce que vous retiriez les filtres."
 }

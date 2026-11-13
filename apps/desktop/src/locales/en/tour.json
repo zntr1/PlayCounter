@@ -390,12 +390,10 @@
   "A game can sit on several shelves at once. <b>New shelf</b> in the same menu creates a shelf with the game already on it.": "A game can sit on several shelves at once. <b>New shelf</b> in the same menu creates a shelf with the game already on it.",
   "Right-click a card, open <b>Shelves</b> and pick your shelf. Dragging the card onto the shelf works too.": "Right-click a card, open <b>Shelves</b> and pick your shelf. Dragging the card onto the shelf works too.",
   "Hide a shelf's games": "Hide a shelf's games",
-  "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.",
   "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.": "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.",
   "A shelf can also fill itself from filters. We opened your shelf and its <b>Filters</b>; the cards below show what matches.": "A shelf can also fill itself from filters. We opened your shelf and its <b>Filters</b>; the cards below show what matches.",
   "Under <b>Progress</b>, choose <b>In progress</b>.": "Under <b>Progress</b>, choose <b>In progress</b>.",
   "Save the filters": "Save the filters",
-  "From now on, games join or leave this shelf on their own.": "From now on, games join or leave this shelf on their own.",
   "Click <b>Save filters</b>.": "Click <b>Save filters</b>.",
   "Shelves in your own library": "Shelves in your own library",
   "In My Games, right-click a game and open <b>Shelves</b>, or drag it onto a shelf. With many shelves, the ones that do not fit one row wait behind “+N more”.": "In My Games, right-click a game and open <b>Shelves</b>, or drag it onto a shelf. With many shelves, the ones that do not fit one row wait behind “+N more”.",
@@ -617,5 +615,7 @@
   "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.",
   "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.",
   "PvP": "PvP",
-  "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.": "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is."
+  "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.": "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.",
+  "Only a shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "Only a shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.",
+  "From now on, games join or leave this shelf on their own, and its hiding pauses until you remove the filters.": "From now on, games join or leave this shelf on their own, and its hiding pauses until you remove the filters."
 }

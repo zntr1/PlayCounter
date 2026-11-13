@@ -389,12 +389,10 @@
   "A game can sit on several shelves at once. <b>New shelf</b> in the same menu creates a shelf with the game already on it.": "一个游戏可以同时在多个分类架上。同一菜单中的<b>新分类架</b>会创建一个已包含该游戏的分类架。",
   "Right-click a card, open <b>Shelves</b> and pick your shelf. Dragging the card onto the shelf works too.": "右键点击一张卡片，打开<b>分类架</b>，选择你的分类架。把卡片拖到分类架上也可以。",
   "Hide a shelf's games": "隐藏分类架里的游戏",
-  "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "你自己填充的分类架可以让它的游戏不出现在“所有游戏”、“我的历史”和其他地方。游戏仍留在分类架上。",
   "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.": "右键点击你的分类架，打开<b>隐藏于</b>，勾选<b>所有游戏和搜索</b>。",
   "A shelf can also fill itself from filters. We opened your shelf and its <b>Filters</b>; the cards below show what matches.": "分类架也可以根据筛选条件自动填充。我们打开了你的分类架和它的<b>筛选</b>；下面的卡片显示了符合条件的游戏。",
   "Under <b>Progress</b>, choose <b>In progress</b>.": "在<b>进度</b>下，选择<b>进行中</b>。",
   "Save the filters": "保存筛选条件",
-  "From now on, games join or leave this shelf on their own.": "从现在起，游戏会自动加入或离开这个分类架。",
   "Click <b>Save filters</b>.": "点击<b>保存筛选条件</b>。",
   "Shelves in your own library": "你自己游戏库里的分类架",
   "In My Games, right-click a game and open <b>Shelves</b>, or drag it onto a shelf. With many shelves, the ones that do not fit one row wait behind “+N more”.": "在“我的游戏”中，右键点击一个游戏并打开<b>分类架</b>，或把它拖到分类架上。分类架太多时，一行放不下的会收在“+N 个”后面。",
@@ -615,5 +613,7 @@
   "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "游戏启动弹窗可以显示周目的笔记。保存游玩记录的弹窗可以提供一个写游玩记录笔记的框。真正的开关在“设置”的“桌面弹窗”下，默认关闭，需要你自己打开。",
   "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "点击<b>添加周目</b>，输入一个名称，比如“PvP”，然后按 <kbd>Enter</kbd>。",
   "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "打开<b>在弹窗中添加游玩记录笔记</b>，在已保存游玩记录的弹窗中点击<b>添加游玩记录笔记</b>，写一行内容，然后点击<b>保存</b>。",
-  "PvP": "PvP"
+  "PvP": "PvP",
+  "Only a shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.": "只有你自己填充的分类架才能让它的游戏不出现在“所有游戏”、“我的历史”和其他地方。游戏仍留在分类架上。",
+  "From now on, games join or leave this shelf on their own, and its hiding pauses until you remove the filters.": "从现在起，游戏会自动加入或离开这个分类架；在你移除筛选条件之前，隐藏会暂停。"
 }

@@ -206,6 +206,12 @@ describe("Favorites & shelves", () => {
     expect(stepId()).toBe("save-filters");
   });
 
+  it("says that only a shelf you fill yourself hides games, and that filters pause it", () => {
+    // A shelf with saved filters never hides (personalLibrary shelfHides).
+    expect(step("hide-shelf").body).toMatch(/^Only a shelf you fill yourself/);
+    expect(step("save-filters").body).toMatch(/hiding pauses/);
+  });
+
   it("keeps the click and one sentence for saving the filters", async () => {
     expect(step("save-filters").task).toBe("Click <b>Save filters</b>.");
     expect(step("save-filters").body.match(/[.!?]/g)).toHaveLength(1);

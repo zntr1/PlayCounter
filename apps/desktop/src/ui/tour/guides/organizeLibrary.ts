@@ -112,7 +112,7 @@ export function organizeLibraryGuide(): TourDefinition {
         ],
         title: t("Hide a shelf's games"),
         body: t(
-          "A shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.",
+          "Only a shelf you fill yourself can keep its games out of All games, My History and other places. The games stay on the shelf.",
         ),
         task: t(
           "Right-click your shelf, open <b>Hide in</b> and tick <b>All games and search</b>.",
@@ -146,7 +146,9 @@ export function organizeLibraryGuide(): TourDefinition {
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [a("demo-organization"), a("demo-library-menu")],
         title: t("Save the filters"),
-        body: t("From now on, games join or leave this shelf on their own."),
+        body: t(
+          "From now on, games join or leave this shelf on their own, and its hiding pauses until you remove the filters.",
+        ),
         task: t("Click <b>Save filters</b>."),
       },
       {
