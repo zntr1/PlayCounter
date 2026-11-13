@@ -17,6 +17,7 @@ import {
   availableStepIndexes,
   backStepIndex,
   nextStepIndex,
+  stepView,
 } from "./tourNavigation";
 
 export { HelpButton } from "./HelpHub";
@@ -362,6 +363,16 @@ function TourRunner() {
     return () => window.clearInterval(timer);
   }, [active.enteredStepAt, active.stepIndex, goTo, step, tour]);
 
+  // A done task whose next step is on another page waits until its Done is
+  // over, so the result stays in view. Back, Skip or closing cancels it.
+  const pendingMove = useRef(0);
+  useEffect(
+    () => () => {
+      window.clearTimeout(pendingMove.current);
+      pendingMove.current = 0;
+    },
+    [active.stepIndex, active.tourId],
+  );
   useEffect(() => {
     if (step?.advanceOn?.type !== "event" || !tour) return;
     const eventName = step.advanceOn.name;
@@ -374,12 +385,27 @@ function TourRunner() {
       );
       // A step with Next still moves on by itself once its task is done.
       if (next >= tour.steps.length) return;
+      if (pendingMove.current) return;
       markSkipped(active.stepIndex, false);
-      if (step.task && tourDoneFlash.ms > 0)
+      const flashes = step.task !== undefined && tourDoneFlash.ms > 0;
+      if (flashes)
         setFlash({
           stepIndex: active.stepIndex,
           message: detail.message ?? null,
         });
+      const { activeView } = useAppStore.getState();
+      const nextView = stepView(
+        tour.steps[next],
+        activeView,
+        active.returnView,
+      );
+      if (flashes && nextView !== activeView) {
+        pendingMove.current = window.setTimeout(() => {
+          pendingMove.current = 0;
+          goTo(next);
+        }, tourDoneFlash.ms);
+        return;
+      }
       goTo(next);
     };
     window.addEventListener(TOUR_EVENT, handler);
@@ -642,8 +668,10 @@ function TourRunner() {
     active.stepIndex,
     present,
   );
-  const shown =
-    flash && tour.steps[flash.stepIndex] ? flash.stepIndex : active.stepIndex;
+  // A step whose task was just done shows Done, also while its next step on
+  // another page waits for it (pendingMove).
+  const flashing = flash !== null && tour.steps[flash.stepIndex] !== undefined;
+  const shown = flashing ? flash.stepIndex : active.stepIndex;
   const hasOwnBackdrop = Boolean(step.ownBackdrop) || appModalOpen;
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
   // Keep the surrounding practice visible without drawing nested rings around
@@ -722,10 +750,10 @@ function TourRunner() {
         tour={tour}
         stepIndex={shown}
         visibleSteps={visibleSteps}
-        done={shown !== active.stepIndex}
+        done={flashing}
         skippedSteps={skippedSteps}
-        missing={missing && shown === active.stepIndex}
-        outcome={shown === active.stepIndex ? outcome : flash!.message}
+        missing={missing && !flashing}
+        outcome={flashing ? flash.message : outcome}
         cardRef={cardRef}
         outcomeRef={outcomeRef}
         style={cardRight === null ? undefined : { right: cardRight }}

@@ -33,7 +33,7 @@ import { tourCounters } from "../tourDemoDetails";
 import { sampleStageForStep } from "../tourDemoGame";
 import { TOUR_DEMO_GAME } from "../tourDemoGame";
 import { findTourElement } from "../tourTargetRect";
-import { TourOverlay } from "../TourUI";
+import { TourOverlay, tourDoneFlash } from "../TourUI";
 import { NEXT_RELEASE } from "./shared";
 
 /* Count deaths and bosses (docs/tours-plan.md, WP6): counters of a game, a
@@ -440,6 +440,48 @@ describe("counting on Now Playing during the guide", () => {
 
   it("has Now Playing show the sample session on “Count while you play”, with or without a game running", () => {
     expect(sampleSessionForStep(step("count")).shown).toBe(true);
+  });
+
+  it("keeps Now Playing in view while the card says Done, then opens the next page", async () => {
+    // The next step is on Settings: the counted tile must stay in sight
+    // for a moment, not vanish with the click.
+    const before = tourDoneFlash.ms;
+    tourDoneFlash.ms = 900;
+    try {
+      await act(async () => store().startTour("counters"));
+      await act(async () => store().goToTourStep(indexOf("count")));
+      await showNowPlaying();
+      const counted = sessionCount();
+      await click(findTourElement(step("count").anchor!)!);
+      expect(sessionCount()).toBe(counted + 1);
+      expect(stepId()).toBe("count");
+      expect(store().activeView).toBe("now");
+      // The card says Done meanwhile.
+      expect(
+        document.querySelector("[data-tour-card]")?.textContent,
+      ).toContain("Done");
+      await act(() => new Promise((resolve) => setTimeout(resolve, 1100)));
+      expect(stepId()).toBe("box");
+      expect(store().activeView).toBe("settings");
+    } finally {
+      tourDoneFlash.ms = before;
+    }
+  });
+
+  it("drops the waiting page switch when the player goes back meanwhile", async () => {
+    const before = tourDoneFlash.ms;
+    tourDoneFlash.ms = 900;
+    try {
+      await act(async () => store().startTour("counters"));
+      await act(async () => store().goToTourStep(indexOf("count")));
+      await showNowPlaying();
+      await click(findTourElement(step("count").anchor!)!);
+      await act(async () => store().goToTourStep(indexOf("shown"), true));
+      await act(() => new Promise((resolve) => setTimeout(resolve, 1100)));
+      expect(stepId()).toBe("shown");
+    } finally {
+      tourDoneFlash.ms = before;
+    }
   });
 
   it("shows the sample's counters as tiles and finishes “Count while you play” on Add one", async () => {
