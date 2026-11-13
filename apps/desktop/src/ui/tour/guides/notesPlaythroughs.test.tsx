@@ -52,6 +52,21 @@ describe("Notes & playthroughs", () => {
     expect(guide.nextTourId).toBe("organize-library");
   });
 
+  it("tells the playthrough's note from a session's note", () => {
+    // What lasts goes in the playthrough's note; where you stopped goes on
+    // the session.
+    for (const id of ["note", "run-note"]) {
+      const text = `${step(id).title} ${step(id).body} ${step(id).task}`;
+      expect(text, id).not.toMatch(/where you stopped|next time/i);
+    }
+    expect(step("note").body).toMatch(/goals/);
+    expect(
+      `${step("session-note").title} ${step("session-note").body}`,
+    ).toMatch(/where you stopped/i);
+    expect(step("popups").body).toMatch(/playthrough's note/);
+    expect(step("popups").body).toMatch(/session note/);
+  });
+
   it("has a step for the active playthrough and one for the playthrough's note", () => {
     const ids = guide.steps.map((entry) => entry.id);
     expect(ids.indexOf("run-note")).toBe(ids.indexOf("active-run") + 1);

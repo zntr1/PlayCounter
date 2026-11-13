@@ -51,12 +51,12 @@ export function notesPlaythroughsGuide(): TourDefinition {
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [a("demo-journal-note")],
-        title: t("Write a note for next time"),
+        title: t("A note for the whole playthrough"),
         body: t(
-          "This note belongs to <b>Default playthrough</b>, the one every game starts with. Clicking somewhere else saves it too.",
+          "This note belongs to <b>Default playthrough</b>, the one every game starts with. Keep what lasts here: goals, your build, things to remember. Clicking elsewhere saves it too.",
         ),
         task: t(
-          "Type where you stopped, for example “Finish the Westfall quests”, and click <b>Save note</b>.",
+          "Type a goal, for example “Reach level 60 before the raid”, and click <b>Save note</b>.",
         ),
       },
       {
@@ -108,7 +108,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
           "Each playthrough keeps its own note. The note of <b>Default playthrough</b> is not copied over.",
         ),
         task: t(
-          "Write a line for your new playthrough and click <b>Save note</b>.",
+          "Write a goal for your new playthrough and click <b>Save note</b>.",
         ),
       },
       {
@@ -145,12 +145,12 @@ export function notesPlaythroughsGuide(): TourDefinition {
         manualAdvance: true,
         advanceOn: { type: "event", name: "demo.step-completed" },
         allow: [a("demo-playthrough-sessions")],
-        title: t("Write a note for one session"),
+        title: t("Note where you stopped"),
         body: t(
-          "A session can carry its own note, the log entry for that evening. My History shows it under the session too.",
+          "What happened and where you stopped go on the session itself: a line under it, here and in My History.",
         ),
         task: t(
-          "Click <b>Add session note</b>, the pen on a session row, write a line and press <kbd>Enter</kbd>.",
+          "Click <b>Add session note</b>, the pen on a session row, write where you stopped and press <kbd>Enter</kbd>.",
         ),
       },
       {
@@ -183,7 +183,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
         allow: [a("demo-popup-preview")],
         title: t("Take notes from the popup"),
         body: t(
-          "A popup can show your note when a game starts and offer a note box when a session is saved. The real switches are in Settings under Desktop popups, and off until you turn them on.",
+          "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.",
         ),
         task: t(
           "Turn on <b>Session notes in popups</b>, then click <b>Add session note</b> in the saved-session popup.",
