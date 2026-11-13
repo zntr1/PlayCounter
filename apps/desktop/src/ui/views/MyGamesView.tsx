@@ -2479,7 +2479,10 @@ export function MyGamesView({
         onDismiss={libraryDrag.dismissHint}
       />
       {layout.panel === "empty-library" ? (
-        <EmptyLibraryPanel platform={platform} />
+        <EmptyLibraryPanel
+          platform={platform}
+          onAddGame={() => setAddingGame(true)}
+        />
       ) : (
         <>
           {heroVisible && featured ? (
@@ -3300,9 +3303,12 @@ export function MyGamesView({
 
 function EmptyLibraryPanel({
   platform,
+  onAddGame,
 }: {
   platform: ReturnType<typeof currentPlatform>;
+  onAddGame: () => void;
 }) {
+  const isOffline = useIsOffline();
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setLibraryImportProvider = useAppStore(
     (state) => state.setLibraryImportProvider,
@@ -3326,6 +3332,21 @@ function EmptyLibraryPanel({
             "Start a game from any launcher or a standalone install. Keep PlayCounter running, and it will add recognized games here and track your playtime automatically.",
           )}
         </p>
+        <Button
+          variant="primary"
+          icon={Plus}
+          className="mx-auto mt-6"
+          data-controller-item="view-link"
+          disabled={isOffline}
+          title={
+            isOffline
+              ? t("Needs a connection")
+              : t("Add a game by name, with or without its .exe")
+          }
+          onClick={onAddGame}
+        >
+          {t("Add game")}
+        </Button>
       </div>
       {importProviders.length > 0 ? (
         <div className="border-t border-border/60 px-6 py-6">
