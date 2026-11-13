@@ -6,7 +6,6 @@
   "Select": "Sélectionner",
   "No sample games match this view.": "Aucun jeu d'exemple ne correspond à cette vue.",
   "Show all sample games": "Afficher tous les jeux d'exemple",
-  "Speedrun": "Speedrun",
   "Finish the Westfall quests, then head to Stormwind.": "Terminer les quêtes de la Marche de l'Ouest, puis aller à Hurlevent.",
   "Playthrough names in popups": "Noms de partie dans les fenêtres",
   "Notes in game-start popups": "Notes dans les fenêtres de lancement",
@@ -372,7 +371,6 @@
   "Every game has a journal for notes and playthroughs. This is a sample card: nothing is saved, and your own games stay as they are.": "Chaque jeu a un journal pour les notes et les parties. Ceci est une vignette d'exemple : rien n'est enregistré, et vos propres jeux restent inchangés.",
   "Right-click the card and choose <b>Journal</b>.": "Faites un clic droit sur la vignette et choisissez <b>Journal</b>.",
   "Each playthrough has its own note, playtime and sessions. What you played before stays in <b>Default playthrough</b>.": "Chaque partie a sa propre note, son temps de jeu et ses sessions. Ce que vous avez joué avant reste dans <b>Partie par défaut</b>.",
-  "Click <b>Add playthrough</b>, type a name such as “Speedrun” and press <kbd>Enter</kbd>.": "Cliquez sur <b>Ajouter une partie</b>, tapez un nom comme « Speedrun » et appuyez sur <kbd>Entrée</kbd>.",
   "New sessions count towards the playthrough marked <b>Active</b>. A new playthrough becomes active right away.": "Les nouvelles sessions comptent pour la partie marquée <b>Active</b>. Une nouvelle partie devient active aussitôt.",
   "Click <b>Default playthrough</b> in the list, then <b>Make active</b>.": "Cliquez sur <b>Partie par défaut</b> dans la liste, puis sur <b>Rendre active</b>.",
   "Give the playthrough its own note": "Donnez sa propre note à la partie",
@@ -442,7 +440,6 @@
   "Press one of the three and finish its dialog.": "Appuyez sur l'un des trois et terminez sa fenêtre.",
   "In the app, emulator sessions appear in My Games and History next to your PC games. The guide <b>Understand game badges</b> explains the badge on this card.": "Dans l'application, les sessions d'émulateur apparaissent dans Mes jeux et l'historique, à côté de vos jeux PC. Le guide <b>Comprendre les badges des jeux</b> explique le badge de cette vignette.",
   "<b>Detect emulator games</b> is on by default. Turn it off here if you never play in emulators. Lookups send the recognized title or disc ID, never a full local path or window title.": "<b>Détecter les jeux d'émulateur</b> est activé par défaut. Désactivez-le ici si vous ne jouez jamais dans des émulateurs. Les recherches envoient le titre ou l'identifiant de disque reconnu, jamais un chemin local complet ni un titre de fenêtre.",
-  "Turn on <b>Session notes in popups</b>, then click <b>Add session note</b> in the saved-session popup.": "Activez <b>Notes de session dans les fenêtres</b>, puis cliquez sur <b>Ajouter une note de session</b> dans la fenêtre de session enregistrée.",
   "Count apps, apart from games": "Compter les applications, à part des jeux",
   "<b>Software</b> counts how long apps like Discord or Spotify run. It never shows in Now Playing or your game stats. These are sample apps: nothing is saved.": "<b>Logiciels</b> compte combien de temps tournent des applications comme Discord ou Spotify. Ils n'apparaissent jamais dans En jeu ni dans vos statistiques de jeu. Ce sont des applications d'exemple : rien n'est enregistré.",
   "Track an app as software": "Suivre une application comme logiciel",
@@ -619,5 +616,8 @@
   "Note where you stopped": "Notez où vous en êtes",
   "What happened and where you stopped go on the session itself: a line under it, here and in My History.": "Ce qui s'est passé et où vous en êtes vont sur la session elle-même : une ligne dessous, ici et dans Mon historique.",
   "Click <b>Add session note</b>, the pen on a session row, write where you stopped and press <kbd>Enter</kbd>.": "Cliquez sur <b>Ajouter une note de session</b>, le crayon sur la ligne d'une session, écrivez où vous en êtes et appuyez sur <kbd>Entrée</kbd>.",
-  "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "Une fenêtre au lancement d'un jeu peut afficher la note de la partie. Une fenêtre à l'enregistrement d'une session peut proposer une zone pour la note de session. Les vrais réglages sont dans les Paramètres, sous Fenêtres contextuelles, et désactivés tant que vous ne les activez pas."
+  "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "Une fenêtre au lancement d'un jeu peut afficher la note de la partie. Une fenêtre à l'enregistrement d'une session peut proposer une zone pour la note de session. Les vrais réglages sont dans les Paramètres, sous Fenêtres contextuelles, et désactivés tant que vous ne les activez pas.",
+  "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "Cliquez sur <b>Ajouter une partie</b>, tapez un nom comme « PvP » et appuyez sur <kbd>Entrée</kbd>.",
+  "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "Activez <b>Notes de session dans les fenêtres</b>, cliquez sur <b>Ajouter une note de session</b> dans la fenêtre de session enregistrée, écrivez une ligne et cliquez sur <b>Enregistrer</b>.",
+  "PvP": "PvP"
 }

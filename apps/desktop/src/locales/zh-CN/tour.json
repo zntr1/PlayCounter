@@ -6,7 +6,6 @@
   "Select": "选择",
   "No sample games match this view.": "没有符合此视图的示例游戏。",
   "Show all sample games": "显示所有示例游戏",
-  "Speedrun": "速通",
   "Finish the Westfall quests, then head to Stormwind.": "完成西部荒野任务，然后前往暴风城。",
   "Playthrough names in popups": "在弹窗中显示周目名称",
   "Notes in game-start popups": "在游戏启动弹窗中显示笔记",
@@ -370,7 +369,6 @@
   "Every game has a journal for notes and playthroughs. This is a sample card: nothing is saved, and your own games stay as they are.": "每个游戏都有一本日志，用来记笔记和周目。这是一张示例卡片：不会保存任何内容，你自己的游戏保持不变。",
   "Right-click the card and choose <b>Journal</b>.": "右键点击卡片，选择<b>日志</b>。",
   "Each playthrough has its own note, playtime and sessions. What you played before stays in <b>Default playthrough</b>.": "每个周目都有自己的笔记、游戏时长和游玩记录。你之前玩的内容保留在<b>默认周目</b>中。",
-  "Click <b>Add playthrough</b>, type a name such as “Speedrun” and press <kbd>Enter</kbd>.": "点击<b>添加周目</b>，输入一个名称，比如“速通”，然后按 <kbd>Enter</kbd>。",
   "New sessions count towards the playthrough marked <b>Active</b>. A new playthrough becomes active right away.": "新的游玩记录会计入标有<b>当前</b>的周目。新周目会立即成为当前周目。",
   "Click <b>Default playthrough</b> in the list, then <b>Make active</b>.": "在列表中点击<b>默认周目</b>，然后点击<b>设为当前周目</b>。",
   "Give the playthrough its own note": "给周目写自己的笔记",
@@ -438,7 +436,6 @@
   "Press one of the three and finish its dialog.": "点击这三个之一，并完成它的对话框。",
   "In the app, emulator sessions appear in My Games and History next to your PC games. The guide <b>Understand game badges</b> explains the badge on this card.": "在应用中，模拟器的游玩记录会和你的电脑游戏一起显示在“我的游戏”和历史中。指南<b>了解游戏徽章</b>会解释这张卡片上的徽章。",
   "<b>Detect emulator games</b> is on by default. Turn it off here if you never play in emulators. Lookups send the recognized title or disc ID, never a full local path or window title.": "<b>检测模拟器游戏</b>默认开启。如果你从不在模拟器中游玩，可以在这里关闭。查询只会发送识别出的标题或光盘 ID，绝不会发送完整的本地路径或窗口标题。",
-  "Turn on <b>Session notes in popups</b>, then click <b>Add session note</b> in the saved-session popup.": "打开<b>在弹窗中添加游玩记录笔记</b>，然后在已保存游玩记录的弹窗中点击<b>添加游玩记录笔记</b>。",
   "Count apps, apart from games": "统计应用，与游戏分开",
   "<b>Software</b> counts how long apps like Discord or Spotify run. It never shows in Now Playing or your game stats. These are sample apps: nothing is saved.": "<b>软件</b>统计 Discord 或 Spotify 等应用的运行时长。它绝不会出现在“正在游玩”或你的游戏统计中。这些是示例应用：不会保存任何内容。",
   "Track an app as software": "把应用记录为软件",
@@ -615,5 +612,8 @@
   "Note where you stopped": "记下你玩到哪里",
   "What happened and where you stopped go on the session itself: a line under it, here and in My History.": "发生了什么、玩到哪里，都写在这次游玩记录上：它下方的一行，这里和“我的历史”都会显示。",
   "Click <b>Add session note</b>, the pen on a session row, write where you stopped and press <kbd>Enter</kbd>.": "点击<b>添加游玩记录笔记</b>，也就是游玩记录行上的那支笔，写下你玩到哪里，然后按 <kbd>Enter</kbd>。",
-  "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "游戏启动弹窗可以显示周目的笔记。保存游玩记录的弹窗可以提供一个写游玩记录笔记的框。真正的开关在“设置”的“桌面弹窗”下，默认关闭，需要你自己打开。"
+  "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "游戏启动弹窗可以显示周目的笔记。保存游玩记录的弹窗可以提供一个写游玩记录笔记的框。真正的开关在“设置”的“桌面弹窗”下，默认关闭，需要你自己打开。",
+  "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "点击<b>添加周目</b>，输入一个名称，比如“PvP”，然后按 <kbd>Enter</kbd>。",
+  "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "打开<b>在弹窗中添加游玩记录笔记</b>，在已保存游玩记录的弹窗中点击<b>添加游玩记录笔记</b>，写一行内容，然后点击<b>保存</b>。",
+  "PvP": "PvP"
 }

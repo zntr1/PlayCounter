@@ -91,8 +91,8 @@ type ExerciseProgress = {
   /** Each sample session's own note. */
   sessionNotes: string[];
   finishedRuns: number;
-  /** How often "Add session note" was pressed in the popup preview. */
-  noteBoxes: number;
+  /** How often a note was saved from the popup preview's note box. */
+  popupNotesSaved: number;
   gtaTier: string | null;
   sortKey: MyGamesSortKey;
   tierFilter: string | null;
@@ -122,7 +122,7 @@ export function exerciseDone(
     case "notes-playthroughs:finish-run":
       return now.finishedRuns > before.finishedRuns;
     case "notes-playthroughs:popups":
-      return now.noteBoxes > before.noteBoxes;
+      return now.popupNotesSaved > before.popupNotesSaved;
     case "organize-library:favorite":
       return now.favorites > before.favorites;
     case "organize-library:fill-shelf":
@@ -232,7 +232,7 @@ function PracticeLibrary({
   const [popupNotes, setPopupNotes] = useState(false);
   const [popupSessionNotes, setPopupSessionNotes] = useState(false);
   const [noteBox, setNoteBox] = useState(false);
-  const [noteBoxes, setNoteBoxes] = useState(0);
+  const [popupNotesSaved, setPopupNotesSaved] = useState(0);
   useStore(store, (s) => s.gameJournals);
   const sampleJournal = getGameJournal(store.getState(), LIBRARY_TOUR_GAME);
   const view: MyGamesCardSize = settings.libraryCardSize ?? "grid";
@@ -378,7 +378,7 @@ function PracticeLibrary({
         ].includes(stepId);
         // The steps after "Start a new playthrough" work on that playthrough.
         if (onRun && !wow().playthroughs.length)
-          state().createPlaythrough(LIBRARY_TOUR_GAME, t("Speedrun"));
+          state().createPlaythrough(LIBRARY_TOUR_GAME, t("PvP"));
         const run = wow().playthroughs.at(-1);
         if (run && ["active-run", "finish-run"].includes(stepId)) {
           if (run.completedAt)
@@ -570,7 +570,7 @@ function PracticeLibrary({
       .map((session) => session.note ?? ""),
     finishedRuns: sampleJournal.playthroughs.filter((run) => run.completedAt)
       .length,
-    noteBoxes,
+    popupNotesSaved,
     gtaTier: journalFor(gta).tier ?? null,
     sortKey,
     tierFilter: filters.tier ?? null,
@@ -747,11 +747,7 @@ function PracticeLibrary({
                     preview
                     message={message}
                     onFinished={() => {}}
-                    onAction={() => {
-                      setNoteBox(true);
-                      // Pressing the button is what the step asks for.
-                      setNoteBoxes((count) => count + 1);
-                    }}
+                    onAction={() => setNoteBox(true)}
                   />
                 </figure>
               ))}
@@ -781,6 +777,10 @@ function PracticeLibrary({
                     onClose={(note) => {
                       if (note !== null)
                         store.getState().setSessionNote(noteSession.id, note);
+                      // A note written and saved is what the step asks
+                      // for; opening the box alone is not.
+                      if (note?.trim())
+                        setPopupNotesSaved((count) => count + 1);
                       setNoteBox(false);
                     }}
                   />

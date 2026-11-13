@@ -6,7 +6,6 @@
   "Select": "Wybierz",
   "No sample games match this view.": "Żadna przykładowa gra nie pasuje do tego widoku.",
   "Show all sample games": "Pokaż wszystkie przykładowe gry",
-  "Speedrun": "Speedrun",
   "Finish the Westfall quests, then head to Stormwind.": "Dokończ zadania w Westfall, potem ruszaj do Stormwind.",
   "Playthrough names in popups": "Nazwy przejść w okienkach",
   "Notes in game-start popups": "Notatki w okienkach startu gry",
@@ -373,7 +372,6 @@
   "Every game has a journal for notes and playthroughs. This is a sample card: nothing is saved, and your own games stay as they are.": "Każda gra ma dziennik na notatki i przejścia. To przykładowy kafelek: nic nie jest zapisywane, a twoje gry zostają bez zmian.",
   "Right-click the card and choose <b>Journal</b>.": "Kliknij kafelek prawym przyciskiem i wybierz <b>Dziennik</b>.",
   "Each playthrough has its own note, playtime and sessions. What you played before stays in <b>Default playthrough</b>.": "Każde przejście ma własną notatkę, czas gry i sesje. To, w co grano wcześniej, zostaje w <b>Domyślne przejście</b>.",
-  "Click <b>Add playthrough</b>, type a name such as “Speedrun” and press <kbd>Enter</kbd>.": "Kliknij <b>Dodaj przejście</b>, wpisz nazwę, np. „Speedrun”, i naciśnij <kbd>Enter</kbd>.",
   "New sessions count towards the playthrough marked <b>Active</b>. A new playthrough becomes active right away.": "Nowe sesje liczą się do przejścia oznaczonego jako <b>Aktywne</b>. Nowe przejście od razu staje się aktywne.",
   "Click <b>Default playthrough</b> in the list, then <b>Make active</b>.": "Kliknij <b>Domyślne przejście</b> na liście, potem <b>Ustaw jako aktywne</b>.",
   "Give the playthrough its own note": "Daj przejściu własną notatkę",
@@ -444,7 +442,6 @@
   "Press one of the three and finish its dialog.": "Naciśnij jeden z trzech i dokończ jego okno.",
   "In the app, emulator sessions appear in My Games and History next to your PC games. The guide <b>Understand game badges</b> explains the badge on this card.": "W aplikacji sesje emulatorów pojawiają się w Moich grach i Historii obok gier z PC. Przewodnik <b>Zrozum odznaki gier</b> wyjaśnia odznakę na tym kafelku.",
   "<b>Detect emulator games</b> is on by default. Turn it off here if you never play in emulators. Lookups send the recognized title or disc ID, never a full local path or window title.": "<b>Wykrywaj gry w emulatorach</b> jest domyślnie włączone. Wyłącz to tutaj, jeśli nigdy nie grasz w emulatorach. Zapytania wysyłają rozpoznany tytuł lub ID płyty, nigdy pełnej ścieżki ani tytułu okna.",
-  "Turn on <b>Session notes in popups</b>, then click <b>Add session note</b> in the saved-session popup.": "Włącz <b>Notatki do sesji w okienkach</b>, potem kliknij <b>Dodaj notatkę do sesji</b> w okienku zapisanej sesji.",
   "Count apps, apart from games": "Licz aplikacje osobno od gier",
   "<b>Software</b> counts how long apps like Discord or Spotify run. It never shows in Now Playing or your game stats. These are sample apps: nothing is saved.": "<b>Oprogramowanie</b> liczy, jak długo działają aplikacje takie jak Discord czy Spotify. Nigdy nie pojawia się w Teraz grasz ani w statystykach gier. To przykładowe aplikacje: nic nie jest zapisywane.",
   "Track an app as software": "Śledź aplikację jako oprogramowanie",
@@ -621,5 +618,8 @@
   "Note where you stopped": "Zapisz, gdzie skończono",
   "What happened and where you stopped go on the session itself: a line under it, here and in My History.": "To, co się działo i gdzie skończono, trafia do samej sesji: linijka pod nią, tutaj i w Mojej historii.",
   "Click <b>Add session note</b>, the pen on a session row, write where you stopped and press <kbd>Enter</kbd>.": "Kliknij <b>Dodaj notatkę do sesji</b>, czyli pióro w wierszu sesji, wpisz, gdzie skończono, i naciśnij <kbd>Enter</kbd>.",
-  "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "Okienko przy starcie gry może pokazać notatkę przejścia. Okienko po zapisaniu sesji może zaproponować pole na notatkę do sesji. Prawdziwe przełączniki są w Ustawieniach w Okienka na pulpicie i są wyłączone, dopóki ich nie włączysz."
+  "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "Okienko przy starcie gry może pokazać notatkę przejścia. Okienko po zapisaniu sesji może zaproponować pole na notatkę do sesji. Prawdziwe przełączniki są w Ustawieniach w Okienka na pulpicie i są wyłączone, dopóki ich nie włączysz.",
+  "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "Kliknij <b>Dodaj przejście</b>, wpisz nazwę, np. „PvP”, i naciśnij <kbd>Enter</kbd>.",
+  "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "Włącz <b>Notatki do sesji w okienkach</b>, kliknij <b>Dodaj notatkę do sesji</b> w okienku zapisanej sesji, wpisz linijkę i kliknij <b>Zapisz</b>.",
+  "PvP": "PvP"
 }

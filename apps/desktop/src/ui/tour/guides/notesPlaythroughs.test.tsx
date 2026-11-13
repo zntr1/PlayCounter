@@ -146,7 +146,7 @@ describe("Notes & playthroughs", () => {
         /^Playthrough for session/,
       );
       await click(target());
-      expect(target().textContent).toBe("Speedrun");
+      expect(target().textContent).toBe("PvP");
       await click(target());
     }
     // Back, or a click on the finished step in the card's list.
@@ -248,6 +248,10 @@ describe("Notes & playthroughs", () => {
     expect(q("demo-popup-saved").contains(target())).toBe(true);
     await click(target());
     expect(target().getAttribute("data-tour")).toBe("demo-popup-note-box");
+    // Opening the box is not the task: it stays open for the note.
+    await finishStep(2000);
+    expect(stepId()).toBe("popups");
+    expect(has("demo-popup-note-box")).toBe(true);
     const field = sessionField(target());
     await type(field, "Beat the raid boss");
     await press(field, "Enter");
@@ -258,11 +262,21 @@ describe("Notes & playthroughs", () => {
     expect(useAppStore.getState().gameJournals).toEqual({});
   });
 
-  it("starts the popup step fresh after coming back", async () => {
+  it("does not finish when the note box is cancelled", async () => {
     await startGuide("notes-playthroughs", "popups");
     await click(target());
     await click(target());
     await press(sessionField(target()), "Escape");
+    await finishStep(2000);
+    expect(stepId()).toBe("popups");
+  });
+
+  it("starts the popup step fresh after coming back", async () => {
+    await startGuide("notes-playthroughs", "popups");
+    await click(target());
+    await click(target());
+    await type(sessionField(target()), "Beat the raid boss");
+    await press(sessionField(target()), "Enter");
     await finishStep();
     expect(stepId()).toBe("finish");
     await goTo("popups", true);

@@ -73,7 +73,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
           "Each playthrough has its own note, playtime and sessions. What you played before stays in <b>Default playthrough</b>.",
         ),
         task: t(
-          "Click <b>Add playthrough</b>, type a name such as “Speedrun” and press <kbd>Enter</kbd>.",
+          "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.",
         ),
       },
       {
@@ -186,7 +186,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
           "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.",
         ),
         task: t(
-          "Turn on <b>Session notes in popups</b>, then click <b>Add session note</b> in the saved-session popup.",
+          "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.",
         ),
       },
       {

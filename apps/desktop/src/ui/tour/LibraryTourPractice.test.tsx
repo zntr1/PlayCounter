@@ -383,7 +383,7 @@ it("lets a learner cancel and confirm deletion inside the private journal", asyn
   await act(() => button("Delete playthrough").click());
   expect(
     document.querySelector('[data-tour="demo-playthrough-list"]')?.textContent,
-  ).not.toContain("Speedrun");
+  ).not.toContain("PvP");
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
