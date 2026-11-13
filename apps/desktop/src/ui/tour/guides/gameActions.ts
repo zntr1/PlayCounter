@@ -19,7 +19,7 @@ const tryIt = {
 export function gameActionsGuide(): TourDefinition {
   return {
     id: "game-actions",
-    version: 5,
+    version: 6,
     kind: "guide",
     category: "library",
     icon: SlidersHorizontal,
@@ -97,22 +97,6 @@ export function gameActionsGuide(): TourDefinition {
       },
       {
         ...tryIt,
-        id: "matches",
-        anchorTargets: [
-          a("demo-match-check-use"),
-          a("demo-menu-check-matches"),
-          a("demo-menu-matching"),
-        ],
-        title: t("Check for matches"),
-        body: t(
-          "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.",
-        ),
-        task: t(
-          "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.",
-        ),
-      },
-      {
-        ...tryIt,
         id: "wrong-match",
         // The answers once the report is open; "It's a different game" hands
         // over to the sample search.
@@ -129,18 +113,6 @@ export function gameActionsGuide(): TourDefinition {
         ),
         task: t(
           "Open <b>Matching</b>, click <b>Report Wrong Match</b> and pick an answer.",
-        ),
-      },
-      {
-        ...tryIt,
-        id: "convert",
-        anchorTargets: [a("demo-menu-convert-custom"), a("demo-menu-matching")],
-        title: t("Convert to a custom game"),
-        body: t(
-          "For a game file no database knows correctly: you name the game yourself. Its playtime stays, and the change is only on this PC.",
-        ),
-        task: t(
-          "Open <b>Matching</b>, click <b>Convert to Custom Game</b> and confirm the name.",
         ),
       },
       {

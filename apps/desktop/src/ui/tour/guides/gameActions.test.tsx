@@ -24,19 +24,17 @@ const index = (id: string) =>
 const a = (name: string) => `[data-tour="${name}"]`;
 
 describe("the guide's steps", () => {
-  it("go through the menu from top to bottom, Convert in a step of its own", () => {
+  it("go through the menu from top to bottom", () => {
     expect(guide().steps.map((entry) => entry.id)).toEqual([
       "intro",
       "open-menu",
       "details",
       "history",
       "playtime",
-      "matches",
       "wrong-match",
-      "convert",
       "remove",
     ]);
-    expect(guide().version).toBe(5);
+    expect(guide().version).toBe(6);
     expect(guide().release).toBeUndefined();
     expect(guide().demoGame).toBe(true);
   });
@@ -102,9 +100,7 @@ describe("the guide's steps", () => {
       "open-menu",
       "details",
       "history",
-      "matches",
       "wrong-match",
-      "convert",
     ]);
     for (const entry of tasks) {
       expect(entry.interactive, entry.id).toBe(true);
@@ -122,10 +118,15 @@ describe("the guide's steps", () => {
       a("demo-action-result"),
       a("demo-menu-ignore"),
     ]);
-    expect(step("convert").anchorTargets).toEqual([
-      a("demo-menu-convert-custom"),
-      a("demo-menu-matching"),
-    ]);
+  });
+
+  it("leave custom games to a guide of their own", () => {
+    // Check for Matches and Convert to Custom Game are about custom games.
+    for (const entry of guide().steps)
+      expect(
+        `${entry.title} ${entry.body} ${entry.task ?? ""}`,
+        entry.id,
+      ).not.toMatch(/Check for Matches|Convert to Custom Game|custom game/i);
   });
 
   it("lead on to logging playtime", () => {
@@ -247,24 +248,6 @@ describe("the walk through the guide", () => {
     ).toEqual(["Log missed session", "Adjust total playtime", "Start timer"]);
   });
 
-  it("finishes Check for Matches once another match is used", async () => {
-    await start("matches");
-    await click(a("demo-menu-matching"));
-    await click(a("demo-menu-check-matches"));
-    const dialog = find(a("demo-match-check-dialog"));
-    expect(dialog, "missing the match check dialog").not.toBeNull();
-    // The real dialog with bundled results: nothing is looked up.
-    expect(dialog!.textContent).toContain("Current match");
-    const igdb = [
-      ...dialog!.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"),
-    ].find((button) => button.textContent?.includes("IGDB"));
-    expect(igdb, "missing the IGDB match").toBeDefined();
-    await act(async () => igdb!.click());
-    await click(a("demo-match-check-use"));
-    await wait(50);
-    expect(stepNow()).toBe("wrong-match");
-  });
-
   it("asks what the file really is, with the five answers of the real dialog", async () => {
     await start("wrong-match");
     await click(a("demo-menu-matching"));
@@ -281,26 +264,10 @@ describe("the walk through the guide", () => {
     await clickButton("It doesn't belong to", a("demo-report-dialog"));
     await clickButton("Remove from game", a("demo-report-dialog"));
     await wait(50);
-    expect(stepNow()).toBe("convert");
+    expect(stepNow()).toBe("remove");
     // Nothing left this PC and the sample is still there.
     expect(useAppStore.getState().rejectedGameFiles ?? []).toEqual([]);
     expect(find(a("demo-game-card"))).not.toBeNull();
-  });
-
-  it("finishes Convert to Custom Game with the name confirmed", async () => {
-    await start("convert");
-    await click(a("demo-menu-matching"));
-    await click(a("demo-menu-convert-custom"));
-    expect(find(a("demo-game-name-dialog"))).not.toBeNull();
-    await act(async () =>
-      document
-        .getElementById("game-name-form")!
-        .dispatchEvent(
-          new Event("submit", { bubbles: true, cancelable: true }),
-        ),
-    );
-    await wait(50);
-    expect(stepNow()).toBe("remove");
   });
 
   it("shows on Ignore Game where it can be undone, and gives the sample back", async () => {
