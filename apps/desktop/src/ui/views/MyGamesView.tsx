@@ -6542,7 +6542,7 @@ export function GameLibraryCard({
     if (demoAction === "matching")
       return (
         <TourSampleSearch
-          exeName={game.exeNames[0] ?? "Wow.exe"}
+          exeName={game.exeNames[0] ?? TOUR_DEMO_GAME.exeName}
           onClose={() => setDemoAction(null)}
           onConfirm={(choice) => {
             // A game the player added stays their own after Change Game….
@@ -6652,7 +6652,7 @@ export function GameLibraryCard({
                   );
                 }}
               >
-                {t("Use sample Wow.exe")}
+                {t("Use sample {{file}}", { file: TOUR_DEMO_GAME.exeName })}
               </Button>
               <Button
                 disabled={!demoLaunchPath}

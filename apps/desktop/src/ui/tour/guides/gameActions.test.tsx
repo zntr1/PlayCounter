@@ -260,7 +260,7 @@ describe("the walk through the guide", () => {
       "It's a different game",
       "It's an app, ignore it",
       "It's an app, count its time",
-      "It doesn't belong to World of Warcraft",
+      "It doesn't belong to Diablo IV",
       "It's part of the game, not the game",
     ])
       expect(dialog.textContent, answer).toContain(answer);

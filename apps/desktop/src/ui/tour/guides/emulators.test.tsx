@@ -233,7 +233,7 @@ describe("the sample match", () => {
     const search = one('[data-tour="demo-sample-search"]');
     await click(
       [...search.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-        button.textContent?.includes("World of Warcraft"),
+        button.textContent?.includes("Diablo IV"),
       )!,
     );
     await click(buttonNamed("Confirm sample match", search));

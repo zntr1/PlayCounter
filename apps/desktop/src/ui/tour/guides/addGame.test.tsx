@@ -215,11 +215,11 @@ describe("the walk through the guide", () => {
     await start("search");
     // Entering the step set the stage: the dialog is open.
     expect(find(a("demo-add-game-dialog"))).not.toBeNull();
-    await typeInto(a("demo-add-game-search"), "World");
+    await typeInto(a("demo-add-game-search"), "Diablo");
     await click(`${a("demo-add-game-dialog")} button[type="submit"]`);
     await wait(100);
     const results = find(a("demo-add-game-results"));
-    expect(results?.textContent).toContain("World of Warcraft");
+    expect(results?.textContent).toContain("Diablo IV");
     expect(stepNow()).toBe("result");
     expectNothingLeftThisPc();
   });
@@ -250,7 +250,7 @@ describe("the walk through the guide", () => {
     expect(pick).toBeDefined();
     await act(async () => pick!.click());
     expect(pickFile).not.toHaveBeenCalled();
-    expect(find(a("demo-add-game-dialog"))!.textContent).toContain("Wow.exe");
+    expect(find(a("demo-add-game-dialog"))!.textContent).toContain("Diablo IV.exe");
   });
 
   it("closes the dialog when the step does not need it, entered from anywhere", async () => {

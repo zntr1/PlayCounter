@@ -22,7 +22,7 @@ vi.mock("../../gameDetails", () => ({
    what a real card's menu shows (docs/tours-plan.md, rule 4). */
 
 const DATE = "2026-09-28T12:00:00.000Z";
-const WOW_PATH = "C:\\Games\\World of Warcraft\\_retail_\\Wow.exe";
+const DIABLO_PATH = "C:\\Games\\Diablo IV\\Diablo IV.exe";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -53,14 +53,14 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-/** A real World of Warcraft as the sample pretends to be one: found by its
+/** A real Diablo IV as the sample pretends to be one: found by its
  *  game file, matched by the community, started once from PlayCounter. */
-function addRealWorldOfWarcraft() {
+function addRealDiabloIV() {
   useAppStore.getState().setExeCacheEntry({
-    exeName: "Wow.exe",
+    exeName: "Diablo IV.exe",
     state: "matched",
     gameId: 77,
-    gameName: "World of Warcraft",
+    gameName: "Diablo IV",
     coverUrl: "",
     source: "community",
     lastCheckedAt: DATE,
@@ -70,10 +70,10 @@ function addRealWorldOfWarcraft() {
       {
         id: 1,
         gameId: 77,
-        gameName: "World of Warcraft",
+        gameName: "Diablo IV",
         coverUrl: "",
         source: "community",
-        exeName: "Wow.exe",
+        exeName: "Diablo IV.exe",
         startedAt: DATE,
         endedAt: DATE,
         durationSeconds: 3600,
@@ -81,10 +81,10 @@ function addRealWorldOfWarcraft() {
     ],
     launchTargets: new Map([
       [
-        "wow.exe",
+        "diablo iv.exe",
         {
-          exeName: "Wow.exe",
-          path: WOW_PATH,
+          exeName: "Diablo IV.exe",
+          path: DIABLO_PATH,
           owner: { gameId: 77, source: "community" as const },
         },
       ],
@@ -146,7 +146,7 @@ async function readMenu(): Promise<Entry[]> {
 }
 
 async function realMenu() {
-  addRealWorldOfWarcraft();
+  addRealDiabloIV();
   await act(() => root.render(<LibraryTestShell />));
   await rightClick(container.querySelector(".game-library-card")!);
   const entries = await readMenu();
@@ -426,7 +426,7 @@ it("logs a session and sets a total on a practice library card too, on the sampl
 /* While a sample guide runs, My Games shows the sample only. */
 
 function addRealLibrary() {
-  addRealWorldOfWarcraft();
+  addRealDiabloIV();
   // A game that runs right now: its card came first in the list.
   useAppStore.getState().setExeCacheEntry({
     exeName: "eldenring.exe",
@@ -463,7 +463,7 @@ it("shows only the sample in the grid, the header numbers and the shelf chips wh
   await act(() => useAppStore.getState().startTour("game-actions"));
   const cards = [...container.querySelectorAll(".game-library-card")];
   expect(cards).toHaveLength(1);
-  expect(cards[0].textContent).toContain("World of Warcraft");
+  expect(cards[0].textContent).toContain("Diablo IV");
   expect(container.textContent).not.toContain("Elden Ring");
   // One game, its two hours and three sessions; no number of the real library.
   const toolbar = container.querySelector('[data-tour="games-toolbar"]')!;
@@ -500,12 +500,12 @@ it("ends the sample Play with a result on the card and tells the guide", async (
       "the launch guide shows Play without the setting",
     ).not.toBeNull();
     await act(async () => play!.click());
-    expect(sampleCard().textContent).toContain("Starting World of Warcraft");
+    expect(sampleCard().textContent).toContain("Starting Diablo IV");
     expect(result()).toBe("");
 
     await act(async () => vi.advanceTimersByTime(3_000));
     expect(sampleCard().textContent).not.toContain(
-      "Starting World of Warcraft",
+      "Starting Diablo IV",
     );
     expect(result()).toContain("No program was started");
     expect(

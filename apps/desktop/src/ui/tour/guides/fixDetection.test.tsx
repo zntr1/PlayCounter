@@ -133,7 +133,7 @@ const exercises: Record<string, () => Promise<void>> = {
     const search = one('[data-tour="demo-sample-search"]');
     await click(
       [...search.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-        button.textContent?.includes("World of Warcraft"),
+        button.textContent?.includes("Diablo IV"),
       )!,
     );
     await click(buttonNamed("Add and share", search));
@@ -230,14 +230,14 @@ describe("the practice page", () => {
       expect(step.body).toContain(word);
     // What every real card shows about an app.
     const app = findTourTarget(step)!.textContent!;
-    expect(app).toContain("World of Warcraft");
-    expect(app).toContain("Wow.exe");
+    expect(app).toContain("Diablo IV");
+    expect(app).toContain("Diablo IV.exe");
     expect(app).toContain("Blizzard Entertainment");
     expect(app).toContain("Running now");
     // The folder trail and its hint are ringed with it; the buttons are not.
     expect(step.additionalAnchors).toHaveLength(1);
     const folder = one(step.additionalAnchors![0]).textContent!;
-    expect(folder).toContain("_retail_");
+    expect(folder).toContain("Diablo IV");
     expect(folder).toContain("Probably a game");
     expect(app + folder).not.toContain("Add & Share");
   });
@@ -261,7 +261,7 @@ describe("the practice page", () => {
 
   it("opens each exercise on an app that fits it", async () => {
     await start("add-share");
-    expect(reviewedApp()).toBe("World of Warcraft");
+    expect(reviewedApp()).toBe("Diablo IV");
     await start("software");
     expect(reviewedApp()).toBe("Blender");
     await start("ignore");
@@ -308,7 +308,7 @@ describe("the practice page", () => {
         ...one('[data-tour="discovered-filters"]').querySelectorAll("button"),
       ].find((button) => button.textContent?.startsWith("Ignored"))!,
     );
-    expect(stage().textContent).toContain("Wow.exe");
+    expect(stage().textContent).toContain("Diablo IV.exe");
     await click(buttonNamed("Restore", stage()));
     expect(currentStep()).toBe("skip");
     expect(trackerCalls()).toEqual([]);

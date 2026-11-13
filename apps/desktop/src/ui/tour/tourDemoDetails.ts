@@ -33,20 +33,21 @@ function sampleDetails(): GameDetails {
   return {
     igdbId: 0, // i18n-exempt: no IGDB entry, never looked up
     summary:
-      "Azeroth is a world of swords and sorcery. Pick a race and a class, set out with friends and take on quests, dungeons and raids in one of the largest online worlds ever made.", // i18n-exempt: sample description
-    releaseDate: "2004-11-23",
-    releaseYear: 2004,
+      "Sanctuary is overrun by demons. Pick a class, fight through its regions alone or with friends, clear dungeons and hunt for better loot on the way to the end of the campaign.", // i18n-exempt: sample description
+    releaseDate: "2023-06-06",
+    releaseYear: 2023,
     developers: ["Blizzard Entertainment"], // i18n-exempt: sample company
     publishers: ["Blizzard Entertainment"], // i18n-exempt: sample company
-    genres: ["Role-playing (RPG)", "Adventure"], // i18n-exempt: IGDB terms
-    gameModes: ["Multiplayer", "Massively Multiplayer Online (MMO)"], // i18n-exempt: IGDB terms
-    platforms: ["PC (Microsoft Windows)", "Mac"], // i18n-exempt: IGDB terms
+    genres: ["Role-playing (RPG)", "Hack and slash/Beat 'em up"], // i18n-exempt: IGDB terms
+    gameModes: ["Single player", "Multiplayer", "Co-operative"], // i18n-exempt: IGDB terms
+    platforms: ["PC (Microsoft Windows)", "PlayStation 5", "Xbox Series X|S"], // i18n-exempt: IGDB terms
     rating: 79,
-    heroUrls: [TOUR_DEMO_GAME.bannerUrl],
+    // No banner yet: the banner shows the cover, as for any game without one.
+    heroUrls: [],
     timeToBeat: {
-      hastilySeconds: 40 * 3600,
-      normallySeconds: 90 * 3600,
-      completelySeconds: 260 * 3600,
+      hastilySeconds: 25 * 3600,
+      normallySeconds: 45 * 3600,
+      completelySeconds: 150 * 3600,
       count: 312,
     },
   };
@@ -97,11 +98,11 @@ function sampleAchievements(now: number): GameAchievement[] {
     ),
     unlocked("quest-hoarder", "Quest hoarder", "Complete 100 quests.", 6, 41.7),
     locked("max-level", "Top of the world", "Reach the level cap.", 22.4),
-    locked("raid-ready", "Raid ready", "Defeat a raid boss.", 12.9),
+    locked("world-boss", "World boss", "Defeat a world boss.", 12.9),
     locked(
       "master-crafter",
       "Master crafter",
-      "Reach the top skill in a profession.",
+      "Upgrade an item to its highest rank.",
       8.6,
     ),
     locked("legendary", "Legendary", "Earn a legendary item.", 1.8),
@@ -251,7 +252,7 @@ export function tourSampleAchievementsPage(now: Date = new Date()) {
     awardedAt: at(daysAgo),
     ...extra,
   });
-  const wow = { key: "tour-wow", name: TOUR_DEMO_GAME.name };
+  const sample = { key: "tour-sample", name: TOUR_DEMO_GAME.name };
   const gameRung = (
     game: { key: string; name: string },
     threshold: number,
@@ -275,9 +276,9 @@ export function tourSampleAchievementsPage(now: Date = new Date()) {
     milestone(`milestone:month:${monthKey}:10`, "milestone-month", 2),
     milestone("milestone:verified:1", "milestone-verified", 20),
     milestone("milestone:verified:5", "milestone-verified", 7),
-    gameRung(wow, 10, 50),
-    gameRung(wow, 25, 30),
-    gameRung(wow, 50, 5),
+    gameRung(sample, 10, 50),
+    gameRung(sample, 25, 30),
+    gameRung(sample, 50, 5),
     gameRung(stardew, 10, 25),
     gameRung(stardew, 25, 12),
   ];
@@ -286,7 +287,10 @@ export function tourSampleAchievementsPage(now: Date = new Date()) {
     string,
     { hours: number; name: string; coverUrl: string }
   >([
-    [wow.key, { hours: 62, name: wow.name, coverUrl: TOUR_DEMO_GAME.coverUrl }],
+    [
+      sample.key,
+      { hours: 62, name: sample.name, coverUrl: TOUR_DEMO_GAME.coverUrl },
+    ],
     [stardew.key, { hours: 31, name: stardew.name, coverUrl: "" }],
     [hades.key, { hours: 24, name: hades.name, coverUrl: "" }],
     [celeste.key, { hours: 4, name: celeste.name, coverUrl: "" }],

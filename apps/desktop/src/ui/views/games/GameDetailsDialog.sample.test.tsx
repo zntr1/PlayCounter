@@ -163,7 +163,7 @@ describe("the sample game's Details", () => {
     await open(sampleGame);
     const text = dialog().textContent ?? "";
     expect(text).not.toContain("not linked to an IGDB entry");
-    expect(text).toContain("Azeroth");
+    expect(text).toContain("Sanctuary");
     for (const fact of [
       "Genres",
       "Role-playing (RPG)",

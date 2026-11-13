@@ -27,7 +27,7 @@ import {
 } from "../import/importHost";
 import { ImportReview } from "../import/ImportReview";
 import { LauncherCard } from "../import/LauncherCard";
-import { TOUR_DEMO_EMULATOR, TOUR_DEMO_GAME } from "./tourDemoGame";
+import { TOUR_DEMO_EMULATOR } from "./tourDemoGame";
 import { emitTourEvent } from "./tourEvents";
 
 /* The practice importer of the guide "Import a launcher library": the app's
@@ -67,7 +67,7 @@ const MCC = igdb(-106, "Halo: The Master Chief Collection", 2014);
 const HALO = igdb(-107, "Halo Infinite", 2021); // i18n-exempt: sample game name.
 
 /** What a search in the sample can find: the sample's own games and the two
- *  titles the other practice searches use. */
+ *  titles the other practice searches use (the tour's Diablo IV is DIABLO). */
 const SEARCHABLE: GameMetadata[] = [
   DIABLO,
   FORZA,
@@ -76,7 +76,6 @@ const SEARCHABLE: GameMetadata[] = [
   GTA_ONLINE,
   MCC,
   HALO,
-  igdb(-1, TOUR_DEMO_GAME.name, 2004, TOUR_DEMO_GAME.coverUrl),
   igdb(-2, TOUR_DEMO_EMULATOR.gameName, 2002, TOUR_DEMO_EMULATOR.coverUrl),
 ];
 

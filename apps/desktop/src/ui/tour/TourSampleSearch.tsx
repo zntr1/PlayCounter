@@ -11,7 +11,7 @@ export const TOUR_SAMPLE_CHOICES: CommunityMetadataCandidate[] = [
     igdbId: -1,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    releaseYear: 2004,
+    releaseYear: 2023,
   },
   {
     igdbId: -2,
@@ -54,7 +54,7 @@ export function TourSampleSearch({
           ? t(
               "Review the title and cover, then confirm. Practice only; nothing is shared.",
             )
-          : t("No sample result. Try World of Warcraft or Zelda.")
+          : t("No sample result. Try Diablo or Zelda.")
       }
       onSearchChange={setQuery}
       onApplyCandidate={setSelection}

@@ -61,7 +61,7 @@
   "Remove from Library": "Remover da biblioteca",
   "Done": "Concluído",
   "Choose a sample file or forget it. A real file picker would let you select the game's executable; this practice never opens or starts a program.": "Escolha um arquivo de exemplo ou esqueça-o. Um seletor de arquivos real permitiria escolher o executável do jogo; esta prática nunca abre nem inicia um programa.",
-  "Use sample Wow.exe": "Usar o Wow.exe de exemplo",
+  "Use sample {{file}}": "Usar o {{file}} de exemplo",
   "Forget sample file": "Esquecer o arquivo de exemplo",
   "Sample removed from this practice library.": "Exemplo removido desta biblioteca de prática.",
   "Restore sample card": "Restaurar o cartão de exemplo",

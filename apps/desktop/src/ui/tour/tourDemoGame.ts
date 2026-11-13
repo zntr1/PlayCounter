@@ -91,7 +91,7 @@ export function tourSampleMatches(): Game[] {
     id: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    releaseYear: 2004,
+    releaseYear: 2023,
   };
   return [
     { ...match, source: "community" },
@@ -123,14 +123,17 @@ export function tourSessionsForGame(game: GameSummary): Session[] {
 /** The second practice card, Grand Theft Auto V. */
 export const TOUR_GTA_GAME_ID = -2;
 
+/* Its file must name the game: a generic one (Game.exe, Wow.exe) is never
+   shared or reported, so the guides that practise that would have nothing
+   to show. */
 export const TOUR_DEMO_GAME = {
   gameId: -1,
-  name: "World of Warcraft",
-  exeName: "Wow.exe",
-  exePath: "C:\\Games\\World of Warcraft\\_retail_\\Wow.exe",
+  name: "Diablo IV",
+  exeName: "Diablo IV.exe",
+  exePath: "C:\\Games\\Diablo IV\\Diablo IV.exe",
   // Bundled artwork keeps the quick tour ready even on a first, offline run.
-  coverUrl: "/tour/world-of-warcraft-cover.webp",
-  bannerUrl: "/tour/world-of-warcraft-banner.jpg",
+  // No banner yet: wide places show the cover, as for any game without one.
+  coverUrl: "/tour/diablo-iv-cover.webp",
 } as const;
 
 export const EMULATOR_TOUR_ID = "emulators";
@@ -217,7 +220,7 @@ export function tourSampleGames(query: string): GameMetadata[] {
       igdbId: 1,
       name: TOUR_DEMO_GAME.name,
       coverUrl: TOUR_DEMO_GAME.coverUrl,
-      releaseYear: 2004,
+      releaseYear: 2023,
       source: "igdb",
     },
     {
@@ -239,9 +242,9 @@ export function tourSampleGames(query: string): GameMetadata[] {
     {
       id: -3,
       igdbId: 4,
-      name: "Diablo IV", // i18n-exempt: sample game name
-      coverUrl: "/tour/diablo-iv-cover.webp",
-      releaseYear: 2023,
+      name: "World of Warcraft", // i18n-exempt: sample game name
+      coverUrl: "/tour/world-of-warcraft-cover.webp",
+      releaseYear: 2004,
       source: "igdb",
     },
   ];

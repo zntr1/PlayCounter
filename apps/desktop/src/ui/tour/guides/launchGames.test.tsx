@@ -199,7 +199,7 @@ describe("the walk through the guide", () => {
     // The step opened Launch options itself.
     expect(find(a("demo-menu-launch-file"))).not.toBeNull();
     await click(a("demo-menu-launch-file"));
-    await clickButton("Use sample Wow.exe", a("demo-game-action-dialog"));
+    await clickButton("Use sample Diablo IV.exe", a("demo-game-action-dialog"));
     await wait(200);
     expect(stepNow()).toBe("starts");
   });

@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 describe("the sample game's details", () => {
-  it("has a description, facts and three times to beat for World of Warcraft", () => {
+  it("has a description, facts and three times to beat for Diablo IV", () => {
     const sample = tourDemoDetails(wow)!;
     expect(sample.details.summary?.length).toBeGreaterThan(80);
     expect(sample.details.developers).toEqual(["Blizzard Entertainment"]);
@@ -53,7 +53,7 @@ describe("the sample game's details", () => {
     expect(sample.details.genres.length).toBeGreaterThan(0);
     expect(sample.details.gameModes.length).toBeGreaterThan(0);
     expect(sample.details.platforms.length).toBeGreaterThan(0);
-    expect(sample.details.releaseDate).toBe("2004-11-23");
+    expect(sample.details.releaseDate).toBe("2023-06-06");
     const time = sample.details.timeToBeat!;
     expect(time.hastilySeconds).toBeGreaterThan(0);
     expect(time.normallySeconds).toBeGreaterThan(time.hastilySeconds!);

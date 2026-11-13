@@ -141,7 +141,7 @@ it.each(["favorite", "fill-shelf"])(
       await start("organize-library", stepId);
       const cardSelector = currentStep().additionalAnchors![0];
       const wow = findTourElement(cardSelector)!;
-      expect(wow.textContent).toContain("World of Warcraft");
+      expect(wow.textContent).toContain("Diablo IV");
       const shelf = target();
       const pointer = async (type: string, element: EventTarget = window) => {
         await act(() => {
@@ -258,7 +258,7 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
   try {
     await start("organize-library", "fill-shelf");
     const wow = findTourElement(currentStep().additionalAnchors![0])!;
-    expect(wow.textContent).toContain("World of Warcraft");
+    expect(wow.textContent).toContain("Diablo IV");
     await act(() =>
       wow.dispatchEvent(
         new MouseEvent("contextmenu", {
@@ -1007,7 +1007,7 @@ it("walks the tier guide: rate GTA V, sort by tier, then filter its tier", async
     sort.value = "tier";
     sort.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  // Unrated World of Warcraft drops behind the rated sample.
+  // Unrated Diablo IV drops behind the rated sample.
   expect(cards()).toEqual(["-2", "-1"]);
   await act(() => vi.advanceTimersByTime(800));
   expect(currentStep().id).toBe("filter");

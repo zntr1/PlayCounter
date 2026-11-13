@@ -32,9 +32,10 @@ export function genericExeFolder({ exeName, exePath }: ExeFile) {
 /** Folders that hold a game's runtime or files, never its name: a bundled
  *  Java (`jre\bin`, `runtime\bin`), a JDK, a `Game` subfolder, and the
  *  platform folder of the Java the Minecraft launcher keeps
- *  (`runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin`). */
+ *  (`runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin`), and
+ *  the flavour folders Battle.net keeps WoW in (`_retail_`, `_classic_era_`). */
 const UNNAMED_FOLDER =
-  /^(?:(?:bin|jre|jdk|java|runtime|game)(?:$|[-_.\d])|windows-(?:x64|x86|arm64)$)/i;
+  /^(?:(?:bin|jre|jdk|java|runtime|game)(?:$|[-_.\d])|windows-(?:x64|x86|arm64)$|_[a-z\d_]+_$)/i;
 
 /** What a generic exe's folder is called, as a search term or in a message:
  *  the folder itself, or the first one above it that names something

@@ -159,7 +159,7 @@ describe("the walk through the guide", () => {
     await start("change-game");
     await click(a("demo-menu-matching"));
     await click(a("demo-menu-change-game"));
-    await clickText(a("demo-sample-search"), "World of Warcraft");
+    await clickText(a("demo-sample-search"), "Diablo IV");
     await clickText(a("demo-sample-search"), "Confirm sample match");
     await wait(200);
     expect(stepNow()).toBe("suggest");
@@ -170,7 +170,7 @@ describe("the walk through the guide", () => {
     await start("suggest");
     await click(a("demo-menu-matching"));
     await click(a("demo-menu-suggest-community"));
-    await clickText(a("demo-sample-search"), "World of Warcraft");
+    await clickText(a("demo-sample-search"), "Diablo IV");
     await clickText(a("demo-sample-search"), "Confirm sample match");
     await wait(200);
     expect(stepNow()).toBe("check-matches");

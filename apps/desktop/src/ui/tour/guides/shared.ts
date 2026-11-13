@@ -7,8 +7,8 @@ export const NEXT_RELEASE = "1.7.0";
 /** Selector for an element marked `data-tour="name"`. */
 export const a = (name: string) => `[data-tour="${name}"]`;
 
-// Both practice games share the card marker. Keep WoW-specific instructions
-// attached to WoW when dragging hides it or a shelf filters it out.
+// Both practice games share the card marker. Keep instructions for the sample
+// game attached to it when dragging hides it or a shelf filters it out.
 export const libraryTourCard = `${a("demo-game-card")}[data-tour-game-id="${TOUR_DEMO_GAME.gameId}"]`;
 export const gtaTourCard = `${a("demo-game-card")}[data-tour-game-id="${TOUR_GTA_GAME_ID}"]`;
 

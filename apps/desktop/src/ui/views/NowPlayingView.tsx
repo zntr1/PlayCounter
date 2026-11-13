@@ -193,7 +193,7 @@ export function NowPlayingView() {
   const leadCover = useCoverUrl(leadSession, leadSession?.coverUrl);
   const reportCover = useCoverUrl(reportTarget, reportTarget?.coverUrl);
   const nowArt = showTourSession
-    ? TOUR_DEMO_GAME.bannerUrl
+    ? TOUR_DEMO_GAME.coverUrl
     : (pickedArt ?? leadArt ?? (leadCover || null));
   useEffect(() => {
     useLibrarySources.setState({ nowArt });

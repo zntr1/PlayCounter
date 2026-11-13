@@ -162,7 +162,7 @@ describe("Favorites & shelves", () => {
     await click(target());
     expect(label(target())).toBe("All games and search");
     await click(target());
-    // World of Warcraft leaves All games and stays on its shelf.
+    // Diablo IV leaves All games and stays on its shelf.
     expect(cardIds()).toEqual([GTA]);
     expect(shelves()).toEqual([["Online Games", 1]]);
     await finishStep();

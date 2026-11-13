@@ -42,12 +42,15 @@ import { STORAGE_KEY } from "./persistence";
 /* Game.exe and co. are linked per folder ────────────────────────────────────
    Every way a game gets linked to a generic exe name must link the folder the
    file runs from, never the name: one name link claims every other copy on
-   the PC. Every case runs for RPG Maker games with their own Game.exe and for
-   Java games that bring their own Java (jre\bin\javaw.exe). */
+   the PC. Every case runs for RPG Maker games with their own Game.exe, for
+   Java games that bring their own Java (jre\bin\javaw.exe), and for WoW
+   clients, which all run Wow.exe (Battle.net's _retail_ folder, older clients
+   in a folder of their own). */
 
 const SHARED_FILES = [
   { exeName: "Game.exe", subfolder: "" },
   { exeName: "javaw.exe", subfolder: String.raw`jre\bin` },
+  { exeName: "Wow.exe", subfolder: "_retail_" },
 ];
 
 /** The games' own folders. Utility is an app, not a game. */

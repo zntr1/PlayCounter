@@ -61,7 +61,7 @@
   "Remove from Library": "从游戏库中移除",
   "Done": "完成",
   "Choose a sample file or forget it. A real file picker would let you select the game's executable; this practice never opens or starts a program.": "选择一个示例文件或清除它。真正的文件选择器会让你选择游戏的可执行文件；此练习不会打开或启动任何程序。",
-  "Use sample Wow.exe": "使用示例 Wow.exe",
+  "Use sample {{file}}": "使用示例 {{file}}",
   "Forget sample file": "清除示例文件",
   "Sample removed from this practice library.": "已从此练习游戏库中移除示例。",
   "Restore sample card": "恢复示例卡片",

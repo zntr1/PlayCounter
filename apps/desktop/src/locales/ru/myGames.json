@@ -61,7 +61,7 @@
   "Remove from Library": "Убрать из библиотеки",
   "Done": "Готово",
   "Choose a sample file or forget it. A real file picker would let you select the game's executable; this practice never opens or starts a program.": "Выберите файл-пример или забудьте его. Настоящий выбор файла позволил бы указать исполняемый файл игры; эта тренировка никогда не открывает и не запускает программы.",
-  "Use sample Wow.exe": "Использовать пример Wow.exe",
+  "Use sample {{file}}": "Использовать пример {{file}}",
   "Forget sample file": "Забыть файл-пример",
   "Sample removed from this practice library.": "Пример убран из тренировочной библиотеки.",
   "Restore sample card": "Вернуть карточку-пример",

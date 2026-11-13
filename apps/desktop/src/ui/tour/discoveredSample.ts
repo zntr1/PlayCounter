@@ -4,7 +4,7 @@ import { getT } from "../../i18n";
 import { useAppStore } from "../../store";
 import type { DiscoveredExecutable } from "../views/DiscoveredView";
 import { findTour } from "./tourDefinitions";
-import { TOUR_DEMO_GAME } from "./tourDemoGame";
+import { TOUR_DEMO_GAME, TOUR_GTA_GAME_ID } from "./tourDemoGame";
 import { emitTourEvent } from "./tourEvents";
 import type { TourStep } from "./tourTypes";
 
@@ -117,16 +117,16 @@ function sampleApps(): DiscoveredExecutable[] {
       { productName: "Fan Control" },
     ),
     {
-      key: "diablo iv.exe",
-      exeName: "Diablo IV.exe",
-      exePath: "C:\\Games\\Diablo IV\\Diablo IV.exe",
+      key: "gta5.exe",
+      exeName: "GTA5.exe",
+      exePath: "C:\\Games\\Grand Theft Auto V\\GTA5.exe",
       isRunning: false,
       status: "matched",
       cacheEntry: {
-        exeName: "Diablo IV.exe",
+        exeName: "GTA5.exe",
         state: "matched",
-        gameId: -4,
-        gameName: "Diablo IV",
+        gameId: TOUR_GTA_GAME_ID,
+        gameName: "Grand Theft Auto V",
         source: "igdb",
         lastCheckedAt: SEEN,
       },

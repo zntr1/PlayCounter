@@ -224,7 +224,7 @@ describe("the walk through the guide", () => {
     await click(a("demo-menu-restore-cover"));
     await wait(200);
     expect(cardCover()).not.toBe(before);
-    expect(cardCover()).toContain("world-of-warcraft-cover");
+    expect(cardCover()).toContain("diablo-iv-cover");
     expect(stepNow()).toBe("banner");
     expectNothingSaved();
   });

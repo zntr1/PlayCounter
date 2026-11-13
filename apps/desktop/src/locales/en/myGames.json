@@ -61,7 +61,7 @@
   "Remove from Library": "Remove from Library",
   "Done": "Done",
   "Choose a sample file or forget it. A real file picker would let you select the game's executable; this practice never opens or starts a program.": "Choose a sample file or forget it. A real file picker would let you select the game's executable; this practice never opens or starts a program.",
-  "Use sample Wow.exe": "Use sample Wow.exe",
+  "Use sample {{file}}": "Use sample {{file}}",
   "Forget sample file": "Forget sample file",
   "Sample removed from this practice library.": "Sample removed from this practice library.",
   "Restore sample card": "Restore sample card",
