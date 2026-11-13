@@ -183,7 +183,6 @@ describe("the guide", () => {
       expect(step.interactive, step.id).toBeFalsy();
       expect(step.allow ?? [], step.id).toEqual([]);
     }
-    expect(stepOf(guide, "nav").body).toMatch(/nothing is clicked or changed/);
   });
 
   it("starts at the sidebar entry and its warning mark", () => {

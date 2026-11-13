@@ -29,7 +29,7 @@ export function rateGamesGuide(): TourDefinition {
         view: "games",
         title: t("Rank your games, S to F"),
         body: t(
-          "A tier is your own verdict on a game: S is the best, F the worst. It stays on this PC. These are sample games: nothing is saved.",
+          "A tier is your own verdict on a game: S is the best, F the worst. It stays on this PC.",
         ),
       },
       {

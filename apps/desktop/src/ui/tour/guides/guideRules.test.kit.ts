@@ -24,6 +24,13 @@ export const stepOf = (guide: TourDefinition, id: string): TourStep => {
   return step;
 };
 
+/** A text that tells the player the guide uses samples. Tasks may still name
+ *  "the sample card": that says which card, not that it is a sample. */
+export const saysSample = (text: string) =>
+  /\bsamples?\b|nothing (here )?is (saved|sent|scanned|added|clicked)|stays? as (it is|they are)/i.test(
+    text,
+  );
+
 export const indexOf = (guide: TourDefinition, id: string) =>
   guide.steps.findIndex((step) => step.id === id);
 
@@ -59,20 +66,10 @@ export function expectStepRules(
       expect(step.allow?.length, `${at} allow`).toBeGreaterThan(0);
     }
   }
-  // "This is a sample, nothing is saved" is said once, in the first step.
-  const saysSample = (step: TourStep) =>
-    /sample/i.test(step.body) && /nothing is (saved|sent)/i.test(step.body);
-  expect(saysSample(guide.steps[0]), "first step says it is a sample").toBe(
-    true,
-  );
+  // The help hub says once that guides use samples; no step repeats it.
   expect(
-    guide.steps
-      .slice(1)
-      .filter((step) =>
-        /nothing is saved/i.test(`${step.body} ${step.task ?? ""}`),
-      )
-      .map((step) => step.id),
-    "said once only",
+    guide.steps.filter((step) => saysSample(step.body)).map((step) => step.id),
+    "no step says it is a sample",
   ).toEqual([]);
   // The last step is for reading: what to do in the real app.
   expect(guide.steps.at(-1)?.task, "last step has no task").toBeUndefined();

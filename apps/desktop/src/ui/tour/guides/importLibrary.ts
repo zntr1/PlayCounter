@@ -48,9 +48,9 @@ export function importLibraryGuide(): TourDefinition {
         id: "start",
         ...on("import-find-games"),
         ...task,
-        title: t("Where imports start"),
+        title: t("Bring your launcher games over"),
         body: t(
-          "In the app, right-click My Games in the sidebar, or open the Launcher accounts page. This is a sample Xbox account: nothing is scanned and nothing is saved.",
+          "PlayCounter brings your games and playtime over from Steam, Xbox and other launchers. Open <b>Launcher accounts</b> or right-click My Games in the sidebar to start.",
         ),
         task: t("Click <b>Find games</b>."),
       },

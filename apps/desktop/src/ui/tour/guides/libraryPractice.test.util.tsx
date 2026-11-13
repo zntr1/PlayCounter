@@ -8,6 +8,7 @@ import { TourOverlay } from "../TourUI";
 import { findTour } from "../tourDefinitions";
 import { findTourTarget } from "../tourTargetRect";
 import type { TourDefinition } from "../tourTypes";
+import { saysSample } from "./guideRules.test.kit";
 import { NEXT_RELEASE } from "./shared";
 
 /* Shared by the tests of the four practice-library guides: the practice
@@ -273,10 +274,8 @@ export function guideProblems(
     for (const selector of [step.anchor, ...(step.additionalAnchors ?? [])])
       if (WHOLE_AREAS.some((name) => selector === `[data-tour="${name}"]`))
         say(step.id, `rings the whole ${selector}`);
-    // Said once, in the first step.
-    const sample = /nothing[^.]*\bsaved\b/i.test(step.body);
-    if (first && !sample) say(step.id, "does not say that nothing is saved");
-    if (!first && sample) say(step.id, "repeats that nothing is saved");
+    // The help hub says it once; no step repeats it.
+    if (saysSample(step.body)) say(step.id, "says that it is a sample");
     if (last && step.interactive) say(step.id, "last step asks for an action");
   });
   return problems;

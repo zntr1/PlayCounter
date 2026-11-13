@@ -30,7 +30,7 @@ export function watchFoldersGuide(): TourDefinition {
         settingsGroup: "library",
         title: t("Games outside any launcher"),
         body: t(
-          "DRM-free downloads, itch.io games and old disc installs often sit together in one folder. PlayCounter can watch it. The folders in this guide are samples: nothing is added or changed.",
+          "DRM-free downloads, itch.io games and old disc installs often sit together in one folder. PlayCounter can watch it.",
         ),
       },
       {
@@ -41,7 +41,7 @@ export function watchFoldersGuide(): TourDefinition {
         optional: true,
         title: t("One folder, many games"),
         body: t(
-          "You watch the folder your games sit in, like the sample D:\\Games. Every folder inside it counts as one game: D:\\Games\\Celeste and D:\\Games\\Hollow Knight are two.",
+          "You watch the folder your games sit in, like D:\\Games. Every folder inside it counts as one game: D:\\Games\\Celeste and D:\\Games\\Hollow Knight are two.",
         ),
       },
       {

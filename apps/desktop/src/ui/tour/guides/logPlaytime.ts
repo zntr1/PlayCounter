@@ -25,7 +25,7 @@ export function logPlaytimeGuide(): TourDefinition {
         view: "games",
         title: t("Log playtime by hand"),
         body: t(
-          "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.",
+          "PlayCounter missed a session, or you played somewhere else? Add the time yourself.",
         ),
       },
       // The menu chain: each stage waits for the next one to appear, and
@@ -42,7 +42,7 @@ export function logPlaytimeGuide(): TourDefinition {
           selector: a("demo-menu-playtime"),
         },
         skipTo: "clock",
-        title: t("Right-click the sample card"),
+        title: t("Open the card's menu"),
         body: t("Every card's menu has a <b>Playtime</b> entry."),
         task: t("Right-click the sample card."),
       },

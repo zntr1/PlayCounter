@@ -26,7 +26,7 @@ export function feedbackRepliesGuide(): TourDefinition {
         anchor: a("send-feedback"),
         title: t("Tell us what you think"),
         body: t(
-          "<b>Help & Feedback</b> is where you report a bug, wish for a feature or tell us anything else. This guide shows a sample reply: nothing is sent.",
+          "<b>Help & Feedback</b> is where you report a bug, wish for a feature or tell us anything else.",
         ),
       },
       {
@@ -36,7 +36,7 @@ export function feedbackRepliesGuide(): TourDefinition {
         positionAnchor: panel,
         title: t("Replies appear under the bell"),
         body: t(
-          "An answer shows up under the bell, in <b>Notifications</b>, next to other news from PlayCounter. This one is a sample: your own notifications and the unread count stay as they are.",
+          "An answer shows up under the bell, in <b>Notifications</b>, next to other news from PlayCounter.",
         ),
       },
       {

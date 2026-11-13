@@ -33,9 +33,7 @@ export function coversBannersGuide(): TourDefinition {
         id: "intro",
         view: "games",
         title: t("Artwork you pick"),
-        body: t(
-          "Every game can get a cover and a banner you choose. This card is a sample: nothing is saved.",
-        ),
+        body: t("Every game can get a cover and a banner you choose."),
       },
       {
         ...tryIt,
@@ -62,9 +60,7 @@ export function coversBannersGuide(): TourDefinition {
           a("demo-menu-appearance"),
         ],
         title: t("Choose a cover"),
-        body: t(
-          "The picker normally searches SteamGridDB. Here it shows a few sample pictures instead, with no search.",
-        ),
+        body: t("The picker normally searches SteamGridDB."),
         task: t("Click <b>Choose cover…</b> and pick a picture."),
       },
       {
@@ -81,7 +77,7 @@ export function coversBannersGuide(): TourDefinition {
         allow: sampleCardAllow,
         title: t("Your own picture"),
         body: t(
-          "<b>Upload cover</b> takes a picture file from your PC. <b>Paste Cover</b> uses a picture you copied. On the sample they only say what they would do.",
+          "<b>Upload cover</b> takes a picture file from your PC. <b>Paste Cover</b> uses a picture you copied.",
         ),
       },
       {
@@ -119,7 +115,7 @@ export function coversBannersGuide(): TourDefinition {
         anchorTargets: [a("demo-menu-pin-banner"), a("demo-context-menu")],
         title: t("Show a game in the banner"),
         body: t(
-          "<b>Pin to banner</b> puts this game in the banner at the top of My Games, until you pin another. On the sample it only answers.",
+          "<b>Pin to banner</b> puts this game in the banner at the top of My Games, until you pin another.",
         ),
         task: t("Click <b>Pin to banner</b>."),
       },

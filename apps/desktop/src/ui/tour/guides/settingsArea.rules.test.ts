@@ -9,6 +9,7 @@ vi.mock("../../../platform", () => ({
 }));
 
 import { tours } from "../tourDefinitions";
+import { saysSample } from "./guideRules.test.kit";
 import { NEXT_RELEASE } from "./shared";
 
 /* The rules of docs/tours-plan.md (section 2) and of the agents' brief, for
@@ -302,12 +303,11 @@ describe("While you play", () => {
     ]);
   });
 
-  it("says once, in the first step, that the game is a sample", () => {
-    const [first, ...rest] = guide("while-you-play").steps;
-    expect(first.body).toMatch(/sample/);
-    expect(first.body).toMatch(/nothing here is saved/i);
+  it("never says that the game is a sample: the help hub says so", () => {
     expect(
-      rest.filter((entry) => /nothing .* saved/i.test(entry.body)),
+      guide("while-you-play").steps.filter((entry) =>
+        saysSample(`${entry.title} ${entry.body}`),
+      ),
     ).toEqual([]);
   });
 

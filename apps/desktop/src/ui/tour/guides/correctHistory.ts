@@ -40,9 +40,7 @@ export function correctHistoryGuide(): TourDefinition {
         view: "history",
         anchor: historySampleRow(HISTORY_SAMPLE.overnight),
         title: t("Fix a session that went wrong"),
-        body: t(
-          "This session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.",
-        ),
+        body: t("This session ran 14 hours: the game stayed open overnight."),
       },
       {
         id: "edit",

@@ -256,7 +256,6 @@ describe("the last step", () => {
     const handlers = await showCard({ stepIndex: 3 });
     expect(card().textContent).toContain("Next up");
     expect(card().textContent).toContain("Progress & card layout");
-    // The next guide has no exercise, so it is not marked hands-on.
     expect(row("Your shelves are ready").textContent).not.toContain("Hands-on");
     await act(async () => button("Start")!.click());
     expect(handlers.onStartNext).toHaveBeenCalledTimes(1);
@@ -287,19 +286,13 @@ describe("the last step", () => {
 });
 
 describe("the head", () => {
-  it("marks a guide with an exercise as hands-on and shows how long it takes", async () => {
+  it("shows the title and how long the guide takes, no Hands-on mark", async () => {
+    // Favorites & shelves has exercises.
     await showCard();
     const head = card().querySelector(".tour-card-head")!;
     expect(head.textContent).toContain("Favorites & shelves");
-    expect(head.textContent).toContain("Hands-on");
     expect(head.textContent).toContain("3 min");
-  });
-
-  it("does not mark a read-only guide as hands-on", async () => {
-    await showCard({ tour: nextGuide, visibleSteps: [0] });
-    expect(card().querySelector(".tour-card-head")!.textContent).not.toContain(
-      "Hands-on",
-    );
+    expect(head.textContent).not.toContain("Hands-on");
   });
 });
 

@@ -36,9 +36,7 @@ export function notesPlaythroughsGuide(): TourDefinition {
         ],
         advanceOn: { type: "anchor-present", selector: a("demo-journal") },
         title: t("Open a game's journal"),
-        body: t(
-          "Every game has a journal for notes and playthroughs. This is a sample card: nothing is saved, and your own games stay as they are.",
-        ),
+        body: t("Every game has a journal for notes and playthroughs."),
         task: t("Right-click the card and choose <b>Journal</b>."),
         keyboardHint: t("Keyboard: focus the card and press Shift+F10."),
       },

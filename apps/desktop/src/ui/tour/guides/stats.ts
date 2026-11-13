@@ -20,7 +20,7 @@ export function statsGuide(): TourDefinition {
     category: "playtime",
     icon: ChartColumn,
     title: t("Read your stats"),
-    description: t("Explore sample sessions, ranges, and charts."),
+    description: t("Explore sessions, ranges, and charts."),
     duration: t("2 min"),
     simulation: "stats",
     finishView: "history",
@@ -31,9 +31,7 @@ export function statsGuide(): TourDefinition {
         view: "history",
         anchor: a("demo-history-total"),
         title: t("Your playtime in one number"),
-        body: t(
-          "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.",
-        ),
+        body: t("The big number is what you played in the range you picked."),
       },
       {
         id: "ranges",

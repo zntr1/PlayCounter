@@ -18,7 +18,7 @@ export function launchGamesGuide(): TourDefinition {
     icon: Play,
     title: t("Launch games directly"),
     description: t(
-      "Try a sample launch and learn how Play, Stop and the controller work.",
+      "Try a launch and learn how Play, Stop and the controller work.",
     ),
     duration: t("2 min"),
     demoGame: true,
@@ -28,9 +28,9 @@ export function launchGamesGuide(): TourDefinition {
         view: "settings",
         anchor: row("rememberLaunchPaths"),
         settingsGroup: "launching",
-        title: t("PlayCounter can start games too"),
+        title: t("Start games from PlayCounter"),
         body: t(
-          "Play needs <b>Remember launch paths</b>: the game files PlayCounter has seen, kept on this PC. The card in this guide is a sample: nothing is saved.",
+          "PlayCounter can launch your games directly. For that it needs <b>Remember launch paths</b>: it keeps where your game files are, on this PC only.",
         ),
       },
       {
@@ -44,7 +44,7 @@ export function launchGamesGuide(): TourDefinition {
         allow: [row("gameLaunching")],
         title: t("Choose whether to switch it on"),
         body: t(
-          "<b>Launch games directly</b> gives cards a <b>Play</b> button. It saves at once. Leave it as it is if you don't want it: the next steps use a sample.",
+          "<b>Launch games directly</b> gives cards a <b>Play</b> button. It saves at once. Leave it as it is if you don't want it: the next steps work either way.",
         ),
       },
       {
@@ -56,9 +56,9 @@ export function launchGamesGuide(): TourDefinition {
         manualAdvance: true,
         allow: sampleCardAllow,
         advanceOn: { type: "event", name: "mygames.demo-launch-attempted" },
-        title: t("Press Play on the sample"),
+        title: t("Press Play"),
         body: t(
-          "A card gets <b>Play</b> once PlayCounter knows the game's file. The sample has a made-up one: no program is started.",
+          "A card gets <b>Play</b> once PlayCounter knows the game's file.",
         ),
         task: t("Click <b>Play</b> on the sample card."),
       },

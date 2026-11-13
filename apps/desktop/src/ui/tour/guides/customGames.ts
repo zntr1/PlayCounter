@@ -36,7 +36,7 @@ export function customGamesGuide(): TourDefinition {
         view: "games",
         title: t("Games you name yourself"),
         body: t(
-          "A custom game is a game file you named yourself. PlayCounter tracks it on this PC only; sharing it is up to you. This card is a sample: nothing is saved or sent.",
+          "A custom game is a game file you named yourself. PlayCounter tracks it on this PC only; sharing it is up to you.",
         ),
       },
       {

@@ -26,7 +26,7 @@ export function coreGuide(): TourDefinition {
         view: "keep",
         title: t("PlayCounter in 60 seconds"),
         body: t(
-          "PlayCounter records how long you play, whatever the game came from. Closing the window keeps it tracking in the tray. The cards and sessions in this tour are samples: nothing is saved.",
+          "PlayCounter records how long you play, whatever the game came from. Closing the window keeps it tracking in the tray.",
         ),
       },
       {
@@ -36,7 +36,7 @@ export function coreGuide(): TourDefinition {
         additionalAnchors: [a("nav-now")],
         title: t("Now Playing"),
         body: t(
-          "A game you are playing shows up here with a running timer, its total playtime and its session count. This is a sample session.",
+          "A game you are playing shows up here with a running timer, its total playtime and its session count.",
         ),
       },
       {

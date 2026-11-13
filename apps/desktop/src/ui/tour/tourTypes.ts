@@ -97,8 +97,3 @@ export type TourDefinition = {
   nextTourId?: string;
   steps: TourStep[];
 };
-
-/** A guide the player tries things in, on sample data. Real settings a guide
- *  only walks through do not count. */
-export const isHandsOn = (tour: TourDefinition) =>
-  tour.steps.some((step) => step.interactive && !step.persistentInteraction);

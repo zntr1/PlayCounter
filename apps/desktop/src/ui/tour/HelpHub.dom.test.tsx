@@ -164,14 +164,6 @@ function topicHeading(id: string) {
   return `${name.textContent!.trim()} ${count}`;
 }
 const nextCard = () => hub()!.querySelector<HTMLElement>("[data-guide-next]");
-/** The words next to the progress ring, read line by line. */
-function progress() {
-  const box = hub()!.querySelector("[data-guide-progress]")!;
-  const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
-  const words: string[] = [];
-  while (walker.nextNode()) words.push(walker.currentNode.textContent ?? "");
-  return words.join(" ").replace(/\s+/g, " ").trim();
-}
 const search = () =>
   hub()!.querySelector<HTMLInputElement>(
     'input[placeholder="Search guides…"]',
@@ -212,6 +204,16 @@ const press = (key: string) =>
       new KeyboardEvent("keydown", { key, bubbles: true }),
     ),
   );
+
+describe("the top of the hub", () => {
+  it("shows the next guide only, no ring counting finished guides", async () => {
+    await openHub({ core: 2, shelves: 2 }, NEXT_RELEASE);
+    expect(nextCard()).not.toBeNull();
+    expect(hub()!.textContent).not.toMatch(/guides done/);
+    // Icons draw circles too; the ring was the only other picture.
+    expect(hub()!.querySelector("svg:not(.lucide)")).toBeNull();
+  });
+});
 
 describe("the guide to do next", () => {
   it("starts a new player at the quick tour", async () => {
@@ -261,7 +263,6 @@ describe("the guide to do next", () => {
     expect(says(nextCard(), "Continue")).toBe(false);
     expect(says(nextCard(), "Start here")).toBe(false);
     expect(nextCard()!.textContent).toContain("You finished every guide");
-    expect(progress()).toBe("5 of 5 guides done");
   });
 });
 
@@ -270,7 +271,6 @@ describe("New", () => {
     await openHub({}, RUNNING_RELEASE);
     expect(says(tile("timer"), "New")).toBe(false);
     expect(says(tile("covers"), "New")).toBe(false);
-    expect(progress()).toBe("0 of 5 guides done");
   });
 
   it("marks the guides written for the running release", async () => {
@@ -280,14 +280,12 @@ describe("New", () => {
     // An older release and a guide without one.
     expect(says(tile("backup"), "New")).toBe(false);
     expect(says(tile("core"), "New")).toBe(false);
-    expect(progress()).toBe("0 of 5 guides done · 2 new");
   });
 
   it("goes away once the player has finished the guide", async () => {
     await openHub({ timer: 1 }, NEXT_RELEASE);
     expect(says(tile("timer"), "New")).toBe(false);
     expect(says(tile("covers"), "New")).toBe(true);
-    expect(progress()).toBe("1 of 5 guides done · 1 new");
   });
 
   it("shows nothing as new while the app version is unknown", async () => {
@@ -309,7 +307,6 @@ describe("Updated", () => {
     expect(says(tile("shelves"), "Start")).toBe(false);
     expect(tile("shelves")!.querySelector("svg.lucide-check")).not.toBeNull();
     expect(topicHeading("library")).toBe("Your library 1/2");
-    expect(progress()).toBe("2 of 5 guides done");
     // A guide finished in its current version is not "updated".
     expect(says(tile("backup"), "Updated")).toBe(false);
     // Never started: nothing to update.
@@ -320,12 +317,10 @@ describe("Updated", () => {
     await openHub({ covers: 1 }, NEXT_RELEASE);
     expect(says(tile("covers"), "Updated")).toBe(true);
     expect(says(tile("covers"), "New")).toBe(false);
-    expect(progress()).toBe("1 of 5 guides done · 1 new");
   });
 
-  it("counts in the ring, the topics and the next guide", async () => {
+  it("counts in the topics and the next guide", async () => {
     await openHub({ core: 2, shelves: 1, timer: 1, backup: 3, covers: 1 });
-    expect(progress()).toBe("5 of 5 guides done");
     expect(topicHeading("library")).toBe("Your library 2/2");
     expect(nextCard()!.textContent).toContain("You finished every guide");
   });
@@ -352,12 +347,10 @@ describe("tiles", () => {
     expect(says(shelves, "Start")).toBe(false);
   });
 
-  it("mark guides the player tries things in as Hands-on", async () => {
+  it("carry no Hands-on mark, also on guides with an exercise", async () => {
     await openHub();
-    expect(says(tile("shelves"), "Hands-on")).toBe(true);
-    // Only real settings to click, and nothing to click at all.
-    expect(says(tile("backup"), "Hands-on")).toBe(false);
-    expect(says(tile("timer"), "Hands-on")).toBe(false);
+    for (const id of ["shelves", "backup", "timer"])
+      expect(says(tile(id), "Hands-on"), id).toBe(false);
   });
 
   it("start their guide and close the hub", async () => {
@@ -395,7 +388,6 @@ describe("topics", () => {
     expect(topicHeading("library")).toBe("Your library 1/2");
     expect(topicHeading("playtime")).toBe("Playtime & stats 0/1");
     expect(topicHeading("settings")).toBe("Settings & support 0/1");
-    expect(progress()).toBe("2 of 5 guides done");
   });
 });
 
@@ -420,15 +412,13 @@ describe("search", () => {
     expect(shownTiles()).toEqual([]);
   });
 
-  it("hides the progress and the next guide while a search is typed", async () => {
+  it("hides the next guide while a search is typed", async () => {
     await openHub();
     expect(nextCard()).not.toBeNull();
     await type("shelf");
     expect(nextCard()).toBeNull();
-    expect(hub()!.querySelector("[data-guide-progress]")).toBeNull();
     await type("");
     expect(nextCard()).not.toBeNull();
-    expect(hub()!.querySelector("[data-guide-progress]")).not.toBeNull();
   });
 
   it("keeps a topic's count over all its guides", async () => {
@@ -522,12 +512,11 @@ describe("the app's real guides", () => {
     sample.tours = null;
   });
 
-  it("each get a tile, and the counts cover all of them", async () => {
+  it("each get a tile", async () => {
     await openHub();
     const ids = tours().map((tour) => tour.id);
     expect(ids.length).toBeGreaterThan(20);
     expect([...shownTiles()].sort()).toEqual([...ids].sort());
-    expect(progress().startsWith(`0 of ${ids.length} guides done`)).toBe(true);
     expect(says(nextCard(), "Start here")).toBe(true);
   });
 

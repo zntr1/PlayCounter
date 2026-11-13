@@ -27,7 +27,7 @@ import { watchFoldersGuide } from "./guides/watchFolders";
 import { whileYouPlayGuide } from "./guides/whileYouPlay";
 import type { TourDefinition } from "./tourTypes";
 
-export { isHandsOn, tourCategories } from "./tourTypes";
+export { tourCategories } from "./tourTypes";
 export type {
   TourAdvance,
   TourCategoryId,

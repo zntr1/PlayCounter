@@ -7,7 +7,6 @@ import {
   useState,
   type RefObject,
 } from "react";
-import { Trans } from "react-i18next";
 import { getT } from "../../i18n";
 import {
   DEFAULT_MENU_SCALE,
@@ -16,10 +15,8 @@ import {
 import { useAppStore } from "../../store";
 import { cn } from "../cn";
 import { Button, IconButton } from "../primitives";
-import { HandsOnPill } from "./TourCard";
 import {
   CORE_TOUR_ID,
-  isHandsOn,
   tourCategories,
   tours,
   type TourDefinition,
@@ -133,8 +130,6 @@ function GuideHub({
         state === "open" && appVersion !== null && tour.release === appVersion,
     };
   });
-  const doneCount = guides.filter((guide) => guide.state !== "open").length;
-  const newCount = guides.filter((guide) => guide.isNew).length;
   const unfinished = guides.filter((guide) => guide.state === "open");
   const next =
     unfinished.find((guide) => guide.tour.id === CORE_TOUR_ID) ??
@@ -279,11 +274,6 @@ function GuideHub({
         <div className="px-[18px] pb-6 pt-4">
           {searching ? null : (
             <div className="flex flex-wrap gap-3.5">
-              <ProgressRing
-                done={doneCount}
-                total={guides.length}
-                newCount={newCount}
-              />
               {next ? (
                 <div
                   data-guide-next
@@ -384,72 +374,6 @@ function GuideHub({
   );
 }
 
-function ProgressRing({
-  done,
-  total,
-  newCount,
-}: {
-  done: number;
-  total: number;
-  newCount: number;
-}) {
-  const radius = 26;
-  const length = 2 * Math.PI * radius;
-  return (
-    <div
-      data-guide-progress
-      className="flex flex-[0_0_250px] items-center gap-3.5 rounded-xl border border-border bg-bg px-4 py-3.5"
-    >
-      <svg
-        viewBox="0 0 64 64"
-        aria-hidden="true"
-        className="h-16 w-16 shrink-0"
-      >
-        <circle
-          cx="32"
-          cy="32"
-          r={radius}
-          fill="none"
-          strokeWidth="6"
-          className="stroke-border"
-        />
-        {done > 0 ? (
-          <circle
-            cx="32"
-            cy="32"
-            r={radius}
-            fill="none"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={`${(length * done) / total} ${length}`}
-            transform="rotate(-90 32 32)"
-            className="stroke-accent"
-          />
-        ) : null}
-      </svg>
-      <div className="min-w-0">
-        <div className="text-[13px] font-medium text-text-muted">
-          <Trans
-            t={t}
-            i18nKey="<n>{{done}}</n> of {{total}}"
-            values={{ done, total }}
-            components={{
-              n: (
-                <span className="text-[22px] font-bold leading-7 tracking-tight text-text" />
-              ),
-            }}
-          />
-        </div>
-        <div className="text-xs text-text-muted">
-          {newCount > 0
-            ? t("guides done · {{count}} new", { count: newCount })
-            : t("guides done")}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function GuideTile({
   tour,
   state,
@@ -505,7 +429,6 @@ function GuideTile({
         </span>
       </span>
       <span className="flex items-center gap-2 text-[11px] text-text-faint">
-        {isHandsOn(tour) ? <HandsOnPill /> : null}
         <span>{tour.duration}</span>
         <span className="ml-auto inline-flex items-center gap-1 font-semibold text-accent-ink opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {done ? t("Replay") : t("Start")}

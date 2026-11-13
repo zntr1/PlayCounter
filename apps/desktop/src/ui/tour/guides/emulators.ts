@@ -39,7 +39,7 @@ export function emulatorsGuide(): TourDefinition {
         settingsGroup: "emulators",
         title: t("Games inside emulators"),
         body: t(
-          "PlayCounter recognizes games inside {{count}} emulators, such as {{examples}}. This guide uses a sample Dolphin setup: nothing is saved or sent.",
+          "PlayCounter recognizes games inside {{count}} emulators, such as {{examples}}.",
           { count: EMULATORS.length, examples: exampleEmulators() },
         ),
       },
@@ -71,7 +71,7 @@ export function emulatorsGuide(): TourDefinition {
         additionalAnchors: [a("nav-emulating")],
         title: t("See the loaded game"),
         body: t(
-          "<b>Now Emulating</b> shows the loaded game, its running timer and the emulator while one runs. If the game is unclear, a picker asks you to choose. This session is a sample.",
+          "<b>Now Emulating</b> shows the loaded game, its running timer and the emulator while one runs. If the game is unclear, a picker asks you to choose.",
         ),
       },
       {

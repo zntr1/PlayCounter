@@ -34,6 +34,7 @@ import { sampleStageForStep } from "../tourDemoGame";
 import { TOUR_DEMO_GAME } from "../tourDemoGame";
 import { findTourElement } from "../tourTargetRect";
 import { TourOverlay, tourDoneFlash } from "../TourUI";
+import { saysSample } from "./guideRules.test.kit";
 import { NEXT_RELEASE } from "./shared";
 
 /* Count deaths and bosses (docs/tours-plan.md, WP6): counters of a game, a
@@ -195,13 +196,8 @@ describe("Count deaths and bosses: the rules for every step", () => {
       );
   });
 
-  it("says once, in the first step, that this is a sample and nothing is saved", () => {
-    const [first, ...rest] = guide().steps;
-    expect(first.body).toMatch(/sample/i);
-    expect(first.body).toMatch(/nothing is saved/i);
-    expect(
-      rest.filter((entry) => /nothing is saved/i.test(texts(entry))),
-    ).toEqual([]);
+  it("never says that it uses a sample: the help hub says so", () => {
+    expect(guide().steps.filter((entry) => saysSample(entry.body))).toEqual([]);
   });
 
   it("gives every task a step that finishes by itself and can be stepped over", () => {
@@ -457,9 +453,9 @@ describe("counting on Now Playing during the guide", () => {
       expect(stepId()).toBe("count");
       expect(store().activeView).toBe("now");
       // The card says Done meanwhile.
-      expect(
-        document.querySelector("[data-tour-card]")?.textContent,
-      ).toContain("Done");
+      expect(document.querySelector("[data-tour-card]")?.textContent).toContain(
+        "Done",
+      );
       await act(() => new Promise((resolve) => setTimeout(resolve, 1100)));
       expect(stepId()).toBe("box");
       expect(store().activeView).toBe("settings");

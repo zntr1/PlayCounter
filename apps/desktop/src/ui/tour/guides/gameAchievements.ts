@@ -55,7 +55,7 @@ export function gameAchievementsGuide(): TourDefinition {
         anchor: a("achievements-hero"),
         title: t("Your achievements at a glance"),
         body: t(
-          "This page is a sample, nothing is saved. The ring shows how many of PlayCounter's own milestones you have, and what comes next.",
+          "PlayCounter has achievements of its own and also shows the ones from your launchers. The ring shows how many of its milestones you have and what comes next.",
         ),
       },
       {

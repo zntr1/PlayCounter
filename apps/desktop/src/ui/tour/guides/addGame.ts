@@ -27,7 +27,7 @@ export function addGameGuide(): TourDefinition {
         view: "games",
         title: t("Most games add themselves"),
         body: t(
-          "Most PC games join My Games by themselves the first time you play them. <b>Add game</b> is for the rest, like a game you haven't started yet or one you play on a console. This is a sample library: nothing is saved.",
+          "Most PC games join My Games by themselves the first time you play them. <b>Add game</b> is for the rest, like a game you haven't started yet or one you play on a console.",
         ),
       },
       {
@@ -59,9 +59,7 @@ export function addGameGuide(): TourDefinition {
           selector: a("demo-add-game-results"),
         },
         title: t("Find it by title"),
-        body: t(
-          "Search by the game's title or its IGDB ID. This sample knows four titles, with no network.",
-        ),
+        body: t("Search by the game's title or its IGDB ID."),
         task: t("Type World or Zelda and click <b>Search</b>."),
       },
       {

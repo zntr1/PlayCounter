@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { sampleSessionForStep } from "../views/NowPlayingView";
 import { tours, type TourStep } from "./tourDefinitions";
 import { sampleStageForStep } from "./tourDemoGame";
+import { saysSample } from "./guides/guideRules.test.kit";
 
 /* Guards that keep the guides in step with the app (docs/tours-plan.md).
    - A ring target a guide names must still be rendered somewhere.
@@ -265,6 +266,18 @@ describe("guide texts", () => {
       .map(({ id }) => id);
     // "fixed" entries are done: take them off TOO_LONG.
     expect(ratchet(long, TOO_LONG)).toEqual({ new: [], fixed: [] });
+  });
+
+  it("never says the guide uses samples: the help hub says it once", () => {
+    const told = [
+      ...tours()
+        .filter((tour) => saysSample(tour.description))
+        .map((tour) => `${tour.id} description`),
+      ...steps
+        .filter(({ step }) => saysSample(`${step.title} ${step.body}`))
+        .map(({ id }) => id),
+    ];
+    expect(told).toEqual([]);
   });
 
   it("uses the app's words", () => {

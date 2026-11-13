@@ -25,6 +25,7 @@ import { TOUR_ACHIEVEMENTS_PAGE_TABS } from "../tourDemoDetails";
 import { TOUR_DEMO_GAME } from "../tourDemoGame";
 import { findTourElement } from "../tourTargetRect";
 import { TourOverlay } from "../TourUI";
+import { saysSample } from "./guideRules.test.kit";
 import { NEXT_RELEASE } from "./shared";
 
 /* Achievements & trophies (docs/tours-plan.md, WP6): PlayCounter's own
@@ -143,13 +144,8 @@ describe("Achievements & trophies: the rules for every step", () => {
       );
   });
 
-  it("says once, in the first step, that this is a sample and nothing is saved", () => {
-    const [first, ...rest] = guide().steps;
-    expect(first.body).toMatch(/sample/i);
-    expect(first.body).toMatch(/nothing is saved/i);
-    expect(
-      rest.filter((entry) => /nothing is saved/i.test(texts(entry))),
-    ).toEqual([]);
+  it("never says that it uses a sample: the help hub says so", () => {
+    expect(guide().steps.filter((entry) => saysSample(entry.body))).toEqual([]);
   });
 
   it("gives every task a step that finishes by itself and can be stepped over", () => {

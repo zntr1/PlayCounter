@@ -51,9 +51,9 @@ export function whileYouPlayGuide(): TourDefinition {
         id: "intro",
         view: "now",
         anchor: a("now-playing-demo"),
-        title: t("A sample game is running"),
+        title: t("A game is running"),
         body: t(
-          "This game is a sample: nothing here is saved. A real game shows up in Now Playing by itself, and <b>This session</b> counts for as long as it runs.",
+          "Every game you play shows up in Now Playing by itself, and <b>This session</b> counts for as long as it runs.",
         ),
       },
       {
@@ -82,7 +82,7 @@ export function whileYouPlayGuide(): TourDefinition {
         advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Stop a timer you started"),
         body: t(
-          "A PC game needs no stop: its session ends and is saved when you close the game. Only a timer you started by hand, for console play, has <b>Stop</b> here. The sample is such a timer now.",
+          "A PC game needs no stop: its session ends and is saved when you close the game. Only a timer you started by hand, for console play, has <b>Stop</b> here.",
         ),
         task: t("Click <b>Stop</b> next to the clock."),
       },

@@ -4,7 +4,7 @@ import { getT } from "../../i18n";
 import type { ViewId } from "../../store";
 import { cn } from "../cn";
 import { Button } from "../primitives";
-import { findTour, isHandsOn, type TourDefinition } from "./tourDefinitions";
+import { findTour, type TourDefinition } from "./tourDefinitions";
 import { TourRichText } from "./tourRichText";
 
 const t = getT("tour");
@@ -14,14 +14,6 @@ function finishLabel(view: ViewId | undefined) {
   if (view === "history") return t("Open My History");
   if (view === "discovered") return t("Open Discovered");
   return t("Finish");
-}
-
-export function HandsOnPill() {
-  return (
-    <span className="shrink-0 rounded-full bg-info/15 px-[7px] py-px text-[10.5px] font-bold uppercase tracking-wide text-info ring-1 ring-inset ring-info/25">
-      {t("Hands-on")}
-    </span>
-  );
 }
 
 export type TourCardProps = {
@@ -80,7 +72,6 @@ export function TourCard({
   const next = isLast && tour.nextTourId ? findTour(tour.nextTourId) : null;
   const NextIcon = next?.icon;
   const Icon = tour.icon;
-  const handsOn = isHandsOn(tour);
   const count = `${position + 1} / ${visibleSteps.length}`;
   const progress =
     ((position + (done || isLast ? 1 : 0)) / visibleSteps.length) * 100;
@@ -116,7 +107,6 @@ export function TourCard({
             {tour.title}
           </div>
           <div className="tour-card-meta mt-0.5 flex items-center gap-2 text-xs text-text-faint">
-            {handsOn ? <HandsOnPill /> : null}
             {tour.duration}
           </div>
         </div>
@@ -296,11 +286,7 @@ export function TourCard({
                             {next.title}
                           </span>
                           <span className="block text-xs text-text-faint">
-                            {isHandsOn(next)
-                              ? t("Hands-on · {{duration}}", {
-                                  duration: next.duration,
-                                })
-                              : next.duration}
+                            {next.duration}
                           </span>
                         </span>
                         <Button onClick={onStartNext}>{t("Start")}</Button>

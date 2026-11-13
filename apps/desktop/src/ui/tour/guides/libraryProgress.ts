@@ -30,7 +30,7 @@ export function libraryProgressGuide(): TourDefinition {
         view: "games",
         title: t("Track what you want to play next"),
         body: t(
-          "A progress status is your own label for a game: In progress, On hold, Finished, Want to play and more. These are sample games and sample settings: nothing is saved.",
+          "A progress status is your own label for a game: In progress, On hold, Finished, Want to play and more.",
         ),
       },
       {
@@ -44,7 +44,7 @@ export function libraryProgressGuide(): TourDefinition {
         allow: [a("demo-organization")],
         title: t("Find games without a status"),
         body: t(
-          "We opened <b>Filters</b>. Narrow the view first, so you only change the games you mean. Both sample games start without a status.",
+          "We opened <b>Filters</b>. Narrow the view first, so you only change the games you mean. Both games start without a status.",
         ),
         task: t("Under <b>Progress</b>, choose <b>No status</b>."),
       },

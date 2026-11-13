@@ -209,7 +209,7 @@ describe("the guide", () => {
     expect(boldNames(stepOf(guide, "import").task)).toEqual([IMPORT_BUTTON]);
   });
 
-  it("says where imports start in the app, and that this sample scans nothing", () => {
+  it("says where imports start in the app", () => {
     const { body } = stepOf(guide, "start");
     for (const words of [
       "right-click",
@@ -218,7 +218,6 @@ describe("the guide", () => {
       "Launcher accounts",
     ])
       expect(body).toContain(words);
-    expect(body).toMatch(/nothing is scanned/i);
   });
 
   it("names the groups of the importer where the player sees them", () => {

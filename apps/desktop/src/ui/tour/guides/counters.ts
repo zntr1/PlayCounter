@@ -36,9 +36,7 @@ export function countersGuide(): TourDefinition {
         id: "intro",
         view: "games",
         title: t("Count what matters to you"),
-        body: t(
-          "Deaths, bosses, runs: every game can count what you like. This World of Warcraft card is a sample, nothing is saved.",
-        ),
+        body: t("Deaths, bosses, runs: every game can count what you like."),
       },
       {
         id: "open-details",
@@ -67,7 +65,7 @@ export function countersGuide(): TourDefinition {
         skipTo: "add",
         title: t("Open the Counters tab"),
         body: t(
-          "Deaths is there from the start. The sample also has Bosses, with a few sessions behind it.",
+          "Deaths is there from the start. This card also has Bosses, with a few sessions behind it.",
         ),
         task: t("Click the <b>Counters</b> tab."),
       },

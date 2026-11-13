@@ -25,7 +25,7 @@ export function gameActionsGuide(): TourDefinition {
     icon: SlidersHorizontal,
     title: t("Manage a game in your library"),
     description: t(
-      "Try a card's right-click menu on a sample: details, history, playtime, matching, removing.",
+      "Try a card's right-click menu: details, history, playtime, matching, removing.",
     ),
     duration: t("3 min"),
     demoGame: true,
@@ -37,7 +37,7 @@ export function gameActionsGuide(): TourDefinition {
         view: "games",
         title: t("A menu for every game"),
         body: t(
-          "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.",
+          "Every card in <b>My Games</b> has a right-click menu with all its actions.",
         ),
       },
       {
@@ -78,7 +78,7 @@ export function gameActionsGuide(): TourDefinition {
         ],
         title: t("Show History"),
         body: t(
-          "On your own games this opens <b>My History</b> with only this game's sessions. The sample shows sample sessions.",
+          "On your own games this opens <b>My History</b> with only this game's sessions.",
         ),
         task: t("Click <b>Show History</b>, then <b>Done</b>."),
       },

@@ -63,9 +63,8 @@ describe("the guide's steps", () => {
     expect(bold(step("pin").task!)).toEqual(["Pin to banner"]);
   });
 
-  it("say the picker shows sample pictures instead of searching", () => {
+  it("say where the picker's pictures come from", () => {
     expect(step("choose-cover").body).toMatch(/SteamGridDB/);
-    expect(step("choose-cover").body).toMatch(/sample pictures/);
   });
 
   it("ring the entry once its flyout is open, the trigger before it is", () => {

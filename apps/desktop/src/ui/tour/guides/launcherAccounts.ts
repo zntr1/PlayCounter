@@ -40,7 +40,7 @@ export function launcherAccountsGuide(): TourDefinition {
         anchor: a("nav-accounts"),
         title: t("Your launcher sign-ins in one place"),
         body: t(
-          "<b>Launcher accounts</b> in the sidebar lists every launcher you can import from. A number on it means a sign-in needs you. This guide only shows the page: nothing is clicked or changed.",
+          "<b>Launcher accounts</b> in the sidebar lists every launcher you can import from. A number on it means a sign-in needs you.",
         ),
       },
       {
