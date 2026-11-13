@@ -3,6 +3,7 @@ import {
   findTourTarget,
   mergeTouchingRects,
   tourFocusTarget,
+  tourRingBox,
   tourTargetRect,
   type TourTargetRect,
 } from "./tourTargetRect";
@@ -682,13 +683,13 @@ function TourRunner() {
           <defs>
             <mask id="tour-backdrop-mask">
               <rect width="100%" height="100%" fill="white" />
-              {highlightedRects.map((highlight, index) => (
+              {highlightedRects.map(tourRingBox).map((box, index) => (
                 <rect
                   key={index}
-                  x={highlight.left - 6}
-                  y={highlight.top - 6}
-                  width={highlight.width + 12}
-                  height={highlight.height + 12}
+                  x={box.left}
+                  y={box.top}
+                  width={box.width}
+                  height={box.height}
                   rx={14}
                   fill="black"
                 />
@@ -705,15 +706,15 @@ function TourRunner() {
       ) : !hasOwnBackdrop && !rect ? (
         <div className="absolute inset-0 bg-black/60" />
       ) : null}
-      {outlinedRects.map((highlight, index) => (
+      {outlinedRects.map(tourRingBox).map((box, index) => (
         <div
           key={index}
           className="tour-ring"
           style={{
-            top: highlight.top - 6,
-            left: highlight.left - 6,
-            width: highlight.width + 12,
-            height: highlight.height + 12,
+            top: box.top,
+            left: box.left,
+            width: box.width,
+            height: box.height,
           }}
         />
       ))}

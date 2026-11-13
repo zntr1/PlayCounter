@@ -24,7 +24,7 @@ export function coreGuide(): TourDefinition {
       {
         id: "intro",
         view: "keep",
-        anchor: a("header"),
+        anchor: a("brand"),
         title: t("PlayCounter in 60 seconds"),
         body: t(
           "PlayCounter records how long you play, whatever the game came from. Closing the window keeps it tracking in the tray. The cards and sessions in this tour are samples: nothing is saved.",

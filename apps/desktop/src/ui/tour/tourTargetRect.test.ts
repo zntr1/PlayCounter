@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   findTourTarget,
   mergeTouchingRects,
+  tourRingBox,
   tourTargetRect,
   type TourTargetRect,
 } from "./tourTargetRect";
@@ -141,5 +142,27 @@ describe("rings on neighbours", () => {
     const left = { left: 100, top: 300, width: 120, height: 36 };
     const right = { left: 900, top: 300, width: 120, height: 36 };
     expect(mergeTouchingRects([left, right])).toEqual([left, right]);
+  });
+});
+
+describe("the ring around a target", () => {
+  it("sits 6px outside a target in the middle of the window", () => {
+    expect(tourRingBox({ left: 100, top: 200, width: 50, height: 40 })).toEqual(
+      { left: 94, top: 194, width: 62, height: 52 },
+    );
+  });
+
+  it("stays inside the window around a target at its edge, glow included", () => {
+    // The title bar: the window's full width, from its very top.
+    const ring = tourRingBox({
+      left: 0,
+      top: 0,
+      width: window.innerWidth,
+      height: 72,
+    });
+    expect(ring.left).toBeGreaterThanOrEqual(4);
+    expect(ring.top).toBeGreaterThanOrEqual(4);
+    expect(ring.left + ring.width).toBeLessThanOrEqual(window.innerWidth - 4);
+    expect(ring.top + ring.height).toBe(78);
   });
 });

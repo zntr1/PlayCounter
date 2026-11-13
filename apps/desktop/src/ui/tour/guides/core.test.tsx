@@ -77,6 +77,10 @@ describe("the guide's steps", () => {
     expect(step("games").anchor).toBeTruthy();
   });
 
+  it("start on the PlayCounter logo, not the whole title bar", () => {
+    expect(step("intro").anchor).toBe(a("brand"));
+  });
+
   it("say that closing the window keeps PlayCounter tracking in the tray", () => {
     expect(step("intro").body).toMatch(/Closing the window/);
     expect(step("intro").body).toMatch(/tracking in the tray/);

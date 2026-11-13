@@ -107,6 +107,17 @@ export function tourTargetRect(element: Element): TourTargetRect | null {
  *  6 px outside its target on every side. */
 const RING_REACH = 12;
 
+/** Where the ring around a target is drawn: 6 px outside it, but never
+ *  closer than 4 px to the window's edge, so its line and glow stay in
+ *  view around a target at the edge, like the title bar. */
+export function tourRingBox(rect: TourTargetRect): TourTargetRect {
+  const left = Math.max(4, rect.left - 6);
+  const top = Math.max(4, rect.top - 6);
+  const right = Math.min(window.innerWidth - 4, rect.left + rect.width + 6);
+  const bottom = Math.min(window.innerHeight - 4, rect.top + rect.height + 6);
+  return { left, top, width: right - left, height: bottom - top };
+}
+
 /** Targets that sit right next to each other share one ring instead of two
  *  rings that touch or overlap. The result keeps the order of `rects`; a
  *  merged ring takes the place of its first target. */
