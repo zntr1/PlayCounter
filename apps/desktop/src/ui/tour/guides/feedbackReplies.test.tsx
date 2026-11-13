@@ -55,9 +55,9 @@ const goTo = (id: string) =>
   act(async () => useAppStore.getState().goToTourStep(stepIndex(id), true));
 
 describe("the sample reply", () => {
-  it("stays closed on the first step, which is for reading", async () => {
+  it("stays closed while the first step points at Help & Feedback", async () => {
     await start();
-    expect(guide().steps[0].anchor).toBeUndefined();
+    expect(guide().steps[0].anchor).toBe('[data-tour="send-feedback"]');
     expect(panel()).toBeNull();
   });
 

@@ -29,6 +29,7 @@ export function statsGuide(): TourDefinition {
       {
         id: "intro",
         view: "history",
+        anchor: a("demo-history-total"),
         title: t("Your playtime in one number"),
         body: t(
           "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.",

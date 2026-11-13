@@ -23,6 +23,7 @@ export function feedbackRepliesGuide(): TourDefinition {
       {
         id: "send",
         view: "keep",
+        anchor: a("send-feedback"),
         title: t("Tell us what you think"),
         body: t(
           "<b>Help & Feedback</b> is where you report a bug, wish for a feature or tell us anything else. This guide shows a sample reply: nothing is sent.",

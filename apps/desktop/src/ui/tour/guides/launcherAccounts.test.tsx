@@ -186,9 +186,9 @@ describe("the guide", () => {
     expect(stepOf(guide, "nav").body).toMatch(/nothing is clicked or changed/);
   });
 
-  it("starts by naming the sidebar entry and its warning mark", () => {
+  it("starts at the sidebar entry and its warning mark", () => {
     const step = stepOf(guide, "nav");
-    expect(step.anchor).toBeUndefined();
+    expect(step.anchor).toBe(a("nav-accounts"));
     expect(boldNames(step.body)).toContain("Launcher accounts");
     expect(step.body).toMatch(/number/);
     expect(step.body).toMatch(/sign-in/);

@@ -26,6 +26,7 @@ export function launchGamesGuide(): TourDefinition {
       {
         id: "intro",
         view: "settings",
+        anchor: row("rememberLaunchPaths"),
         settingsGroup: "launching",
         title: t("PlayCounter can start games too"),
         body: t(

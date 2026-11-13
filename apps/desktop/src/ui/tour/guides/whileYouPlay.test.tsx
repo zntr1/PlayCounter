@@ -151,8 +151,8 @@ describe("the sample game in Now Playing", () => {
     expect(useAppStore.getState().activeView).toBe("now");
     expect(sample()?.textContent).toContain(TOUR_DEMO_GAME.name);
     expect(sample()?.textContent).toContain("Now playing");
-    // The first step is for reading: the sample runs, with no ring yet.
-    expect(guide().steps[0].anchor).toBeUndefined();
+    // The first ring sits on the sample game's whole card.
+    expect(container.querySelector(guide().steps[0].anchor!)).toBe(sample());
   });
 
   it("has Pause like every detected game, and no Stop", async () => {

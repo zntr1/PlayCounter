@@ -52,6 +52,7 @@ export function gameAchievementsGuide(): TourDefinition {
       {
         id: "page",
         view: "achievements",
+        anchor: a("achievements-hero"),
         title: t("Your achievements at a glance"),
         body: t(
           "This page is a sample, nothing is saved. The ring shows how many of PlayCounter's own milestones you have, and what comes next.",

@@ -50,6 +50,7 @@ export function whileYouPlayGuide(): TourDefinition {
       {
         id: "intro",
         view: "now",
+        anchor: a("now-playing-demo"),
         title: t("A sample game is running"),
         body: t(
           "This game is a sample: nothing here is saved. A real game shows up in Now Playing by itself, and <b>This session</b> counts for as long as it runs.",

@@ -119,11 +119,10 @@ describe("Read your stats: the practice", () => {
     }
   });
 
-  it("starts with the big number in view, before any ring", async () => {
+  it("starts on the big number, not on the whole page", async () => {
     await startGuide("stats");
-    const total = document.querySelector('[data-tour="demo-history-total"]');
-    expect(total?.tagName).toBe("H1");
-    expect(total?.textContent).toContain("played in total");
+    expect(target().tagName).toBe("H1");
+    expect(target().textContent).toContain("played in total");
   });
 
   it("finishes the range step when the player changes the range", async () => {

@@ -127,22 +127,36 @@ describe("guide steps", () => {
       tour.steps.map((step) => ({ id: `${tour.id}/${step.id}`, step })),
     );
 
-  it("start with reading: the first step rings nothing unless it asks for something", () => {
-    // Phil, 2026-11-13: a ring on the first step looks like step two's
-    // target before the guide said what it is about.
-    expect(
-      tours()
-        .filter((tour) => {
-          const first = tour.steps[0];
-          const rings = [
-            first.anchor,
-            ...(first.anchorTargets ?? []),
-            ...(first.additionalAnchors ?? []),
-          ].filter(Boolean);
-          return !first.task && rings.length > 0;
-        })
-        .map((tour) => tour.id),
-    ).toEqual([]);
+  it("start with reading where the first step only introduces the guide", () => {
+    // Phil, 2026-11-13: a first step that only says what the guide is about
+    // rings nothing, so no ring looks like the next step's target. A first
+    // step whose text is about something on the page rings that.
+    const INTRO_ONLY = [
+      "core",
+      "add-game",
+      "organize-library",
+      "library-progress",
+      "rate-games",
+      "covers-banners",
+      "game-actions",
+      "log-playtime",
+      "counters",
+      "screenshots",
+      "track-software",
+      "emulators",
+      "custom-games",
+      "watch-folders",
+      "backup-data",
+    ];
+    const ringless = tours()
+      .filter((tour) => {
+        const first = tour.steps[0];
+        return (
+          !first.anchor && !first.anchorTargets && !first.additionalAnchors
+        );
+      })
+      .map((tour) => tour.id);
+    expect([...ringless].sort()).toEqual([...INTRO_ONLY].sort());
   });
 
   it("end with reading: the last step is no exercise", () => {

@@ -157,8 +157,9 @@ describe("Correct your history: the practice", () => {
     }
   });
 
-  it("starts with the wrong session in view, before any ring", async () => {
+  it("starts on the session that is wrong", async () => {
     await startGuide("correct-history");
+    expect(target()).toBe(row(overnight));
     expect(row(overnight).textContent).toContain("14h 0m");
   });
 

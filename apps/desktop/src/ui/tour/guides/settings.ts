@@ -26,6 +26,7 @@ export function settingsGuide(): TourDefinition {
       {
         id: "intro",
         view: "settings",
+        anchor: a("settings-search"),
         settingsGroup: "general",
         title: t("Real settings, saved at once"),
         body: t(
