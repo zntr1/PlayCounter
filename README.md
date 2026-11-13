@@ -9,7 +9,7 @@
 
 PlayCounter watches what's actually running on your PC and records playtime for
 recognized games, regardless of how they were launched (Steam, Epic, GOG, EA,
-Ubisoft, Battle.net, a shortcut, or a plain `.exe`). Unknown games can be added
+Ubisoft, Battle.net, an emulator, a shortcut, or a plain `.exe`). Unknown games can be added
 locally or submitted as community matches for review. Sessions and recent
 history stay on the PC, and the free, open-source app does not require an
 account.
@@ -26,15 +26,15 @@ Windows; macOS and Linux are planned.
 
 ## Screenshots
 
-Screenshots show the 1.2.0 interface with example data.
+Screenshots show the 1.7.0 interface with example data.
 
-![PlayCounter Now Playing with a live session timer, total playtime and session count for Cyberpunk 2077](landing/images/playcounter-now-playing-v1-2-0-1000.webp)
+![PlayCounter Now Playing for Elden Ring with a live session timer, a pause button and counters for deaths and bosses](landing/images/playcounter-now-playing-v1-7-0-1000.webp)
 
-|                                                       My Games                                                        |                                                     My History                                                      |
-| :-------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------: |
-| ![PlayCounter My Games grid with shelves, status badges and games from Steam, Xbox and Battle.net](landing/images/playcounter-library-grid-v1-2-0-1000.webp) | ![PlayCounter My History with playtime, streaks and recorded sessions by day](landing/images/playcounter-history-v1-2-0-1000.webp) |
-|                                                   **Achievements**                                                    |                                                     **Journal**                                                     |
-| ![PlayCounter Achievements with milestone progress and lifetime playtime trophies](landing/images/playcounter-achievements-v1-2-0-1000.webp) | ![PlayCounter game journal with playthroughs, a game note and recorded sessions](landing/images/playcounter-journal-v1-2-0-1000.webp) |
+|                                                       My History                                                       |                                                      Counters                                                       |
+| :--------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------: |
+| ![PlayCounter My History with recorded sessions and the screenshots taken in each session](landing/images/playcounter-history-v1-7-0-1000.webp) | ![PlayCounter game details with the Counters tab: deaths per session for Elden Ring](landing/images/playcounter-counters-v1-7-0-1000.webp) |
+|                                                  **Game achievements**                                                 |                                                  **Help & guides**                                                  |
+| ![PlayCounter game details with Rocket League's Epic Games achievements, XP and unlock dates](landing/images/playcounter-game-achievements-v1-7-0-1000.webp) | ![PlayCounter Help & guides with the quick tour and guides by topic](landing/images/playcounter-guides-v1-7-0-1000.webp) |
 
 ## Help translate
 
@@ -73,11 +73,25 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
   playtime, and install paths are not uploaded.
 - The optional Xbox importer uses Microsoft sign-in in your browser. The API
   temporarily handles authorization and Xbox game data for that import; the app
-  does not see your Microsoft password.
+  does not see your Microsoft password. So the next import needs no new
+  sign-in, the app keeps Microsoft's refresh token on your PC, encrypted with
+  Windows data protection.
+- The optional Epic Games, GOG, Battle.net and PlayStation importers open the
+  service's own sign-in page; PlayCounter does not see your password. Playtime,
+  achievements and trophies are read from the service on your PC and stay
+  there. Only game identifiers and, for games the API doesn't recognise, game
+  titles are sent to the API to resolve names and cover art. Sign-ins kept for
+  the next import stay on your PC, encrypted with Windows data protection;
+  **Sign out** under **Launcher accounts** deletes them.
+- With **Live from PlayStation** on, the app asks Sony about once a minute which
+  game your console is running; those sessions stay on your PC.
 - Emulator detection reads local emulator process information and window
-  titles. Online matching can send extracted game identifiers (like a disc
-  serial or title ID), filenames or titles; full command lines are not uploaded
-  in those automatic matching requests.
+  titles; for BlueStacks it reads BlueStacks' own log to see which app is in
+  front. Online matching can send extracted game identifiers (like a disc
+  serial, title ID or Android package), filenames or titles; full command lines
+  are not uploaded in those automatic matching requests.
+- Screenshots are saved as files in your Pictures folder and are never
+  uploaded.
 - A blacklist lets you exclude any executable from tracking.
 
 See the [privacy policy](https://playcounter.app/datenschutz#en) for data flows
@@ -89,19 +103,33 @@ and retention details.
   setup and no requirement to launch through PlayCounter
 - Add local entries for games or other processes you choose to track
 - Automatic executable-to-game matching against the API
-- Steam, Xbox and Epic imports for available previous playtime, with game
-  matching and review before import; overlapping provider totals are not added
-  together. Battle.net import brings in the game list (Battle.net shares no
-  playtime)
+- Steam, Xbox, Epic Games, GOG and PlayStation imports for available previous
+  playtime, with game matching and review before import; several accounts of
+  one launcher add up, and overlapping provider totals are not added together.
+  Battle.net import brings in the game list (Battle.net shares no playtime)
+- Live PS5 and PS4 sessions through the optional PlayStation sign-in
+- Watched folders that add games from your game folders and new launcher
+  installs
 - Dedicated per-game emulator detection for DOSBox, Dolphin, PCSX2, mGBA, Cemu,
-  RPCS3, PPSSPP, DuckStation, Ryujinx and Eden, with local review for
-  uncertain matches
-- Searchable game library with provider tabs, grid/list layouts, shelves,
-  statuses and custom covers
-- Session history and statistics, manual entries and playtime adjustments
-- Achievements for lifetime hours, monthly goals and per-game milestones
+  RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and
+  BlueStacks, with local review for uncertain matches
+- Searchable game library with launcher tabs, grid/list layouts, shelves
+  (also shelves that hide their games), statuses, S to F tiers and custom
+  covers and banners
+- Screenshots with a hotkey, with an optional caption, shown on the session
+  they were taken in
+- Counters per game (deaths, bosses or anything else), counted with a hotkey,
+  a controller or in the app
+- Pause and resume a running session, and a live timer on your game
+- Session history and statistics for any dates, with editing, splitting and
+  combining of sessions, manual entries and playtime adjustments
+- Achievements for lifetime hours, monthly goals and per-game milestones, plus
+  each game's Steam, Xbox, Epic Games and GOG achievements and PlayStation
+  trophies
+- How long to beat for each game, with your progress
 - Journal with notes and playthroughs for every game, plus a note for every
   session (also from a hotkey while you play)
+- Help & guides with step-by-step guides that use sample games
 - Available in English, German, French, Polish, Russian, Portuguese (Brazil),
   Spanish and Chinese
 - Optional game-launch actions, desktop overlays and configurable shortcuts
