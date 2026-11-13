@@ -30,7 +30,7 @@ export function countersGuide(): TourDefinition {
     duration: t("2 min"),
     demoGame: true,
     finishView: "games",
-    nextTourId: "while-you-play",
+    nextTourId: "screenshots",
     steps: [
       {
         id: "intro",

@@ -240,13 +240,13 @@ describe("Count deaths and bosses: the rules for every step", () => {
     expect(step("key").task).toMatch(/you like|your choice|of your own/i);
   });
 
-  it("ends with what to do in the app, and offers While you play next", () => {
+  it("ends with what to do in the app, and offers Screenshots next", () => {
     const last = guide().steps.at(-1)!;
     expect(last.task).toBeUndefined();
     expect(last.interactive).toBeUndefined();
     expect(last.body).toMatch(/in the app/i);
-    expect(guide().nextTourId).toBe("while-you-play");
-    expect(findTour("while-you-play")).toBeTruthy();
+    expect(guide().nextTourId).toBe("screenshots");
+    expect(findTour("screenshots")).toBeTruthy();
   });
 });
 

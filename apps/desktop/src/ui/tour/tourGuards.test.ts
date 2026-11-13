@@ -178,6 +178,22 @@ describe("guide steps", () => {
   });
 });
 
+describe("Next up", () => {
+  it("never leads back to a guide of the same chain", () => {
+    const problems = tours().flatMap((tour) => {
+      const seen = [tour.id];
+      let next = tour.nextTourId;
+      while (next) {
+        if (seen.includes(next)) return [[...seen, next].join(" → ")];
+        seen.push(next);
+        next = tours().find((entry) => entry.id === next)?.nextTourId;
+      }
+      return [];
+    });
+    expect(problems).toEqual([]);
+  });
+});
+
 /* Step texts ──────────────────────────────────────────────────────────────
    One thing per step: a text has at most BODY_LIMIT characters in English.
    TOO_LONG lists the steps written before this rule. A step leaves the list
