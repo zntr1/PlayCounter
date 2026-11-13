@@ -5,6 +5,7 @@ import {
 import { milestoneTitle, parseMilestoneId } from "./milestones";
 import {
   openEmulatorLabel,
+  screenshotBlackText,
   suggestionText,
   type AppNotification,
 } from "./notifications";
@@ -58,6 +59,10 @@ export function notificationText(
             ? openEmulatorLabel(emulator)
             : saved.actionLabel,
       };
+    }
+    case "screenshot-black": {
+      const game = text("game");
+      return game === undefined ? saved : screenshotBlackText(game);
     }
     case "discovered-review": {
       const count = params.count;

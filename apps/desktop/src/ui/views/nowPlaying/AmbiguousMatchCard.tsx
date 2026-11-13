@@ -38,9 +38,15 @@ import { notifyFolderIgnored } from "../folderIgnoredToast";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../../SoftwareDialog";
 import { ReportWrongMatchDialog } from "../../ReportWrongMatchDialog";
 import { exeProductName, useExeDetails } from "../../exeDetails";
+import { TourSampleSearch } from "../../tour/TourSampleSearch";
 import { appLocale, getT } from "../../../i18n";
 
 const t = getT("nowPlaying");
+
+/** What the player chose on a guide's sample card. */
+export type AmbiguousSampleChoice =
+  | { kind: "game" | "custom"; name: string }
+  | { kind: "software" | "ignored" | "reported" };
 
 /* One executable PlayCounter would not match on its own ─────────────────────
    Header asks the question, body offers the database's candidates as cover
@@ -55,6 +61,7 @@ export function AmbiguousMatchCard({
   elapsedSeconds,
   ended,
   flagReason,
+  sample,
 }: {
   exeName: string;
   exePath: string | null;
@@ -64,6 +71,9 @@ export function AmbiguousMatchCard({
   elapsedSeconds: number;
   ended: boolean;
   flagReason?: IdentifierFlagReason;
+  /** A guide's sample card: every way out is only reported here, the search
+   *  shows bundled results, and nothing reaches the tracker. */
+  sample?: { onChoice: (choice: AmbiguousSampleChoice) => void };
 }) {
   const addToast = useAppStore((state) => state.addToast);
   const trackTools = useAppStore((state) => state.settings.trackTools === true);
@@ -125,7 +135,7 @@ export function AmbiguousMatchCard({
       });
     },
   });
-  const isOffline = correction.isOffline;
+  const isOffline = correction.isOffline && !sample;
   // Known software on this file name leads; with Track software off, only
   // the games are offered.
   const software = trackTools
@@ -189,6 +199,7 @@ export function AmbiguousMatchCard({
   function submitCustomGame() {
     const name = customName.trim();
     if (!name) return;
+    if (sample) return sample.onChoice({ kind: "custom", name });
     selectAmbiguousCustomGame(exeName, name);
     addToast({
       tone: "success",
@@ -198,11 +209,13 @@ export function AmbiguousMatchCard({
   }
 
   async function handleNegativeReport() {
+    if (sample) return sample.onChoice({ kind: "reported" });
     const outcome = await reportNegativeMatch(exeName, [exePath]);
     notifyNegativeReportOutcome(exeName, outcome, addToast);
   }
 
   async function handleDismiss() {
+    if (sample) return sample.onChoice({ kind: "ignored" });
     const outcome = await dismissAmbiguousMatch(exeName);
     notifyDismissOutcome(exeName, outcome, addToast);
   }
@@ -307,13 +320,22 @@ export function AmbiguousMatchCard({
               </div>
             ) : null}
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-3">
+          <div
+            data-tour="ambiguous-candidates"
+            className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-3"
+          >
             {orderedCandidates.map((game) => (
               <CandidateTile
                 key={`${game.source}:${game.id}`}
                 exeName={exeName}
                 game={game}
                 ended={ended}
+                onSelect={
+                  sample
+                    ? (picked) =>
+                        sample.onChoice({ kind: "game", name: picked.name })
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -402,6 +424,7 @@ export function AmbiguousMatchCard({
       {notAGameOpen ? (
         <ReportWrongMatchDialog
           unidentified
+          demo={Boolean(sample)}
           exeName={exeName}
           gameName=""
           onCancel={() => setNotAGameOpen(false)}
@@ -411,12 +434,14 @@ export function AmbiguousMatchCard({
               ? undefined
               : () => {
                   setNotAGameOpen(false);
-                  setSoftwareOpen(true);
+                  if (sample) sample.onChoice({ kind: "software" });
+                  else setSoftwareOpen(true);
                 }
           }
           onIgnoreApp={() => {
             setNotAGameOpen(false);
-            void ignoreAppAsSoftware(exeName, exePath, addToast);
+            if (sample) sample.onChoice({ kind: "ignored" });
+            else void ignoreAppAsSoftware(exeName, exePath, addToast);
           }}
           onNotAGame={() => {
             setNotAGameOpen(false);
@@ -437,7 +462,17 @@ export function AmbiguousMatchCard({
           onClose={() => setSoftwareOpen(false)}
         />
       ) : null}
-      {suggestionOpen ? (
+      {suggestionOpen && sample ? (
+        <TourSampleSearch
+          share
+          exeName={exeName}
+          onClose={closeSuggestion}
+          onConfirm={(choice) => {
+            closeSuggestion();
+            sample.onChoice({ kind: "game", name: choice.name });
+          }}
+        />
+      ) : suggestionOpen ? (
         <CommunitySuggestionForm
           candidates={correction.candidates}
           exeName={exeName}

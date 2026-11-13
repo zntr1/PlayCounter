@@ -1,7 +1,103 @@
 import type { EmulatorMapping } from "../../emulators/types";
-import type { ActiveSession } from "../../store";
-import type { Session } from "@playcounter/shared";
+import type { ActiveSession, GameMetadata } from "../../store";
+import type { ArtAssetsResponse, Game, Session } from "@playcounter/shared";
 import type { GameSummary } from "../views/MyGamesView";
+import type { SampleDetailsTab, TourStep } from "./tourTypes";
+
+/** What the sample card in My Games shows when a step starts. */
+export type SampleStage = {
+  /** Its right-click menu is open. */
+  menu: boolean;
+  /** This flyout of the menu is open too (its `data-tour` name). */
+  flyout: string | null;
+  /** "Log a missed session" is open. */
+  logSession: boolean;
+  /** The cover's hover buttons show without the pointer on the card. */
+  hoverButtons: boolean;
+  /** Details is open on this tab (the step's `sampleDetails`). */
+  details: SampleDetailsTab | null;
+};
+
+type StagedStep = Pick<
+  TourStep,
+  | "anchor"
+  | "anchorTargets"
+  | "additionalAnchors"
+  | "retreatWhenMissing"
+  | "sampleDetails"
+>;
+
+const tourNames = (selectors: readonly (string | undefined)[]) =>
+  selectors.flatMap((selector) =>
+    [...(selector ?? "").matchAll(/data-tour="([^"]+)"/g)].map(
+      (match) => match[1],
+    ),
+  );
+
+// How the sample card's `data-tour` names start. The names themselves are
+// written out where they are rendered (views/MyGamesView.tsx).
+const MENU_ROOTS = ["demo-context-menu", "demo-library-menu"];
+const MENU_ENTRY = "demo-menu-";
+const CARD_BUTTON = "demo-card-";
+const LOG_SESSION = "demo-log-session-";
+
+/** The sample card sets itself up from what a step rings, never from the
+ *  step's place in its guide: a step that rings a menu entry gets the menu,
+ *  one that rings a flyout gets that flyout, the dialog step gets its
+ *  dialog. A step added to a guide needs nothing else. */
+export function sampleStageForStep(step: StagedStep | undefined): SampleStage {
+  // What the step cannot do without, then what it would like to ring.
+  const needs = tourNames([step?.retreatWhenMissing, step?.anchor]);
+  const names = [...needs, ...tourNames(step?.anchorTargets ?? [])];
+  const logSession = needs.some((name) => name.startsWith(LOG_SESSION));
+  const flyout =
+    names.find(
+      (name) => !MENU_ROOTS.includes(name) && /^demo-[a-z]+-menu$/.test(name),
+    ) ?? null;
+  return {
+    menu:
+      !logSession &&
+      (flyout !== null ||
+        names.some(
+          (name) => MENU_ROOTS.includes(name) || name.startsWith(MENU_ENTRY),
+        )),
+    flyout: logSession ? null : flyout,
+    logSession,
+    hoverButtons: names.some((name) => name.startsWith(CARD_BUTTON)),
+    details: step?.sampleDetails ?? null,
+  };
+}
+
+/** Whether a step rings this entry of the sample card: "details" is the menu
+ *  entry demo-menu-details or the cover button demo-card-details. Done on
+ *  such a step, the entry's action finishes the step. */
+export function stepAsksForSampleEntry(
+  step: StagedStep | undefined,
+  entry: string,
+) {
+  return tourNames([
+    step?.anchor,
+    ...(step?.anchorTargets ?? []),
+    ...(step?.additionalAnchors ?? []),
+  ]).some(
+    (name) => name === MENU_ENTRY + entry || name === CARD_BUTTON + entry,
+  );
+}
+
+/** What "Check for Matches" finds for the sample's game file: the community
+ *  match and IGDB's entry. Bundled, so nothing is looked up. */
+export function tourSampleMatches(): Game[] {
+  const match = {
+    id: TOUR_DEMO_GAME.gameId,
+    name: TOUR_DEMO_GAME.name,
+    coverUrl: TOUR_DEMO_GAME.coverUrl,
+    releaseYear: 2023,
+  };
+  return [
+    { ...match, source: "community" },
+    { ...match, source: "igdb" },
+  ];
+}
 
 export function tourSessionsForGame(game: GameSummary): Session[] {
   const count = Math.max(0, game.sessionCount);
@@ -27,14 +123,17 @@ export function tourSessionsForGame(game: GameSummary): Session[] {
 /** The second practice card, Grand Theft Auto V. */
 export const TOUR_GTA_GAME_ID = -2;
 
+/* Its file must name the game: a generic one (Game.exe, Wow.exe) is never
+   shared or reported, so the guides that practise that would have nothing
+   to show. */
 export const TOUR_DEMO_GAME = {
   gameId: -1,
-  name: "World of Warcraft",
-  exeName: "Wow.exe",
-  exePath: "C:\\Games\\World of Warcraft\\_retail_\\Wow.exe",
+  name: "Diablo IV",
+  exeName: "Diablo IV.exe",
+  exePath: "C:\\Games\\Diablo IV\\Diablo IV.exe",
   // Bundled artwork keeps the quick tour ready even on a first, offline run.
-  coverUrl: "/tour/world-of-warcraft-cover.webp",
-  bannerUrl: "/tour/world-of-warcraft-banner.jpg",
+  // No banner yet: wide places show the cover, as for any game without one.
+  coverUrl: "/tour/diablo-iv-cover.webp",
 } as const;
 
 export const EMULATOR_TOUR_ID = "emulators";
@@ -111,3 +210,66 @@ export function emulatorTourDemoActive(
     emulatorId === undefined || emulatorId === TOUR_DEMO_EMULATOR.emulatorId
   );
 }
+
+/** The titles the guides' Add game search can find: bundled, so nothing is
+ *  looked up. A title or an IGDB number picks them, like the real search. */
+export function tourSampleGames(query: string): GameMetadata[] {
+  const games: GameMetadata[] = [
+    {
+      id: TOUR_DEMO_GAME.gameId,
+      igdbId: 1,
+      name: TOUR_DEMO_GAME.name,
+      coverUrl: TOUR_DEMO_GAME.coverUrl,
+      releaseYear: 2023,
+      source: "igdb",
+    },
+    {
+      id: TOUR_DEMO_EMULATOR.gameId,
+      igdbId: 2,
+      name: TOUR_DEMO_EMULATOR.gameName,
+      coverUrl: TOUR_DEMO_EMULATOR.coverUrl,
+      releaseYear: 2002,
+      source: "igdb",
+    },
+    {
+      id: TOUR_GTA_GAME_ID,
+      igdbId: 3,
+      name: "Grand Theft Auto V", // i18n-exempt: sample game name
+      coverUrl: "/tour/gta-v-cover.webp",
+      releaseYear: 2013,
+      source: "igdb",
+    },
+    {
+      id: -3,
+      igdbId: 4,
+      name: "World of Warcraft", // i18n-exempt: sample game name
+      coverUrl: "/tour/world-of-warcraft-cover.webp",
+      releaseYear: 2004,
+      source: "igdb",
+    },
+  ];
+  const text = query.trim().toLowerCase();
+  return games.filter(
+    (game) =>
+      game.name.toLowerCase().includes(text) || String(game.igdbId) === text,
+  );
+}
+
+/** What the artwork picker offers in the Covers and banners guide: a few
+ *  drawings shipped with the app (public/tour), so nothing is searched. */
+export const TOUR_SAMPLE_ART: ArtAssetsResponse = {
+  covers: [1, 2, 3].map((number) => ({
+    id: -number,
+    url: `/tour/sample-cover-${number}.svg`,
+    thumbUrl: `/tour/sample-cover-${number}.svg`,
+    width: 600,
+    height: 900,
+  })),
+  heroes: [1, 2].map((number) => ({
+    id: -10 - number,
+    url: `/tour/sample-banner-${number}.svg`,
+    thumbUrl: `/tour/sample-banner-${number}.svg`,
+    width: 1920,
+    height: 620,
+  })),
+};

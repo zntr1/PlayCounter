@@ -78,8 +78,6 @@
   "Apps from the latest scan.": "最近一次扫描到的应用。",
   "Not running": "未运行",
   "Apps PlayCounter saw earlier. They stay here until you decide.": "PlayCounter 之前见过的应用。它们会留在这里，直到你做出决定。",
-  "Tutorial app": "教程应用",
-  "{{exeName}} exists only inside this guide. Nothing was changed or saved.": "{{exeName}} 只存在于本指南中。没有更改或保存任何内容。",
   "Last scan {{date}}": "上次扫描：{{date}}",
   "No scan yet": "尚未扫描",
   "Search apps...": "搜索应用…",

@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Gamepad2,
   Hourglass,
+  Skull,
   Info,
   Loader2,
   Medal,
@@ -26,8 +27,12 @@ import {
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
-import { useGameDetails } from "../../../gameDetails";
-import { useCoverUrl } from "../../../pickedCovers";
+import { useGameDetails, type GameDetailsState } from "../../../gameDetails";
+import {
+  markCoverUnavailable,
+  useCoverUrl,
+  usePickedBanner,
+} from "../../../pickedCovers";
 import { playsOnConsole } from "../../../library/importProfiles";
 import { EARLIER_IMPORT } from "../../../library/accountReadings";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
@@ -35,7 +40,6 @@ import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
 import {
   canCancelCommunitySuggestion,
-  customHeroArtKey,
   fileMatchSource,
   gameMetadataKey,
   useAppStore,
@@ -51,6 +55,7 @@ import { Button, IconButton, Modal } from "../../primitives";
 import { ContextMenu, useAnchoredMenu } from "../../ContextMenu";
 import { GameTierMenuItems } from "../../GameJournalActions";
 import { useGameJournal } from "../../useGameJournal";
+import { TIER_TONES } from "../../journalStyles";
 import {
   formatDuration,
   GameProvenanceBadges,
@@ -69,10 +74,13 @@ import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 import { Figure, Panel, SkeletonBar, SourceTag } from "./detailsPanels";
 import { HowLongToBeatTab } from "./HowLongToBeatTab";
+import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
-import { appLanguage, appLocale, getT } from "../../../i18n";
+import { tourCounters, tourDemoDetails } from "../../tour/tourDemoDetails";
+import { PersonalLibraryContext } from "../../PersonalLibraryContext";
+import { appLanguage, formatNumericDate, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
 
 const t = getT("games");
@@ -107,13 +115,18 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
   };
 }
 
-export type DetailsTab = "general" | "howLongToBeat" | "files" | "achievements";
+export type DetailsTab =
+  | "general"
+  | "howLongToBeat"
+  | "files"
+  | "achievements"
+  | "counters";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString(appLocale());
+  return formatNumericDate(date);
 }
 
 function Row({
@@ -160,7 +173,7 @@ function Chips({ values }: { values: readonly string[] }) {
 }
 
 /** Your own tier beside IGDB's rating, so the two never read as one. */
-function TierTile({ game }: { game: GameIdentityRef }) {
+export function TierTile({ game }: { game: GameIdentityRef }) {
   const journal = useGameJournal(game);
   const menu = useAnchoredMenu();
   return (
@@ -178,7 +191,9 @@ function TierTile({ game }: { game: GameIdentityRef }) {
             <span className="max-w-[4.5rem] text-left text-[11px] leading-tight text-text-muted">
               {t("Your tier")}
             </span>
-            <span className="font-mono text-2xl font-bold text-text">
+            <span
+              className={`font-mono text-2xl font-bold ${TIER_TONES[journal.tier]}`}
+            >
               {journal.tier}
             </span>
           </>
@@ -257,11 +272,19 @@ export function GameDetailsDialog({
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const addToast = useAppStore((state) => state.addToast);
-  const pickedArt = useAppStore(
-    (state) => state.customHeroArt[customHeroArtKey(game)],
-  );
+  const pickedArt = usePickedBanner(game);
   const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
-  const details = useGameDetails(demo ? undefined : game.igdbId);
+  // The sample game of the guides shows bundled facts, times and
+  // achievements like a well-known game; nothing is asked from anywhere.
+  const sample = useMemo(
+    () => (demo ? tourDemoDetails(game) : null),
+    [demo, game.gameId],
+  );
+  const realDetails = useGameDetails(demo ? undefined : game.igdbId);
+  const details: GameDetailsState = sample
+    ? { status: "ready", details: sample.details }
+    : realDetails;
+  const sampleResetToken = useAppStore((state) => state.demoResetToken);
   // Release year already known from matching, so the title line is never empty
   // while the details request is in flight.
   const cachedReleaseYear = useAppStore((state) =>
@@ -300,6 +323,7 @@ export function GameDetailsDialog({
     howLongToBeat: null,
     files: null,
     achievements: null,
+    counters: null,
   });
 
   const stats = useMemo(
@@ -471,6 +495,10 @@ export function GameDetailsDialog({
       : []),
     { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
     { id: "files", label: t("Files"), icon: FolderOpen },
+    // The second sample game of the guides has nothing to count.
+    ...(demo && !sample
+      ? []
+      : [{ id: "counters" as const, label: t("Counters"), icon: Skull }]),
   ];
 
   const header = (
@@ -487,6 +515,7 @@ export function GameDetailsDialog({
             sizes="1024px"
             alt=""
             decoding="async"
+            onError={() => markCoverUnavailable(artwork)}
             className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
           />
         ) : coverUrl ? (
@@ -583,6 +612,7 @@ export function GameDetailsDialog({
                     aria-selected={selected}
                     data-autofocus={selected || undefined}
                     aria-controls={`game-details-panel-${id}`}
+                    data-tour={demo ? `demo-details-tab-${id}` : undefined}
                     tabIndex={selected ? 0 : -1}
                     onClick={() => setTab(id)}
                     className={clsx(
@@ -634,80 +664,85 @@ export function GameDetailsDialog({
     </div>
   );
 
-  const aboutBody = !game.igdbId ? (
-    // Community entries added before suggestions carried an IGDB id - and
-    // custom games - have no IGDB identity to look anything up with. Saying
-    // so beats hiding the panel, which just looks like it failed.
-    <p className="text-sm text-text-muted">
-      {game.source === "custom"
-        ? t(
-            "This is your own entry, so there is no database record behind it. Open on IGDB searches by name instead.",
-          )
-        : t(
-            "This game is not linked to an IGDB entry yet, so there is nothing to show here. Open on IGDB searches by name instead.",
-          )}
-    </p>
-  ) : details.status === "loading" ? (
-    <div className="grid gap-2" role="status" aria-label={t("Loading details")}>
-      <SkeletonBar className="h-3 w-full" />
-      <SkeletonBar className="h-3 w-full" />
-      <SkeletonBar className="h-3 w-2/3" />
-    </div>
-  ) : details.status === "offline" ? (
-    <p className="flex items-center gap-2 text-sm text-text-muted">
-      <WifiOff size={14} />
-      {t("Details need a connection to the PlayCounter database.")}
-    </p>
-  ) : details.status === "error" ? (
-    <p className="text-sm text-text-muted">
-      {t(
-        "Details could not be loaded right now. Your summary below comes from this PC and is unaffected.",
-      )}
-    </p>
-  ) : resolved ? (
-    <div className="grid gap-4">
-      {resolved.summary ? (
-        <div>
-          {/* IGDB only has English descriptions. */}
-          <p
-            lang="en"
-            className="whitespace-pre-line text-sm leading-6 text-text-muted"
-          >
-            {resolved.summary}
-          </p>
-          {appLanguage() !== "en" ? (
-            <p className="mt-1 text-xs text-text-faint">
-              {t("Only available in English")}
+  const aboutBody =
+    !game.igdbId && !sample ? (
+      // Community entries added before suggestions carried an IGDB id - and
+      // custom games - have no IGDB identity to look anything up with. Saying
+      // so beats hiding the panel, which just looks like it failed.
+      <p className="text-sm text-text-muted">
+        {game.source === "custom"
+          ? t(
+              "This is your own entry, so there is no database record behind it. Open on IGDB searches by name instead.",
+            )
+          : t(
+              "This game is not linked to an IGDB entry yet, so there is nothing to show here. Open on IGDB searches by name instead.",
+            )}
+      </p>
+    ) : details.status === "loading" ? (
+      <div
+        className="grid gap-2"
+        role="status"
+        aria-label={t("Loading details")}
+      >
+        <SkeletonBar className="h-3 w-full" />
+        <SkeletonBar className="h-3 w-full" />
+        <SkeletonBar className="h-3 w-2/3" />
+      </div>
+    ) : details.status === "offline" ? (
+      <p className="flex items-center gap-2 text-sm text-text-muted">
+        <WifiOff size={14} />
+        {t("Details need a connection to the PlayCounter database.")}
+      </p>
+    ) : details.status === "error" ? (
+      <p className="text-sm text-text-muted">
+        {t(
+          "Details could not be loaded right now. Your summary below comes from this PC and is unaffected.",
+        )}
+      </p>
+    ) : resolved ? (
+      <div className="grid gap-4">
+        {resolved.summary ? (
+          <div>
+            {/* IGDB only has English descriptions. */}
+            <p
+              lang="en"
+              className="whitespace-pre-line text-sm leading-6 text-text-muted"
+            >
+              {resolved.summary}
             </p>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-sm text-text-muted">
-          {t("The database has no description for this game yet.")}
-        </p>
-      )}
-      {(
-        [
-          [t("Genres"), resolved.genres.map(igdbTerm)],
-          [t("Modes"), resolved.gameModes.map(igdbTerm)],
-          [t("Platforms"), resolved.platforms],
-        ] as const
-      )
-        .filter(([, values]) => values.length > 0)
-        .map(([label, values]) => (
-          <div key={label} className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-wider text-text-faint">
-              {label}
-            </span>
-            <Chips values={values} />
+            {appLanguage() !== "en" ? (
+              <p className="mt-1 text-xs text-text-faint">
+                {t("Only available in English")}
+              </p>
+            ) : null}
           </div>
-        ))}
-    </div>
-  ) : (
-    <p className="text-sm text-text-muted">
-      {t("The database has no description for this game yet.")}
-    </p>
-  );
+        ) : (
+          <p className="text-sm text-text-muted">
+            {t("The database has no description for this game yet.")}
+          </p>
+        )}
+        {(
+          [
+            [t("Genres"), resolved.genres.map(igdbTerm)],
+            [t("Modes"), resolved.gameModes.map(igdbTerm)],
+            [t("Platforms"), resolved.platforms],
+          ] as const
+        )
+          .filter(([, values]) => values.length > 0)
+          .map(([label, values]) => (
+            <div key={label} className="flex flex-wrap items-center gap-2">
+              <span className="w-20 shrink-0 text-[11px] font-medium uppercase tracking-wider text-text-faint">
+                {label}
+              </span>
+              <Chips values={values} />
+            </div>
+          ))}
+      </div>
+    ) : (
+      <p className="text-sm text-text-muted">
+        {t("The database has no description for this game yet.")}
+      </p>
+    );
 
   const generalTab = (
     <div className="grid gap-4">
@@ -762,7 +797,7 @@ export function GameDetailsDialog({
               title={launchTitle}
               aria-label={`${launcher.launchLabel}: ${game.name}`}
               onClick={() => void launcher.launch()}
-              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
             >
               {launcher.hasActiveSession
                 ? t("Running")
@@ -776,7 +811,7 @@ export function GameDetailsDialog({
               icon={Download}
               aria-label={t("Install {{name}} in Steam", { name: game.name })}
               onClick={() => void launcher.install()}
-              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
             >
               {t("Install in Steam")}
             </Button>
@@ -784,7 +819,7 @@ export function GameDetailsDialog({
           <Button
             icon={ExternalLink}
             onClick={() => void openOnIgdb()}
-            className="h-12 rounded-lg px-5 font-semibold"
+            className="h-12 rounded-lg px-5 font-normal"
           >
             {t("Open on IGDB")}
           </Button>
@@ -792,7 +827,7 @@ export function GameDetailsDialog({
             <Button
               icon={BarChart3}
               onClick={showHistory}
-              className="ml-auto h-12 rounded-lg px-5 font-semibold"
+              className="ml-auto h-12 rounded-lg px-5 font-normal"
             >
               {t("Show in History")}
             </Button>
@@ -1109,7 +1144,7 @@ export function GameDetailsDialog({
     <Modal
       dataTour={demo ? "demo-game-details" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
-      className="game-details-dialog"
+      className="game-details-dialog  max-w-6xl h-[90vh]"
       size="xl"
       labelId="game-details-title"
       title={game.name}
@@ -1120,6 +1155,7 @@ export function GameDetailsDialog({
         role="tabpanel"
         id={`game-details-panel-${tab}`}
         aria-labelledby={`game-details-tab-${tab}`}
+        data-tour={demo ? `demo-details-panel-${tab}` : undefined}
       >
         {tab === "general" ? (
           generalTab
@@ -1133,6 +1169,18 @@ export function GameDetailsDialog({
           />
         ) : tab === "files" ? (
           filesTab
+        ) : tab === "counters" ? (
+          sample ? (
+            // The sample's counters live in a library of their own.
+            <PersonalLibraryContext.Provider
+              key={sampleResetToken}
+              value={tourCounters().store}
+            >
+              <GameCountersTab game={game} />
+            </PersonalLibraryContext.Provider>
+          ) : (
+            <GameCountersTab game={game} />
+          )
         ) : (
           <GameAchievementsTab sources={gameAchievementSources} />
         )}

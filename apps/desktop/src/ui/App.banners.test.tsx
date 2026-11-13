@@ -212,6 +212,38 @@ it("keeps Now Playing on the first running game despite a saved library banner p
   expect(container.textContent).toContain("No game detected");
 });
 
+it("runs the banner art on behind the notices above the page", async () => {
+  useAppStore.setState({
+    activeView: "now",
+    activeSessions: [
+      {
+        id: 1,
+        gameId: -3,
+        source: "custom",
+        gameName: "Running game",
+        exeName: "running.exe",
+        coverUrl: "/running-cover.jpg",
+        startedAt: "2026-09-21T12:00:00Z",
+        checkpointedAt: "2026-09-21T12:00:00Z",
+      },
+    ],
+    runtimeError: "Could not save",
+  });
+  await act(() => root.render(<App />));
+  const art = container.querySelector(".titlebar-art")!;
+  const bar = container.querySelector("header")!;
+  const notice = container.querySelector('[role="alert"]')!;
+  expect(notice.textContent).toBe("Could not save");
+  // One layer behind the title bar and the notices, not one inside the bar.
+  expect(bar.contains(art)).toBe(false);
+  expect(art.parentElement!.contains(bar)).toBe(true);
+  expect(art.parentElement!.contains(notice)).toBe(true);
+  // The banner starts its crop lower by the height of the notices.
+  expect(
+    container.querySelector("main")!.style.getPropertyValue("--hero-lead"),
+  ).toContain("var(--notice-height");
+});
+
 it("loads a saved banner before opening My Games and follows new play evidence", async () => {
   useAppStore.getState().setViewShowHero("achievements", true);
   await act(() => root.render(<App />));

@@ -3,6 +3,7 @@ import type { EmulatorMapping } from "./emulators/types";
 import { rateLimitedFetch } from "./rateLimitedFetch";
 import { validateBackupData } from "./backupValidation";
 import * as overlayBridge from "./desktopOverlayBridge";
+import i18next from "i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock, openMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
@@ -572,6 +573,212 @@ describe("PCSX2 tracking integration", () => {
       { detectionSource: "open_file_handle", gameName: "Final Fantasy X" },
     );
     expect(useAppStore.getState().knownEmulators.has("pcsx2")).toBe(true);
+  });
+});
+
+describe("BlueStacks tracking integration", () => {
+  const key = "bluestacks:title_id:com.kiloo.subwaysurf";
+  type App = { package: string; label: string | null; category: string | null };
+  // As the scanner reports them: Subway Surfers with name and category from
+  // BlueStacks' app list, the home screen without.
+  const subway: App = {
+    package: "com.kiloo.subwaysurf",
+    label: "Subway Surf",
+    category: "Arcade",
+  };
+  const home: App = {
+    package: "com.uncube.launcher3",
+    label: null,
+    category: null,
+  };
+
+  // The tracker keeps a closed emulator's game for one more scan. Two scans
+  // without BlueStacks end what the test before left running.
+  beforeEach(async () => {
+    await scanProcessesNow();
+    await scanProcessesNow();
+  });
+
+  /** One BlueStacks player; the returned function changes the app in front. */
+  function runBlueStacks(first: App | null, emulatorContentLookup = false) {
+    useAppStore.setState({
+      knownEmulators: new Map(),
+      settings: {
+        ...useAppStore.getState().settings,
+        emulatorDetection: true,
+        emulatorContentLookup,
+        ignoredEmulatorIds: [],
+      },
+    });
+    let foregroundApp = first;
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "scan_processes"
+        ? [
+            {
+              exeName: "HD-Player.exe",
+              exePath: String.raw`C:\Program Files\BlueStacks_nxt\HD-Player.exe`,
+              emulatorId: "bluestacks",
+              pid: 29836,
+              startedAtUnix: 10,
+              commandLine: null,
+              windowTitle: null,
+              foregroundApp,
+            },
+          ]
+        : undefined,
+    );
+    return (next: App | null) => {
+      foregroundApp = next;
+    };
+  }
+
+  function mapSubwaySurfers() {
+    useAppStore.setState({
+      emulatorMappings: new Map([
+        [
+          key,
+          emulatorMapping({
+            emulatorId: "bluestacks",
+            label: "BlueStacks",
+            contentKey: key,
+            contentKind: "title_id",
+            contentValue: "com.kiloo.subwaysurf",
+            display: "Subway Surf",
+            gameName: "Subway Surfers",
+            detectionSource: "activity_log",
+          }),
+        ],
+      ]),
+    });
+  }
+
+  it("counts the game in front and stops on the home screen", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-10T21:07:00Z"));
+      mapSubwaySurfers();
+      const show = runBlueStacks(subway);
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions).toEqual([
+        expect.objectContaining({
+          gameId: 42,
+          emulator: expect.objectContaining({
+            emulatorId: "bluestacks",
+            contentKey: key,
+          }),
+        }),
+      ]);
+      expect(useAppStore.getState().knownEmulators.has("bluestacks")).toBe(
+        true,
+      );
+      // HD-Player.exe is the emulator, not a game, and nothing to launch yet.
+      expect(useAppStore.getState().exeCache.has("hd-player.exe")).toBe(false);
+      expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
+
+      vi.setSystemTime(new Date("2026-11-10T21:10:00Z"));
+      show(home);
+      await scanProcessesNow();
+      await scanProcessesNow();
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions).toEqual([]);
+      expect(useAppStore.getState().recentSessions).toEqual([
+        expect.objectContaining({
+          gameId: 42,
+          durationSeconds: 180,
+          emulator: expect.objectContaining({ emulatorId: "bluestacks" }),
+        }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("asks the API with the package and the app's name and tracks the game it finds", async () => {
+    runBlueStacks(subway, true);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      Response.json(
+        String(input).endsWith("/api/emulator/resolve")
+          ? {
+              results: [
+                {
+                  key,
+                  confidence: "probable",
+                  game: {
+                    id: 77,
+                    igdbId: 1,
+                    name: "Subway Surfers",
+                    source: "igdb",
+                    coverUrl: "",
+                  },
+                },
+              ],
+            }
+          : {},
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await scanProcessesNow();
+    await scanProcessesNow();
+
+    const requests = fetchMock.mock.calls.filter(([url]) =>
+      String(url).endsWith("/api/emulator/resolve"),
+    );
+    expect(requests).toHaveLength(1);
+    const [, init] = requests[0] as unknown as [unknown, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({
+      items: [
+        {
+          key,
+          emulatorId: "bluestacks",
+          contentKind: "title_id",
+          contentValue: "com.kiloo.subwaysurf",
+          searchHint: "Subway Surf",
+        },
+      ],
+    });
+    expect(useAppStore.getState().activeSessions).toEqual([
+      expect.objectContaining({
+        gameId: 77,
+        emulator: expect.objectContaining({ contentKey: key }),
+      }),
+    ]);
+    expect(useAppStore.getState().emulatorMappings.get(key)).toMatchObject({
+      gameName: "Subway Surfers",
+      detectionSource: "activity_log",
+    });
+
+    // The mapping survives a restart and is valid in a backup.
+    persist();
+    const record = readSavedState();
+    expect(() =>
+      validateBackupData(
+        {
+          emulatorMappings: record.emulatorMappings,
+          knownEmulators: record.knownEmulators,
+        },
+        "backup",
+      ),
+    ).not.toThrow();
+    useAppStore.setState({ emulatorMappings: new Map() });
+    hydrate();
+    expect(useAppStore.getState().emulatorMappings.get(key)).toMatchObject({
+      detectionSource: "activity_log",
+    });
+  });
+
+  it("says no game is detected while BlueStacks' log names no app", async () => {
+    mapSubwaySurfers();
+    runBlueStacks(null);
+    await scanProcessesNow();
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(useAppStore.getState().emulatorObservations).toEqual([
+      expect.objectContaining({
+        kind: "host-notice",
+        emulatorId: "bluestacks",
+        reason: "no-signal",
+      }),
+    ]);
   });
 });
 
@@ -5324,5 +5531,63 @@ describe("start page", () => {
     );
     hydrate();
     expect(useAppStore.getState().activeView).toBe(expected);
+  });
+});
+
+describe("match lookup errors", () => {
+  afterEach(async () => {
+    await i18next.changeLanguage("en");
+  });
+
+  function failMatchLookup() {
+    useAppStore.setState({
+      runtimeError: null,
+      backendHealth: {
+        status: "online",
+        detail: "Backend health check passed",
+        checkedAt: "2026-11-10T12:00:00.000Z",
+      },
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://match-error.example",
+      },
+    });
+    invokeMock.mockResolvedValue([{ exeName: "Game.exe", exePath: null }]);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce(Response.json({ ok: true })),
+    );
+  }
+
+  it.each(["en", "de", "zh-CN"])(
+    "goes away once the server answers again (%s)",
+    async (language) => {
+      await i18next.changeLanguage(language);
+      failMatchLookup();
+      await scanProcessesNow();
+      expect(useAppStore.getState().runtimeError).toContain("Failed to fetch");
+
+      await checkBackendHealth();
+
+      expect(useAppStore.getState().backendHealth.status).toBe("online");
+      expect(useAppStore.getState().runtimeError).toBeNull();
+    },
+  );
+
+  it("leaves other errors when the server answers again", async () => {
+    failMatchLookup();
+    await scanProcessesNow();
+    useAppStore
+      .getState()
+      .setRuntimeError("Process scan failed: Access is denied.");
+
+    await checkBackendHealth();
+
+    expect(useAppStore.getState().runtimeError).toBe(
+      "Process scan failed: Access is denied.",
+    );
   });
 });

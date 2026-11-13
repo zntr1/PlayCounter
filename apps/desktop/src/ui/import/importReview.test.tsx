@@ -47,7 +47,10 @@ vi.mock("../../library/gameLookup", async (importOriginal) => ({
   reverseResolveLibraryGame: mocks.reverse,
   searchLibraryGames: mocks.search,
 }));
-vi.mock("../../library/importRun", () => ({ runLibraryImport: mocks.run }));
+vi.mock("../../library/importRun", () => ({
+  runLibraryImport: mocks.run,
+  importNowShareLater: mocks.run,
+}));
 
 type Shelf = "ready" | "attention" | "imported" | "unavailable";
 
@@ -146,6 +149,7 @@ async function scan(
   provider: BuiltinImportProviderId,
   result: Omit<LibraryScanResult, "warnings" | "partial"> & {
     partial?: boolean;
+    warnings?: string[];
   },
   imports: LibraryImportEntry[] = [],
 ) {
@@ -420,6 +424,48 @@ it.each([
   },
 );
 
+it("battlenet: says Battle.net doesn't share playtime, never Never played", async () => {
+  // Battle.net reports no playtime at all; a game without a last-played date
+  // may still have been played.
+  await scan("battlenet", {
+    games: [
+      game("s1", "StarCraft: Remastered", {
+        playtimeSeconds: null,
+        hasPlayedEvidence: false,
+        inAccountLibrary: true,
+      }),
+      game("wowf", "World of Warcraft: Forever", {
+        playtimeSeconds: null,
+        hasPlayedEvidence: false,
+        installed: true,
+        installPath: String.raw`C:\Program Files (x86)\World of Warcraft\_forever_`,
+        executables: [exe("Wow.exe")],
+      }),
+    ],
+    resolvedGames: [
+      matched("battlenet:s1", metadata(1, "StarCraft: Remastered")),
+      matched("battlenet:wowf", metadata(2, "World of Warcraft: Forever")),
+    ],
+  });
+  const says = async (name: string) => {
+    await act(() => row(name).click());
+    expect(detailTitle()).toBe(name);
+    expect(container.textContent).toContain(
+      "Battle.net doesn't share playtime",
+    );
+    expect(container.textContent).not.toContain("Never played");
+    expect(container.textContent).not.toContain("Playtime unknown");
+  };
+  // In the account, not installed: the row says it too.
+  expect(row("StarCraft: Remastered").textContent).toContain(
+    "Battle.net doesn't share playtime",
+  );
+  await says("StarCraft: Remastered");
+  // Installed, its file still to pick: Needs you.
+  await act(() => shelf("attention").tab.click());
+  await says("World of Warcraft: Forever");
+});
+
 it("playstation: a game Sony names no console for starts unchecked, and its details say why", async () => {
   // Phil's account: Bloodborne he played himself; GTA V someone else played
   // on it, in Sony's "unknown" category.
@@ -493,7 +539,7 @@ it("playstation: importing a game you confirmed names no PC game files", async (
   });
   await scan("playstation", {
     games: [
-      game("10000886", "Ghost of Tsushima", {
+      game("10000886", "Ghost of Tsushima DIRECTOR'S CUT", {
         playtimeSeconds: 180_000,
         hasPlayedEvidence: true,
         inAccountLibrary: true,
@@ -502,14 +548,11 @@ it("playstation: importing a game you confirmed names no PC game files", async (
     ],
     resolvedGames: [unmatched("playstation:10000886", [ghost])],
   });
-  expect(detailTitle()).toBe("Ghost of Tsushima");
+  expect(detailTitle()).toBe("Ghost of Tsushima DIRECTOR'S CUT");
 
   await click("Import");
   expect(mocks.run).toHaveBeenCalledTimes(1);
   expect(mocks.run.mock.calls[0][0][0].exeCacheEntries).toEqual([]);
-  const [toast] = store.getState().toasts;
-  expect(toast?.title).toBe("Ghost of Tsushima imported");
-  expect(toast?.detail ?? "").not.toMatch(/game file/i);
 });
 
 describe("Needs you", () => {
@@ -616,6 +659,40 @@ describe("Needs you", () => {
   });
 });
 
+// Phil, 2026-11-11: "make this closable". Closed for good, per warning text;
+// a different warning still shows.
+describe("closing a scan warning", () => {
+  const leftovers =
+    "Some Xbox folders still hold game files that Windows no longer has installed; they were skipped.";
+  const noTitleId =
+    "Some Xbox games do not report a title ID and were skipped.";
+  const library = {
+    games: [game("1", "Halo: The Master Chief Collection (PC)")],
+    resolvedGames: [unmatched("xbox:1")],
+  };
+
+  it("hides it with ×, also after Scan again, but shows a different warning", async () => {
+    await scan("xbox", { ...library, warnings: [leftovers] });
+    expect(container.textContent).toContain(leftovers);
+
+    const close = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close"]',
+    );
+    expect(close).not.toBeNull();
+    await act(() => close!.click());
+    expect(container.textContent).not.toContain(leftovers);
+
+    mocks.scan.mockResolvedValue({
+      ...library,
+      warnings: [leftovers, noTitleId],
+      partial: false,
+    });
+    await click("Scan again");
+    expect(container.textContent).not.toContain(leftovers);
+    expect(container.textContent).toContain(noTitleId);
+  });
+});
+
 // Phil, 2026-11-02: keep clicking Import game after game without looking for
 // the button, and no jump back to the top of the list after an import.
 describe("deciding one game after another", () => {
@@ -647,7 +724,10 @@ describe("deciding one game after another", () => {
     }));
   });
 
-  it("puts Skip for now and Import beside the game's name, above its choices, for every game", async () => {
+  // Phil, 2026-11-11: back to the bottom right, without the jumping. The box
+  // has one height, its choices scroll above the buttons. (The height itself
+  // is checked in a browser; jsdom has no layout.)
+  it("puts Skip for now and Import at the bottom right of the game's box, below its choices, for every game", async () => {
     await scan("xbox", {
       games: [
         game("1", "Microsoft Flight Simulator 40th Anniversary Edition"),
@@ -668,14 +748,17 @@ describe("deciding one game after another", () => {
       "Halo: The Master Chief Collection (PC)",
     ]) {
       await act(() => row(title).click());
-      const top = container.querySelector(
-        "section[aria-label]",
-      )!.firstElementChild!;
-      expect(top.querySelector("h3")?.textContent).toBe(title);
-      expect(top.contains(findButton("Skip for now")!)).toBe(true);
-      expect(top.contains(findButton("Import")!)).toBe(true);
-      // "Which game is …?" and "Which file starts the game?" come below.
-      expect(top.querySelector("h4")).toBeNull();
+      const box = container.querySelector("section[aria-label]")!;
+      expect(box.querySelector("h3")?.textContent).toBe(title);
+      // The box's last line holds the two buttons, Import on the right…
+      const bottom = box.lastElementChild!;
+      expect(
+        [...bottom.querySelectorAll("button")].map((b) => b.textContent),
+      ).toEqual(["Skip for now", "Import"]);
+      // …and nothing of the game: "Which game is …?" and "Which file starts
+      // the game?" sit above it, in the part that scrolls.
+      expect(bottom.querySelector("h3, h4")).toBeNull();
+      expect(box.querySelector("h4")).not.toBeNull();
     }
     expect(container.textContent).toContain("Which file starts the game?");
   });
@@ -693,6 +776,96 @@ describe("deciding one game after another", () => {
       "Sea of Thieves 2024 Edition",
     ]);
     expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+  });
+
+  // Phil, 2026-11-11: after Import the box showed the list's first game for
+  // two seconds, then the next one. The game is saved at once; sending its
+  // file to the community is what takes the time.
+  it("shows the next game right after Import, not the list's first, while the game's file is still being sent", async () => {
+    await scan("xbox", xboxLibrary);
+    await click("Skip for now");
+    const putInMyGames = mocks.run.getMockImplementation()!;
+    // In My Games at once; the community never answers.
+    mocks.run.mockImplementationOnce((...args: unknown[]) => {
+      void putInMyGames(...args);
+      return new Promise(() => {});
+    });
+
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+    expect(listed()).toEqual([
+      "Microsoft Flight Simulator 40th Anniversary Edition",
+      "Gears 5 Game of the Year Edition",
+      "Sea of Thieves 2024 Edition",
+    ]);
+  });
+
+  it("lets you import the next game while the one before is still being saved", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      // The server is slow to answer about Halo's game.
+      let answerHalo!: () => void;
+      const haloAnswered = new Promise<void>((resolve) => (answerHalo = resolve));
+      mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => {
+        if (id === masterChief.id) await haloAnswered;
+        return {
+          game: [flightSimulator, masterChief, gears, seaOfThieves].find(
+            (item) => item.id === id,
+          ),
+          executables: [],
+        };
+      });
+      const importedIds = () =>
+        mocks.run.mock.calls.map(
+          ([commits]) =>
+            (commits as { entry: LibraryImportEntry }[])[0].entry.externalId,
+        );
+      await scan("xbox", xboxLibrary);
+      await click("Skip for now");
+      expect(detailTitle()).toBe("Halo: The Master Chief Collection (PC)");
+
+      await click("Import");
+      expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+      vi.setSystemTime(Date.now() + 500);
+      await click("Import");
+      expect(detailTitle()).toBe("Sea of Thieves 2024 Edition");
+      expect(importedIds()).toEqual(["3"]);
+
+      await act(async () => answerHalo());
+      expect(importedIds()).toEqual(["3", "2"]);
+      expect(listed()).toEqual([
+        "Microsoft Flight Simulator 40th Anniversary Edition",
+        "Sea of Thieves 2024 Edition",
+      ]);
+      expect(detailTitle()).toBe("Sea of Thieves 2024 Edition");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Phil, 2026-11-11: a toast covered the next game's Import every time.
+  it("shows no toast after a game is imported, so nothing covers the next Import", async () => {
+    await scan("xbox", xboxLibrary);
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(store.getState().toasts).toEqual([]);
+  });
+
+  it("keeps a game that could not be imported in Needs you and names it", async () => {
+    mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => {
+      if (id === masterChief.id) throw new Error("Server unreachable");
+      return { game: gears, executables: [] };
+    });
+    await scan("xbox", xboxLibrary);
+    await click("Skip for now");
+    await click("Import");
+    expect(detailTitle()).toBe("Gears 5 Game of the Year Edition");
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(listed()).toContain("Halo: The Master Chief Collection (PC)");
+    expect(container.textContent).toContain(
+      "Halo: The Master Chief Collection (PC) could not be imported. Please try again.",
+    );
   });
 
   it("stays on the game you opened while the import ran", async () => {
@@ -764,6 +937,7 @@ describe("the file that starts a game", () => {
 
   it("is preselected when the game names it", async () => {
     const halo = metadata(103_281, "Halo Infinite");
+    mocks.reverse.mockResolvedValue({ game: halo, executables: [] });
     await scan("xbox", {
       games: [
         game("2043073184", "Halo Infinite", {
@@ -1328,14 +1502,15 @@ describe("a game removed from My Games while the review is open", () => {
   });
 
   it("no longer says Imported just now for a game imported in this review", async () => {
-    mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
+    mocks.reverse.mockResolvedValue({ game: highOnLife, executables: [] });
+    // No suggestion is named "The High lifE": the player picks one.
     await scan("xbox", {
       games: [game("1810393564", "The High lifE")],
-      resolvedGames: [unmatched("xbox:1810393564", [theHighLife, highOnLife])],
+      resolvedGames: [unmatched("xbox:1810393564", [highOnLife, anno])],
     });
     await click("Import");
     await act(() => shelf("imported").tab.click());
-    expect(listed()).toEqual(["The High Life"]);
+    expect(listed()).toEqual(["High on Life"]);
     expect(container.textContent).toContain("Imported just now");
 
     await act(() =>
@@ -1562,6 +1737,238 @@ describe("Wrong game?", () => {
   });
 });
 
+// docs/name-auto-match-plan.md: a title the server could not match counts as
+// matched when exactly one suggestion has the same name (without ™ ® © ℠,
+// spaces, case; ’ = '). It goes to Ready to import like a server match.
+describe("a game matched by name", () => {
+  const rocketLeague = metadata(11_198, "Rocket League", { releaseYear: 2015 });
+  const sideswipe = metadata(150_119, "Rocket League Sideswipe");
+  const forza5 = metadata(135_994, "Forza Horizon 5", { releaseYear: 2021 });
+  const forzaFolder = String.raw`C:\XboxGames\Forza Horizon 5\Content`;
+
+  it("Xbox: one suggestion with the title's name is Ready to import, checked, without a question", async () => {
+    await scan("xbox", {
+      games: [game("1234", "Rocket League®")],
+      resolvedGames: [unmatched("xbox:1234", [rocketLeague, sideswipe])],
+    });
+    expect(counts()).toMatchObject({ ready: 1, attention: 0 });
+    expect(shelf("ready").open).toBe(true);
+    expect(listed()).toEqual(["Rocket League"]);
+    expect(checkbox("Rocket League")?.checked).toBe(true);
+    expect(container.textContent).not.toContain("Which game is");
+  });
+
+  it("Epic: the title searched during the scan is matched the same way", async () => {
+    const eternal = metadata(103_329, "Doom Eternal");
+    mocks.search.mockResolvedValue([eternal, metadata(7_351, "Doom")]);
+    await scan("epic", {
+      games: [game("5d4e2f1a", "DOOM Eternal")],
+      resolvedGames: [unmatched("epic:5d4e2f1a")],
+    });
+    expect(mocks.search).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      "DOOM Eternal",
+      expect.anything(),
+    );
+    expect(counts()).toMatchObject({ ready: 1, attention: 0 });
+    expect(listed()).toEqual(["Doom Eternal"]);
+  });
+
+  it("PlayStation: a game the server doesn't know is searched during the scan and matched the same way", async () => {
+    const spiderMan = metadata(134_581, "Marvel's Spider-Man 2");
+    mocks.search.mockResolvedValue([
+      spiderMan,
+      metadata(19_565, "Marvel's Spider-Man"),
+    ]);
+    await scan("playstation", {
+      games: [
+        game("10002456", "Marvel’s Spider-Man 2™", {
+          hasPlayedEvidence: true,
+          inAccountLibrary: true,
+        }),
+      ],
+      resolvedGames: [unmatched("playstation:10002456")],
+    });
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+    expect(counts()).toMatchObject({ ready: 1, attention: 0 });
+    expect(listed()).toEqual(["Marvel's Spider-Man 2"]);
+
+    // The database knows the PC version's .exe; a console game links none.
+    mocks.reverse.mockResolvedValue({
+      game: spiderMan,
+      executables: [knownFile("Spider-Man2.exe")],
+    });
+    await click("Import 1 game");
+    expect(mocks.run.mock.calls[0][0][0].exeCacheEntries).toEqual([]);
+  });
+
+  it("stays in Needs you when two suggestions have the title's name", async () => {
+    const doom1993 = metadata(673, "DOOM", { releaseYear: 1993 });
+    const doom2016 = metadata(7_351, "DOOM", { releaseYear: 2016 });
+    await scan("xbox", {
+      games: [game("1234", "DOOM")],
+      resolvedGames: [unmatched("xbox:1234", [doom2016, doom1993])],
+    });
+    expect(counts()).toMatchObject({ ready: 0, attention: 1 });
+    expect(container.textContent).toContain("Which game is “DOOM”?");
+  });
+
+  it("stays in Needs you when only the punctuation differs", async () => {
+    await scan("xbox", {
+      games: [game("1234", "Tom Clancy's Rainbow Six: Siege")],
+      resolvedGames: [
+        unmatched("xbox:1234", [
+          metadata(7_360, "Tom Clancy's Rainbow Six Siege"),
+        ]),
+      ],
+    });
+    expect(counts()).toMatchObject({ ready: 0, attention: 1 });
+  });
+
+  it("installed, with a known file in its folder: Ready to import; the scan asked for the game's files", async () => {
+    mocks.reverse.mockResolvedValue({
+      game: forza5,
+      executables: [knownFile("ForzaHorizon5.exe")],
+    });
+    await scan("xbox", {
+      games: [
+        game("2030093255", "Forza Horizon 5", {
+          installed: true,
+          installPath: forzaFolder,
+          executables: [exe("ForzaHorizon5.exe")],
+        }),
+      ],
+      resolvedGames: [unmatched("xbox:2030093255", [forza5])],
+    });
+    expect(mocks.reverse).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      forza5.id,
+      expect.any(AbortSignal),
+    );
+    expect(counts()).toMatchObject({ ready: 1, attention: 0 });
+  });
+
+  it("installed, with no known file in its folder: Needs you asks only for the file", async () => {
+    mocks.reverse.mockResolvedValue({
+      game: forza5,
+      executables: [knownFile("ForzaHorizon5.exe")],
+    });
+    await scan("xbox", {
+      games: [
+        game("2030093255", "Forza Horizon 5", {
+          installed: true,
+          installPath: forzaFolder,
+          executables: [exe("Launcher.exe"), exe("FH5.exe")],
+        }),
+      ],
+      resolvedGames: [unmatched("xbox:2030093255", [forza5])],
+    });
+    expect(counts()).toMatchObject({ ready: 0, attention: 1 });
+    expect(container.textContent).toContain("Which file starts the game?");
+    expect(container.textContent).not.toContain("Which game is");
+  });
+
+  it("installed, when the server can't be asked for its files: stays a suggestion in Needs you", async () => {
+    mocks.reverse.mockRejectedValue(
+      new Error("The game file lookup failed (504)."),
+    );
+    await scan("xbox", {
+      games: [
+        game("2030093255", "Forza Horizon 5", {
+          installed: true,
+          installPath: forzaFolder,
+          executables: [exe("ForzaHorizon5.exe")],
+        }),
+      ],
+      resolvedGames: [unmatched("xbox:2030093255", [forza5])],
+    });
+    expect(counts()).toMatchObject({ ready: 0, attention: 1 });
+    expect(container.textContent).toContain("Which game is “Forza Horizon 5”?");
+  });
+
+  it("not installed: Import asks for the game's files once and imports with them", async () => {
+    await scan("xbox", {
+      games: [game("1234", "Rocket League®")],
+      resolvedGames: [unmatched("xbox:1234", [rocketLeague])],
+    });
+    // Not asked during the scan: the files only matter for the import.
+    expect(mocks.reverse).not.toHaveBeenCalled();
+
+    mocks.reverse.mockResolvedValue({
+      game: rocketLeague,
+      executables: [knownFile("RocketLeague.exe")],
+    });
+    await click("Import 1 game");
+    expect(mocks.reverse).toHaveBeenCalledExactlyOnceWith(
+      store.getState().settings.apiEndpoint,
+      rocketLeague.id,
+      expect.any(AbortSignal),
+    );
+    expect(mocks.run).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          entry: expect.objectContaining({
+            provider: "xbox",
+            externalId: "1234",
+            gameId: rocketLeague.id,
+            igdbId: rocketLeague.igdbId,
+          }),
+          exeCacheEntries: [
+            expect.objectContaining({ exeName: "RocketLeague.exe" }),
+          ],
+        }),
+      ],
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("not installed: is not imported when the server can't be asked for its files, and stays checked", async () => {
+    await scan("xbox", {
+      games: [game("1234", "Rocket League®")],
+      resolvedGames: [unmatched("xbox:1234", [rocketLeague])],
+    });
+    mocks.reverse.mockRejectedValue(
+      new Error("The game file lookup failed (504)."),
+    );
+    await click("Import 1 game");
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(
+      "Rocket League could not be imported. Please try again.",
+    );
+    expect(checkbox("Rocket League")?.checked).toBe(true);
+  });
+
+  it("offers Wrong game?, with the matched game first", async () => {
+    mocks.search.mockResolvedValue([sideswipe]);
+    await scan("xbox", {
+      games: [game("1234", "Rocket League®")],
+      resolvedGames: [unmatched("xbox:1234", [rocketLeague, sideswipe])],
+    });
+    await click("Wrong game?");
+    const title = "Rocket League®";
+    expect(
+      tiles(title).map(
+        (item) => item.querySelector(".font-semibold")?.textContent,
+      ),
+    ).toEqual(["Rocket League", "Rocket League Sideswipe"]);
+    expect(tile(title, "Rocket League").textContent).toContain("Matched");
+  });
+
+  it("keeps the game saved in My Games", async () => {
+    await scan(
+      "xbox",
+      {
+        games: [game("1234", "Rocket League®")],
+        resolvedGames: [unmatched("xbox:1234", [rocketLeague])],
+      },
+      [inMyGames("xbox", "1234", sideswipe)],
+    );
+    expect(counts()).toMatchObject({ ready: 0, imported: 1 });
+    await act(() => shelf("imported").tab.click());
+    expect(listed()).toEqual(["Rocket League Sideswipe"]);
+  });
+});
+
 describe("a game already in My Games", () => {
   it("keeps the game saved there on Steam too, also when it is imported again", async () => {
     mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
@@ -1670,7 +2077,7 @@ describe("launcher accounts", () => {
     mocks.reverse.mockResolvedValue({ game: ghost, executables: [] });
     await scan("playstation", {
       games: [
-        game("10000886", "Ghost of Tsushima", {
+        game("10000886", "Ghost of Tsushima DIRECTOR'S CUT", {
           playtimeSeconds: 50 * H,
           hasPlayedEvidence: true,
           inAccountLibrary: true,

@@ -36,6 +36,7 @@
   "Expand sidebar (Ctrl+B)": "Развернуть боковую панель (Ctrl+B)",
   "Show sources": "Показать источники",
   "Hide sources": "Скрыть источники",
+  "Emulators": "Эмуляторы",
   "Help & Feedback": "Помощь и отзывы",
   "Feedback unavailable offline": "Отзывы недоступны без сети",
   "Installing…": "Установка…",
@@ -108,7 +109,6 @@
   "Clear all": "Очистить все",
   "Reply to your feedback": "Ответ на ваш отзыв",
   "Can I keep a separate note for a speedrun?": "Можно вести отдельную заметку для спидрана?",
-  "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.": "Да. Щёлкните игру правой кнопкой мыши, выберите «Прохождения» и создайте прохождение с названием Speedrun. У каждого прохождения своя заметка и свой список сессий.",
   "Sample reply · practice only": "Пример ответа · только для тренировки",
   "Updates from PlayCounter": "Новости PlayCounter",
   "Close notifications": "Закрыть уведомления",
@@ -154,7 +154,6 @@
   "Match them to games or ignore them so PlayCounter tracks the right playtime.": "Привяжите их к играм или игнорируйте, чтобы PlayCounter учитывал правильное время.",
   "Open Discovered": "Открыть «Обнаруженные»",
   "Update check timed out.": "Проверка обновлений не ответила вовремя.",
-  "Version {{version}} is available - {{progress}}": "Доступна версия {{version}} - {{progress}}",
   "Version {{version}} is available": "Доступна версия {{version}}",
   "Hide banner in {{view}}": "Скрыть баннер в разделе {{view}}",
   "Show banner in {{view}}": "Показать баннер в разделе {{view}}",
@@ -177,5 +176,11 @@
   "Also new in {{version}}": "Также в {{version}}",
   "Also since your last update": "Также с прошлого обновления",
   "Show changes": "Показать изменения",
-  "Hide changes": "Скрыть изменения"
+  "Hide changes": "Скрыть изменения",
+  "Your screenshot of {{game}} came out black": "Скриншот игры {{game}} получился чёрным",
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows скрывает игры в эксклюзивном полноэкранном режиме от других приложений. Переключите игру в окно без рамки или оконный режим и попробуйте снова.",
+  "Launcher groups": "Группы лаунчеров",
+  "Hide empty sources": "Скрывать пустые источники",
+  "Sidebar": "Боковая панель",
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Да. Щёлкните игру правой кнопкой, выберите {{journal}} и нажмите {{addPlaythrough}}. Назовите его Speedrun: у каждого прохождения своя заметка и свой список сессий."
 }

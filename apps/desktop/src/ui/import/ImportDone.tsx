@@ -5,15 +5,12 @@ import { getT } from "../../i18n";
 import { importProfile } from "../../library/importProfiles";
 import {
   notImportedText,
-  reviewRemainingGames,
-  showImportList,
-  showImportUpdates,
   type ImportSession,
 } from "../../library/importSession";
-import { useAppStore } from "../../store";
 import { Panel } from "../components";
 import { GameCover } from "../GameCover";
 import { Button } from "../primitives";
+import { useImportActions } from "./importHost";
 import { useImportGroups } from "./ImportReview";
 import { launcherName } from "./importTexts";
 
@@ -21,8 +18,7 @@ const t = getT("import");
 
 /** Step 4: what the import brought, and what is left. */
 export function ImportDone({ session }: { session: ImportSession }) {
-  const setActiveView = useAppStore((state) => state.setActiveView);
-  const setLibraryTab = useAppStore((state) => state.setLibraryTab);
+  const actions = useImportActions();
   const { rows, groups } = useImportGroups(session);
   const profile = importProfile(session.providerId);
   const providerName = launcherName(session.providerId);
@@ -36,7 +32,10 @@ export function ImportDone({ session }: { session: ImportSession }) {
     .filter((row) => added.includes(row.game.externalId) && row.coverUrl)
     .slice(0, 5);
   return (
-    <Panel className="grid items-center gap-8 p-8 md:grid-cols-[auto_minmax(0,1fr)]">
+    <Panel
+      dataTour="import-done"
+      className="grid items-center gap-8 p-8 md:grid-cols-[auto_minmax(0,1fr)]"
+    >
       {covers.length > 0 ? (
         <div aria-hidden="true" className="flex justify-center pl-8">
           {covers.map((row, index) => (
@@ -63,7 +62,10 @@ export function ImportDone({ session }: { session: ImportSession }) {
               })
             : t("{{count}} games in My Games updated", { count: updated })}
         </h2>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-text-muted">
+        <p
+          data-tour="import-done-playtime"
+          className="mt-2 max-w-xl text-sm leading-6 text-text-muted"
+        >
           {profile.hasPlaytime ? (
             t(
               "Their playtime is in My Games now. New sessions are tracked automatically.",
@@ -129,10 +131,8 @@ export function ImportDone({ session }: { session: ImportSession }) {
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <Button
             variant="primary"
-            onClick={() => {
-              setLibraryTab(session.providerId);
-              setActiveView("games");
-            }}
+            data-tour="import-done-open"
+            onClick={() => actions.openMyGames(session.providerId)}
             className="px-5 py-2.5 text-[15px]"
           >
             {t("Open My Games")}
@@ -140,7 +140,7 @@ export function ImportDone({ session }: { session: ImportSession }) {
           {remaining > 0 ? (
             <Button
               variant="secondary"
-              onClick={reviewRemainingGames}
+              onClick={actions.reviewRemaining}
               className="px-5 py-2.5 text-[15px]"
             >
               {t("Review {{count}} games", { count: remaining })}
@@ -149,13 +149,13 @@ export function ImportDone({ session }: { session: ImportSession }) {
           {updates > 0 ? (
             <Button
               variant="secondary"
-              onClick={showImportUpdates}
+              onClick={actions.showUpdates}
               className="px-5 py-2.5 text-[15px]"
             >
               {t("Show updates")}
             </Button>
           ) : null}
-          <Button variant="ghost" onClick={showImportList}>
+          <Button variant="ghost" onClick={actions.showList}>
             {t("Back to the importer")}
           </Button>
         </div>

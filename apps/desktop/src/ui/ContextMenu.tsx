@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cn } from "./cn";
 import {
   createContext,
   forwardRef,
@@ -66,6 +67,8 @@ type MenuProps = {
   focusFirstItem?: boolean;
   className?: string;
   ariaLabel?: string;
+  /** Px; rows past it scroll. Keeps a long list below its trigger. */
+  maxHeight?: number;
 };
 
 const MenuTree = createContext<{
@@ -157,10 +160,14 @@ function MenuPanel({
   focusFirstItem,
   className,
   ariaLabel,
+  maxHeight,
   labelledBy,
   panelId,
 }: Partial<
-  Pick<MenuProps, "position" | "focusFirstItem" | "className" | "ariaLabel">
+  Pick<
+    MenuProps,
+    "position" | "focusFirstItem" | "className" | "ariaLabel" | "maxHeight"
+  >
 > & {
   triggerRef?: RefObject<HTMLButtonElement | null>;
   onBack?: () => void;
@@ -262,11 +269,11 @@ function MenuPanel({
         tabIndex={-1}
         data-context-menu-tree={tree.id}
         data-tour={dataTour}
-        className={clsx(
+        className={cn(
           "fixed z-50 max-h-[calc(100vh-1rem)] min-w-40 max-w-[calc(100vw-1rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface py-1 shadow-raised outline-none",
           className,
         )}
-        style={{ top: adjustedPosition.y, left: adjustedPosition.x }}
+        style={{ top: adjustedPosition.y, left: adjustedPosition.x, maxHeight }}
         onContextMenu={(event) => event.preventDefault()}
         onPointerEnter={() => {
           cancelClose();
@@ -362,6 +369,8 @@ function MenuPanel({
 
 type ItemProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: LucideIcon;
+  /** Drawn in the icon's place: what a group holds right now. */
+  mark?: ReactNode;
   danger?: boolean;
   selected?: boolean;
   dataTour?: string;
@@ -372,6 +381,7 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
   function MenuItemButton(
     {
       icon: Icon,
+      mark,
       danger,
       selected,
       dataTour,
@@ -391,7 +401,7 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
         type="button"
         role={selected === undefined ? "menuitem" : "menuitemradio"}
         aria-checked={selected}
-        className={clsx(
+        className={cn(
           "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50",
           danger
             ? "text-danger hover:bg-danger-tint focus-visible:bg-danger-tint"
@@ -399,16 +409,17 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
           className,
         )}
       >
-        {Icon ? (
-          <Icon
-            size={14}
-            aria-hidden="true"
-            className={clsx(
-              "shrink-0",
-              danger ? "text-danger" : "text-text-muted",
-            )}
-          />
-        ) : null}
+        {mark ??
+          (Icon ? (
+            <Icon
+              size={14}
+              aria-hidden="true"
+              className={clsx(
+                "shrink-0",
+                danger ? "text-danger" : "text-text-muted",
+              )}
+            />
+          ) : null)}
         <span className="min-w-0 flex-1 truncate">{children}</span>
         {suffix ??
           (selected ? (
@@ -423,7 +434,7 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
   },
 );
 
-export function ContextMenuItem(props: Omit<ItemProps, "suffix">) {
+export function ContextMenuItem(props: ItemProps) {
   const level = useContext(MenuLevel);
   return (
     <MenuItemButton
@@ -443,6 +454,7 @@ export function ContextMenuItem(props: Omit<ItemProps, "suffix">) {
 export function ContextMenuSubmenu({
   label,
   icon,
+  mark,
   children,
   dataTour,
   menuDataTour,
@@ -450,6 +462,7 @@ export function ContextMenuSubmenu({
 }: {
   label: string;
   icon?: LucideIcon;
+  mark?: ReactNode;
   children: ReactNode;
   dataTour?: string;
   menuDataTour?: string;
@@ -479,6 +492,7 @@ export function ContextMenuSubmenu({
         ref={triggerRef}
         id={id}
         icon={icon}
+        mark={mark}
         dataTour={dataTour}
         aria-haspopup="menu"
         aria-expanded={open}

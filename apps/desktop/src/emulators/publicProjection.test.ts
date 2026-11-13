@@ -14,6 +14,7 @@ describe("emulator public projection", () => {
         windowTitle: "secret",
         openFiles: [String.raw`C:\Private\Game.rvz`],
         recentFile: String.raw`C:\Private\Game.nds`,
+        foregroundApp: { package: "com.kiloo.subwaysurf" },
       },
       {
         exeName: "dosbox.exe",
@@ -30,5 +31,6 @@ describe("emulator public projection", () => {
     expect(result[0]).not.toHaveProperty("windowTitle");
     expect(result[0]).not.toHaveProperty("openFiles");
     expect(result[0]).not.toHaveProperty("recentFile");
+    expect(result[0]).not.toHaveProperty("foregroundApp");
   });
 });

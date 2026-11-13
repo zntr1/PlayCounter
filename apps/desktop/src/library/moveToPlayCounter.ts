@@ -1,6 +1,7 @@
 import { gameSecondsKey, gameSecondsRefFromKey } from "../gameSeconds";
 import { persistAppState } from "../persistence";
 import { MIN_SESSION_DURATION_SECONDS } from "../sessionPersistence";
+import { playedMs } from "../sessionTime";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
@@ -93,6 +94,7 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
     archivedGameSeconds: result.archivedGameSeconds,
     archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
     archivedConsoleSeconds: result.archivedConsoleSeconds,
+    archivedCounts: result.archivedCounts,
   });
   // A game moved away from its launcher must not come back as a new game.
   dismissLauncherGames(moves.flatMap(([, { imports }]) => imports));
@@ -177,8 +179,7 @@ function applyGameMove(
     .filter(belongsToGame)
     .reduce((total, session) => {
       const seconds = Math.round(
-        (Date.parse(session.checkpointedAt) - Date.parse(session.startedAt)) /
-          1_000,
+        playedMs(session, Date.parse(session.checkpointedAt)) / 1_000,
       );
       return total + (seconds >= MIN_SESSION_DURATION_SECONDS ? seconds : 0);
     }, 0);

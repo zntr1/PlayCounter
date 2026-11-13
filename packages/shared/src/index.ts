@@ -595,6 +595,9 @@ export interface Session {
   /** What the player wrote about this session. Local only, never included in
    *  tracking API payloads. */
   note?: string;
+  /** Counter id -> how often it was counted in this session (deaths, tries,
+   *  anything the player counts). Only counts above 0. Local only. */
+  counts?: Record<string, number>;
 }
 
 export type FeedbackType = "bug" | "feature" | "other";
@@ -674,7 +677,8 @@ export type EmulatorId =
   | "eden"
   | "azahar"
   | "melonds"
-  | "xenia";
+  | "xenia"
+  | "bluestacks";
 
 export type DesktopViewId =
   | "now"
@@ -696,18 +700,37 @@ export type LiveTimerCorner =
   | "bottom-left"
   | "bottom-right";
 
+/** Times with 24 hours or with AM and PM; "auto" follows the format region. */
+export type ClockFormat = "auto" | "24h" | "12h";
+
 export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
   currentSessionHotkey?: string | null;
   quickNoteHotkey?: string | null;
   liveTimerHotkey?: string | null;
+  /** Pauses or resumes the running game's clock. */
+  pauseTimerHotkey?: string | null;
+  screenshotHotkey?: string | null;
+  /** Takes the picture, then opens a box for its caption. */
+  screenshotCaptionHotkey?: string | null;
+  quickAddHotkey?: string | null;
+  /** Takes one off the counter counted last (docs/counters-plan.md). */
+  counterUndoHotkey?: string | null;
+  /** Opens the counter box over the game. */
+  counterBoxHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";
   /** "system" (the computer's language) or a language code such as "de".
    *  Absent = "system". */
   language?: string;
+  /** Dates and numbers as this country writes them (ISO 3166 code such as
+   *  "DE"), in the app's language. Null or absent = from the language and
+   *  the computer. */
+  formatRegion?: string | null;
+  /** Absent = "auto". */
+  clockFormat?: ClockFormat;
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";
@@ -770,12 +793,16 @@ export interface Settings {
   sidebarCollapsed?: boolean;
   /** Source list under My Games folded away. Absent = shown. */
   sidebarSourcesCollapsed?: boolean;
+  /** Emulator list under its Emulators row folded away. Absent = shown. */
+  sidebarEmulatorsCollapsed?: boolean;
   autoShareIgnoredProcesses: boolean;
   /** Count time for recognized software (Discord, launchers, ...) on the
    *  Software page. Absent = off. */
   trackTools?: boolean;
   /** Cards or rows on the Software page. Absent = cards. */
   softwareLayout?: "grid" | "list";
+  /** Tab My History opens on, the one picked last. Absent = Insights. */
+  historyTab?: "sessions" | "insights" | "games";
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;
   apiEndpoint: string;
@@ -815,6 +842,9 @@ export interface Settings {
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
+  /** Hold View + D-pad up / down to count the top counter with a controller.
+   *  Absent = off. */
+  controllerCountingEnabled?: boolean;
   /** Hide the main window to the tray once a game started from PlayCounter
    * is running. Absent = enabled. */
   hideToTrayOnGameStart?: boolean;

@@ -26,13 +26,23 @@ export type RawEmulatorSignals = {
   openFiles?: string[];
   /** Newest entry of the emulator's recent-games list (melonDS). */
   recentFile?: string;
+  /** The Android app in front, from the emulator's own log (BlueStacks). */
+  foregroundApp?: ForegroundApp;
+};
+
+/** An Android app: its package, plus name and Play category when known. */
+export type ForegroundApp = {
+  package: string;
+  label?: string | null;
+  category?: string | null;
 };
 
 export type EmulatorDetectionSource =
   | "window_title"
   | "launch_arguments"
   | "open_file_handle"
-  | "recent_file";
+  | "recent_file"
+  | "activity_log";
 
 export type EmulatorContentSignal = {
   kind: EmulatorContentKind;

@@ -1,10 +1,13 @@
 import {
+  usePersonalLibraryApi,
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import { EMULATORS } from "../emulators/registry";
 import {
+  AlertTriangle,
+  EyeOff,
   FolderHeart,
   Pencil,
   Plus,
@@ -27,14 +30,19 @@ import {
   GAME_TIERS,
   gameStatusLabel,
   NAME_LIMIT,
+  SHELF_HIDE_PLACES,
+  journalHiddenIn,
   matchesLibraryFilters,
   normalizeLibraryFilters,
   readJournal,
+  shelfHides,
   type FilterableLibraryGame,
   type GameJournal,
   type GameStatus,
+  type GameTier,
   type LibraryFilters,
   type PersonalShelf,
+  type ShelfHidePlace,
 } from "../personalLibrary";
 import { personalGameIdentity, type GameIdentityRef } from "../store";
 import {
@@ -42,6 +50,7 @@ import {
   ContextMenu,
   ContextMenuHeading,
   ContextMenuItem,
+  ContextMenuSubmenu,
   Input,
   Modal,
   Pill,
@@ -51,8 +60,10 @@ import { GAME_STATUS_LIST } from "./journalStyles";
 import { GameStatusIcon } from "./GameStatusIcon";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
+import { putGameOnShelf } from "./putGameOnShelf";
 import { emitTourEvent } from "./tour/TourUI";
-import { getT } from "../i18n";
+import { appLocale, getT } from "../i18n";
+import { cn } from "./cn";
 
 const t = getT("myGames");
 
@@ -88,14 +99,15 @@ export function matchesShelf(
   id: string,
   shelves: readonly PersonalShelf[],
 ) {
-  if (id === "all") return true;
   if (id === "favorites") return journal.favorite;
   const shelf = shelves.find((s) => s.id === id);
-  return !shelf
-    ? true
-    : shelf.filters
-      ? matchesLibraryFilters(game, journal, shelf.filters)
-      : journal.shelfIds.includes(shelf.id);
+  // Favorites and the shelves the player filled show what is on them; All
+  // games and the shelves that narrow it leave out what a shelf hides there.
+  if (shelf && !shelf.filters) return journal.shelfIds.includes(shelf.id);
+  if (journalHiddenIn(journal, shelves, "all")) return false;
+  return shelf?.filters
+    ? matchesLibraryFilters(game, journal, shelf.filters)
+    : true;
 }
 
 export function countShelfGames(
@@ -104,17 +116,165 @@ export function countShelfGames(
   shelves: readonly PersonalShelf[],
 ) {
   const counts: Record<string, number> = {
-    all: games.length,
+    all: 0,
     favorites: 0,
   };
   for (const shelf of shelves) counts[shelf.id] = 0;
   for (const game of games) {
     const journal = journalFor({ ...game, gameName: game.name });
+    if (matchesShelf(game, journal, "all", shelves)) counts.all += 1;
     if (journal.favorite) counts.favorites += 1;
     for (const shelf of shelves)
       if (matchesShelf(game, journal, shelf.id, shelves)) counts[shelf.id] += 1;
   }
   return counts;
+}
+
+export function hidePlaceLabel(place: ShelfHidePlace) {
+  switch (place) {
+    case "all":
+      return t("All games and search");
+    case "new":
+      return t("New games row and banner");
+    case "history":
+      return t("My History");
+    case "achievements":
+      return t("Achievements");
+    case "nowPlaying":
+      return t("Now Playing");
+  }
+}
+
+function hidePlaceDescription(place: ShelfHidePlace) {
+  switch (place) {
+    case "all":
+      return t("Searching inside this shelf still finds them.");
+    case "new":
+      return t("They never show as new or as the featured game.");
+    case "history":
+      return t("Sessions, totals, charts and the calendar.");
+    case "achievements":
+      return t("Their ladders and unlocks.");
+    case "nowPlaying":
+      return t("The timer and the tray still show the game.");
+  }
+}
+
+function hidePlaceShort(place: ShelfHidePlace) {
+  switch (place) {
+    case "all":
+      return t("All games");
+    case "new":
+      return t("New games");
+    case "history":
+      return t("My History");
+    case "achievements":
+      return t("Achievements");
+    case "nowPlaying":
+      return t("Now Playing");
+  }
+}
+
+/** Why a shelf that fills itself from filters cannot hide. Ticks saved
+ *  before are paused: that one is a warning. */
+function HidingNote({
+  shelf,
+  className,
+}: {
+  shelf: PersonalShelf;
+  className?: string;
+}) {
+  if (!shelf.filters) return null;
+  if (!shelf.hiddenIn?.length)
+    return (
+      <p className={cn("text-xs text-text-muted", className)}>
+        {t("Only shelves you fill yourself can hide games.")}
+      </p>
+    );
+  return (
+    <p
+      className={cn(
+        "flex items-start gap-2 rounded-lg border border-warning-border/60 bg-warning-tint/40 px-3 py-2 text-xs leading-5 text-warning",
+        className,
+      )}
+    >
+      <AlertTriangle size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+      <span className="min-w-0">
+        {t(
+          "Hiding is paused while this shelf fills itself from filters. Remove the saved filters to hide its games again.",
+        )}
+      </span>
+    </p>
+  );
+}
+
+function shelfIcon(shelf: PersonalShelf) {
+  return shelf.filters
+    ? SlidersHorizontal
+    : shelfHides(shelf)
+      ? EyeOff
+      : FolderHeart;
+}
+
+/** Which shelves the rail shows in its one row, by index. If every shelf
+ *  fits, all of them; otherwise "+N more" takes a slot and the shelves fill
+ *  the rest in order. The open shelf always stays in the row. */
+export function fitShelfRail({
+  available,
+  gap,
+  fixed,
+  shelves,
+  more,
+  selected,
+}: {
+  available: number;
+  gap: number;
+  /** All games, Favorites and New shelf. */
+  fixed: readonly number[];
+  shelves: readonly number[];
+  more: number;
+  /** The open shelf's index, or -1. */
+  selected: number;
+}) {
+  const row = (chips: readonly number[]) =>
+    chips.reduce((sum, chip) => sum + gap + chip, -gap);
+  if (row([...fixed, ...shelves]) <= available) return shelves.map((_, i) => i);
+  const shown = selected >= 0 ? [selected] : [];
+  let used = row([...fixed, more, ...shown.map((i) => shelves[i])]);
+  for (let i = 0; i < shelves.length; i++) {
+    if (i === selected) continue;
+    if (used + gap + shelves[i] > available) break;
+    used += gap + shelves[i];
+    shown.push(i);
+  }
+  return shown.sort((a, b) => a - b);
+}
+
+function shelfTitle(shelf: PersonalShelf) {
+  if (shelf.filters)
+    return shelf.hiddenIn?.length
+      ? t(
+          "Fills itself from saved filters, so hiding is paused. Right-click to edit filters, rename, or delete.",
+        )
+      : t(
+          "Fills itself from saved filters. Right-click to edit filters, rename, or delete.",
+        );
+  if (shelfHides(shelf))
+    return t("Hidden in {{places}}. Right-click to change.", {
+      places: new Intl.ListFormat(appLocale(), { type: "conjunction" }).format(
+        shelf.hiddenIn!.map(hidePlaceShort),
+      ),
+    });
+  return t("Right-click to edit filters, rename, or delete");
+}
+
+function toggledPlaces(
+  places: readonly ShelfHidePlace[] | undefined,
+  place: ShelfHidePlace,
+) {
+  return places?.includes(place)
+    ? places.filter((entry) => entry !== place)
+    : [...(places ?? []), place];
 }
 
 /* The shelf rail ─────────────────────────────────────────────────────────────
@@ -155,6 +315,7 @@ export function LibraryOrganizationToolbar({
   selectionAction,
   leading,
   trailing,
+  practiceTier,
 }: {
   showShelves: boolean;
   selection: string;
@@ -173,6 +334,9 @@ export function LibraryOrganizationToolbar({
   leading?: React.ReactNode;
   /** Sits after Filters: sort, view toggle, customize. */
   trailing?: React.ReactNode;
+  /** The guide's practice only: the tier its player gave the sample game, so
+   *  the guide can point at that letter among the filters. */
+  practiceTier?: GameTier;
 }) {
   const practice = useLibraryPractice();
   const shelves = usePersonalLibraryState((s) => s.personalShelves);
@@ -195,17 +359,110 @@ export function LibraryOrganizationToolbar({
     row.removeAttribute("data-measuring");
     row.toggleAttribute("data-single-row", requiredWidth <= availableWidth);
   }, []);
+  // Shelves that don't fit the rail's one row wait behind "+N more". The
+  // toolbar above measures with every shelf, so only a toolbar on two rows
+  // ever folds shelves away.
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railHidden, setRailHidden] = useState<readonly string[]>([]);
+  const selectedShelf = shelves.findIndex((s) => s.id === selection);
+  const fitShelves = useCallback(() => {
+    const rail = railRef.current;
+    let hidden: string[] = [];
+    if (rail && !toolbarRowRef.current?.hasAttribute("data-single-row")) {
+      // Every chip in one line, "+N more" included, to measure them all.
+      rail.setAttribute("data-fitting", "");
+      const chips = [...rail.children] as HTMLElement[];
+      const rects = chips.map((chip) => chip.getBoundingClientRect());
+      const available = rail.getBoundingClientRect().width;
+      rail.removeAttribute("data-fitting");
+      const width = new Map<string | undefined, number>();
+      const fixed: number[] = [];
+      let more = 0;
+      chips.forEach((chip, i) => {
+        const shelf = chip.dataset.libraryShelf;
+        if (chip.hasAttribute("data-shelf-more")) more = rects[i].width;
+        else if (shelves.some((s) => s.id === shelf))
+          width.set(shelf, rects[i].width);
+        else fixed.push(rects[i].width);
+      });
+      if (available && rects.length > 1) {
+        const shown = new Set(
+          fitShelfRail({
+            available,
+            gap: rects[1].left - rects[0].right,
+            fixed,
+            shelves: shelves.map((s) => width.get(s.id) ?? 0),
+            more,
+            selected: selectedShelf,
+          }),
+        );
+        hidden = shelves.filter((_, i) => !shown.has(i)).map((s) => s.id);
+      }
+    }
+    setRailHidden((current) =>
+      current.length === hidden.length &&
+      current.every((id, i) => id === hidden[i])
+        ? current
+        : hidden,
+    );
+  }, [shelves, selectedShelf]);
   // Labels, shelf counts, and summary settings can change the required width.
   useLayoutEffect(fitToolbar);
+  useLayoutEffect(fitShelves);
   useLayoutEffect(() => {
     const container = toolbarRef.current;
     if (!container || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(fitToolbar);
+    const observer = new ResizeObserver(() => {
+      fitToolbar();
+      fitShelves();
+    });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [fitToolbar]);
+  }, [fitToolbar, fitShelves]);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const [moreList, setMoreList] = useState<{
+    x: number;
+    y: number;
+    maxHeight: number;
+    /** Opened by a game dragged onto "+N more". */
+    drag: boolean;
+    focus: boolean;
+  } | null>(null);
+  const listOpen = railHidden.length ? moreList : null;
+  function openMoreList(drag: boolean, focus = false) {
+    const rect = moreRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Below "+N more", scrolling if long, so it never covers the row.
+    const below = window.innerHeight - rect.bottom - 6 - 8;
+    setMoreList({
+      x: rect.left,
+      y: rect.bottom + 6,
+      maxHeight: Math.max(below, 160),
+      drag,
+      focus,
+    });
+  }
+  // A list a drag opened closes when the game is dropped anywhere but on one
+  // of its shelves. Dropped there, it stays open and shows the new count.
+  const dragOpened = Boolean(listOpen?.drag);
+  useEffect(() => {
+    if (!dragOpened) return;
+    const dropped = (event: PointerEvent) => {
+      const onList =
+        event.target instanceof Element &&
+        event.target.closest('[role="menu"] [data-library-shelf]');
+      setMoreList((list) => (onList && list ? { ...list, drag: false } : null));
+    };
+    window.addEventListener("pointerup", dropped, true);
+    window.addEventListener("pointercancel", dropped, true);
+    return () => {
+      window.removeEventListener("pointerup", dropped, true);
+      window.removeEventListener("pointercancel", dropped, true);
+    };
+  }, [dragOpened]);
   const [editor, setEditor] = useState<PersonalShelf | "new" | null>(null);
   const [name, setName] = useState("");
+  const [hiddenDraft, setHiddenDraft] = useState<ShelfHidePlace[]>([]);
   const [deleting, setDeleting] = useState<PersonalShelf | null>(null);
   const [menuShelfId, setMenuShelfId] = useState<string | null>(null);
   const shelfMenu = useContextMenu();
@@ -245,6 +502,21 @@ export function LibraryOrganizationToolbar({
   function edit(value: typeof editor) {
     setEditor(value);
     setName(typeof value === "object" && value ? value.name : "");
+    setHiddenDraft(
+      typeof value === "object" && value ? (value.hiddenIn ?? []) : [],
+    );
+  }
+  // New shelf in a game's card menu: this dialog, and Save shelf puts the
+  // game on the shelf.
+  const libraryApi = usePersonalLibraryApi();
+  const shelfGame = usePersonalLibraryState((s) => s.newShelfGame);
+  const openNewShelf = usePersonalLibraryState((s) => s.openNewShelf);
+  useEffect(() => {
+    if (shelfGame) edit("new");
+  }, [shelfGame]);
+  function closeEditor() {
+    setEditor(null);
+    if (shelfGame) openNewShelf(null);
   }
   function setFilter(key: keyof LibraryFilters, value: unknown) {
     const next = { ...filters, [key]: value };
@@ -268,6 +540,33 @@ export function LibraryOrganizationToolbar({
     };
   }
 
+  /** Right-click or the menu key on a shelf opens its menu. From the "+N
+   *  more" list, the list closes and focus later goes back to "+N more". */
+  function shelfMenuHandlers(id: string, inList = false) {
+    const open = (trigger: HTMLButtonElement) => {
+      menuTriggerRef.current = inList ? moreRef.current : trigger;
+      if (inList) setMoreList(null);
+      setMenuShelfId(id);
+    };
+    return {
+      onContextMenu: (event: React.MouseEvent<HTMLButtonElement>) => {
+        open(event.currentTarget);
+        shelfMenu.props.onContextMenu(event);
+      },
+      onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (
+          event.key !== "ContextMenu" &&
+          !(event.shiftKey && event.key === "F10")
+        )
+          return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        open(event.currentTarget);
+        shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
+      },
+    };
+  }
+
   return (
     <div
       data-tour={practice ? "demo-organization" : undefined}
@@ -285,6 +584,7 @@ export function LibraryOrganizationToolbar({
         ) : null}
         {showShelves ? (
           <div
+            ref={railRef}
             role="tablist"
             aria-label={t("Library shelf")}
             data-library-shelf-rail=""
@@ -326,36 +626,17 @@ export function LibraryOrganizationToolbar({
                     : undefined
                 }
                 {...dropProps(shelf.id, !shelf.filters)}
+                data-rail-hidden={
+                  railHidden.includes(shelf.id) ? "" : undefined
+                }
                 role="tab"
                 aria-selected={selection === shelf.id}
                 selected={selection === shelf.id}
-                icon={shelf.filters ? SlidersHorizontal : FolderHeart}
+                icon={shelfIcon(shelf)}
                 count={counts[shelf.id]}
-                title={
-                  shelf.filters
-                    ? t(
-                        "Fills itself from saved filters. Right-click to edit filters, rename, or delete.",
-                      )
-                    : t("Right-click to edit filters, rename, or delete")
-                }
+                title={shelfTitle(shelf)}
                 onClick={() => onSelect(shelf.id)}
-                onContextMenu={(event) => {
-                  menuTriggerRef.current = event.currentTarget;
-                  setMenuShelfId(shelf.id);
-                  shelfMenu.props.onContextMenu(event);
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key !== "ContextMenu" &&
-                    !(event.shiftKey && event.key === "F10")
-                  )
-                    return;
-                  event.preventDefault();
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  menuTriggerRef.current = event.currentTarget;
-                  setMenuShelfId(shelf.id);
-                  shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
-                }}
+                {...shelfMenuHandlers(shelf.id)}
               >
                 <span className="min-w-0 truncate" title={shelf.name}>
                   {shelf.name}
@@ -363,6 +644,32 @@ export function LibraryOrganizationToolbar({
                 <LibraryGameHoverHint />
               </Pill>
             ))}
+            {/* Always here, so its width can be measured; shown only while
+                shelves wait behind it. A game dragged onto it opens the list. */}
+            <Pill
+              ref={moreRef}
+              data-shelf-more=""
+              data-rail-hidden={railHidden.length ? undefined : ""}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(listOpen)}
+              onClick={(event) => {
+                if (listOpen) setMoreList(null);
+                else openMoreList(false, event.detail === 0);
+              }}
+              onPointerEnter={() => {
+                if (
+                  !listOpen &&
+                  document.documentElement.classList.contains(
+                    "library-game-dragging",
+                  )
+                )
+                  openMoreList(true);
+              }}
+            >
+              {t("+{{count}} more", {
+                count: railHidden.length || shelves.length,
+              })}
+            </Pill>
             <Pill
               data-tour={practice ? "demo-new-shelf" : undefined}
               icon={Plus}
@@ -499,7 +806,13 @@ export function LibraryOrganizationToolbar({
             {GAME_TIERS.map((value) => (
               <Pill
                 key={value}
-                data-tour={practice ? `demo-filter-tier-${value}` : undefined}
+                data-tour={
+                  practice
+                    ? value === practiceTier
+                      ? "demo-filter-tier-picked"
+                      : `demo-filter-tier-${value}`
+                    : undefined
+                }
                 selected={filters.tier === value}
                 onClick={() =>
                   setFilter("tier", filters.tier === value ? undefined : value)
@@ -644,13 +957,26 @@ export function LibraryOrganizationToolbar({
                 })}
                 disabled={!activeCount || !filtersChanged}
                 onClick={() => {
+                  const pausing = shelfHides(selected);
                   save({ ...selected, filters: draftFilters });
                   closeFilters(true);
-                  addToast({
-                    tone: "success",
-                    title: t("Filters saved"),
-                    detail: selected.name,
-                  });
+                  addToast(
+                    pausing
+                      ? {
+                          tone: "info",
+                          title: t("Hiding is paused for {{shelf}}", {
+                            shelf: selected.name,
+                          }),
+                          detail: t(
+                            "Its games show everywhere again while it fills itself from filters.",
+                          ),
+                        }
+                      : {
+                          tone: "success",
+                          title: t("Filters saved"),
+                          detail: selected.name,
+                        },
+                  );
                 }}
               >
                 {t("Save filters")}
@@ -667,11 +993,20 @@ export function LibraryOrganizationToolbar({
                 onClick={() => {
                   save({ ...selected, filters: undefined });
                   closeFilters();
-                  addToast({
-                    tone: "success",
-                    title: t("Saved filters removed"),
-                    detail: selected.name,
-                  });
+                  addToast(
+                    selected.hiddenIn?.length
+                      ? {
+                          tone: "info",
+                          title: t("{{shelf}} hides its games again", {
+                            shelf: selected.name,
+                          }),
+                        }
+                      : {
+                          tone: "success",
+                          title: t("Saved filters removed"),
+                          detail: selected.name,
+                        },
+                  );
                 }}
               >
                 {t("Remove saved filters")}
@@ -695,6 +1030,43 @@ export function LibraryOrganizationToolbar({
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {showShelves && listOpen ? (
+        <ContextMenu
+          open
+          position={listOpen}
+          onClose={() => setMoreList(null)}
+          anchorRef={moreRef}
+          focusFirstItem={listOpen.focus}
+          maxHeight={listOpen.maxHeight}
+          ariaLabel={t("More shelves")}
+          className="max-w-72"
+        >
+          {shelves
+            .filter((shelf) => railHidden.includes(shelf.id))
+            .map((shelf) => (
+              <ContextMenuItem
+                key={shelf.id}
+                {...dropProps(shelf.id, !shelf.filters)}
+                icon={shelfIcon(shelf)}
+                title={shelfTitle(shelf)}
+                suffix={
+                  <span className="ml-2 shrink-0 font-mono text-[11px] tabular-nums text-text-faint">
+                    {counts[shelf.id]}
+                  </span>
+                }
+                onClick={() => {
+                  setMoreList(null);
+                  moreRef.current?.focus({ preventScroll: true });
+                  onSelect(shelf.id);
+                }}
+                {...shelfMenuHandlers(shelf.id, true)}
+              >
+                {shelf.name}
+              </ContextMenuItem>
+            ))}
+        </ContextMenu>
       ) : null}
 
       {showShelves && menuShelf ? (
@@ -737,6 +1109,38 @@ export function LibraryOrganizationToolbar({
           >
             {t("Edit")}
           </ContextMenuItem>
+          {/* Each tick saves at once; the menu stays open for the next. */}
+          <ContextMenuSubmenu
+            label={t("Hide in")}
+            icon={EyeOff}
+            dataTour={practice ? "demo-shelf-hide" : undefined}
+            menuDataTour={practice ? "demo-shelf-hide-menu" : undefined}
+          >
+            <HidingNote
+              shelf={menuShelf}
+              className={
+                menuShelf.hiddenIn?.length
+                  ? "mx-2 my-1 max-w-60"
+                  : "max-w-60 px-3 py-1.5"
+              }
+            />
+            {SHELF_HIDE_PLACES.map((place) => (
+              <ContextMenuItem
+                key={place}
+                dataTour={practice ? `demo-shelf-hide-${place}` : undefined}
+                selected={Boolean(menuShelf.hiddenIn?.includes(place))}
+                disabled={Boolean(menuShelf.filters)}
+                onClick={() =>
+                  save({
+                    ...menuShelf,
+                    hiddenIn: toggledPlaces(menuShelf.hiddenIn, place),
+                  })
+                }
+              >
+                {hidePlaceLabel(place)}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubmenu>
           <ContextMenuItem
             icon={Trash2}
             danger
@@ -757,7 +1161,7 @@ export function LibraryOrganizationToolbar({
           labelId="shelf-editor-title"
           title={typeof editor === "object" ? t("Edit shelf") : t("New shelf")}
           icon={FolderHeart}
-          onClose={() => setEditor(null)}
+          onClose={closeEditor}
           footer={
             <Button
               data-tour={practice ? "demo-shelf-save" : undefined}
@@ -782,14 +1186,20 @@ export function LibraryOrganizationToolbar({
                 name,
                 filters:
                   typeof editor === "object" ? editor.filters : undefined,
+                hiddenIn: hiddenDraft,
               });
               if (id) {
                 if (typeof editor !== "object") {
-                  onExpandedChange(false);
-                  onSelect(id);
-                  if (practice) emitTourEvent("library.demo-shelf-created");
+                  if (shelfGame) {
+                    // The open list stays: the player was sorting a game.
+                    putGameOnShelf(libraryApi, shelfGame, id);
+                  } else {
+                    onExpandedChange(false);
+                    onSelect(id);
+                    if (practice) emitTourEvent("library.demo-shelf-created");
+                  }
                 }
-                setEditor(null);
+                closeEditor();
               }
             }}
           >
@@ -814,6 +1224,11 @@ export function LibraryOrganizationToolbar({
                 )}
               </p>
             ) : null}
+            <ShelfHideSection
+              shelf={typeof editor === "object" ? editor : null}
+              places={hiddenDraft}
+              onChange={setHiddenDraft}
+            />
           </form>
         </Modal>
       ) : null}
@@ -853,6 +1268,74 @@ export function LibraryOrganizationToolbar({
           </p>
         </Modal>
       ) : null}
+    </div>
+  );
+}
+
+/** The Edit / New shelf dialog's ticks. Saved with Save shelf. */
+function ShelfHideSection({
+  shelf,
+  places,
+  onChange,
+}: {
+  /** Null for a new shelf. One that fills itself from filters locks the ticks. */
+  shelf: PersonalShelf | null;
+  places: readonly ShelfHidePlace[];
+  onChange: (places: ShelfHidePlace[]) => void;
+}) {
+  const locked = Boolean(shelf?.filters);
+  return (
+    <div
+      role="group"
+      aria-labelledby="shelf-hide-heading"
+      className="grid gap-2 border-t border-border pt-4"
+    >
+      <h3
+        id="shelf-hide-heading"
+        className="flex items-center gap-2 text-sm font-semibold text-text"
+      >
+        <EyeOff size={15} aria-hidden="true" className="text-text-muted" />
+        {t("Hide these games in")}
+      </h3>
+      {shelf && locked ? (
+        <HidingNote shelf={shelf} />
+      ) : (
+        <p className="text-xs text-text-muted">
+          {t(
+            "They stay on this shelf. Untick a place to show them there again.",
+          )}
+        </p>
+      )}
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {SHELF_HIDE_PLACES.map((place) => (
+          <li key={place}>
+            <label
+              className={cn(
+                "flex items-start gap-3 px-3 py-2.5 transition-colors",
+                locked
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer hover:bg-surface-hover/50",
+              )}
+            >
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-[rgb(var(--color-accent))]"
+                checked={places.includes(place)}
+                disabled={locked}
+                onChange={() => onChange(toggledPlaces(places, place))}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-text">
+                  {hidePlaceLabel(place)}
+                </span>
+                <span className="block text-xs text-text-muted">
+                  {hidePlaceDescription(place)}
+                </span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

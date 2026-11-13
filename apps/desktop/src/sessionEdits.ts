@@ -1,5 +1,6 @@
 import type { Session } from "@playcounter/shared";
 import { SESSION_NOTE_LIMIT } from "./personalLibrary";
+import { addCounts } from "./counters";
 
 /* Edit, split and combine History sessions. A session stays "start to end":
    its played time is always end − start, so none of these store anything new
@@ -72,7 +73,9 @@ export function splitSession(
     !(endMs - pause.endMs >= minuteMs)
   )
     return sessions;
-  const { note: _note, ...withoutNote } = session;
+  // The note and the counts stay on the later part: nothing says when in
+  // the session they happened, and counts must not be there twice.
+  const { note: _note, counts: _counts, ...withoutNote } = session;
   const earlier = withTimes(
     { ...withoutNote, id: newId },
     { startMs, endMs: pause.startMs },
@@ -87,7 +90,8 @@ export function splitSession(
 
 /** Joins two sessions into one, the time between them included. The later
  *  one stays (id, playthrough, file) and starts where the earlier one did.
- *  Notes are joined, earlier first; "Manual" if either was. */
+ *  Notes are joined, earlier first; counts are added up; "Manual" if either
+ *  was. */
 export function combineSessions(
   sessions: Session[],
   firstId: number,
@@ -106,11 +110,13 @@ export function combineSessions(
       .join("\n")
       .slice(0, SESSION_NOTE_LIMIT)
       .trim() || undefined;
-  const { note: _note, ...laterWithoutNote } = later;
+  const { note: _note, counts: _counts, ...laterWithoutNote } = later;
+  const counts = addCounts(earlier.counts, later.counts);
   const combined = withTimes(
     {
       ...laterWithoutNote,
       ...(note ? { note } : {}),
+      ...(counts ? { counts } : {}),
       ...(earlier.origin === "manual" || later.origin === "manual"
         ? { origin: "manual" as const }
         : earlier.origin === "playstation" || later.origin === "playstation"

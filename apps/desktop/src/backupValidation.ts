@@ -8,6 +8,7 @@ import {
   GAME_TIERS,
   journalKey,
   type GameJournal,
+  SHELF_HIDE_PLACES,
   type PersonalShelf,
 } from "./personalLibrary";
 import { getT } from "./i18n";
@@ -32,6 +33,9 @@ function check(test: (value: unknown) => boolean): Validator {
 }
 
 const string = check((value) => typeof value === "string");
+// A country code such as "DE", for the Format region setting.
+const isRegionCode = (value: unknown) =>
+  typeof value === "string" && /^[A-Z]{2}$/.test(value);
 const nonempty = check(
   (value) => typeof value === "string" && value.trim().length > 0,
 );
@@ -119,6 +123,7 @@ const detectionSource = oneOf(
   "launch_arguments",
   "open_file_handle",
   "recent_file",
+  "activity_log",
 );
 const game = object(
   { id: integer, name: nonempty, coverUrl: string, source },
@@ -158,6 +163,7 @@ const session = object(
     emulator: emulatorContext,
     playthroughId: nonempty,
     note: string,
+    counts: dictionary(positiveId),
   },
 );
 const exeEntry = object(
@@ -333,9 +339,17 @@ const settings = object({}, {
   currentSessionHotkey: nullable(string),
   quickNoteHotkey: nullable(string),
   liveTimerHotkey: nullable(string),
+  pauseTimerHotkey: nullable(string),
+  screenshotHotkey: nullable(string),
+  screenshotCaptionHotkey: nullable(string),
+  quickAddHotkey: nullable(string),
+  counterUndoHotkey: nullable(string),
+  counterBoxHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
   language: string,
+  formatRegion: nullable(check(isRegionCode)),
+  clockFormat: oneOf("auto", "24h", "12h"),
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),
@@ -369,6 +383,7 @@ const settings = object({}, {
   viewBannerDetails: boolean,
   sidebarCollapsed: boolean,
   sidebarSourcesCollapsed: boolean,
+  sidebarEmulatorsCollapsed: boolean,
   libraryStatCards: array(
     oneOf(
       "games",
@@ -385,6 +400,7 @@ const settings = object({}, {
   autoShareIgnoredProcesses: boolean,
   trackTools: boolean,
   softwareLayout: oneOf("grid", "list"),
+  historyTab: oneOf("sessions", "insights", "games"),
   pollingIntervalSeconds: nonnegative,
   unmatchedRetryDays: nonnegative,
   apiEndpoint: nonempty,
@@ -419,6 +435,7 @@ const settings = object({}, {
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
+  controllerCountingEnabled: boolean,
   hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
   loginWarningsOff: array(nonempty),
@@ -475,7 +492,17 @@ const validateBackupShape: Validator = object(
             }),
           ),
         },
-        { tier: oneOf(...GAME_TIERS), tierAt: date },
+        {
+          tier: oneOf(...GAME_TIERS),
+          tierAt: date,
+          counters: array(
+            object(
+              { id: nonempty, shown: boolean, createdAt: date },
+              { name: nonempty, key: nonempty },
+            ),
+          ),
+          controllerCounterId: nullable(nonempty),
+        },
       ),
     ),
     personalShelves: array(
@@ -483,6 +510,7 @@ const validateBackupShape: Validator = object(
         { id: nonempty, name: nonempty },
         {
           featuredGame: nullable(featuredGame),
+          hiddenIn: array(oneOf(...SHELF_HIDE_PLACES)),
           filters: object(
             {},
             {
@@ -510,6 +538,7 @@ const validateBackupShape: Validator = object(
       ),
     ),
     archivedPlaythroughSeconds: dictionary(nonnegative),
+    archivedCounts: dictionary(dictionary(positiveId)),
     exeCache: array(exeEntry),
     gameMetadata: array(game),
     libraryImports: array(libraryImport),

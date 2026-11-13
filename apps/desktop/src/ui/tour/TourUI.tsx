@@ -1,43 +1,29 @@
 import {
   findTourElement,
   findTourTarget,
+  mergeTouchingRects,
   tourFocusTarget,
+  tourRingBox,
   tourTargetRect,
+  type TourTargetRect,
 } from "./tourTargetRect";
-import { Check, CircleHelp, MessageSquareHeart, X } from "lucide-react";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
-import {
-  DEFAULT_MENU_SCALE,
-  normalizeInterfaceScale,
-} from "../../interfaceScale";
-import { useWindowDragRegion } from "../../fullscreen";
-import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
-import { Button, IconButton, Switch } from "../primitives";
-import type { TourTargetRect } from "./tourCardPosition";
+import { CORE_TOUR_ID, findTour } from "./tourDefinitions";
+import { TOUR_EVENT } from "./tourEvents";
+import { TourCard } from "./TourCard";
 import {
-  CORE_TOUR_ID,
-  tourCategories,
-  tours,
-  findTour,
-  type TourEventName,
-} from "./tourDefinitions";
-import { backStepIndex, nextStepIndex } from "./tourNavigation";
-import { shouldShowWelcome } from "./tourState";
-import { Trans } from "react-i18next";
-import { getT } from "../../i18n";
+  availableStepIndexes,
+  backStepIndex,
+  nextStepIndex,
+  stepView,
+} from "./tourNavigation";
 
-const t = getT("tour");
+export { HelpButton } from "./HelpHub";
+export { emitTourEvent } from "./tourEvents";
+export { WelcomePrompt } from "./WelcomePrompt";
 
-const TOUR_EVENT = "playcounter:tour-event";
 // A real dialog the app opened from a highlighted control, e.g. a confirmation
 // behind a setting. It belongs to that control: it takes clicks and keys, and
 // its own backdrop replaces the guide's. Practice dialogs carry data-tour and
@@ -45,22 +31,6 @@ const TOUR_EVENT = "playcounter:tour-event";
 const APP_MODAL = "[data-modal-backdrop]:not([data-tour])";
 const insideAppModal = (target: EventTarget | null) =>
   target instanceof Element && Boolean(target.closest(APP_MODAL));
-
-// Built on each render, so the menu follows the current language.
-function helpTourGroups() {
-  return tourCategories()
-    .map((category) => ({
-      ...category,
-      tours: tours().filter((tour) => tour.category === category.id),
-    }))
-    .filter((group) => group.tours.length > 0);
-}
-
-export function emitTourEvent(name: TourEventName, message?: string) {
-  window.dispatchEvent(
-    new CustomEvent(TOUR_EVENT, { detail: { name, message } }),
-  );
-}
 
 export function useTourDemo() {
   const active = useAppStore((state) => state.activeTour);
@@ -77,378 +47,12 @@ export function useTourDemo() {
   };
 }
 
-export function HelpButton() {
-  const open = useAppStore((state) => state.helpMenuOpen);
-  const setOpen = useAppStore((state) => state.setHelpMenuOpen);
-  const startTour = useAppStore((state) => state.startTour);
-  const progress = useAppStore((state) => state.tourProgress);
-  const menuScale = useAppStore((state) =>
-    normalizeInterfaceScale(state.settings.menuScale, DEFAULT_MENU_SCALE),
-  );
-  const helpGroups = helpTourGroups();
-  const [categoryId, setCategoryId] = useState(helpGroups[0].id);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    // The title bar can be scaled independently. Keep the wider picker inside
-    // the window, even when its right edge cannot stay under the Help button.
-    const position = () => {
-      const root = rootRef.current;
-      const panel = panelRef.current;
-      if (!root || !panel) return;
-      const anchor = root.getBoundingClientRect();
-      const width = Math.min(720, (window.innerWidth - 32) / menuScale);
-      const left = Math.max(
-        16,
-        Math.min(anchor.right, window.innerWidth - 16) - width * menuScale,
-      );
-      panel.style.width = `${width}px`;
-      panel.style.right = `${(anchor.right - left - width * menuScale) / menuScale}px`;
-      panel.style.maxHeight = `${Math.max(0, (window.innerHeight - panel.getBoundingClientRect().top - 16) / menuScale)}px`;
-    };
-    position();
-    window.addEventListener("resize", position);
-    return () => window.removeEventListener("resize", position);
-  }, [open, menuScale]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setOpen(false);
-      rootRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
-    };
-    window.addEventListener("mousedown", close);
-    window.addEventListener("keydown", escape);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("keydown", escape);
-    };
-  }, [open, setOpen]);
-
-  return (
-    <div ref={rootRef} className="relative">
-      {/* inline-flex: an inline span measures only its line box, which made the
-          guide's highlight ring flatter than the button. */}
-      <span data-tour="help" className="inline-flex">
-        <IconButton
-          aria-label={t("Help and tutorials")}
-          title={t("Help and tutorials")}
-          aria-expanded={open}
-          aria-controls="help-tutorials"
-          icon={CircleHelp}
-          onClick={() => setOpen(!open)}
-        />
-      </span>
-      {open ? (
-        <div
-          ref={panelRef}
-          id="help-tutorials"
-          className="absolute right-0 top-11 z-50 flex w-[720px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
-        >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div>
-              <h2 className="font-semibold text-text">
-                {t("Help & tutorials")}
-              </h2>
-              <div className="mt-0.5 text-xs text-text-muted">
-                {t("Choose a topic, then pick a guide.")}
-              </div>
-            </div>
-            <IconButton
-              aria-label={t("Close help")}
-              icon={X}
-              onClick={() => {
-                setOpen(false);
-                rootRef.current
-                  ?.querySelector<HTMLButtonElement>("button")
-                  ?.focus();
-              }}
-            />
-          </div>
-          {/* As tall as the longest guide list; it only scrolls when the
-              window is too short. */}
-          <div className="flex min-h-0">
-            <div
-              role="tablist"
-              aria-label={t("Guide categories")}
-              aria-orientation="vertical"
-              className="flex w-[188px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-hover/30 p-2"
-            >
-              {helpGroups.map((group, index) => {
-                const selected = group.id === categoryId;
-                return (
-                  <button
-                    key={group.id}
-                    id={`help-category-${group.id}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    aria-controls={`help-guides-${group.id}`}
-                    tabIndex={selected ? 0 : -1}
-                    className={`flex shrink-0 items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
-                      selected
-                        ? "bg-accent-tint text-accent-ink"
-                        : "text-text-muted hover:bg-surface-hover hover:text-text"
-                    }`}
-                    onClick={() => setCategoryId(group.id)}
-                    onKeyDown={(event) => {
-                      let next = index;
-                      if (event.key === "ArrowDown") next += 1;
-                      else if (event.key === "ArrowUp") next -= 1;
-                      else if (event.key === "Home") next = 0;
-                      else if (event.key === "End")
-                        next = helpGroups.length - 1;
-                      else return;
-                      event.preventDefault();
-                      const target =
-                        helpGroups[
-                          (next + helpGroups.length) % helpGroups.length
-                        ];
-                      setCategoryId(target.id);
-                      document
-                        .getElementById(`help-category-${target.id}`)
-                        ?.focus();
-                    }}
-                  >
-                    <span>{group.title}</span>
-                    <span
-                      aria-label={t("{{count}} guides", {
-                        count: group.tours.length,
-                      })}
-                      className="shrink-0 rounded-md bg-surface px-1.5 py-0.5 text-[10px] tabular-nums"
-                    >
-                      {group.tours.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {/* Every list shares one grid cell so switching topics never
-                resizes the panel; hidden lists only keep their height. */}
-            <div className="grid min-w-0 flex-1 grid-rows-[minmax(0,1fr)]">
-              {helpGroups.map((group) => (
-                <div
-                  key={group.id}
-                  id={`help-guides-${group.id}`}
-                  role="tabpanel"
-                  aria-labelledby={`help-category-${group.id}`}
-                  aria-hidden={group.id !== categoryId}
-                  className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${
-                    group.id === categoryId ? "" : "invisible"
-                  }`}
-                >
-                  <h3 className="shrink-0 px-4 pb-2 pt-4 text-sm font-semibold text-text">
-                    {group.title}
-                  </h3>
-                  <div className="min-h-0 overflow-y-auto px-2 pb-2">
-                    {group.tours.map((tour) => {
-                      const complete =
-                        progress.completed[tour.id] === tour.version;
-                      return (
-                        <button
-                          key={tour.id}
-                          type="button"
-                          className="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
-                          onClick={() => startTour(tour.id)}
-                        >
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
-                            {complete ? (
-                              <Check size={16} />
-                            ) : (
-                              <CircleHelp size={16} />
-                            )}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-baseline justify-between gap-3 text-sm font-medium text-text">
-                              <span>{tour.title}</span>
-                              <span className="shrink-0 whitespace-nowrap text-[11px] font-normal text-text-muted">
-                                {complete ? t("Replay") : tour.duration}
-                              </span>
-                            </span>
-                            <span className="block text-xs leading-relaxed text-text-muted">
-                              {tour.description}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export function WelcomePrompt() {
-  const [ready, setReady] = useState(false);
-  const progress = useAppStore((state) => state.tourProgress);
-  const [enableLauncher, setEnableLauncher] = useState(true);
-  const [enableSoftware, setEnableSoftware] = useState(true);
-  const setTrackTools = useAppStore((state) => state.setTrackTools);
-  const markSeen = useAppStore((state) => state.markTourWelcomeSeen);
-  const startTour = useAppStore((state) => state.startTour);
-  const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
-  const launcherAvailable = currentPlatform() === "windows";
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setReady(true), 1200);
-    return () => window.clearTimeout(timer);
-  }, []);
-  const visible = ready && shouldShowWelcome(progress);
-
-  useEffect(() => {
-    if (!visible) return;
-    setEnableLauncher(true);
-    // Both switches start on; the choice is saved when the welcome closes.
-    setEnableSoftware(true);
-  }, [visible]);
-
-  if (!visible) return null;
-
-  const close = () => {
-    if (launcherAvailable) {
-      setLauncherSetting("gameLaunchingEnabled", enableLauncher);
-    }
-    setTrackTools(enableSoftware);
-    markSeen();
-  };
-  return createPortal(
-    <ModalFrame onEscape={close}>
-      <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] select-text flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
-        <div className="shrink-0 px-6 pt-6">
-          <div className="flex flex-col items-center text-center">
-            <PlayCounterAnimatedIcon
-              size={72}
-              playback="once"
-              className="mb-4"
-            />
-            <h2 className="text-xl font-semibold text-text">
-              {t("Welcome to PlayCounter")}
-            </h2>
-            <p className="mt-2 leading-6 text-text-muted">
-              {t(
-                "PlayCounter watches for games you launch and tracks how long you play, no matter where they came from. A quick tour shows you around.",
-              )}
-            </p>
-          </div>
-          <div className="mt-4 flex items-start gap-3 rounded-xl bg-bg p-3">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
-              <MessageSquareHeart size={16} />
-            </span>
-            <p className="text-xs leading-5 text-text-muted">
-              <Trans
-                t={t}
-                i18nKey="<strong>Built by one developer.</strong> PlayCounter is new, so expect a few rough edges. Spot one? Use <strong>Help & Feedback</strong> or join our Discord. I read every message and reply."
-                components={{
-                  strong: <span className="font-medium text-text" />,
-                }}
-              />
-            </p>
-          </div>
-        </div>
-        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-6 py-4">
-          {launcherAvailable ? (
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
-              <Switch
-                checked={enableLauncher}
-                onChange={(event) => setEnableLauncher(event.target.checked)}
-                className="mt-1"
-              />
-              <span>
-                <span className="block font-semibold text-text">
-                  {t("Use PlayCounter as a launcher")}
-                </span>
-                <span className="mt-1 block text-sm leading-5 text-text-muted">
-                  {t(
-                    "Show Play buttons for games PlayCounter can start directly. This is optional, and you can turn it off anytime in Settings if you don't need it or find it annoying.",
-                  )}
-                </span>
-              </span>
-            </label>
-          ) : null}
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
-            <Switch
-              checked={enableSoftware}
-              onChange={(event) => setEnableSoftware(event.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              <span className="block font-semibold text-text">
-                {t("Track software")}
-              </span>
-              <span className="mt-1 block text-sm leading-5 text-text-muted">
-                {t(
-                  "Also count how long apps like Discord, Spotify and launchers run, on their own Software page. They never show up in Now Playing or your game stats. You can change this anytime in Settings.",
-                )}
-              </span>
-            </span>
-          </label>
-        </div>
-        <div className="shrink-0 px-6 pb-6 pt-2">
-          <div className="grid gap-1">
-            <Button
-              variant="primary"
-              className="w-full py-2.5"
-              onClick={() => {
-                close();
-                startTour(CORE_TOUR_ID);
-              }}
-            >
-              {t("Take the tour")}
-            </Button>
-            <Button
-              variant="ghost"
-              className="mx-auto px-2 py-1 text-xs text-text-faint"
-              onClick={close}
-            >
-              {t("Maybe later")}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </ModalFrame>,
-    document.body,
-  );
-}
-
-function ModalFrame({
-  children,
-  onEscape,
-}: {
-  children: ReactNode;
-  onEscape: () => void;
-}) {
-  const dragRegion = useWindowDragRegion();
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onEscape();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onEscape]);
-  return (
-    <div
-      // The backdrop covers the title bar, so it must also allow window dragging.
-      data-tauri-drag-region={dragRegion}
-      className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4"
-      role="dialog"
-      aria-modal="true"
-    >
-      {children}
-    </div>
-  );
-}
+/** How long the card keeps a finished task on screen as "Done" before it
+ *  opens the next step. The guide itself has already moved on, so the ring is
+ *  on the next control at once. Tests run without it. */
+export const tourDoneFlash = {
+  ms: import.meta.env.MODE === "test" ? 0 : 900,
+};
 
 export function TourOverlay() {
   const active = useAppStore((state) => state.activeTour);
@@ -461,7 +65,27 @@ function TourRunner() {
   const startTour = useAppStore((state) => state.startTour);
   const goTo = useAppStore((state) => state.goToTourStep);
   const finishTour = useAppStore((state) => state.endTour);
-  const skipped = useRef(false);
+  const [skippedSteps, setSkippedSteps] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const markSkipped = (index: number, skipped: boolean) =>
+    setSkippedSteps((current) => {
+      if (current.has(index) === skipped) return current;
+      const next = new Set(current);
+      if (skipped) next.add(index);
+      else next.delete(index);
+      return next;
+    });
+  // The step whose task was just done, shown as "Done" for a moment.
+  const [flash, setFlash] = useState<{
+    stepIndex: number;
+    message: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!flash) return;
+    const timer = window.setTimeout(() => setFlash(null), tourDoneFlash.ms);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
   // Reaching the end finishes the guide, even with a skipped exercise; the
   // last step still suggests replaying it. Closing the last step with ✕ or
   // Escape counts as finishing it too.
@@ -483,6 +107,8 @@ function TourRunner() {
   const [outcome, setOutcome] = useState<string | null>(null);
   const [rect, setRect] = useState<TourTargetRect | null>(null);
   const [additionalRects, setAdditionalRects] = useState<TourTargetRect[]>([]);
+  // How many of them the step names itself; the rest frame the practice.
+  const [ownRectCount, setOwnRectCount] = useState(0);
   const [missing, setMissing] = useState(false);
   const [appModalOpen, setAppModalOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -659,18 +285,7 @@ function TourRunner() {
             ? current
             : measured,
         );
-        const measuredAdditional = [
-          ...(step.additionalAnchors ?? []),
-          ...(sandbox
-            ? [
-                '[data-tour="demo-library-stage"]',
-                '[data-tour="demo-journal"]',
-                '[data-tour="demo-library-menu"]',
-                '[data-tour="demo-shelf-editor"]',
-                '[data-tour="demo-sample-search"]',
-              ]
-            : []),
-        ].flatMap((selector) => {
+        const measureAdditional = (selector: string) => {
           const additional = findTourElement(selector);
           const layer = element.closest('[role="dialog"], [role="menu"]');
           if (
@@ -680,10 +295,27 @@ function TourRunner() {
             return [];
           const rect = additional ? tourTargetRect(additional) : null;
           return rect ? [rect] : [];
-        });
+        };
+        const ownRects = (step.additionalAnchors ?? []).flatMap(
+          measureAdditional,
+        );
+        const measuredAdditional = [
+          ...ownRects,
+          ...(sandbox
+            ? [
+                '[data-tour="demo-library-stage"]',
+                '[data-tour="demo-journal"]',
+                '[data-tour="demo-library-menu"]',
+                '[data-tour="demo-shelf-editor"]',
+                '[data-tour="demo-sample-search"]',
+              ]
+            : []
+          ).flatMap(measureAdditional),
+        ];
         setAdditionalRects((current) =>
           sameRects(current, measuredAdditional) ? current : measuredAdditional,
         );
+        setOwnRectCount(ownRects.length);
         setMissing(false);
       } else {
         setRect(null);
@@ -701,10 +333,10 @@ function TourRunner() {
   }, [finishTour, step, sandbox]);
 
   useEffect(() => {
-    if (tour?.id === "fix-detection" && step?.id === "intro") {
+    if (step?.resetsDiscoveredSample) {
       window.dispatchEvent(new CustomEvent("playcounter:discovered-reset"));
     }
-  }, [step?.id, tour?.id]);
+  }, [step?.id, step?.resetsDiscoveredSample, tour?.id]);
 
   useEffect(() => {
     if (!tour || !step) return;
@@ -731,17 +363,50 @@ function TourRunner() {
     return () => window.clearInterval(timer);
   }, [active.enteredStepAt, active.stepIndex, goTo, step, tour]);
 
+  // A done task whose next step is on another page waits until its Done is
+  // over, so the result stays in view. Back, Skip or closing cancels it.
+  const pendingMove = useRef(0);
+  useEffect(
+    () => () => {
+      window.clearTimeout(pendingMove.current);
+      pendingMove.current = 0;
+    },
+    [active.stepIndex, active.tourId],
+  );
   useEffect(() => {
     if (step?.advanceOn?.type !== "event" || !tour) return;
     const eventName = step.advanceOn.name;
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ name?: string }>).detail;
+      const detail = (event as CustomEvent<{ name?: string; message?: string }>)
+        .detail;
       if (detail?.name !== eventName) return;
       const next = nextStepIndex(tour.steps, active.stepIndex, 1, (selector) =>
         Boolean(document.querySelector(selector)),
       );
       // A step with Next still moves on by itself once its task is done.
-      if (next < tour.steps.length) goTo(next);
+      if (next >= tour.steps.length) return;
+      if (pendingMove.current) return;
+      markSkipped(active.stepIndex, false);
+      const flashes = step.task !== undefined && tourDoneFlash.ms > 0;
+      if (flashes)
+        setFlash({
+          stepIndex: active.stepIndex,
+          message: detail.message ?? null,
+        });
+      const { activeView } = useAppStore.getState();
+      const nextView = stepView(
+        tour.steps[next],
+        activeView,
+        active.returnView,
+      );
+      if (flashes && nextView !== activeView) {
+        pendingMove.current = window.setTimeout(() => {
+          pendingMove.current = 0;
+          goTo(next);
+        }, tourDoneFlash.ms);
+        return;
+      }
+      goTo(next);
     };
     window.addEventListener(TOUR_EVENT, handler);
     return () => window.removeEventListener(TOUR_EVENT, handler);
@@ -977,7 +642,7 @@ function TourRunner() {
     else goTo(index);
   };
   const skipInteractive = () => {
-    skipped.current = true;
+    markSkipped(active.stepIndex, true);
     let index = step.skipTo
       ? tour.steps.findIndex((candidate) => candidate.id === step.skipTo)
       : active.stepIndex + 1;
@@ -991,28 +656,44 @@ function TourRunner() {
     if (index >= tour.steps.length) endTour("completed");
     else goTo(index, true);
   };
-  const continueWithPersonalization = () => {
-    endTour("completed");
-    startTour("settings");
+  // A task that can simply be stepped over: the same as Next, but the list
+  // remembers that the exercise was not done.
+  const skipStep = () => {
+    if (step.interactive && !step.manualAdvance) return skipInteractive();
+    markSkipped(active.stepIndex, true);
+    advance();
   };
-  const isLast = active.stepIndex === tour.steps.length - 1;
-  const hasOwnBackdrop = step.id === "fill-dialog" || appModalOpen;
+  const visibleSteps = availableStepIndexes(
+    tour.steps,
+    active.stepIndex,
+    present,
+  );
+  // A step whose task was just done shows Done, also while its next step on
+  // another page waits for it (pendingMove).
+  const flashing = flash !== null && tour.steps[flash.stepIndex] !== undefined;
+  const shown = flashing ? flash.stepIndex : active.stepIndex;
+  const hasOwnBackdrop = Boolean(step.ownBackdrop) || appModalOpen;
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
   // Keep the surrounding practice visible without drawing nested rings around
   // both the active control and its enclosing stage or dialog.
   // A ring drawn over an app dialog would sit on top of it; the dialog's own
   // backdrop already sets the section apart.
+  const apartFromTarget = (other: TourTargetRect) =>
+    rect !== null &&
+    (other.left >= rect.left + rect.width ||
+      other.left + other.width <= rect.left ||
+      other.top >= rect.top + rect.height ||
+      other.top + other.height <= rect.top);
+  // Controls the step names share one ring when they sit next to each other.
+  // The frames around the practice keep their own.
   const outlinedRects =
     rect && !appModalOpen
       ? [
-          rect,
-          ...additionalRects.filter(
-            (other) =>
-              other.left >= rect.left + rect.width ||
-              other.left + other.width <= rect.left ||
-              other.top >= rect.top + rect.height ||
-              other.top + other.height <= rect.top,
-          ),
+          ...mergeTouchingRects([
+            rect,
+            ...additionalRects.slice(0, ownRectCount).filter(apartFromTarget),
+          ]),
+          ...additionalRects.slice(ownRectCount).filter(apartFromTarget),
         ]
       : [];
 
@@ -1030,13 +711,13 @@ function TourRunner() {
           <defs>
             <mask id="tour-backdrop-mask">
               <rect width="100%" height="100%" fill="white" />
-              {highlightedRects.map((highlight, index) => (
+              {highlightedRects.map(tourRingBox).map((box, index) => (
                 <rect
                   key={index}
-                  x={highlight.left - 6}
-                  y={highlight.top - 6}
-                  width={highlight.width + 12}
-                  height={highlight.height + 12}
+                  x={box.left}
+                  y={box.top}
+                  width={box.width}
+                  height={box.height}
                   rx={14}
                   fill="black"
                 />
@@ -1053,145 +734,42 @@ function TourRunner() {
       ) : !hasOwnBackdrop && !rect ? (
         <div className="absolute inset-0 bg-black/60" />
       ) : null}
-      {outlinedRects.map((highlight, index) => (
+      {outlinedRects.map(tourRingBox).map((box, index) => (
         <div
           key={index}
           className="tour-ring"
           style={{
-            top: highlight.top - 6,
-            left: highlight.left - 6,
-            width: highlight.width + 12,
-            height: highlight.height + 12,
+            top: box.top,
+            left: box.left,
+            width: box.width,
+            height: box.height,
           }}
         />
       ))}
-      <div
-        ref={cardRef}
-        data-tour-card
-        data-tour-practice-card={tour.practice || undefined}
-        role="dialog"
-        aria-labelledby="tour-step-title"
-        aria-modal={!step.interactive}
-        tabIndex={-1}
+      <TourCard
+        tour={tour}
+        stepIndex={shown}
+        visibleSteps={visibleSteps}
+        done={flashing}
+        skippedSteps={skippedSteps}
+        missing={missing && !flashing}
+        outcome={flashing ? flash.message : outcome}
+        cardRef={cardRef}
+        outcomeRef={outcomeRef}
         style={cardRight === null ? undefined : { right: cardRight }}
-        className="tour-guide-card pointer-events-auto fixed flex flex-col rounded-2xl border border-border bg-surface text-text shadow-raised outline-none"
-      >
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-accent-ink">
-            {tour.title} · {active.stepIndex + 1}/{tour.steps.length}
-          </div>
-          <button
-            type="button"
-            className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text"
-            onClick={() => endTour("dismissed")}
-            aria-label={t("Exit tutorial")}
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="min-h-0 overflow-y-auto px-5 pb-1">
-          <h2 id="tour-step-title" className="mt-2 text-lg font-semibold">
-            {step.title}
-          </h2>
-          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-text-muted">
-            {step.body}
-          </p>
-          {step.keyboardHint ? (
-            <p className="mt-2 text-xs text-text-muted">{step.keyboardHint}</p>
-          ) : null}
-          {missing ? (
-            <p className="mt-2 text-xs text-warning">
-              {t(
-                "This control is not available right now. You can still continue.",
-              )}
-              {tour.practice || tour.demoGame || tour.simulation ? (
-                <button
-                  type="button"
-                  className="ml-1 underline"
-                  onClick={() => goTo(active.stepIndex, true)}
-                >
-                  {t("Show this step")}
-                </button>
-              ) : null}
-            </p>
-          ) : null}
-          {outcome ? (
-            <p
-              ref={outcomeRef}
-              role="status"
-              className="mt-2 text-sm text-success"
-            >
-              {outcome}
-            </p>
-          ) : null}
-          {isLast && skipped.current ? (
-            <p className="mt-2 text-xs text-text-muted">
-              {t(
-                "You skipped an exercise. Replay this guide from Help to try it later.",
-              )}
-            </p>
-          ) : null}
-        </div>
-        {tour.id === CORE_TOUR_ID && isLast ? (
-          <div className="grid shrink-0 gap-2 px-5 py-3">
-            <Button
-              variant="primary"
-              className="w-full"
-              onClick={continueWithPersonalization}
-            >
-              {t("Personalize PlayCounter ({{duration}})", {
-                duration: findTour("settings")?.duration ?? "",
-              })}
-            </Button>
-            <div className="flex items-center justify-between gap-2">
-              <Button onClick={back}>{t("Back")}</Button>
-              <div className="flex gap-2">
-                <Button onClick={openGuides}>{t("View other guides")}</Button>
-                <Button variant="ghost" onClick={() => endTour("completed")}>
-                  {t("Finish")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex shrink-0 items-center justify-between gap-2 px-5 py-3">
-            <Button disabled={active.stepIndex === 0} onClick={back}>
-              {t("Back")}
-            </Button>
-            <div className="flex flex-wrap justify-end gap-2">
-              {isLast && tour.nextTourId ? (
-                <Button
-                  onClick={() => {
-                    endTour("completed");
-                    startTour(tour.nextTourId!);
-                  }}
-                >
-                  {findTour(tour.nextTourId)?.title}
-                </Button>
-              ) : null}
-              {isLast && !tour.nextTourId ? (
-                <Button onClick={openGuides}>{t("More guides")}</Button>
-              ) : null}
-              {step.interactive && !step.manualAdvance ? (
-                <Button onClick={skipInteractive}>{t("Skip step")}</Button>
-              ) : null}
-              {!step.interactive || step.manualAdvance ? (
-                <Button variant="primary" onClick={advance}>
-                  {isLast
-                    ? tour.finishView === "games"
-                      ? t("Open My Games")
-                      : tour.finishView === "history"
-                        ? t("Open My History")
-                        : tour.finishView === "discovered"
-                          ? t("Open Discovered")
-                          : t("Finish")
-                    : t("Next")}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </div>
+        onBack={back}
+        onNext={advance}
+        onSkip={skipStep}
+        onExit={() => endTour("dismissed")}
+        onJump={(index) => goTo(index, true)}
+        onShowStep={() => goTo(active.stepIndex, true)}
+        onStartNext={() => {
+          endTour("completed");
+          if (tour.nextTourId) startTour(tour.nextTourId);
+        }}
+        onMoreGuides={openGuides}
+        onFinish={() => endTour("completed")}
+      />
     </div>,
     document.body,
   );
@@ -1267,28 +845,5 @@ function sameRects(left: TourTargetRect[], right: TourTargetRect[]) {
         rect.width === right[index].width &&
         rect.height === right[index].height,
     )
-  );
-}
-
-export function TutorialSettingsPanel() {
-  const setOpen = useAppStore((state) => state.setHelpMenuOpen);
-  return (
-    <div
-      data-tour="settings-help"
-      className="flex flex-wrap items-center justify-between gap-4"
-    >
-      <div className="flex min-w-0 items-start gap-3">
-        <CircleHelp size={20} className="mt-0.5 shrink-0 text-accent-ink" />
-        <p className="text-sm leading-5 text-text-muted">
-          {t("Use the")} <span className="font-semibold text-text">?</span>{" "}
-          {t(
-            "button in the top-right corner to start or replay the Quick Tour and every step-by-step guide.",
-          )}
-        </p>
-      </div>
-      <Button icon={CircleHelp} onClick={() => setOpen(true)}>
-        {t("Open Help menu")}
-      </Button>
-    </div>
   );
 }

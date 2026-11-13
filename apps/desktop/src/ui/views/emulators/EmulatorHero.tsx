@@ -3,8 +3,11 @@ import clsx from "clsx";
 import { Gamepad2, Play, Radio } from "lucide-react";
 import { useGameDetails } from "../../../gameDetails";
 import { emulatorAssetUrls } from "../../../emulators/assets";
-import { useCoverLookup } from "../../../pickedCovers";
-import { customHeroArtKey, useAppStore } from "../../../store";
+import {
+  markCoverUnavailable,
+  useCoverLookup,
+  usePickedBanner,
+} from "../../../pickedCovers";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -71,9 +74,7 @@ export function EmulatorHero({
   }));
   const lead = topGames[0] ?? null;
   const details = useGameDetails(lead?.igdbId);
-  const pickedArt = useAppStore((state) =>
-    lead ? state.customHeroArt[customHeroArtKey(lead)] : undefined,
-  );
+  const pickedArt = usePickedBanner(lead);
   const wideArt = heroArtwork(
     pickedArt,
     details.status === "ready" ? details.details : null,
@@ -96,6 +97,7 @@ export function EmulatorHero({
           src={artwork}
           alt=""
           aria-hidden="true"
+          onError={() => markCoverUnavailable(artwork)}
           className={clsx(
             // The History hero's art treatment: fade in, wash on the left.
             "history-hero-art pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%]",

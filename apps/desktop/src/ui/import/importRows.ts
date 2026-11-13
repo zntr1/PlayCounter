@@ -1,4 +1,4 @@
-import { getT, appLocale } from "../../i18n";
+import { formatNumericDate, getT } from "../../i18n";
 import { readAgain } from "../../library/accountReadings";
 import {
   hasImportableActivity,
@@ -7,6 +7,8 @@ import {
   showsFileChoice,
   type ImportGroupKey,
 } from "../../library/importGroups";
+import { importProfile } from "../../library/importProfiles";
+import type { BuiltinImportProviderId } from "../../library/importProviders";
 import { rowMatch, type ImportSession } from "../../library/importSession";
 import type {
   LibraryImportEntry,
@@ -23,6 +25,7 @@ const t = getT("import");
 /** One scanned game, with everything the review shows about it. */
 export type ImportRow = {
   game: ScannedLibraryGame;
+  providerId: BuiltinImportProviderId;
   key: string;
   title: string;
   coverUrl?: string;
@@ -87,6 +90,7 @@ export function importRows(
       : undefined;
     return unchangedRow({
       game,
+      providerId,
       key,
       title:
         shown?.name ??
@@ -136,7 +140,15 @@ function noImportablePlaytime(game: ScannedLibraryGame) {
   );
 }
 
-export function playtimeText(game: ScannedLibraryGame) {
+export function playtimeText(
+  game: ScannedLibraryGame,
+  providerId: BuiltinImportProviderId,
+) {
+  // No figure from it says nothing about playing (Battle.net).
+  if (!importProfile(providerId).hasPlaytime)
+    return t("{{launcher}} doesn't share playtime", {
+      launcher: launcherName(providerId),
+    });
   if (!hasImportableActivity(game) && game.inAccountLibrary)
     return t("Never played");
   if (game.playtimeSeconds === null) return t("Playtime unknown");
@@ -145,7 +157,7 @@ export function playtimeText(game: ScannedLibraryGame) {
 
 export function lastPlayedText(game: ScannedLibraryGame) {
   return game.lastPlayedUnix
-    ? new Date(game.lastPlayedUnix * 1000).toLocaleDateString(appLocale())
+    ? formatNumericDate(game.lastPlayedUnix * 1000)
     : null;
 }
 
@@ -180,14 +192,14 @@ export function rowFact(row: ImportRow, skipped: boolean) {
     case "unavailable":
       return unavailableReason(row.game);
     case "imported":
-      return playtimeGrowth(row) ?? playtimeText(row.game);
+      return playtimeGrowth(row) ?? playtimeText(row.game, row.providerId);
     case "ready": {
       const lastPlayed = lastPlayedText(row.game);
       return row.game.playtimeSeconds === null &&
         lastPlayed &&
         hasImportableActivity(row.game)
         ? t("Last played {{date}}", { date: lastPlayed })
-        : playtimeText(row.game);
+        : playtimeText(row.game, row.providerId);
     }
   }
 }

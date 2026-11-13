@@ -104,5 +104,8 @@
   "Legendary": "Legendario",
   "{{title}} · Unlocked {{date}}": "{{title}} · Desbloqueado el {{date}}",
   "{{title}} · Locked": "{{title}} · Bloqueado",
-  "{{count}} {{tier}}": "{{count}} {{tier}}"
+  "{{count}} {{tier}}": "{{count}} {{tier}}",
+  "screenshot": "captura de pantalla",
+  "Screenshot came out black": "La captura de pantalla salió negra",
+  "Show more games": "Mostrar más juegos"
 }

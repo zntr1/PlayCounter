@@ -1,4 +1,4 @@
-import clsx from "clsx";
+import { cn } from "../cn";
 import { useMemo, useRef, useState } from "react";
 import type { HistoryBucket } from "../../historyStats";
 import { formatDuration } from "../components";
@@ -149,7 +149,7 @@ export function ColumnChart({
   }
 
   return (
-    <div ref={containerRef} className={clsx("relative w-full", className)}>
+    <div ref={containerRef} className={cn("relative w-full", className)}>
       {width > 0 ? (
         <>
           <svg

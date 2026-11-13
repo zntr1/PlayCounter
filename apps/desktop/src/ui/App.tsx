@@ -54,7 +54,6 @@ import {
 } from "../library/loginHealth";
 import { importProfile } from "../library/importProfiles";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
-import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
 import {
   CONTROLLER_MODE_EVENT,
@@ -65,6 +64,7 @@ import { EMULATORS, EMULATOR_IDS, isEmulatorId } from "../emulators/registry";
 import { BackToTopButton } from "./BackToTopButton";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { RequestWarning } from "./RequestWarning";
+import { UpdateNotice } from "./UpdateNotice";
 import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
@@ -72,6 +72,7 @@ import { WhatsNewDialog } from "./WhatsNewDialog";
 import { SidebarButton } from "./SidebarButton";
 import { LanguageNotice } from "./LanguageNotice";
 import { DiscordInviteDialog, discordInviteDue } from "./DiscordInviteDialog";
+import { ScreenshotViewer } from "./ScreenshotViewer";
 import { GlobalSearch } from "./shell/GlobalSearch";
 import { GlobalTooltip } from "./shell/GlobalTooltip";
 import { HeaderLinks } from "./shell/HeaderLinks";
@@ -81,6 +82,7 @@ import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
 import { ViewBanner } from "./ViewBanner";
 import { artSrcSet } from "./artSrcSet";
+import { markCoverUnavailable } from "../pickedCovers";
 import { useContextMenu } from "./ContextMenu";
 import { useParkedInTray } from "./useParkedInTray";
 import {
@@ -400,7 +402,8 @@ let startupPreferenceSynced = false;
 
 export function App() {
   const contentRef = useRef<HTMLDivElement>(null);
-  const titleBarRef = useRef<HTMLElement>(null);
+  const shellRef = useRef<HTMLElement>(null);
+  const noticesRef = useRef<HTMLDivElement>(null);
   const titleBarArtRef = useRef<HTMLDivElement>(null);
   // Fade only the artwork layer. Changing an inherited header variable and
   // then measuring width here forces style recalculation on every scroll.
@@ -520,6 +523,9 @@ export function App() {
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const runtimeError = useAppStore((state) => state.runtimeError);
+  const runtimeErrorClosable = useAppStore(
+    (state) => state.runtimeErrorClosable,
+  );
   const backendHealth = useAppStore((state) => state.backendHealth);
   const isOffline = useIsOffline();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
@@ -604,6 +610,12 @@ export function App() {
   const setSidebarSourcesCollapsed = useAppStore(
     (state) => state.setSidebarSourcesCollapsed,
   );
+  const emulatorsCollapsed = useAppStore(
+    (state) => state.settings.sidebarEmulatorsCollapsed === true,
+  );
+  const setSidebarEmulatorsCollapsed = useAppStore(
+    (state) => state.setSidebarEmulatorsCollapsed,
+  );
   const libraryTab = useAppStore((state) => state.libraryTab);
   const importMenu = useContextMenu();
   // The title bar uses the same image frame as the banner and its lower
@@ -652,18 +664,25 @@ export function App() {
 
   useLayoutEffect(() => {
     const content = contentRef.current;
-    const bar = titleBarRef.current;
-    if (!content || !bar) return;
+    const shell = shellRef.current;
+    const notices = noticesRef.current;
+    if (!content || !shell || !notices) return;
+    const set = (name: string, value: string) => {
+      if (shell.style.getPropertyValue(name) !== value)
+        shell.style.setProperty(name, value);
+    };
     // Match the banner's crop when the content resizes, including when its
     // scrollbar appears or disappears. Scrolling needs no width measurement.
-    const syncWidth = () => {
-      const width = `${content.clientWidth}px`;
-      if (bar.style.getPropertyValue("--content-width") !== width)
-        bar.style.setProperty("--content-width", width);
+    // Notices push the banner down; the art needs their height to stay one
+    // picture from the title bar to the banner.
+    const syncSizes = () => {
+      set("--content-width", `${content.clientWidth}px`);
+      set("--notice-height", `${notices.offsetHeight}px`);
     };
-    syncWidth();
-    const observer = new ResizeObserver(syncWidth);
+    syncSizes();
+    const observer = new ResizeObserver(syncSizes);
     observer.observe(content);
+    observer.observe(notices);
     return () => observer.disconnect();
   }, []);
 
@@ -735,6 +754,7 @@ export function App() {
         outcome = result.status;
         if (!cancelled && result.status === "available") {
           setStartupUpdate(result);
+          useAppStore.getState().setAvailableUpdate(result);
         }
       } catch {
         outcome = "failed";
@@ -884,6 +904,7 @@ export function App() {
 
   return (
     <main
+      ref={shellRef}
       className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg"
       data-banner-layout={
         compactBannerVisible && !viewBannerDetails ? "compact" : "full"
@@ -895,7 +916,8 @@ export function App() {
           "--zoom-ratio": contentScale / menuScale,
           // On My Games the bar is 72px tall: 64px of controls plus the
           // 8px gap above the banner, so the key art covers the gap too.
-          "--hero-lead": `calc(72px / ${contentScale / menuScale})`,
+          // Notices between the bar and the banner add their height.
+          "--hero-lead": `calc((72px * ${menuScale} + var(--notice-height, 0px)) / ${contentScale})`,
         } as CSSProperties
       }
     >
@@ -1099,6 +1121,17 @@ export function App() {
             // Emulator entries close the Library section. They share one
             // wrapper so the emulator guide can ring them together.
             const emulatorItems = items.filter(isEmulatorNavItem);
+            const emulatorPages = items.filter(isEmulatorId);
+            // Two or more emulators fold under one Emulators row, like the
+            // sources under My Games. The emulator guide keeps the row open
+            // so its steps can point at an emulator.
+            const groupEmulators = emulatorPages.length >= 2;
+            const emulatorsOpen =
+              !groupEmulators || emulatorTourDemo || !emulatorsCollapsed;
+            const emulatorBadgeTotal = emulatorPages.reduce(
+              (total, item) => total + sidebarEmulatorBadge(item),
+              0,
+            );
 
             return (
               <div key={section.id}>
@@ -1129,7 +1162,35 @@ export function App() {
                       data-tour="nav-emulators"
                       className="flex flex-col gap-1"
                     >
-                      {emulatorItems.map(renderNavItem)}
+                      {emulatorItems.includes("emulating")
+                        ? renderNavItem("emulating")
+                        : null}
+                      {groupEmulators ? (
+                        <SidebarButton
+                          icon={Cpu}
+                          label={t("Emulators")}
+                          collapsed={sidebarCollapsed}
+                          expanded={emulatorsOpen}
+                          // Folded shut, the row stands in for the open
+                          // emulator page, the way My Games does for sources.
+                          active={
+                            !emulatorsOpen &&
+                            isEmulatorId(activeView) &&
+                            emulatorPages.includes(activeView)
+                          }
+                          badge={
+                            emulatorsOpen
+                              ? undefined
+                              : emulatorBadgeTotal || undefined
+                          }
+                          controllerEnabled
+                          dataTour="nav-emulator-group"
+                          onClick={() =>
+                            setSidebarEmulatorsCollapsed(!emulatorsCollapsed)
+                          }
+                        />
+                      ) : null}
+                      {emulatorsOpen ? emulatorPages.map(renderNavItem) : null}
                     </div>
                   ) : null}
                   {section.id === "system" ? (
@@ -1171,23 +1232,15 @@ export function App() {
         data-controller-mode={controllerModeActive ? "true" : undefined}
         className="relative flex min-w-0 flex-1 flex-col"
       >
-        <header
-          ref={titleBarRef}
-          data-tour="header"
-          data-tauri-drag-region={dragRegion}
-          style={{ zoom: menuScale }}
-          className={clsx(
-            // z-30 lifts help and notification popovers above the content;
-            // the art clips itself instead of the bar.
-            "app-titlebar relative z-30 flex shrink-0 items-stretch",
-            titleBarArt ? "h-[72px] pb-2" : "h-16",
-          )}
-        >
+        {/* The title bar and the notices under it share one layer of key art,
+            so the picture runs on behind the notices down to the banner. */}
+        <div className="relative shrink-0">
           {titleBarArt ? (
             <div
               ref={titleBarArtRef}
               aria-hidden="true"
-              className="titlebar-art pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+              style={{ zoom: menuScale }}
+              className="titlebar-art pointer-events-none absolute inset-0 overflow-hidden"
             >
               {/* Same image frame as the card and lower continuation. The
                   card starts its crop --hero-lead lower, leaving this strip
@@ -1195,24 +1248,18 @@ export function App() {
               <img
                 src={titleBarArt}
                 alt=""
-                style={
+                onError={() => markCoverUnavailable(titleBarArt)}
+                style={{
                   // Replaced elements do not stretch between left and right;
                   // the width has to be explicit.
-                  artFrame === "card"
-                    ? {
-                        left: 0,
-                        width:
-                          "calc(var(--content-width, 100%) * var(--zoom-ratio))",
-                        height:
-                          "calc((var(--banner-height) + var(--banner-tail)) * var(--zoom-ratio) + 72px)",
-                      }
-                    : {
-                        left: 0,
-                        width:
-                          "calc(var(--content-width, 100%) * var(--zoom-ratio))",
-                        height: "calc(560px * var(--zoom-ratio) + 72px)",
-                      }
-                }
+                  left: 0,
+                  width: "calc(var(--content-width, 100%) * var(--zoom-ratio))",
+                  height: `calc(${
+                    artFrame === "card"
+                      ? "(var(--banner-height) + var(--banner-tail))"
+                      : "560px"
+                  } * var(--zoom-ratio) + 72px + var(--notice-height, 0px) / ${menuScale})`,
+                }}
                 className={clsx(
                   "absolute top-0 object-cover",
                   artFrame === "card" ? "object-[72%_0%]" : "object-[60%_0%]",
@@ -1220,65 +1267,64 @@ export function App() {
               />
             </div>
           ) : null}
-          <div
+          <header
+            data-tour="header"
             data-tauri-drag-region={dragRegion}
-            className="flex min-w-0 flex-1 items-center justify-center px-4"
+            data-art={titleBarArt ? "true" : undefined}
+            style={{ zoom: menuScale }}
+            className={clsx(
+              // z-30 lifts help and notification popovers above the content
+              // and the notices.
+              "app-titlebar relative z-30 flex items-stretch",
+              titleBarArt ? "h-[72px] pb-2" : "h-16",
+            )}
           >
-            <GlobalSearch />
-          </div>
-          <div className="titlebar-actions flex shrink-0 items-center gap-1.5 pr-3">
-            <HelpButton />
-            <NotificationBell />
-            <HeaderLinks />
-          </div>
-          <WindowControls />
-        </header>
-        <RequestWarning apiEndpoint={apiEndpoint} runtimeError={runtimeError} />
-        {startupUpdate?.status === "available" ? (
-          <div className="flex items-center justify-between gap-4 border-b border-info-border bg-info-tint px-7 py-2 text-sm text-info">
             <div
-              className="flex min-w-0 items-center gap-3"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
+              data-tauri-drag-region={dragRegion}
+              className="flex min-w-0 flex-1 items-center justify-center px-4"
             >
-              {installingUpdate ? <PlayCounterAnimatedIcon size={40} /> : null}
-              <span className="min-w-0">
-                {installingUpdate
-                  ? t("Version {{version}} is available - {{progress}}", {
-                      version: startupUpdate.version,
-                      progress: formatInstallProgress(installProgress),
-                    })
-                  : t("Version {{version}} is available", {
-                      version: startupUpdate.version,
-                    })}
-              </span>
+              <GlobalSearch />
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {!isEmptyDisplayNotes(startupDisplayNotes) ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => setStartupNotesOpen(true)}
-                  disabled={installingUpdate}
-                  className="px-3 py-1.5"
-                >
-                  {t("What's new")}
-                </Button>
-              ) : null}
-              <Button
-                variant="primary"
-                icon={installingUpdate ? undefined : Download}
-                disabled={installingUpdate}
-                aria-busy={installingUpdate}
-                onClick={() => void handleInstallStartupUpdate()}
-                className="px-3 py-1.5"
-              >
-                {installingUpdate ? t("Installing…") : t("Install")}
-              </Button>
+            <div className="titlebar-actions flex shrink-0 items-center gap-1.5 pr-3">
+              <HelpButton />
+              <NotificationBell />
+              <HeaderLinks />
             </div>
+            <WindowControls />
+          </header>
+          {/* Notices above the page, as wide as the page's own cards; the
+              strip collapses when none shows. Over key art the banner
+              follows right below, so the strip brings the gap itself. */}
+          <div
+            ref={noticesRef}
+            style={{
+              // The page's px-7 at the page's zoom, plus its scrollbar.
+              paddingLeft: `calc(28px * ${contentScale})`,
+              paddingRight: `calc(100% - var(--content-width, 100%) * ${contentScale} + 28px * ${contentScale})`,
+            }}
+            className={clsx(
+              "relative flex flex-col gap-2 empty:hidden",
+              titleBarArt ? "pb-3 pt-1" : "pt-3",
+            )}
+          >
+            <RequestWarning
+              apiEndpoint={apiEndpoint}
+              runtimeError={runtimeError}
+              runtimeErrorClosable={runtimeErrorClosable}
+            />
+            {startupUpdate?.status === "available" ? (
+              <UpdateNotice
+                version={startupUpdate.version}
+                installing={installingUpdate}
+                progress={installProgress}
+                hasNotes={!isEmptyDisplayNotes(startupDisplayNotes)}
+                onOpenNotes={() => setStartupNotesOpen(true)}
+                onInstall={() => void handleInstallStartupUpdate()}
+              />
+            ) : null}
+            <LanguageNotice />
           </div>
-        ) : null}
-        <LanguageNotice />
+        </div>
         <div data-tour-viewport className="relative min-h-0 flex-1">
           <div
             ref={contentRef}
@@ -1309,6 +1355,7 @@ export function App() {
                   srcSet={artSrcSet(titleBarArt)}
                   sizes="100vw"
                   alt=""
+                  onError={() => markCoverUnavailable(titleBarArt)}
                   style={{
                     top: "calc(var(--hero-lead, 0px) * -1)",
                     height: "calc(100% + var(--hero-lead, 0px))",
@@ -1439,6 +1486,7 @@ export function App() {
       {discordInviteOpen ? (
         <DiscordInviteDialog onClose={() => setDiscordInviteOpen(false)} />
       ) : null}
+      <ScreenshotViewer />
       {startupNotesOpen && startupUpdate?.status === "available" ? (
         <ReleaseNotesDialog
           version={startupUpdate.version}
@@ -1620,7 +1668,7 @@ function readPersistedLaunchOnStartup() {
   }
 }
 
-function ToastViewport() {
+export function ToastViewport() {
   const toasts = useAppStore((state) => state.toasts);
   const dismissToast = useAppStore((state) => state.dismissToast);
 
@@ -1700,6 +1748,19 @@ function ToastCard({
             </div>
           ) : null}
         </div>
+        {toast.action ? (
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={() => {
+              toast.action!.run();
+              setLeaving(true);
+            }}
+            className="-mt-0.5 shrink-0 rounded-md px-2.5 py-1 text-sm font-semibold text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
+          >
+            {toast.action.label}
+          </button>
+        ) : null}
         <button
           type="button"
           aria-label={t("Dismiss notification")}
@@ -1827,29 +1888,6 @@ function stageBadge(stage: Stage) {
     case "prod":
       return { label: t("Prod"), className: "font-medium text-danger" };
   }
-}
-
-function formatInstallProgress(progress: InstallProgress | null) {
-  if (!progress) return t("preparing update");
-
-  const downloaded = formatBytes(progress.downloadedBytes);
-  if (!progress.totalBytes)
-    return t("downloading {{downloaded}}", { downloaded });
-
-  return t("downloading {{downloaded}} of {{bytes}}", {
-    downloaded,
-    bytes: formatBytes(progress.totalBytes),
-  });
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  // Like toFixed(1), but with the language's decimal mark.
-  return `${(bytes / (1024 * 1024)).toLocaleString(appLocale(), {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-    useGrouping: false,
-  })} MB`;
 }
 
 function formatError(error: unknown) {

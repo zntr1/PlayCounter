@@ -2,8 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
+import { takeOneBack } from "./counterInput";
+import { openCounterBox } from "./counterBox";
 import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
+import { openQuickAdd } from "./quickAdd";
+import { takeScreenshot } from "./screenshots";
+import { togglePauseFromHotkey } from "./tracker";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
 import { nativeText } from "./nativeText";
@@ -14,12 +19,24 @@ export type HotkeySetting =
   | "showWindowHotkey"
   | "currentSessionHotkey"
   | "quickNoteHotkey"
-  | "liveTimerHotkey";
+  | "liveTimerHotkey"
+  | "pauseTimerHotkey"
+  | "screenshotHotkey"
+  | "screenshotCaptionHotkey"
+  | "quickAddHotkey"
+  | "counterUndoHotkey"
+  | "counterBoxHotkey";
 const actions: Record<HotkeySetting, string> = {
   showWindowHotkey: "show-window",
   currentSessionHotkey: "current-session",
   quickNoteHotkey: "quick-note",
   liveTimerHotkey: "live-timer",
+  pauseTimerHotkey: "pause-timer",
+  screenshotHotkey: "screenshot",
+  screenshotCaptionHotkey: "screenshot-caption",
+  quickAddHotkey: "quick-add",
+  counterUndoHotkey: "counter-undo",
+  counterBoxHotkey: "counter-box",
 };
 /** Hotkeys the main window handles itself; they need its event listeners. */
 const listened: Partial<Record<HotkeySetting, () => void>> = {
@@ -29,11 +46,26 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
     if (!openQuickNoteForCurrentSession()) showCurrentSessionOverlay();
   },
   liveTimerHotkey: () => cycleLiveTimer(),
+  // With nothing running, the session popup says so.
+  pauseTimerHotkey: () => togglePauseFromHotkey(),
+  screenshotHotkey: () => void takeScreenshot(),
+  screenshotCaptionHotkey: () => void takeScreenshot({ caption: true }),
+  // A game doesn't have to be running.
+  quickAddHotkey: () => openQuickAdd(),
+  // With nothing running, the session popup says so.
+  counterUndoHotkey: () => takeOneBack(),
+  counterBoxHotkey: () => openCounterBox(),
 };
 const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   currentSessionHotkey: "playcounter:current-session-hotkey",
   quickNoteHotkey: "playcounter:quick-note-hotkey",
   liveTimerHotkey: "playcounter:live-timer-hotkey",
+  pauseTimerHotkey: "playcounter:pause-timer-hotkey",
+  screenshotHotkey: "playcounter:screenshot-hotkey",
+  screenshotCaptionHotkey: "playcounter:screenshot-caption-hotkey",
+  quickAddHotkey: "playcounter:quick-add-hotkey",
+  counterUndoHotkey: "playcounter:counter-undo-hotkey",
+  counterBoxHotkey: "playcounter:counter-box-hotkey",
 };
 export const useHotkeyStatus = create<{
   errors: Partial<Record<HotkeySetting, string>>;
@@ -149,57 +181,6 @@ export function disposeHotkeys() {
   });
 }
 
-/**
- * Native Windows hotkeys use virtual letter keys, so honor the active keyboard layout.
- * The result is the format Rust parses, so it stays English in every language.
- */
-export function shortcutFromKey(
-  event: Pick<
-    KeyboardEvent,
-    "key" | "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey" | "repeat"
-  >,
-): string | null {
-  if (event.repeat) return null;
-  const code = /^Key[A-Z]$/.test(event.code)
-    ? /^[a-z]$/i.test(event.key)
-      ? `Key${event.key.toUpperCase()}`
-      : ""
-    : event.code;
-  const functionKey = /^F([1-9]|1[0-9]|2[0-4])$/.test(code);
-  const supported =
-    /^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Enter|Home|End|PageUp|PageDown|Insert|Delete|Backspace|Tab)$/.test(
-      code,
-    );
-  if (
-    !functionKey &&
-    (!supported || !(event.ctrlKey || event.altKey || event.metaKey))
-  )
-    return null;
-  return [
-    event.ctrlKey && "Control", // i18n-exempt: shortcut format, translated in formatHotkey
-    event.altKey && "Alt",
-    event.shiftKey && "Shift",
-    event.metaKey && "Super",
-    code,
-  ]
-    .filter(Boolean)
-    .join("+");
-}
+export { shortcutFromKey } from "./shortcutKeys";
 
-export function formatHotkey(shortcut: string | null | undefined) {
-  if (!shortcut) return t("Not set");
-  const modifiers: Record<string, string> = {
-    Control: t("Ctrl"),
-    Alt: t("Alt"),
-    Shift: t("Shift"),
-    Super: t("Win / Cmd"),
-  };
-  return shortcut
-    .split("+")
-    .map(
-      (part) =>
-        modifiers[part] ??
-        part.replace(/^Key([A-Z])$/, "$1").replace(/^Digit([0-9])$/, "$1"),
-    )
-    .join("+");
-}
+export { formatHotkey } from "./hotkeyFormat";

@@ -1,26 +1,51 @@
-import { FolderPlus, Info, RotateCcw, Trash2 } from "lucide-react";
+import { FolderOpen, FolderPlus, Info, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { chooseWatchFolder } from "../library/watchFolders";
 import {
   readWatchFolders,
   removeWatchFolder,
+  type WatchFolderRecord,
 } from "../library/watchFolderState";
 import { useAppStore } from "../store";
 import { restoreDismissedWatchFolder } from "../tracker";
 import { Button } from "./primitives";
 import { getT } from "../i18n";
+import {
+  SettingsRow,
+  type SettingsRowProps,
+} from "./views/settings/SettingsKit";
 
 const t = getT("settings");
 
+// What the guide "Watch folders for new games" shows in place of the player's
+// own folders, so every control it names is on screen. Its buttons do nothing.
+const TOUR_SAMPLE: WatchFolderRecord = {
+  folders: ["D:\\Games"], // i18n-exempt: sample folder
+  seen: {},
+  pending: {},
+  dismissed: [
+    // i18n-exempt: sample folder
+    { folderPath: "D:\\Games\\Old Demo", exeName: "demo.exe" },
+  ],
+};
+
 /** Folders PlayCounter watches for games that no launcher knows about. */
-export function WatchFoldersSettings() {
+export function WatchFoldersSettings({
+  level = 0,
+  disabled = false,
+}: Partial<SettingsRowProps>) {
   const remembersPaths = useAppStore(
     (state) => state.settings.rememberLaunchPaths !== false,
   );
   const addToast = useAppStore((state) => state.addToast);
-  const [record, setRecord] = useState(readWatchFolders);
+  const sample = useAppStore(
+    (state) => state.activeTour?.tourId === "watch-folders",
+  );
+  const [ownRecord, setRecord] = useState(readWatchFolders);
+  const record = sample ? TOUR_SAMPLE : ownRecord;
 
   async function addFolder() {
+    if (sample) return;
     try {
       const next = await chooseWatchFolder();
       if (next) setRecord(next);
@@ -34,26 +59,20 @@ export function WatchFoldersSettings() {
   }
 
   return (
-    <div
-      data-tour="settings-watch-folders"
-      className="grid gap-3 border-t border-border pt-4"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-text">
-            {t("Watched folders")}
-          </div>
-          <div className="mt-0.5 text-xs leading-5 text-text-faint">
-            {t(
-              "Each folder inside a watched folder counts as one game. Games PlayCounter recognizes show up in My Games, ready to play; the rest wait in Discovered. To recognize them, PlayCounter sends the names of the game files it finds to its game database.",
-            )}
-          </div>
-        </div>
+    <SettingsRow
+      id="watchFolders"
+      dataTour="settings-watch-folders"
+      level={level}
+      disabled={disabled}
+      title={t("Watched folders")}
+      description={t(
+        "Each folder inside a watched folder counts as one game. Games PlayCounter recognizes show up in My Games, ready to play; the rest wait in Discovered. To recognize them, PlayCounter sends the names of the game files it finds to its game database.",
+      )}
+      control={
         <Button
           data-tour="settings-watch-folders-add"
-          variant="secondary"
           icon={FolderPlus}
-          disabled={!remembersPaths}
+          disabled={disabled || !remembersPaths}
           aria-describedby={
             remembersPaths ? undefined : "watch-folders-needs-paths"
           }
@@ -61,71 +80,116 @@ export function WatchFoldersSettings() {
         >
           {t("Add folder")}
         </Button>
-      </div>
-      {remembersPaths ? null : (
-        <p
-          id="watch-folders-needs-paths"
-          className="flex items-start gap-2 text-xs leading-5 text-warning"
-        >
-          <Info size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
-          {t(
-            "Add folder needs Remember launch paths, because PlayCounter saves where each game's file is. Turn it on under Game launching above.",
-          )}
-        </p>
-      )}
-      {record.folders.map((folder) => (
-        <div
-          key={folder}
-          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg/40 px-3 py-2"
-        >
-          <span className="min-w-0 truncate text-sm text-text" title={folder}>
-            {folder}
-          </span>
-          <Button
-            variant="ghost"
-            icon={Trash2}
-            aria-label={t("Stop watching {{folder}}", { folder })}
-            onClick={() => setRecord(removeWatchFolder(folder))}
-          >
-            {t("Remove")}
-          </Button>
-        </div>
-      ))}
-      {record.dismissed.length > 0 ? (
-        <div
-          data-tour="settings-watch-folders-dismissed"
-          className="grid gap-2"
-        >
-          <div className="text-xs font-medium text-text-muted">
-            {t("Dismissed game folders")}
+      }
+      below={
+        remembersPaths &&
+        record.folders.length === 0 &&
+        record.dismissed.length === 0 ? null : (
+          <div className="grid gap-2">
+            {remembersPaths ? null : (
+              <p
+                id="watch-folders-needs-paths"
+                className="flex items-start gap-2 text-[13px] leading-5 text-warning"
+              >
+                <Info
+                  size={14}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0"
+                />
+                <span>
+                  {t(
+                    "Add folder needs Remember launch paths, because PlayCounter saves where each game's file is.",
+                  )}{" "}
+                  <button
+                    type="button"
+                    className="font-semibold text-accent-ink hover:underline"
+                    onClick={() =>
+                      useAppStore.getState().setSettingsGroup("launching")
+                    }
+                  >
+                    {t("Open {{group}}", { group: t("Game launching") })}
+                  </button>
+                </span>
+              </p>
+            )}
+            {record.folders.length ? (
+              <ul className="overflow-hidden rounded-[10px] border border-border">
+                {record.folders.map((folder) => (
+                  <li
+                    key={folder}
+                    data-tour="settings-watch-folders-folder"
+                    className="flex items-center gap-3 border-border/60 bg-bg/35 py-1.5 pl-3 pr-2 [&:not(:first-child)]:border-t"
+                  >
+                    <FolderOpen
+                      size={16}
+                      aria-hidden="true"
+                      className="shrink-0 text-text-faint"
+                    />
+                    <span
+                      className="min-w-0 flex-1 truncate font-mono text-[13px] text-text"
+                      title={folder}
+                    >
+                      {folder}
+                    </span>
+                    <Button
+                      data-tour="settings-watch-folders-remove"
+                      variant="ghost"
+                      icon={Trash2}
+                      className="h-[30px] px-2.5 text-[13px]"
+                      aria-label={t("Stop watching {{folder}}", { folder })}
+                      onClick={() => {
+                        if (!sample) setRecord(removeWatchFolder(folder));
+                      }}
+                    >
+                      {t("Remove")}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {record.dismissed.length > 0 ? (
+              <div
+                data-tour="settings-watch-folders-dismissed"
+                className="grid gap-1.5"
+              >
+                <div className="mx-0.5 mt-1 text-xs font-medium text-text-muted">
+                  {t("Dismissed game folders")}
+                </div>
+                <ul className="overflow-hidden rounded-[10px] border border-border/70">
+                  {record.dismissed.map(({ folderPath: path, exeName }) => (
+                    <li
+                      key={path}
+                      className="flex items-center gap-3 border-border/60 py-1.5 pl-3 pr-2 [&:not(:first-child)]:border-t"
+                    >
+                      <span
+                        className="min-w-0 flex-1 truncate font-mono text-xs text-text-faint"
+                        title={path}
+                      >
+                        {path}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        icon={RotateCcw}
+                        className="h-[30px] px-2.5 text-[13px]"
+                        aria-label={t("Restore {{path}}", { path })}
+                        onClick={() => {
+                          if (sample) return;
+                          void restoreDismissedWatchFolder(
+                            path,
+                            exeName,
+                          ).finally(() => setRecord(readWatchFolders()));
+                        }}
+                      >
+                        {t("Restore")}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
-          {record.dismissed.map(({ folderPath: path, exeName }) => (
-            <div
-              key={path}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2"
-            >
-              <span
-                className="min-w-0 truncate text-xs text-text-faint"
-                title={path}
-              >
-                {path}
-              </span>
-              <Button
-                variant="ghost"
-                icon={RotateCcw}
-                aria-label={t("Restore {{path}}", { path })}
-                onClick={() =>
-                  void restoreDismissedWatchFolder(path, exeName).finally(() =>
-                    setRecord(readWatchFolders()),
-                  )
-                }
-              >
-                {t("Restore")}
-              </Button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
+        )
+      }
+    />
   );
 }

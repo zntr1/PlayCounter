@@ -1,5 +1,11 @@
-import type { TourTargetRect } from "./tourCardPosition";
 import type { TourStep } from "./tourDefinitions";
+
+export type TourTargetRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
 
 export function findTourElement(selector: string): HTMLElement | null {
   return (
@@ -95,4 +101,55 @@ export function tourTargetRect(element: Element): TourTargetRect | null {
   return right > left && bottom > top
     ? { top, left, width: right - left, height: bottom - top }
     : null;
+}
+
+/** How far apart two targets may be for their rings to touch: a ring is drawn
+ *  6 px outside its target on every side. */
+const RING_REACH = 12;
+
+/** Where the ring around a target is drawn: 6 px outside it, but never
+ *  closer than 4 px to the window's edge, so its line and glow stay in
+ *  view around a target at the edge, like the title bar. */
+export function tourRingBox(rect: TourTargetRect): TourTargetRect {
+  const left = Math.max(4, rect.left - 6);
+  const top = Math.max(4, rect.top - 6);
+  const right = Math.min(window.innerWidth - 4, rect.left + rect.width + 6);
+  const bottom = Math.min(window.innerHeight - 4, rect.top + rect.height + 6);
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+/** Targets that sit right next to each other share one ring instead of two
+ *  rings that touch or overlap. The result keeps the order of `rects`; a
+ *  merged ring takes the place of its first target. */
+export function mergeTouchingRects(rects: TourTargetRect[]) {
+  const merged = rects.map((rect) => ({ ...rect }));
+  const gap = (
+    from: number,
+    size: number,
+    otherFrom: number,
+    otherSize: number,
+  ) => Math.max(0, otherFrom - (from + size), from - (otherFrom + otherSize));
+  for (let index = 0; index < merged.length; index += 1) {
+    for (let other = index + 1; other < merged.length; other += 1) {
+      const a = merged[index];
+      const b = merged[other];
+      if (
+        gap(a.left, a.width, b.left, b.width) > RING_REACH ||
+        gap(a.top, a.height, b.top, b.height) > RING_REACH
+      )
+        continue;
+      const left = Math.min(a.left, b.left);
+      const top = Math.min(a.top, b.top);
+      merged[index] = {
+        left,
+        top,
+        width: Math.max(a.left + a.width, b.left + b.width) - left,
+        height: Math.max(a.top + a.height, b.top + b.height) - top,
+      };
+      merged.splice(other, 1);
+      // The grown ring may now reach a target it passed before.
+      other = index;
+    }
+  }
+  return merged;
 }

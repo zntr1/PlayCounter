@@ -144,6 +144,15 @@ pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
         // The window title carries the title ID.
         content_extensions: &[],
     },
+    EmulatorHost {
+        id: "bluestacks",
+        // One HD-Player.exe per Android instance. Neither its command line
+        // nor its title names the game; bluestacks::foreground_apps does.
+        exe_names: &["hd-player.exe"],
+        needs_command_line: false,
+        needs_window_title: false,
+        content_extensions: &[],
+    },
 ];
 
 pub fn host_for(exe_name: &str) -> Option<&'static EmulatorHost> {
@@ -531,6 +540,7 @@ mod tests {
             ("melonDS.exe", "melonds"),
             ("xenia_canary.exe", "xenia"),
             ("xenia.exe", "xenia"),
+            ("HD-Player.exe", "bluestacks"),
         ] {
             assert_eq!(host_for(name).map(|host| host.id), Some(id));
         }
@@ -547,6 +557,11 @@ mod tests {
             "melonDS-x64.exe",
             "xenia-canary.exe",
             "xenia_canary_netplay.exe",
+            "HD-Adb.exe",
+            "HD-MultiInstanceManager.exe",
+            "BlueStacksAppplayerWeb.exe",
+            "BlueStacksServices.exe",
+            "BstkSVC.exe",
         ] {
             assert!(host_for(name).is_none());
         }

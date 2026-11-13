@@ -15,11 +15,15 @@ import {
   Star,
   EyeOff,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
-import { useCoverUrl } from "../pickedCovers";
-import { customHeroArtKey, useAppStore } from "../store";
+import {
+  markCoverUnavailable,
+  useCoverUrl,
+  usePickedBanner,
+} from "../pickedCovers";
+import { useAppStore } from "../store";
 import { GameCover } from "./GameCover";
 import {
   Button,
@@ -30,7 +34,7 @@ import {
   useAnchoredMenu,
 } from "./primitives";
 import { useGameJournal } from "./useGameJournal";
-import { GameDetailsDialog } from "./views/games/GameDetailsDialog";
+import { openGameDetails } from "./openGameDetails";
 import { useHeroLauncher } from "./views/games/useHeroLauncher";
 import type { GameSummary } from "./views/MyGamesView";
 import { getT } from "../i18n";
@@ -90,7 +94,6 @@ export function GameBanner({
   onToggleDetails,
 }: GameBannerProps) {
   const compact = variant === "compact";
-  const [showDetails, setShowDetails] = useState(false);
   const menu = useAnchoredMenu();
   const details = useGameDetails(game.igdbId);
   const journal = useGameJournal({ ...game, gameName: game.name });
@@ -105,9 +108,7 @@ export function GameBanner({
   });
 
   const ready = details.status === "ready" ? details.details : null;
-  const pickedArt = useAppStore(
-    (state) => state.customHeroArt[customHeroArtKey(game)],
-  );
+  const pickedArt = usePickedBanner(game);
   const artwork = heroArtwork(pickedArt, ready);
   const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
   const facts = ready
@@ -162,6 +163,7 @@ export function GameBanner({
             alt=""
             decoding="async"
             fetchPriority="high"
+            onError={() => markCoverUnavailable(artwork)}
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
@@ -266,7 +268,7 @@ export function GameBanner({
                 aria-label={`${playLabel}: ${game.name}`}
                 onClick={() => void launcher.launch()}
                 className={clsx(
-                  "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
+                  "library-hero-play rounded-lg font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
                   compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
                 )}
               >
@@ -283,7 +285,7 @@ export function GameBanner({
                 aria-label={t("Install {{name}} in Steam", { name: game.name })}
                 onClick={() => void launcher.install()}
                 className={clsx(
-                  "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
+                  "library-hero-play rounded-lg font-semibold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
                   compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
                 )}
               >
@@ -293,9 +295,11 @@ export function GameBanner({
             <Button
               variant="secondary"
               icon={Info}
-              onClick={() => setShowDetails(true)}
+              // My Games opens it with the card's dialogs, so it has every
+              // action the card's Details has.
+              onClick={() => openGameDetails(game)}
               className={clsx(
-                "rounded-lg border-2 border-text/25 bg-bg/40 font-semibold backdrop-blur hover:border-text/50 hover:bg-bg/60",
+                "rounded-lg border-2 border-text/25 bg-bg/40 font-normal backdrop-blur hover:border-text/50 hover:bg-bg/60",
                 compact ? "h-9 px-4 text-sm" : "h-12 px-5 text-[15px]",
               )}
             >
@@ -389,17 +393,6 @@ export function GameBanner({
           {t("Hide banner")}
         </ContextMenuItem>
       </ContextMenu>
-
-      {showDetails ? (
-        <GameDetailsDialog
-          game={game}
-          launchKey={`${launchKey}:details`}
-          launchBlocked={launchBlocked}
-          onAcquireLaunch={onAcquireLaunch}
-          onReleaseLaunch={onReleaseLaunch}
-          onClose={() => setShowDetails(false)}
-        />
-      ) : null}
     </section>
   );
 
@@ -416,6 +409,7 @@ export function GameBanner({
             sizes="100vw"
             alt=""
             decoding="async"
+            onError={() => markCoverUnavailable(backdropArt)}
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:

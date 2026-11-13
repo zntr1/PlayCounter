@@ -8,6 +8,10 @@ import {
 } from "./achievements/backgroundRefresh";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
+import { initializeQuickAdd, disposeQuickAdd } from "./quickAdd";
+import { disposeCounterKeys, initializeCounterKeys } from "./counterInput";
+import { disposeCounterBox, initializeCounterBox } from "./counterBox";
+import { initializeScreenshots, disposeScreenshots } from "./screenshots";
 import {
   initializeLiveTimer,
   disposeLiveTimer,
@@ -181,6 +185,12 @@ import {
   type GameJournal,
   type PersonalShelf,
 } from "./personalLibrary";
+import {
+  sanitizeArchivedCounts,
+  sanitizeCounts,
+  sanitizeGameCounters,
+  withCounts,
+} from "./counters";
 import { normalizeAccentColor } from "./theme";
 import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
 import { tours } from "./ui/tour/tourDefinitions";
@@ -192,8 +202,12 @@ import {
   disposeDesktopOverlays,
   emitOverlayEvent,
   initializeDesktopOverlays,
+  newestSession,
   noteDiscoveredExecutable,
+  showCurrentSessionOverlay,
+  showPauseToggledOverlay,
 } from "./desktopOverlayBridge";
+import { playedMs, playedSeconds } from "./sessionTime";
 import { milestoneMetricLabel, pickTopMilestone } from "./desktopOverlays";
 import {
   armControllerBridge,
@@ -293,7 +307,7 @@ import type {
   KnownEmulator,
   RawEmulatorSignals,
 } from "./emulators/types";
-import { appLocale, getT } from "./i18n";
+import { appLocale, formatNumericDate, getT } from "./i18n";
 
 const t = getT("tracker");
 
@@ -318,6 +332,7 @@ type PersistedState = {
   gameJournals?: Record<string, GameJournal>;
   personalShelves?: PersonalShelf[];
   archivedPlaythroughSeconds?: Record<string, number>;
+  archivedCounts?: unknown;
   installUuid?: string;
   contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
@@ -368,6 +383,7 @@ type PersistedState = {
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
   battleNetPlaytimeNoticeSeen?: boolean;
+  closedScanWarnings?: unknown;
   discordInviteSnoozedAt?: unknown;
   discordInviteDone?: boolean;
 };
@@ -528,6 +544,8 @@ export async function initializeTracker() {
           : t(
               "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
             ),
+        // Tracking and saving stay paused, so the message stays on screen.
+        { closable: false },
       );
     return;
   }
@@ -535,7 +553,13 @@ export async function initializeTracker() {
   initializeDesktopOverlays();
   initializeHotkeys();
   initializeQuickNotes();
-  initializeLiveTimer(runningGamePids);
+  initializeQuickAdd();
+  initializeCounterKeys();
+  initializeCounterBox();
+  initializeLiveTimer(runningGamePids, (sessionId) => {
+    togglePauseSession(sessionId);
+  });
+  initializeScreenshots(runningGamePids);
   initializePlayStationLive({
     start: startConsoleSession,
     see: seeConsoleSession,
@@ -589,7 +613,11 @@ export async function stopTrackerForReset() {
   disposeDesktopOverlays();
   disposeHotkeys();
   disposeQuickNotes();
+  disposeQuickAdd();
+  disposeCounterKeys();
+  disposeCounterBox();
   disposeLiveTimer();
+  disposeScreenshots();
   disposePlayStationLive();
   disposePlaytimeReminder();
   disposeControllerBridge();
@@ -668,7 +696,11 @@ async function finishTrackerStartup() {
     disposeDesktopOverlays();
     disposeHotkeys();
     disposeQuickNotes();
+    disposeQuickAdd();
+    disposeCounterKeys();
+    disposeCounterBox();
     disposeLiveTimer();
+    disposeScreenshots();
     disposePlayStationLive();
     disposePlaytimeReminder();
     disposeAutomaticBackups();
@@ -1325,7 +1357,16 @@ export function hydrate() {
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
   );
   const { kept: hydratedSessions, removed: hydratedOverflow } =
-    splitStoredSessions((persisted.sessions ?? []).map(inferSuggestionStatus));
+    splitStoredSessions(
+      (persisted.sessions ?? []).map((session) =>
+        session.counts === undefined
+          ? inferSuggestionStatus(session)
+          : withCounts(
+              inferSuggestionStatus(session),
+              sanitizeCounts(session.counts),
+            ),
+      ),
+    );
   const hydratedArchive = foldSessionsIntoArchive(
     Math.max(0, persisted.archivedSeconds ?? 0),
     sanitizeGameSecondsRecord(persisted.archivedGameSeconds, { signed: false }),
@@ -1334,6 +1375,7 @@ export function hydrate() {
     sanitizeGameSecondsRecord(persisted.archivedConsoleSeconds, {
       signed: false,
     }),
+    sanitizeArchivedCounts(persisted.archivedCounts),
   );
   const hydratedResolver = createGameIdentityResolver(
     gameMetadataMap,
@@ -1512,9 +1554,10 @@ export function hydrate() {
     ignoredExeFolders,
     rejectedGameFiles: sanitizeRejectedGameFiles(persisted.rejectedGameFiles),
     recentSessions: hydratedSessions,
-    gameJournals: persisted.gameJournals ?? {},
+    gameJournals: sanitizeJournalCounters(persisted.gameJournals ?? {}),
     personalShelves: persisted.personalShelves ?? [],
     archivedPlaythroughSeconds: hydratedArchive.archivedPlaythroughSeconds,
+    archivedCounts: hydratedArchive.archivedCounts,
     journalTarget: null,
     activeSessions: hydratedActiveSessions,
     // Pickers saved before the cap held every database candidate.
@@ -1591,6 +1634,11 @@ export function hydrate() {
     languageNoticeSeen:
       persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
     battleNetPlaytimeNoticeSeen: persisted.battleNetPlaytimeNoticeSeen === true,
+    closedScanWarnings: Array.isArray(persisted.closedScanWarnings)
+      ? persisted.closedScanWarnings.filter(
+          (warning): warning is string => typeof warning === "string",
+        )
+      : [],
     discordInviteSnoozedAt:
       typeof persisted.discordInviteSnoozedAt === "string" &&
       Number.isFinite(Date.parse(persisted.discordInviteSnoozedAt))
@@ -2688,6 +2736,7 @@ function rawEmulatorSignals(
     windowTitle: process.windowTitle ?? null,
     openFiles: process.openFiles ?? undefined,
     recentFile: process.recentFile ?? undefined,
+    foregroundApp: process.foregroundApp ?? undefined,
   };
 }
 
@@ -3448,9 +3497,10 @@ async function resolveProcesses(
           "match API unavailable; leaving uncached executables pending",
         );
       } else {
-        state.setRuntimeError(
-          t("Match API failed: {{error}}", { error: formatError(error) }),
-        );
+        matchLookupError = t("Match API failed: {{error}}", {
+          error: formatError(error),
+        });
+        state.setRuntimeError(matchLookupError);
       }
     }
   }
@@ -6899,9 +6949,10 @@ async function endSession(
     session = { ...session, playthroughId: undefined };
   logRuntime(`session ending ${session.gameName} (${session.exeName})`);
   const endedAt = endedAtOverride ?? new Date().toISOString();
+  // Paused time is not played time; a pause still open ends here too.
   const durationSeconds = Math.max(
     1,
-    Math.round((Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000),
+    Math.round(playedMs(session, Date.parse(endedAt)) / 1000),
   );
   useAppStore.getState().addSession({
     id: session.id,
@@ -6927,6 +6978,7 @@ async function endSession(
     ...(session.console ? { console: session.console } : {}),
     emulator: session.emulator,
     note: session.note,
+    ...(session.counts ? { counts: session.counts } : {}),
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
@@ -7070,6 +7122,10 @@ async function sendInstallPresenceIfDue() {
   }
 }
 
+// The failed match lookup shown as the runtime error, so it can go away once
+// the server answers again.
+let matchLookupError: string | null = null;
+
 function setBackendHealth(
   status: "checking" | "online" | "offline" | "reconnecting",
   detail: string,
@@ -7086,7 +7142,12 @@ function setBackendHealth(
     logRuntime(`backend health ${status}: ${detail}`);
   }
 
-  if (status === "online" && state.runtimeError?.includes("API failed")) {
+  // Compared as a whole: the text is in the app's language.
+  if (
+    status === "online" &&
+    matchLookupError !== null &&
+    state.runtimeError === matchLookupError
+  ) {
     state.setRuntimeError(null);
   }
 }
@@ -7142,6 +7203,13 @@ export function persist() {
       )
         ? current.archivedConsoleSeconds
         : result.archivedConsoleSeconds;
+      // A new archive only when sessions really left History.
+      const archivedCounts =
+        result.archivedCounts === current.archivedCounts ||
+        JSON.stringify(result.archivedCounts) ===
+          JSON.stringify(current.archivedCounts)
+          ? current.archivedCounts
+          : result.archivedCounts;
       if (
         recentSessions === current.recentSessions &&
         notifications === current.notifications &&
@@ -7151,7 +7219,8 @@ export function persist() {
           result.archivedPlaythroughSeconds,
         ) &&
         archivedGameSeconds === current.archivedGameSeconds &&
-        archivedConsoleSeconds === current.archivedConsoleSeconds
+        archivedConsoleSeconds === current.archivedConsoleSeconds &&
+        archivedCounts === current.archivedCounts
       ) {
         return current;
       }
@@ -7162,6 +7231,7 @@ export function persist() {
         archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
         archivedConsoleSeconds,
+        archivedCounts,
       };
     });
   }
@@ -7179,7 +7249,7 @@ export function persist() {
               "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
               {
                 count: result.removed.length,
-                date: new Date(oldest).toLocaleDateString(appLocale()),
+                date: formatNumericDate(oldest),
               },
             )
           : t(
@@ -8198,13 +8268,17 @@ export function selectAmbiguousCommunitySuggestion(
 }
 
 async function saveCoverFile(
-  command: "save_custom_cover" | "save_picked_cover",
+  command: "save_custom_cover" | "save_picked_cover" | "save_picked_banner",
   args: Record<string, unknown>,
   file: File | Blob,
 ) {
   const extension = coverExtension(file);
   if (!extension) {
-    throw new Error(t("Cover image must be a PNG, JPG, or WebP file."));
+    throw new Error(
+      command === "save_picked_banner"
+        ? t("Banner image must be a PNG, JPG, or WebP file.")
+        : t("Cover image must be a PNG, JPG, or WebP file."),
+    );
   }
 
   const bytes = [...new Uint8Array(await file.arrayBuffer())];
@@ -8232,6 +8306,15 @@ export async function setPickedCoverFile(key: string, file: File | Blob) {
   const coverUrl = await saveCoverFile("save_picked_cover", { key }, file);
   useAppStore.getState().setCustomCoverArt(key, coverUrl);
   logRuntime(`picked cover uploaded key=${key}`);
+}
+
+/** An uploaded banner, for any game: stored like a SteamGridDB pick, so it
+ *  works for games IGDB and SteamGridDB do not know. `key` is the game's
+ *  customHeroArtKey. */
+export async function setPickedBannerFile(key: string, file: File | Blob) {
+  const bannerUrl = await saveCoverFile("save_picked_banner", { key }, file);
+  useAppStore.getState().setCustomHeroArt(key, bannerUrl);
+  logRuntime(`picked banner uploaded key=${key}`);
 }
 
 export function clearCustomGameCover(gameId: number) {
@@ -8592,6 +8675,79 @@ export async function stopGameTimer(sessionId: number) {
   persist();
 }
 
+// Pause: the player stepped away. The game may keep running, its session
+// stays open, and nothing counts until Resume (sessionTime.ts). Any running
+// session can pause: a detected game, an emulator game, a timer, a console.
+function changeActiveSession(
+  sessionId: number,
+  change: (session: ActiveSession) => ActiveSession,
+) {
+  useAppStore.setState((state) => ({
+    activeSessions: state.activeSessions.map((session) =>
+      session.id === sessionId ? change(session) : session,
+    ),
+  }));
+  persist();
+  syncTrayNowPlaying();
+}
+
+export function pauseSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId);
+  if (!session || session.pausedAt) return;
+  const pausedAt = new Date().toISOString();
+  changeActiveSession(sessionId, (active) => ({ ...active, pausedAt }));
+  logRuntime(`session paused ${session.gameName} (${session.exeName})`);
+}
+
+export function resumeSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId);
+  if (!session?.pausedAt) return;
+  const pauseMs = Date.now() - Date.parse(session.pausedAt);
+  changeActiveSession(sessionId, ({ pausedAt: _, ...active }) => ({
+    ...active,
+    pausedMs:
+      (active.pausedMs ?? 0) +
+      (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
+  }));
+  logRuntime(`session resumed ${session.gameName} (${session.exeName})`);
+}
+
+/** Pauses a counting session, resumes a paused one. Returns whether it is
+ *  paused now, or null when the session is gone. */
+export function togglePauseSession(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId);
+  if (!session) return null;
+  if (session.pausedAt) resumeSession(sessionId);
+  else pauseSession(sessionId);
+  return !session.pausedAt;
+}
+
+/** The pause hotkey: the game the live timer shows (started last, a
+ *  PlayStation session only when nothing runs here). The pill shows the
+ *  change itself; without it a popup says what happened. */
+export function togglePauseFromHotkey() {
+  const state = useAppStore.getState();
+  const session =
+    newestSession(state.activeSessions.filter((active) => !active.console)) ??
+    newestSession(state.activeSessions);
+  if (!session) {
+    showCurrentSessionOverlay();
+    return;
+  }
+  const paused = togglePauseSession(session.id);
+  if (paused === null || state.settings.liveTimerEnabled === true) return;
+  const now = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === session.id);
+  if (now) showPauseToggledOverlay(now, paused, playedSeconds(now, Date.now()));
+}
+
 /** A PS5 or PS4 game Sony shows running (playstationLive.ts). Nothing opens
  *  when the game already has a session here: a PC process or a timer of the
  *  same game counts once. */
@@ -8827,6 +8983,7 @@ function changeHistorySessions(
         removed,
         state.archivedPlaythroughSeconds,
         state.archivedConsoleSeconds,
+        state.archivedCounts,
       ),
     };
   });
@@ -9083,6 +9240,7 @@ export function clearLocalLibrary() {
     gameJournals: {},
     personalShelves: [],
     archivedPlaythroughSeconds: {},
+    archivedCounts: {},
     journalTarget: null,
     playtimeAdjustments: {},
     customHeroArt: {},
@@ -9435,6 +9593,39 @@ function readPersisted(): PersistedState {
   ) as PersistedState;
 }
 
+/** A journal's counters as saved, minus anything broken (counters.ts). */
+function sanitizeJournalCounters(journals: Record<string, GameJournal>) {
+  let next: Record<string, GameJournal> | undefined;
+  for (const [key, journal] of Object.entries(journals)) {
+    if (
+      journal.counters === undefined &&
+      journal.controllerCounterId === undefined
+    )
+      continue;
+    const counters =
+      journal.counters === undefined
+        ? undefined
+        : sanitizeGameCounters(journal.counters);
+    const controller = journal.controllerCounterId;
+    const controllerCounterId =
+      typeof controller === "string" || controller === null
+        ? controller
+        : undefined;
+    const {
+      counters: _counters,
+      controllerCounterId: _controller,
+      ...rest
+    } = journal;
+    next ??= { ...journals };
+    next[key] = {
+      ...rest,
+      ...(counters ? { counters } : {}),
+      ...(controllerCounterId !== undefined ? { controllerCounterId } : {}),
+    };
+  }
+  return next ?? journals;
+}
+
 function normalizePersistedActiveSessions(persisted: PersistedState) {
   const sessions = persisted.activeSessions ?? [];
   if (persisted.activeSession) sessions.push(persisted.activeSession);
@@ -9443,7 +9634,10 @@ function normalizePersistedActiveSessions(persisted: PersistedState) {
   // executables was counted twice.
   return dedupeSessionsByGame(
     sessions.map((session) => ({
-      ...inferSuggestionStatus(session),
+      ...withCounts(
+        inferSuggestionStatus(session),
+        sanitizeCounts(session.counts),
+      ),
       checkpointedAt: session.checkpointedAt ?? session.startedAt,
       // The console kept going while PlayCounter was closed: a timer keeps
       // counting from its start.
@@ -9544,12 +9738,10 @@ function checkpointActiveSessionIfDue(session: ActiveSession) {
     recoveredFromCheckpoint: false,
   });
   verboseRuntime(
-    `session checkpoint ${session.gameName} durationSeconds=${Math.max(
-      0,
-      Math.round(
-        (Date.parse(checkpointedAt) - Date.parse(session.startedAt)) / 1000,
-      ),
-    )}`,
+    `session checkpoint ${session.gameName} durationSeconds=${playedSeconds(
+      session,
+      Date.parse(checkpointedAt),
+    )}${session.pausedAt ? " paused" : ""}`,
   );
 }
 
@@ -9590,10 +9782,17 @@ function updateActiveSession(session: ActiveSession) {
   const key = sessionIdentityKey(session);
   useAppStore.setState((state) => ({
     activeSessions: state.activeSessions.map((active) =>
-      // The caller's copy can predate a note written meanwhile; the tracker
-      // never changes notes itself.
+      // The caller's copy can predate a note written, a pause pressed or a
+      // count meanwhile; the tracker never changes any of them itself.
       sessionIdentityKey(active) === key
-        ? { ...session, note: active.note }
+        ? {
+            ...session,
+            note: active.note,
+            pausedAt: active.pausedAt,
+            pausedMs: active.pausedMs,
+            counts: active.counts,
+            lastCounterId: active.lastCounterId,
+          }
         : active,
     ),
   }));
@@ -9635,14 +9834,13 @@ function trayStatus() {
     .activeSessions.filter((session) => session.gameName.trim());
   const first = named[0];
   if (!first) return t("No game active");
-  const elapsed = Math.max(
-    0,
-    Math.floor((Date.now() - Date.parse(first.startedAt)) / 1000),
-  );
-  const status = t("Playing {{game}} - {{duration}}", {
+  const values = {
     game: first.gameName.trim(),
-    duration: trayDuration(elapsed),
-  });
+    duration: trayDuration(playedSeconds(first, Date.now())),
+  };
+  const status = first.pausedAt
+    ? t("Paused {{game}} - {{duration}}", values)
+    : t("Playing {{game}} - {{duration}}", values);
   return named.length > 1
     ? t("{{status}} (+{{count}} more)", { status, count: named.length - 1 })
     : status;
@@ -9739,7 +9937,11 @@ function sanitizeCustomHeroArt(value: unknown): Record<string, string> {
   for (const [key, url] of Object.entries(value as Record<string, unknown>)) {
     if (
       typeof url === "string" &&
-      /^https:\/\//.test(url) &&
+      // SteamGridDB picks, or uploaded files served by the asset protocol
+      // (http://asset.localhost on Windows, asset://localhost elsewhere).
+      /^(https:\/\/|http:\/\/asset\.localhost\/|asset:\/\/localhost\/)/.test(
+        url,
+      ) &&
       /^[a-z]+:-?\d+$/.test(key)
     ) {
       result[key] = url;

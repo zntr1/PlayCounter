@@ -281,6 +281,7 @@ const EMULATOR_PLATFORMS: Record<EmulatorId, string | undefined> = {
   azahar: "Nintendo 3DS",
   melonds: "Nintendo DS",
   xenia: "Xbox 360",
+  bluestacks: "Mobile",
 };
 
 function sessionPlatform(session: Session): string | undefined {

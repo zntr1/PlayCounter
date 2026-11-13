@@ -1,5 +1,6 @@
 import type { ViewId } from "../../store";
 import type { TourStep } from "./tourDefinitions";
+import { settingsTourAnchorAvailable } from "../views/settings/settingsGroups";
 
 export function stepView(
   step: TourStep,
@@ -8,6 +9,18 @@ export function stepView(
 ) {
   if (step.view === "keep") return activeView;
   return step.view === "return" ? returnView : step.view;
+}
+
+/** Whether an optional step can show its control. A Settings step opens
+ *  its own group first, so it asks the group instead of the screen. */
+function stepAvailable(
+  step: TourStep,
+  anchorPresent: (selector: string) => boolean,
+) {
+  if (!step.optional || !step.anchor) return true;
+  if (step.settingsGroup)
+    return settingsTourAnchorAvailable(step.settingsGroup, step.anchor);
+  return anchorPresent(step.shownWhen ?? step.anchor);
 }
 
 export function nextStepIndex(
@@ -20,9 +33,7 @@ export function nextStepIndex(
   while (
     index >= 0 &&
     index < steps.length &&
-    steps[index].optional &&
-    steps[index].anchor &&
-    !anchorPresent(steps[index].anchor!)
+    !stepAvailable(steps[index], anchorPresent)
   )
     index += direction;
   return index;
@@ -39,4 +50,16 @@ export function backStepIndex(
     if (target >= 0) return target;
   }
   return nextStepIndex(steps, from, -1, anchorPresent);
+}
+
+/** The steps this computer can show, as indexes into `steps`. The current
+ *  step always counts, so the card can number it. */
+export function availableStepIndexes(
+  steps: TourStep[],
+  current: number,
+  anchorPresent: (selector: string) => boolean,
+) {
+  return steps.flatMap((step, index) =>
+    index === current || stepAvailable(step, anchorPresent) ? [index] : [],
+  );
 }

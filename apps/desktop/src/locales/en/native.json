@@ -171,5 +171,8 @@
   "PlayStation returned an invalid sign-in code. Please sign in again.": "PlayStation returned an invalid sign-in code. Please sign in again.",
   "PlayStation sign-in timed out. Please try again.": "PlayStation sign-in timed out. Please try again.",
   "Could not clear the PlayStation sign-in session. Close PlayCounter before signing in again.": "Could not clear the PlayStation sign-in session. Close PlayCounter before signing in again.",
-  "Could not cancel PlayStation sign-in.": "Could not cancel PlayStation sign-in."
+  "Could not cancel PlayStation sign-in.": "Could not cancel PlayStation sign-in.",
+  "Banner image is empty.": "Banner image is empty.",
+  "Banner image must be 8 MB or smaller.": "Banner image must be 8 MB or smaller.",
+  "Banner image must be a PNG, JPG, or WebP file.": "Banner image must be a PNG, JPG, or WebP file."
 }

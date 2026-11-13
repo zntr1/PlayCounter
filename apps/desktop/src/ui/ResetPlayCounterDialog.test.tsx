@@ -34,6 +34,8 @@ beforeEach(async () => {
   resetMock.mockReset();
   resetSettingsMock.mockReset();
   useAppStore.setState(useAppStore.getInitialState(), true);
+  // Reset is the red box at the end of Backup & transfer.
+  useAppStore.getState().setSettingsGroup("backup");
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);

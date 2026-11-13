@@ -78,8 +78,6 @@
   "Apps from the latest scan.": "Apps aus dem letzten Scan.",
   "Not running": "Läuft nicht",
   "Apps PlayCounter saw earlier. They stay here until you decide.": "Apps, die PlayCounter früher gesehen hat. Sie bleiben hier, bis du entscheidest.",
-  "Tutorial app": "App aus der Anleitung",
-  "{{exeName}} exists only inside this guide. Nothing was changed or saved.": "{{exeName}} gibt es nur in dieser Anleitung. Es wurde nichts geändert oder gespeichert.",
   "Last scan {{date}}": "Letzter Scan: {{date}}",
   "No scan yet": "Noch kein Scan",
   "Search apps...": "Apps suchen...",

@@ -79,6 +79,8 @@ describe("generic exe names", () => {
     "fm.exe",
     "CricketCaptain.exe",
     "xrEngine.exe",
+    "Wow.exe",
+    "WowClassic.exe",
     "Windows.exe",
     "GameClient.exe",
   ])("treats %s as generic", (exeName) => {
@@ -100,6 +102,13 @@ describe("generic exe names", () => {
       "minecraft",
     ],
     [String.raw`D:\Games\Java Island`, "Java Island"],
+    // Battle.net keeps each WoW flavour in a folder named after it.
+    [String.raw`C:\Program Files (x86)\World of Warcraft\_retail_`, "World of Warcraft"],
+    [
+      String.raw`C:\Program Files (x86)\World of Warcraft\_classic_era_`,
+      "World of Warcraft",
+    ],
+    [String.raw`D:\Games\WoW 3.3.5a`, "WoW 3.3.5a"],
     [String.raw`\\nas\games\Tupac`, "Tupac"],
     ["D:\\", undefined],
   ])("calls %s %j", (folder, name) => {

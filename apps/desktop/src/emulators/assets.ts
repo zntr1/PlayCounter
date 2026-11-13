@@ -1,5 +1,6 @@
 import type { EmulatorId } from "@playcounter/shared";
 import azaharIconUrl from "../../../../assets/emulators/azahar/azahar.png";
+import bluestacksIconUrl from "../../../../assets/emulators/bluestacks/bluestacks.png";
 import cemuIconUrl from "../../../../assets/emulators/cemu/cemu.png";
 import dosboxIconUrl from "../../../../assets/emulators/dosbox/DOSBox_icon.png";
 import dolphinIconUrl from "../../../../assets/emulators/dolphin/dolphin-emu.svg";
@@ -27,4 +28,5 @@ export const emulatorAssetUrls: Readonly<Record<string, string>> = {
   azahar: azaharIconUrl,
   melonds: melondsIconUrl,
   xenia: xeniaIconUrl,
+  bluestacks: bluestacksIconUrl,
 } satisfies Record<EmulatorId, string>;

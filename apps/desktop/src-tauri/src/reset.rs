@@ -57,6 +57,8 @@ pub async fn reset_local_data(app: tauri::AppHandle, window: WebviewWindow) -> R
             .app_config_dir()
             .map_err(|error| error.to_string())?;
         remove_owned_entry(&data, &data.join("covers"))?;
+        // Screenshot previews go; the pictures in Pictures\PlayCounter stay.
+        remove_owned_entry(&data, &data.join("screenshot-previews"))?;
         remove_owned_entry(&config, &super::ignored_processes::user_file_path(&handle)?)?;
         super::session::reset_install_uuid(&handle)?;
         clear_window_state(&handle)

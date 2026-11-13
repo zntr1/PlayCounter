@@ -12,8 +12,11 @@ import {
   vi,
 } from "vitest";
 import { getSessionGameKey } from "../../historyStats";
+import { STORAGE_KEY } from "../../persistence";
 import { useAppStore } from "../../store";
 import { resetGameColors } from "../charts/gameColors";
+import { findTour } from "../tour/tourDefinitions";
+import { StatsPractice } from "../tour/TourStatsPractice";
 import { HistoryView } from "./HistoryView";
 
 /* Plan: docs/history-ranges-plan.md (numbers are its sentences). Today is
@@ -166,6 +169,69 @@ describe("tabs", () => {
     expect(selectedTab()).toBe("history-tab-insights");
     expect(panel("insights")).not.toBeNull();
     expect(panel("sessions")).toBeNull();
+  });
+
+  // Phil 2026-11-10: the tab viewed last is saved in the settings, so it
+  // survives a restart.
+  it("opens on the tab viewed last, also after a restart", async () => {
+    await render();
+    await click(container.querySelector("#history-tab-games"));
+    await settle();
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.historyTab,
+    ).toBe("games");
+    await act(() => root.unmount());
+    root = createRoot(container);
+    await render();
+    expect(selectedTab()).toBe("history-tab-games");
+  });
+
+  it("saves a tab picked with the arrow keys too", async () => {
+    await render();
+    const tablist = container.querySelector('[role="tablist"]')!;
+    await act(async () => {
+      tablist.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
+      );
+    });
+    expect(selectedTab()).toBe("history-tab-sessions");
+    expect(useAppStore.getState().settings.historyTab).toBe("sessions");
+  });
+
+  // Phil 2026-11-10: a game picked elsewhere still opens Sessions, and that
+  // doesn't replace the tab the player picked.
+  it("opens Sessions for a picked game even with another tab saved", async () => {
+    useAppStore.getState().setHistoryTab("games");
+    const witcher = sessions.find((session) => session.gameName === "Witcher")!;
+    useAppStore
+      .getState()
+      .setHistoryGameKey(getSessionGameKey(witcher), "Witcher");
+    await render();
+    expect(selectedTab()).toBe("history-tab-sessions");
+    expect(useAppStore.getState().settings.historyTab).toBe("games");
+  });
+
+  // Phil 2026-11-10: the stats guide still opens its own tab, without
+  // replacing the saved one.
+  it("lets the stats guide open its tab without saving it", async () => {
+    useAppStore.getState().setHistoryTab("games");
+    useAppStore.setState({
+      activeTour: {
+        tourId: "stats",
+        stepIndex: findTour("stats")!.steps.findIndex(
+          (step) => step.id === "charts",
+        ),
+        returnView: "history",
+        enteredStepAt: NOW,
+      },
+    });
+    // The guide's sample history is this page on a store of its own.
+    await act(() => root.render(<StatsPractice />));
+    expect(selectedTab()).toBe("history-tab-insights");
+    // Looking at another tab of the sample doesn't save it either.
+    await click(container.querySelector("#history-tab-sessions"));
+    expect(selectedTab()).toBe("history-tab-sessions");
+    expect(useAppStore.getState().settings.historyTab).toBe("games");
   });
 
   // 31: the banner menu and a session's journal set the game

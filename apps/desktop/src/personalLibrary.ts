@@ -4,6 +4,7 @@ import type {
   LibraryFeaturedGame,
   Session,
 } from "@playcounter/shared";
+import { journalCounters, type GameCounter } from "./counters";
 import { getT } from "./i18n";
 
 const t = getT("myGames");
@@ -58,6 +59,10 @@ export type GameJournal = {
   /** Null selects the built-in default playthrough. */
   activePlaythroughId: string | null;
   playthroughs: Playthrough[];
+  /** Absent until the player changes them: Deaths, shown (counters.ts). */
+  counters?: GameCounter[];
+  /** The counter View + D-pad up counts. Absent = Deaths, null = none. */
+  controllerCounterId?: string | null;
 };
 export type LibraryFilters = {
   search?: string;
@@ -86,7 +91,64 @@ export type PersonalShelf = {
   filters?: LibraryFilters;
   /** Null or absent inherits the library's normal featured game. */
   featuredGame?: LibraryFeaturedGame | null;
+  /** Places this shelf keeps its games out of. Absent hides nothing. Paused
+   *  while the shelf fills itself from saved filters. */
+  hiddenIn?: ShelfHidePlace[];
 };
+
+/** Where a shelf can hide its games (docs/hidden-shelves-plan.md). */
+export const SHELF_HIDE_PLACES = [
+  "all",
+  "new",
+  "history",
+  "achievements",
+  "nowPlaying",
+] as const;
+export type ShelfHidePlace = (typeof SHELF_HIDE_PLACES)[number];
+
+/** Known places only, each once; none left is stored as absent. */
+export function normalizeHiddenIn(places: readonly string[] | undefined) {
+  const picked = SHELF_HIDE_PLACES.filter((place) => places?.includes(place));
+  return picked.length ? picked : undefined;
+}
+
+/** Only a list the player filled hides: saved filters change a shelf's games
+ *  on their own, and pages outside My Games cannot work them out. */
+export function shelfHides(shelf: PersonalShelf, place?: ShelfHidePlace) {
+  if (shelf.filters || !shelf.hiddenIn?.length) return false;
+  return place === undefined || shelf.hiddenIn.includes(place);
+}
+
+/** Hidden when any of the game's shelves hides that place. */
+export function journalHiddenIn(
+  journal: Pick<GameJournal, "shelfIds">,
+  shelves: readonly PersonalShelf[],
+  place: ShelfHidePlace,
+) {
+  return (
+    journal.shelfIds.length > 0 &&
+    shelves.some(
+      (shelf) =>
+        shelfHides(shelf, place) && journal.shelfIds.includes(shelf.id),
+    )
+  );
+}
+
+/** The identity keys of every game hidden in a place, for pages that work
+ *  with sessions and awards rather than library cards. */
+export function hiddenGameKeys(
+  journals: Record<string, GameJournal>,
+  shelves: readonly PersonalShelf[],
+  identity: (game: GameIdentityRef) => string,
+  place: ShelfHidePlace,
+) {
+  const keys = new Set<string>();
+  if (!shelves.some((shelf) => shelfHides(shelf, place))) return keys;
+  for (const journal of Object.values(journals))
+    if (journalHiddenIn(journal, shelves, place))
+      keys.add(identity(journal.game));
+  return keys;
+}
 
 /** Defaults and inactive rules do not make a saved filter different. */
 export function normalizeLibraryFilters(
@@ -165,6 +227,35 @@ export function mergeJournals(
         ]),
       ).values(),
     ],
+    ...mergedCounters(target, incoming),
+  };
+}
+
+/** Both games' counters, joined by id: the sessions' counts are keyed by it,
+ *  so Deaths stays one counter with both games' counts. A journal that never
+ *  changed its counters (absent) adds nothing: its Deaths is only the
+ *  default, and must not undo a Deaths the other one hid or renamed. */
+function mergedCounters(
+  target: GameJournal,
+  incoming: GameJournal,
+): Pick<GameJournal, "counters" | "controllerCounterId"> {
+  const counters =
+    target.counters && incoming.counters
+      ? [
+          ...new Map(
+            [...journalCounters(incoming), ...journalCounters(target)].map(
+              (counter) => [counter.id, counter],
+            ),
+          ).values(),
+        ]
+      : (target.counters ?? incoming.counters);
+  const controllerCounterId =
+    target.controllerCounterId !== undefined
+      ? target.controllerCounterId
+      : incoming.controllerCounterId;
+  return {
+    ...(counters ? { counters } : {}),
+    ...(controllerCounterId !== undefined ? { controllerCounterId } : {}),
   };
 }
 

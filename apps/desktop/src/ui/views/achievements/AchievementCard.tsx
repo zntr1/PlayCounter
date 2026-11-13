@@ -7,7 +7,7 @@ import {
   type AchievementCatalogItem,
   type AchievementUnit,
 } from "./achievementCatalog";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDateTime, getT } from "../../../i18n";
 
 const t = getT("achievements");
 
@@ -77,7 +77,7 @@ export function AchievementCard({ item }: { item: AchievementCatalogItem }) {
       {item.milestone ? (
         <time
           dateTime={item.milestone.awardedAt}
-          title={new Date(item.milestone.awardedAt).toLocaleString(appLocale())}
+          title={formatNumericDateTime(item.milestone.awardedAt)}
           className="mt-3 flex items-center gap-1.5 text-xs font-medium text-text-muted"
         >
           <Check aria-hidden="true" size={13} className="text-success" />

@@ -96,11 +96,11 @@ it("closes a dialog opened on a free-practice step when Next moves to another vi
   useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
   await act(() => {
     useAppStore.getState().startTour(launchGames.id);
-    useAppStore.getState().goToTourStep(stepIndex("set-forget"));
+    useAppStore.getState().goToTourStep(stepIndex("launch-file"));
     root.render(<LibraryTestShell />);
   });
   await openSampleLaunchFile();
-  await act(() => useAppStore.getState().goToTourStep(stepIndex("limits")));
+  await act(() => useAppStore.getState().goToTourStep(stepIndex("starts")));
   expect(
     document.querySelector('[data-tour="demo-game-action-dialog"]'),
   ).toBeNull();
@@ -111,7 +111,7 @@ it("counts closing a free-practice dialog as Next", async () => {
   useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
   await act(() => {
     useAppStore.getState().startTour(launchGames.id);
-    useAppStore.getState().goToTourStep(stepIndex("set-forget"));
+    useAppStore.getState().goToTourStep(stepIndex("launch-file"));
     root.render(
       <>
         <LibraryTestShell />
@@ -129,7 +129,7 @@ it("counts closing a free-practice dialog as Next", async () => {
   await act(() => done.click());
   await act(() => new Promise((resolve) => setTimeout(resolve, 600)));
   expect(useAppStore.getState().activeTour?.stepIndex).toBe(
-    stepIndex("limits"),
+    stepIndex("starts"),
   );
 });
 

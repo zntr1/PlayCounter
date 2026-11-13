@@ -13,15 +13,12 @@ import { getT } from "../../i18n";
 import type { KeptLogin } from "../../library/keptLogins";
 import type { LoginHealth } from "../../library/loginHealth";
 import { importProfile, type ImportScope } from "../../library/importProfiles";
-import {
-  chooseImportAccount,
-  chooseImportScope,
-  type ImportSession,
-} from "../../library/importSession";
+import type { ImportSession } from "../../library/importSession";
 import { Panel } from "../components";
 import { Button } from "../primitives";
 import { AccountLine, LauncherLogo } from "./LauncherIdentity";
 import { ImportError } from "./ImportError";
+import { useImportActions } from "./importHost";
 import {
   launcherMissingText,
   launcherName,
@@ -52,6 +49,7 @@ export function LauncherCard({
   /** Back to the games found before, when the card was opened to change. */
   onBack?: () => void;
 }) {
+  const actions = useImportActions();
   const { providerId, status, accounts, accountId, scope } = session;
   const profile = importProfile(providerId);
   const providerName = launcherName(providerId);
@@ -119,7 +117,7 @@ export function LauncherCard({
                     key={account.accountId}
                     name={`import-account-${providerId}`}
                     checked={account.accountId === accountId}
-                    onChange={() => chooseImportAccount(account.accountId)}
+                    onChange={() => actions.chooseAccount(account.accountId)}
                     title={
                       account.personaName ??
                       t("Account {{id}}", { id: account.accountId })
@@ -151,7 +149,7 @@ export function LauncherCard({
                     key={option}
                     name={`import-scope-${providerId}`}
                     checked={scope === option}
-                    onChange={() => chooseImportScope(option)}
+                    onChange={() => actions.chooseScope(option)}
                     title={scopeTitle(option, providerName)}
                     body={
                       option === "account" ? (
@@ -219,6 +217,7 @@ export function LauncherCard({
             icon={needsSignIn ? LogIn : Search}
             disabled={accountId === null}
             onClick={onFind}
+            data-tour="import-find-games"
             className="px-5 py-2.5 text-[15px]"
           >
             {needsSignIn ? t("Sign in and find games") : t("Find games")}

@@ -23,6 +23,7 @@ import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import { emulatorAssetUrls } from "../emulators/assets";
 import { adapterFor } from "../emulators/registry";
 import { getT } from "../i18n";
+import { cn } from "./cn";
 
 const t = getT("common");
 
@@ -34,7 +35,10 @@ export function Panel({
   return (
     <section
       data-tour={dataTour}
-      className={`rounded-lg border border-border bg-surface shadow-raised ${className}`}
+      className={cn(
+        "rounded-lg border border-border bg-surface shadow-raised",
+        className,
+      )}
     >
       {children}
     </section>
@@ -295,7 +299,11 @@ export function GameMatchBadges({
 
   return (
     <div
-      className={`flex flex-wrap items-center ${variant === "mark" ? "gap-0" : "gap-1.5"} ${className}`}
+      className={cn(
+        "flex flex-wrap items-center",
+        variant === "mark" ? "gap-0" : "gap-1.5",
+        className,
+      )}
     >
       {sources.map((source) => (
         <SourceBadge
@@ -593,7 +601,11 @@ export function GameOriginBadges({
 }) {
   return (
     <div
-      className={`flex flex-wrap items-center ${variant === "mark" ? "gap-0" : "gap-1.5"} ${className}`}
+      className={cn(
+        "flex flex-wrap items-center",
+        variant === "mark" ? "gap-0" : "gap-1.5",
+        className,
+      )}
     >
       {gameOrigins({
         providers,

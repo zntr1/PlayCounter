@@ -274,6 +274,7 @@ const BRANDS = new Set([
   "Azahar",
   "melonDS",
   "Xenia",
+  "BlueStacks",
   "Windows",
   "macOS",
   "Linux",
@@ -580,6 +581,34 @@ describe("UI code", () => {
     expect(problems).toEqual([]);
   });
 
+  it("writes dates in numbers through formatNumericDate", () => {
+    // toLocaleDateString(locale) and a date's toLocaleString(locale) print
+    // the language's numbers (07/11/2026 for English in Germany). Numeric
+    // dates follow the format region and the computer's own date format.
+    const problems: string[] = [];
+    for (const source of sources()) {
+      if (source.file === "i18n.ts") continue;
+      const visit = (node: ts.Node) => {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isPropertyAccessExpression(node.expression) &&
+          node.arguments.length <= 1
+        ) {
+          const method = node.expression.name.text;
+          const receiver = node.expression.expression.getText();
+          if (
+            method === "toLocaleDateString" ||
+            (method === "toLocaleString" && /\bDate\(|\bdate\b/i.test(receiver))
+          )
+            report(source, node, problems);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(source.sourceFile);
+    }
+    expect(problems).toEqual([]);
+  });
+
   it("formats dates and numbers in the app's language", () => {
     const problems: string[] = [];
     const missingLocale = (args: readonly ts.Expression[] | undefined) => {
@@ -617,6 +646,24 @@ describe("UI code", () => {
 // Messages that stay English: invariants, parse errors of launcher files,
 // paths, and the tray's defaults until the main window sends its texts.
 const RUST_ENGLISH_ON_PURPOSE = new Set([
+  // Screenshots: logged only; the window shows its own texts for each case.
+  "Screenshots are not supported on this platform.",
+  "The screenshot thread stopped.",
+  "The window is gone.",
+  "The window is minimized.",
+  "Windows sent no picture of the window.",
+  "The window has no picture area.",
+  "No graphics device.",
+  "No readable copy of the picture.",
+  "The window's position is unknown.",
+  "The JPEG encoder made no frame.",
+  "Not a PlayCounter picture.",
+  "The Recycle Bin did not take the picture ({result}).",
+  "The capture took too long.",
+  // Captions: the viewer says "The caption couldn't be saved." itself.
+  "Captions are not supported on this platform.",
+  "The caption thread stopped.",
+  "Out of memory.",
   "A PlayCounter data path points outside its app folder.",
   "Battle.net sign-in must be cancelled from PlayCounter.",
   "Closing games is only supported on Windows.",
@@ -656,6 +703,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Invalid Steam launch mode.",
   "Invalid Xbox launch mode.",
   "Invalid Xbox title ID.",
+  "Invalid banner key.",
   "Invalid cover key.",
   "Invalid field size.",
   "Invalid install UUID.",
@@ -666,6 +714,8 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Open PlayCounter",
   "PlayCounter cannot import from this launcher.",
   "PlayCounter cannot list games for this launcher.",
+  // A line of BlueStacks' own log that the scanner looks for.
+  "Player state : launched",
   "PlayCounter notification",
   "PlayCounter quick note",
   "PlayCounter timer",

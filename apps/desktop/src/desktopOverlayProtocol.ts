@@ -7,7 +7,8 @@ export type DesktopOverlayKind =
   | "session-start"
   | "discovery"
   | "playtime-reminder"
-  | "live-timer";
+  | "live-timer"
+  | "screenshot";
 
 export type DesktopOverlayAction =
   | "open-now-playing"

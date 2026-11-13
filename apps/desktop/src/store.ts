@@ -14,6 +14,7 @@ import type {
   Session,
   Settings,
   Theme,
+  ClockFormat,
 } from "@playcounter/shared";
 import { create } from "zustand";
 import {
@@ -46,10 +47,11 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
-import { appLocale, applyLanguage, type LanguageSetting, getT } from "./i18n";
+import { applyFormats, applyLanguage, formatNumericDate, getT, type LanguageSetting } from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
+  ForegroundApp,
   KnownEmulator,
 } from "./emulators/types";
 import { findTour } from "./ui/tour/tourDefinitions";
@@ -60,6 +62,11 @@ import type {
   EmulatorLaunchTarget,
 } from "./emulatorLaunch";
 import { stepView } from "./ui/tour/tourNavigation";
+import {
+  DEFAULT_SETTINGS_GROUP,
+  type SettingsGroupId,
+} from "./ui/views/settings/settingsGroups";
+import type { UpdateCheckResult } from "./updater";
 import type {
   LibraryImportEntry,
   LibraryInstallEntry,
@@ -93,6 +100,12 @@ import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
 import { NEW_GAME_WINDOW_MS, type MyGamesSortKey } from "./ui/myGamesSort";
 import type { ToolUsage } from "./toolUsage";
 import {
+  archiveCounts,
+  clearArchivedCounts,
+  rekeyArchivedCounts,
+  type ArchivedCounts,
+} from "./counters";
+import {
   archivePlaythroughSeconds,
   readJournal,
   rekeyJournal,
@@ -120,6 +133,7 @@ export type ProcessSnapshot = {
   windowTitle?: string | null;
   openFiles?: string[] | null;
   recentFile?: string | null;
+  foregroundApp?: ForegroundApp | null;
 };
 
 export type ActiveSession = {
@@ -142,9 +156,18 @@ export type ActiveSession = {
   emulator?: EmulatorLaunchContext;
   /** Written while playing; moves to the finished session. */
   note?: string;
+  /** Counted while playing (counters.ts); moves to the finished session. */
+  counts?: Record<string, number>;
+  /** The counter counted last: "Take one back" takes from it. */
+  lastCounterId?: string;
   /** Started by hand for play away from this PC (a console). No process
    *  starts or ends it, only Stop; it is saved as a manual session. */
   timer?: true;
+  /** Set while paused by the player: the game may still run, but nothing
+   *  counts until Resume (sessionTime.ts). */
+  pausedAt?: string;
+  /** Earlier pauses of this session, added up. */
+  pausedMs?: number;
   /** Seen running on a PlayStation console through Sony's presence. No
    *  process starts or ends it; its checkpoint is the last sighting, and it is
    *  saved as a "playstation" session (playstationLive.ts). */
@@ -403,6 +426,8 @@ export type Toast = {
   emoji?: string;
   title: string;
   detail?: string;
+  /** One button, e.g. Undo: it runs once and closes the toast. */
+  action?: { label: string; run: () => void };
 };
 
 export type DesktopOverlaySettingKey =
@@ -417,7 +442,8 @@ export type DesktopOverlaySettingKey =
   | "overlayActionRequired"
   | "overlayDiscoveries"
   | "overlayShowClock"
-  | "liveTimerEnabled";
+  | "liveTimerEnabled"
+  | "controllerCountingEnabled";
 
 export type ActiveTour = {
   tourId: string;
@@ -460,10 +486,38 @@ export type AppState = {
   assignSessionPlaythrough: (sessionId: number, id: string | null) => boolean;
   /** Empty text removes the note. False when the session is gone. */
   setSessionNote: (sessionId: number, note: string) => boolean;
+  /** Counts of sessions that left History (counters.ts). */
+  archivedCounts: ArchivedCounts;
+  /** Moves a counter on a running session, never below 0. The counter's new
+   *  count in that session; null when the session or counter is gone. */
+  changeSessionCount: (
+    sessionId: number,
+    counterId: string,
+    delta: number,
+  ) => number | null;
+  /** The new counter's id; null for an empty, taken or too many names. */
+  addGameCounter: (game: GameIdentityRef, name: string) => string | null;
+  /** False when the name is empty or taken, or the counter is gone. */
+  updateGameCounter: (
+    game: GameIdentityRef,
+    counterId: string,
+    patch: { name?: string; shown?: boolean; key?: string | null },
+  ) => boolean;
+  /** The counter View + D-pad up counts; null: none. */
+  setControllerCounter: (
+    game: GameIdentityRef,
+    counterId: string | null,
+  ) => void;
+  /** Removes the counter and every count it had, archive included. */
+  deleteGameCounter: (game: GameIdentityRef, counterId: string) => void;
   savePersonalShelf: (
     shelf: Omit<PersonalShelf, "id"> & { id?: string },
   ) => string | null;
   deletePersonalShelf: (id: string) => void;
+  /** The game whose card menu asked for a new shelf: the New shelf dialog
+   *  opens, and Save shelf puts this game on the shelf. Not persisted. */
+  newShelfGame: GameIdentityRef | null;
+  openNewShelf: (game: GameIdentityRef | null) => void;
   activeView: ViewId;
   libraryTab: LibraryTabId;
   libraryImportProvider: BuiltinImportProviderId;
@@ -512,6 +566,8 @@ export type AppState = {
   runtimeLog: RuntimeLogEntry[];
   blacklist: Set<string>;
   runtimeError: string | null;
+  /** False for an error that must stay on screen (saved data that failed to load). */
+  runtimeErrorClosable: boolean;
   backendHealth: BackendHealth;
   installPresenceMarker: InstallPresenceMarker | null;
   toasts: Toast[];
@@ -548,6 +604,9 @@ export type AppState = {
   languageNoticeSeen: boolean;
   /** "Battle.net has no past playtime" was confirmed once on this PC. */
   battleNetPlaytimeNoticeSeen: boolean;
+  /** Import scan warnings closed with ×, by their English text. They never
+   *  show again; a different warning does. */
+  closedScanWarnings: string[];
   /** When "Not now" first hid the Discord invite. It comes back two weeks
    *  later, once. */
   discordInviteSnoozedAt: string | null;
@@ -556,9 +615,17 @@ export type AppState = {
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
+  /** The group Settings shows. Not saved: Settings opens on General. */
+  settingsGroup: SettingsGroupId;
+  /** A newer version the update check found, for the About page. */
+  availableUpdate: Extract<UpdateCheckResult, { status: "available" }> | null;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
+  setSettingsGroup: (group: SettingsGroupId) => void;
+  setAvailableUpdate: (
+    update: Extract<UpdateCheckResult, { status: "available" }> | null,
+  ) => void;
   setLibraryTab: (tab: LibraryTabId) => void;
   setLibraryImportProvider: (provider: BuiltinImportProviderId) => void;
   startTour: (tourId: string) => void;
@@ -571,6 +638,7 @@ export type AppState = {
   markReleaseNotesSeen: (version: string) => void;
   dismissLanguageNotice: () => void;
   markBattleNetPlaytimeNoticeSeen: () => void;
+  closeScanWarnings: (warnings: readonly string[]) => void;
   snoozeDiscordInvite: () => void;
   finishDiscordInvite: () => void;
   openCurrentReleaseNotes: () => void;
@@ -638,7 +706,10 @@ export type AppState = {
   forgetEmulatorLaunchTargets: () => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
-  setRuntimeError: (error: string | null) => void;
+  setRuntimeError: (
+    error: string | null,
+    options?: { closable?: boolean },
+  ) => void;
   setBackendHealth: (health: BackendHealth) => void;
   setInstallPresenceMarker: (marker: InstallPresenceMarker) => void;
   addToast: (toast: Omit<Toast, "id">) => void;
@@ -664,6 +735,9 @@ export type AppState = {
   setLaunchOnStartup: (enabled: boolean) => void;
   setStartView: (view: "now" | "games") => void;
   setLanguage: (language: LanguageSetting) => void;
+  /** A country code, or null for automatic. */
+  setFormatRegion: (region: string | null) => void;
+  setClockFormat: (clock: ClockFormat) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -689,10 +763,12 @@ export type AppState = {
   setViewBannerDetails: (enabled: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarSourcesCollapsed: (collapsed: boolean) => void;
+  setSidebarEmulatorsCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setTrackTools: (enabled: boolean) => void;
   setSoftwareLayout: (layout: "grid" | "list") => void;
+  setHistoryTab: (tab: NonNullable<Settings["historyTab"]>) => void;
   setAutoAddInstalledGames: (enabled: boolean) => void;
   setShowInstallInSteam: (enabled: boolean) => void;
   setShowAdultArt: (enabled: boolean) => void;
@@ -708,7 +784,13 @@ export type AppState = {
       | "showWindowHotkey"
       | "currentSessionHotkey"
       | "quickNoteHotkey"
-      | "liveTimerHotkey",
+      | "liveTimerHotkey"
+      | "pauseTimerHotkey"
+      | "screenshotHotkey"
+      | "screenshotCaptionHotkey"
+      | "quickAddHotkey"
+      | "counterUndoHotkey"
+      | "counterBoxHotkey",
     shortcut: string | null,
   ) => void;
   setDesktopOverlaySetting: (
@@ -754,6 +836,8 @@ const defaultSettings: Settings = {
   launchOnStartup: true,
   startView: "now",
   language: "system",
+  formatRegion: null,
+  clockFormat: "auto",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -780,6 +864,7 @@ const defaultSettings: Settings = {
   viewBannerDetails: true,
   sidebarCollapsed: false,
   sidebarSourcesCollapsed: false,
+  sidebarEmulatorsCollapsed: false,
   autoShareIgnoredProcesses: false,
   trackTools: false,
   pollingIntervalSeconds: 5,
@@ -811,7 +896,7 @@ const defaultSettings: Settings = {
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
-  hideToTrayOnGameStart: true,
+  hideToTrayOnGameStart: false,
   autoAddInstalledGames: true,
   showInstallInSteam: false,
   showAdultArt: false,
@@ -830,6 +915,7 @@ function addSessionsToArchive(
   sessions: Session[],
   currentPlaythroughSeconds: Record<string, number> = {},
   currentConsoleSeconds: Record<string, number> = {},
+  currentCounts: ArchivedCounts = {},
 ) {
   const archivedGameSeconds = { ...currentGameSeconds };
   const archivedConsoleSeconds = { ...currentConsoleSeconds };
@@ -849,6 +935,7 @@ function addSessionsToArchive(
       sessions,
     ),
     archivedConsoleSeconds,
+    archivedCounts: archiveCounts(currentCounts, sessions),
   };
 }
 
@@ -858,6 +945,7 @@ export function foldSessionsIntoArchive(
   sessions: Session[],
   archivedPlaythroughSeconds: Record<string, number> = {},
   archivedConsoleSeconds: Record<string, number> = {},
+  archivedCounts: ArchivedCounts = {},
 ) {
   return addSessionsToArchive(
     archivedSeconds,
@@ -865,6 +953,7 @@ export function foldSessionsIntoArchive(
     sessions,
     archivedPlaythroughSeconds,
     archivedConsoleSeconds,
+    archivedCounts,
   );
 }
 
@@ -881,6 +970,7 @@ function persistSoon() {
         archivedGameSeconds: result.archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
         archivedConsoleSeconds: result.archivedConsoleSeconds,
+        archivedCounts: result.archivedCounts,
       });
     }
     if (result.status === "trimmed") {
@@ -897,7 +987,7 @@ function persistSoon() {
                 "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
                 {
                   count: result.removed.length,
-                  date: new Date(oldest).toLocaleDateString(appLocale()),
+                  date: formatNumericDate(oldest),
                 },
               )
             : t(
@@ -923,7 +1013,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   gameJournals: {},
   personalShelves: [],
   archivedPlaythroughSeconds: {},
+  archivedCounts: {},
   journalTarget: null,
+  newShelfGame: null,
   ...createPersonalLibraryActions(set, get, persistSoon),
   activeView: "now",
   libraryTab: "all",
@@ -966,6 +1058,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   runtimeLog: [],
   blacklist: new Set(),
   runtimeError: null,
+  runtimeErrorClosable: true,
   backendHealth: { status: "checking", checkedAt: null, detail: null },
   installPresenceMarker: null,
   toasts: [],
@@ -994,14 +1087,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   suppressContributionNotificationsOnce: false,
   languageNoticeSeen: false,
   battleNetPlaytimeNoticeSeen: false,
+  closedScanWarnings: [],
   discordInviteSnoozedAt: null,
   discordInviteDone: false,
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
+  settingsGroup: DEFAULT_SETTINGS_GROUP,
+  availableUpdate: null,
   cleanup: null,
   settings: createDefaultSettings(),
   setActiveView: (activeView) => set({ activeView }),
+  setSettingsGroup: (settingsGroup) => set({ settingsGroup }),
+  setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setLibraryImportProvider: (libraryImportProvider) =>
     set({ libraryImportProvider }),
@@ -1018,6 +1116,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return {
         activeTour,
         activeView: stepView(tour.steps[0], state.activeView, state.activeView),
+        settingsGroup: tour.steps[0].settingsGroup ?? state.settingsGroup,
         demoResetToken: state.demoResetToken + 1,
         helpMenuOpen: false,
       };
@@ -1040,6 +1139,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           state.activeView,
           state.activeTour.returnView,
         ),
+        settingsGroup: step.settingsGroup ?? state.settingsGroup,
         demoResetToken: state.demoResetToken + (resetDemo ? 1 : 0),
       };
     }),
@@ -1100,6 +1200,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   markBattleNetPlaytimeNoticeSeen: () => {
     if (get().battleNetPlaytimeNoticeSeen) return;
     set({ battleNetPlaytimeNoticeSeen: true });
+    persistSoon();
+  },
+  closeScanWarnings: (warnings) => {
+    const closed = get().closedScanWarnings;
+    const added = warnings.filter((warning) => !closed.includes(warning));
+    if (added.length === 0) return;
+    set({ closedScanWarnings: [...closed, ...added] });
     persistSoon();
   },
   snoozeDiscordInvite: () => {
@@ -1254,6 +1361,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         removed,
         state.archivedPlaythroughSeconds,
         state.archivedConsoleSeconds,
+        state.archivedCounts,
       );
       return { recentSessions: kept, ...archive };
     }),
@@ -1585,7 +1693,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...state.runtimeLog,
       ].slice(0, 300),
     })),
-  setRuntimeError: (runtimeError) => set({ runtimeError }),
+  setRuntimeError: (runtimeError, options) =>
+    set({ runtimeError, runtimeErrorClosable: options?.closable ?? true }),
   setBackendHealth: (backendHealth) => set({ backendHealth }),
   setInstallPresenceMarker: (installPresenceMarker) =>
     set({ installPresenceMarker }),
@@ -1761,6 +1870,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         archivedGameSeconds,
         archivedConsoleSeconds,
         playtimeAdjustments,
+        archivedCounts: rekeyArchivedCounts(state.archivedCounts, from, to),
         gameJournals: rekeyJournal(state.gameJournals, from, to),
       };
     }),
@@ -1810,6 +1920,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         archivedConsoleSeconds,
         playtimeAdjustments,
         archivedPlaythroughSeconds,
+        archivedCounts: clearArchivedCounts(state.archivedCounts, new Set(keys)),
       };
     }),
   toggleSectionCollapsed: (sectionId) => {
@@ -1827,6 +1938,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // A settings reset must never trim history to make room. Save the current
     // durable data with only its settings replaced, or report the write failure.
     writePersistedRecord(createPersistedPayload({ ...get(), settings }));
+    applyFormats(settings.formatRegion, settings.clockFormat);
     applyLanguage(settings.language);
     set({ settings });
     applyTheme(settings.theme, settings.accentColor);
@@ -1848,6 +1960,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     applyLanguage(language);
     set((state) => ({
       settings: { ...state.settings, language },
+    }));
+    persistSoon();
+  },
+  setFormatRegion: (formatRegion) => {
+    // Like the language: switch first, then re-render.
+    applyFormats(formatRegion, get().settings.clockFormat);
+    set((state) => ({
+      settings: { ...state.settings, formatRegion },
+    }));
+    persistSoon();
+  },
+  setClockFormat: (clockFormat) => {
+    applyFormats(get().settings.formatRegion, clockFormat);
+    set((state) => ({
+      settings: { ...state.settings, clockFormat },
     }));
     persistSoon();
   },
@@ -2025,6 +2152,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     persistSoon();
   },
+  setSidebarEmulatorsCollapsed: (sidebarEmulatorsCollapsed) => {
+    set((state) => ({
+      settings: { ...state.settings, sidebarEmulatorsCollapsed },
+    }));
+    persistSoon();
+  },
   setMyGamesStatCards: (libraryStatCards) => {
     set((state) => ({
       settings: { ...state.settings, libraryStatCards },
@@ -2046,6 +2179,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSoftwareLayout: (layout) => {
     set((state) => ({
       settings: { ...state.settings, softwareLayout: layout },
+    }));
+    persistSoon();
+  },
+  setHistoryTab: (historyTab) => {
+    if (get().settings.historyTab === historyTab) return;
+    set((state) => ({
+      settings: { ...state.settings, historyTab },
     }));
     persistSoon();
   },

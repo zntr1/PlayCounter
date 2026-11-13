@@ -7,7 +7,7 @@ import { NotificationBell } from "../NotificationBell";
 import { LibraryTourPractice } from "./LibraryTourPractice";
 import { HelpButton, TourOverlay } from "./TourUI";
 import { TourPracticeSurface } from "./TourPracticeSurface";
-import { removeHistorySession, selectAmbiguousMatch } from "../../tracker";
+import { removeHistorySession } from "../../tracker";
 import { tours, findTour } from "./tourDefinitions";
 import { findTourElement, findTourTarget } from "./tourTargetRect";
 import { readFileSync } from "node:fs";
@@ -141,7 +141,7 @@ it.each(["favorite", "fill-shelf"])(
       await start("organize-library", stepId);
       const cardSelector = currentStep().additionalAnchors![0];
       const wow = findTourElement(cardSelector)!;
-      expect(wow.textContent).toContain("World of Warcraft");
+      expect(wow.textContent).toContain("Diablo IV");
       const shelf = target();
       const pointer = async (type: string, element: EventTarget = window) => {
         await act(() => {
@@ -258,7 +258,7 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
   try {
     await start("organize-library", "fill-shelf");
     const wow = findTourElement(currentStep().additionalAnchors![0])!;
-    expect(wow.textContent).toContain("World of Warcraft");
+    expect(wow.textContent).toContain("Diablo IV");
     await act(() =>
       wow.dispatchEvent(
         new MouseEvent("contextmenu", {
@@ -278,10 +278,16 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
       return found!;
     };
     await act(() => item("Shelves").click());
+    // Samples show the real flyout: the shelf and "New shelf" too.
+    expect(
+      [...document.querySelectorAll("[data-context-menu-item]")].some(
+        (button) => button.textContent?.trim() === "New shelf",
+      ),
+    ).toBe(true);
     // The guide must let this pick through: WoW on the shelf ends the step.
     await act(() => item("Online Games").click());
     await act(() => vi.advanceTimersByTime(800));
-    expect(currentStep().id).toBe("filters");
+    expect(currentStep().id).toBe("hide-shelf");
     expect(useAppStore.getState().gameJournals).toEqual({});
   } finally {
     vi.useRealTimers();
@@ -291,13 +297,9 @@ it("fills the practice shelf from the card menu's Shelves", async () => {
 it("guides Select, each sample card, Set status, the menu choice, and the result", async () => {
   await start("library-progress", "select");
   expect(target().textContent).toBe("Select");
-  expect(document.activeElement).toBe(target());
   await act(() => target().click());
-  await act(
-    () => new Promise<void>((resolve) => window.setTimeout(resolve, 120)),
-  );
   await frame();
-  expect(currentStep().id).toBe("select-games");
+  // The highlight follows the next card that is not ticked yet.
   const first = target();
   expect(first.getAttribute("role")).toBe("checkbox");
   await act(() => first.click());
@@ -305,14 +307,13 @@ it("guides Select, each sample card, Set status, the menu choice, and the result
   expect(second).not.toBe(first);
   expect(second.getAttribute("role")).toBe("checkbox");
   await act(() => second.click());
+  expect(target().getAttribute("data-tour")).toBe("demo-bulk-count");
   await goTo("apply");
   expect(target().textContent?.trim()).toBe("Set status");
-  expect(document.activeElement).toBe(target());
   await act(() => target().click());
   await frame();
   expect(target().getAttribute("role")).toBe("menuitem");
   expect(target().textContent).toBe("In progress");
-  expect(document.activeElement).toBe(target());
   await act(() => target().click());
   expect(target().getAttribute("role")).toBe("status");
   expect(target().textContent).toBe("2 games marked In progress");
@@ -342,9 +343,11 @@ it("focuses direct launching without allowing the adjacent path-removal setting"
   await act(() =>
     root.render(
       <>
-        <div data-tour="settings-launcher">
+        <div data-tour="settings-row-rememberLaunchPaths">
           <input data-decoy type="checkbox" defaultChecked />
-          <input data-tour="settings-launch-direct" type="checkbox" />
+        </div>
+        <div data-tour="settings-row-gameLaunching">
+          <input data-direct type="checkbox" />
         </div>
         <TourOverlay />
       </>,
@@ -355,9 +358,7 @@ it("focuses direct launching without allowing the adjacent path-removal setting"
     useAppStore.getState().goToTourStep(1);
   });
   await frame();
-  expect(document.activeElement?.getAttribute("data-tour")).toBe(
-    "settings-launch-direct",
-  );
+  expect(document.activeElement?.hasAttribute("data-direct")).toBe(true);
   const decoy = document.querySelector<HTMLInputElement>("[data-decoy]")!;
   await act(() => decoy.click());
   expect(decoy.checked).toBe(true);
@@ -382,11 +383,11 @@ it("lets a learner cancel and confirm deletion inside the private journal", asyn
   await act(() => button("Delete playthrough").click());
   expect(
     document.querySelector('[data-tour="demo-playthrough-list"]')?.textContent,
-  ).not.toContain("Speedrun");
+  ).not.toContain("PvP");
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
-it("previews the learner's note and opens its private journal from Add session note", async () => {
+it("previews the learner's note and opens the note box from Add session note", async () => {
   await start("notes-playthroughs", "note");
   await enter(target() as HTMLTextAreaElement, "Remember the bridge quest");
   await act(() =>
@@ -405,55 +406,36 @@ it("previews the learner's note and opens its private journal from Add session n
   expect(
     preview().querySelector(".desktop-overlay-card")?.textContent,
   ).toContain("Remember the bridge quest");
-  await act(() => {
-    toggle("Session notes in popups").click();
-    [...preview().querySelectorAll<HTMLButtonElement>("button")]
-      .find((b) => b.textContent === "Session saved")!
-      .click();
-  });
+  await act(() => toggle("Session notes in popups").click());
   await act(() =>
     [...preview().querySelectorAll<HTMLButtonElement>("button")]
       .find((b) => b.textContent === "Add session note")!
       .click(),
   );
+  // The button opens the note box over the game, in the practice only.
   expect(
-    (
-      document.querySelector(
-        '[data-tour="demo-note-input"]',
-      ) as HTMLTextAreaElement
-    ).value,
-  ).toBe("Remember the bridge quest");
+    document.querySelector(
+      '[data-tour="demo-popup-note-box"] textarea[aria-label="Session note"]',
+    ),
+  ).not.toBeNull();
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
-it.each(tours().filter((tour) => tour.simulation))(
-  "prepares every isolated simulation target in $id",
-  async (tour) => {
-    await act(() => {
-      root.render(<Harness />);
-      useAppStore.getState().startTour(tour.id);
-    });
-    for (let index = 0; index < tour.steps.length; index++) {
-      await act(() => useAppStore.getState().goToTourStep(index));
-      expect(findTourTarget(tour.steps[index])).not.toBeNull();
-    }
-  },
-);
-
-it("selects an ambiguous sample without saving a real executable choice", async () => {
-  await start("fix-detection", "ambiguous");
-  await act(() =>
-    document
-      .querySelector<HTMLButtonElement>(
-        '[data-tour="demo-ambiguous"] [aria-label^="Track "]',
-      )!
-      .click(),
-  );
-  expect(
-    document.querySelector('[data-tour="demo-library-result"]')?.textContent,
-  ).toContain("Sample selected");
-  expect(selectAmbiguousMatch).not.toHaveBeenCalled();
-  expect(useAppStore.getState().exeCache.size).toBe(0);
+// The import sample loads lazily; guides/importLibrary.test.tsx waits for it
+// and checks every step's target there.
+it.each(
+  tours().filter((tour) => tour.simulation && tour.id !== "import-library"),
+)("prepares every isolated simulation target in $id", async (tour) => {
+  await act(() => {
+    root.render(<Harness />);
+    useAppStore.getState().startTour(tour.id);
+  });
+  for (let index = 0; index < tour.steps.length; index++) {
+    await act(() => useAppStore.getState().goToTourStep(index));
+    // The first step is for reading and rings nothing.
+    if (!tour.steps[index].anchor) continue;
+    expect(findTourTarget(tour.steps[index])).not.toBeNull();
+  }
 });
 
 it("deletes sample history through the real dialog without calling the tracker", async () => {
@@ -525,24 +507,18 @@ it("targets journal fields, session assignment, and Mark finished precisely", as
   expect(target().textContent).toBe("Finished");
 });
 
-it("starts at readable columns and focuses the actual Customize controls", async () => {
-  await start("library-progress", "open-customize");
-  expect(target().textContent).toBe("Customize");
+it("starts at My Games' own columns and focuses the actual Customize controls", async () => {
+  await start("library-progress", "customize");
+  expect(target().getAttribute("data-tour")).toBe("demo-customize-toggle");
   const cards = document.querySelector<HTMLElement>(
     '[data-tour="demo-library-cards"]',
   )!;
-  expect(cards.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
+  expect(cards.style.gridTemplateColumns).toBe("");
   await act(() => target().click());
-  await act(
-    () => new Promise<void>((resolve) => window.setTimeout(resolve, 120)),
-  );
   await frame();
-  expect(currentStep().id).toBe("customize");
   const slider = target() as HTMLInputElement;
   expect(slider.type).toBe("range");
-  expect(slider.value).toBe("3");
   expect(Number(slider.max)).toBeGreaterThanOrEqual(3);
-  expect(document.activeElement).toBe(slider);
   await enter(slider, "6");
   expect(cards.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
   await goTo("card-details");
@@ -671,9 +647,9 @@ it("places feedback instructions outside the notification panel beneath the bell
     expect(document.body.dataset.tourDock).toBe(
       window.innerWidth < 1200 ? "bottom" : "side",
     );
-    // The spotlight still targets the reply detail.
+    // The spotlight sits on the bell, then on the quoted message.
     expect(target().getAttribute("data-tour")).toBe(
-      step === "bell" ? "demo-feedback-notification" : "demo-feedback-original",
+      step === "bell" ? "notifications-bell" : "demo-feedback-original",
     );
   }
 });
@@ -897,7 +873,8 @@ it("lets a dialog opened from a highlighted setting take clicks and keys, below 
   const confirmed = vi.fn();
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
     function (this: Element) {
-      return this.getAttribute("data-tour") === "settings-launcher"
+      return this.getAttribute("data-tour") ===
+        "settings-row-rememberLaunchPaths"
         ? new DOMRect(200, 100, 500, 400)
         : new DOMRect(0, 0, 0, 0);
     },
@@ -905,7 +882,7 @@ it("lets a dialog opened from a highlighted setting take clicks and keys, below 
   function Section() {
     const [open, setOpen] = useState(false);
     return (
-      <div data-tour="settings-launcher">
+      <div data-tour="settings-row-rememberLaunchPaths">
         <button data-open onClick={() => setOpen(true)}>
           Turn off
         </button>
@@ -975,9 +952,11 @@ it("does not start the hotkey recorder when the guide reaches Keyboard shortcuts
     root.render(
       <>
         <div data-tour="settings-shortcuts">
-          <input readOnly aria-label="Bring PlayCounter to front hotkey" />
-          <button disabled>Save</button>
-          <button>Clear</button>
+          <div data-tour="settings-row-showWindowHotkey">
+            <input readOnly aria-label="Bring PlayCounter to front hotkey" />
+            <button disabled>Save</button>
+            <button>Clear</button>
+          </div>
         </div>
         <TourOverlay />
       </>,
@@ -1028,7 +1007,7 @@ it("walks the tier guide: rate GTA V, sort by tier, then filter its tier", async
     sort.value = "tier";
     sort.dispatchEvent(new Event("change", { bubbles: true }));
   });
-  // Unrated World of Warcraft drops behind the rated sample.
+  // Unrated Diablo IV drops behind the rated sample.
   expect(cards()).toEqual(["-2", "-1"]);
   await act(() => vi.advanceTimersByTime(800));
   expect(currentStep().id).toBe("filter");

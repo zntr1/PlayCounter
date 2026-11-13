@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
   cycleLiveTimer,
   disposeLiveTimer,
@@ -11,8 +12,11 @@ import { useAppStore, type ActiveSession } from "./store";
 import { formatLiveTimer } from "./ui/LiveTimerPill";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(async () => () => undefined),
+}));
 const invokeMock = vi.mocked(invoke);
+const listenMock = vi.mocked(listen);
 
 function session(
   id: number,
@@ -60,11 +64,16 @@ it("times the game started last, not one waiting after a crash", () => {
       pidsById,
     ),
   ).toEqual({
-    startedAtMs: Date.parse("2026-10-28T11:00:00Z"),
+    countFromMs: Date.parse("2026-10-28T11:00:00Z"),
+    pausedAtMs: null,
     corner: "bottom-right",
     monitor: "primary",
     accentColor: null,
     targetPids: [200],
+    pauseLabel: "Pause the timer for Game 2",
+    resumeLabel: "Resume the timer for Game 2",
+    counts: [],
+    pulse: null,
   });
   expect(liveTimerPayload(settings, [], pidsById)).toBeNull();
   expect(
@@ -109,7 +118,7 @@ it("opens the timer with a game and closes it when the game ends", async () => {
       "live_timer_show",
       {
         payload: expect.objectContaining({
-          startedAtMs: Date.parse("2026-10-28T10:00:00Z"),
+          countFromMs: Date.parse("2026-10-28T10:00:00Z"),
           targetPids: [100],
         }),
       },
@@ -172,4 +181,86 @@ it("counts in hours, minutes and seconds", () => {
   expect(formatLiveTimer(6_127.9)).toBe("1:42:07");
   expect(formatLiveTimer(36_000)).toBe("10:00:00");
   expect(formatLiveTimer(-5)).toBe("0:00:00");
+});
+
+// docs/pause-timer-plan.md: the pill freezes while paused and counts on from
+// there; paused time never counts.
+it("stands still while paused and counts on without the pause", () => {
+  const settings = {
+    ...useAppStore.getState().settings,
+    liveTimerEnabled: true,
+  };
+  const start = Date.parse("2026-10-28T10:00:00Z");
+  // Paused 10 minutes earlier, paused again since 11:00.
+  expect(
+    liveTimerPayload(
+      settings,
+      [
+        session(1, "2026-10-28T10:00:00Z", {
+          pausedMs: 600_000,
+          pausedAt: "2026-10-28T11:00:00Z",
+        }),
+      ],
+      pidsById,
+    ),
+  ).toMatchObject({
+    countFromMs: start + 600_000,
+    pausedAtMs: Date.parse("2026-10-28T11:00:00Z"),
+  });
+  expect(
+    liveTimerPayload(
+      settings,
+      [session(1, "2026-10-28T10:00:00Z", { pausedMs: 600_000 })],
+      pidsById,
+    ),
+  ).toMatchObject({ countFromMs: start + 600_000, pausedAtMs: null });
+});
+
+it("sends the pill again when the game is paused and resumed", async () => {
+  initializeLiveTimer(pidsById);
+  useAppStore.getState().setDesktopOverlaySetting("liveTimerEnabled", true);
+  const running = session(1, "2026-10-28T10:00:00Z");
+  useAppStore.setState({ activeSessions: [running] });
+  useAppStore.setState({
+    activeSessions: [{ ...running, pausedAt: "2026-10-28T11:00:00Z" }],
+  });
+  useAppStore.setState({
+    activeSessions: [{ ...running, pausedMs: 300_000 }],
+  });
+  await vi.waitFor(() => expect(invokeMock).toHaveBeenCalledTimes(3));
+  expect(invokeMock.mock.calls.map(([, args]) => args)).toEqual([
+    { payload: expect.objectContaining({ pausedAtMs: null }) },
+    {
+      payload: expect.objectContaining({
+        pausedAtMs: Date.parse("2026-10-28T11:00:00Z"),
+      }),
+    },
+    {
+      payload: expect.objectContaining({
+        countFromMs: Date.parse("2026-10-28T10:05:00Z"),
+        pausedAtMs: null,
+      }),
+    },
+  ]);
+});
+
+// docs/pause-timer-plan.md, option C: the pill's own button pauses and
+// resumes the game it shows.
+it("a click on the pill's button pauses the game the pill shows", async () => {
+  const onTogglePause = vi.fn();
+  initializeLiveTimer(pidsById, onTogglePause);
+  useAppStore.getState().setDesktopOverlaySetting("liveTimerEnabled", true);
+  useAppStore.setState({
+    activeSessions: [
+      session(1, "2026-10-28T10:00:00Z"),
+      session(2, "2026-10-28T11:00:00Z"),
+      session(3, "2026-10-28T12:00:00Z", { console: "PS5" }),
+    ],
+  });
+  // This test's listener: earlier tests registered their own.
+  const click = listenMock.mock.calls
+    .filter(([event]) => event === "playcounter:live-timer-toggle-pause")
+    .at(-1);
+  click![1]({ payload: null } as never);
+  expect(onTogglePause).toHaveBeenCalledExactlyOnceWith(2);
 });

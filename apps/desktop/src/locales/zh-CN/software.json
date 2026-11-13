@@ -36,5 +36,6 @@
   "Could not ignore the app": "无法忽略此应用",
   "{{name}} is back in Discovered": "{{name}} 已回到“已发现”",
   "Your shared suggestion is withdrawn. Add it as a game there, or ignore it.": "你分享的建议已撤回。可以在那里将它添加为游戏，或者忽略它。",
-  "Add it as a game there, or ignore it.": "可以在那里将它添加为游戏，或者忽略它。"
+  "Add it as a game there, or ignore it.": "可以在那里将它添加为游戏，或者忽略它。",
+  "Software has no sessions, only time per day. That is what one app's numbers show.": "软件没有游玩记录，只有每天的时长。一个应用的数据显示的就是这些。"
 }

@@ -25,6 +25,8 @@ import { usePickedCovers } from "../../../pickedCovers";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
 import { SessionNote } from "../../SessionNote";
+import { SessionScreenshots } from "../../SessionScreenshots";
+import { SessionCountChips } from "../../counters/SessionCountChips";
 import {
   useLibraryPractice,
   usePersonalLibraryApi,
@@ -43,7 +45,7 @@ import {
   IconButton,
   useContextMenu,
 } from "../../primitives";
-import { appLocale, getT } from "../../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../../i18n";
 
 const t = getT("history");
 
@@ -59,7 +61,7 @@ export type HistoryRowMetadata = {
 };
 
 function formatSessionDate(startedAt: string) {
-  return new Date(startedAt).toLocaleDateString(appLocale());
+  return formatNumericDate(startedAt);
 }
 
 function formatTimeRange(startedAt: string, endedAt: string | null) {
@@ -119,6 +121,8 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   const contextMenu = useContextMenu();
   const libraryApi = usePersonalLibraryApi();
   const practice = useLibraryPractice();
+  // What a guide rings on its sample history.
+  const guideName = (name: string) => (practice ? name : undefined);
   const rowRef = useRef<HTMLElement>(null);
   const holdRef = useRef<{
     pointerId: number;
@@ -277,6 +281,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       tabIndex={0}
       data-history-session-row
       data-history-session-id={session.id}
+      data-tour={guideName("demo-history-row")}
       aria-label={t("{{gameName}}, session on {{sessionDate}}", {
         gameName,
         sessionDate: formatSessionDate(session.startedAt),
@@ -443,9 +448,13 @@ export const HistorySessionRow = memo(function HistorySessionRow({
               {session.console ?? "PS5"}
             </span>
           ) : null}
+          <SessionCountChips session={session} />
         </div>
         {session.note || editingNote ? (
-          <div className="mt-1.5">
+          <div
+            data-tour={guideName("demo-history-session-note")}
+            className="mt-1.5"
+          >
             <SessionNote
               session={session}
               editing={editingNote}
@@ -453,6 +462,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             />
           </div>
         ) : null}
+        <SessionScreenshots
+          sessionId={session.id}
+          gameName={session.gameName}
+          className="mt-1.5"
+        />
       </div>
       <div className="min-w-0 text-right">
         <div className="font-mono text-[15px] font-bold leading-none tabular-nums text-accent-ink">
@@ -498,6 +512,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       >
         <ContextMenuItem
           icon={NotebookPen}
+          dataTour={guideName("demo-history-menu-note")}
           onClick={() => {
             contextMenu.close();
             setEditingNote(true);
@@ -535,9 +550,16 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           {t("Filter for this game")}
         </ContextMenuItem>
         {onRequestEdit ? (
-          <ContextMenuSubmenu label={t("Playtime")} icon={Clock3}>
+          <ContextMenuSubmenu
+            label={t("Playtime")}
+            icon={Clock3}
+            dataTour={guideName("demo-history-menu-playtime")}
+            // The flyout is its own layer: a guide has to let clicks into it.
+            menuDataTour={guideName("demo-history-playtime-menu")}
+          >
             <ContextMenuItem
               icon={Pencil}
+              dataTour={guideName("demo-history-menu-edit")}
               onClick={() => requestChange(onRequestEdit)}
             >
               {t("Edit session")}
@@ -545,6 +567,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             {onRequestSplit && seconds >= 120 ? (
               <ContextMenuItem
                 icon={Scissors}
+                dataTour={guideName("demo-history-menu-split")}
                 onClick={() => requestChange(onRequestSplit)}
               >
                 {t("Split session")}
@@ -553,6 +576,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             {onRequestCombine && canCombine ? (
               <ContextMenuItem
                 icon={Merge}
+                dataTour={guideName("demo-history-menu-combine")}
                 onClick={() => requestChange(onRequestCombine)}
               >
                 {t("Combine with…")}

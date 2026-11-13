@@ -1,5 +1,7 @@
+import { Languages } from "lucide-react";
 import { appLanguage, getT, LANGUAGE_NAMES } from "../i18n";
 import { useAppStore } from "../store";
+import { NoticeCard } from "./NoticeCard";
 import { Button } from "./primitives";
 
 const t = getT("shell");
@@ -18,29 +20,33 @@ export function LanguageNotice() {
     return null;
   }
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-info-border bg-info-tint px-7 py-2 text-sm text-info">
-      <span className="min-w-0" role="status">
-        {t(
-          "PlayCounter is now in {{language}}. You can change the language anytime in Settings.",
-          { language: LANGUAGE_NAMES[language] },
-        )}
-      </span>
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          variant="secondary"
-          lang="en"
-          onClick={() => {
-            setLanguage("en");
-            dismiss();
-          }}
-          className="px-3 py-1.5"
-        >
-          {t("Switch to English")}
-        </Button>
-        <Button variant="primary" onClick={dismiss} className="px-3 py-1.5">
-          {t("Keep")}
-        </Button>
-      </div>
-    </div>
+    <NoticeCard
+      tone="info"
+      icon={<Languages size={18} />}
+      text={t(
+        "PlayCounter is now in {{language}}. You can change the language anytime in Settings.",
+        { language: LANGUAGE_NAMES[language] },
+      )}
+      actions={
+        <>
+          <Button
+            variant="secondary"
+            lang="en"
+            onClick={() => {
+              setLanguage("en");
+              dismiss();
+            }}
+            className="px-3 py-1.5"
+          >
+            {t("Switch to English")}
+          </Button>
+          <Button variant="primary" onClick={dismiss} className="px-3 py-1.5">
+            {t("Keep")}
+          </Button>
+        </>
+      }
+      // Closing keeps the language, like Keep.
+      onClose={dismiss}
+    />
   );
 }

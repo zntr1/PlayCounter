@@ -5,11 +5,11 @@ export const site = {
   name: "PlayCounter",
   version: "1.6.0",
   reviewed: "2026-09-24",
-  // Set both after the 1.6.0 installer is published: the release date and the
-  // byte size of PlayCounter-Setup.exe from the GitHub release. Until then the
-  // download line omits the size and the structured data omits the date.
-  releaseDate: null,
-  installerBytes: null,
+  // Optional, for the release named in `version`: its publish date and the
+  // byte size of PlayCounter-Setup.exe, both from the GitHub release. When null,
+  // the download line omits the size and the structured data omits the date.
+  releaseDate: "2026-11-07",
+  installerBytes: 7907112,
   download:
     "https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe",
   releases: "https://github.com/zntr1/PlayCounter/releases/latest",
@@ -414,6 +414,14 @@ export const site = {
       detail:
         "Track individual Xbox 360 games by the title ID Xenia shows in its window title.",
     },
+    {
+      id: "bluestacks",
+      name: "BlueStacks",
+      logo: "/brands/bluestacks.png",
+      systems: "Android",
+      detail:
+        "Track individual Android games by the app BlueStacks has in front, read from its own log.",
+    },
   ],
   languages: [
     "English",
@@ -453,7 +461,7 @@ export const faq = [
   ],
   [
     "Which emulators are supported?",
-    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and BlueStacks. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
   ],
   [
     "Which languages is the app available in?",

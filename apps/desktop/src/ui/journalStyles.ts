@@ -45,14 +45,15 @@ export const STATUS_TONES: Record<
 
 export const GAME_STATUS_LIST = Object.keys(GAME_STATUSES) as GameStatus[];
 
-/** Tier-list colours, hot to cold. Only drawn on the dark cover badge. */
+/** Tier-list colours, hot to cold (styles.css): on the black cover badge and
+ *  on the card menu's Tier group. */
 export const TIER_TONES: Record<GameTier, string> = {
-  S: "text-rose-300",
-  A: "text-orange-300",
-  B: "text-amber-200",
-  C: "text-lime-300",
-  D: "text-sky-300",
-  F: "text-zinc-400",
+  S: "text-tier-s",
+  A: "text-tier-a",
+  B: "text-tier-b",
+  C: "text-tier-c",
+  D: "text-tier-d",
+  F: "text-tier-f",
 };
 
 /** First line of a note, trimmed to fit a single-line preview. */

@@ -171,5 +171,8 @@
   "PlayStation returned an invalid sign-in code. Please sign in again.": "PlayStation a renvoyé un code de connexion non valide. Veuillez vous reconnecter.",
   "PlayStation sign-in timed out. Please try again.": "La connexion à PlayStation a expiré. Veuillez réessayer.",
   "Could not clear the PlayStation sign-in session. Close PlayCounter before signing in again.": "Impossible d'effacer la session de connexion PlayStation. Fermez PlayCounter avant de vous reconnecter.",
-  "Could not cancel PlayStation sign-in.": "Impossible d'annuler la connexion à PlayStation."
+  "Could not cancel PlayStation sign-in.": "Impossible d'annuler la connexion à PlayStation.",
+  "Banner image is empty.": "L'image de bannière est vide.",
+  "Banner image must be 8 MB or smaller.": "L'image de bannière doit faire 8 Mo au maximum.",
+  "Banner image must be a PNG, JPG, or WebP file.": "L'image de bannière doit être un fichier PNG, JPG ou WebP."
 }

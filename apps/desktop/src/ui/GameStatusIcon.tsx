@@ -1,4 +1,4 @@
-import clsx from "clsx";
+import { cn } from "./cn";
 import { type GameStatus } from "../personalLibrary";
 import { STATUS_TONES } from "./journalStyles";
 
@@ -20,7 +20,7 @@ export function GameStatusIcon({
       size={size}
       strokeWidth={filled ? 2 : 2.75}
       fill={filled ? "currentColor" : "none"}
-      className={clsx("shrink-0", text, className)}
+      className={cn("shrink-0", text, className)}
     />
   );
 }

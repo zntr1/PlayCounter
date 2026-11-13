@@ -50,7 +50,9 @@ const GENERIC_BASENAMES = new Set([
   // visual novel engines (AdvHD.exe, SiglusEngine_Steam.exe, BGI.exe), Unreal
   // sample projects built into games unrenamed (LyraGame.exe, ShooterGame.exe,
   // VRExpPluginExample.exe), one file per series (fm.exe for Football Manager,
-  // CricketCaptain.exe, xrEngine.exe for S.T.A.L.K.E.R.) and unrenamed builds.
+  // CricketCaptain.exe, xrEngine.exe for S.T.A.L.K.E.R., Wow.exe for retail
+  // and every older WoW client, WowClassic.exe for each Classic flavour) and
+  // unrenamed builds.
   "advhd",
   "siglusenginesteam",
   "bgi",
@@ -61,6 +63,8 @@ const GENERIC_BASENAMES = new Set([
   "fm",
   "cricketcaptain",
   "xrengine",
+  "wow",
+  "wowclassic",
   "windows",
   "gameclient",
 ]);

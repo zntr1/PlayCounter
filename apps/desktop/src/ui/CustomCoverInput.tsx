@@ -1,4 +1,4 @@
-import clsx from "clsx";
+import { cn } from "./cn";
 import { Clipboard, ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getT } from "../i18n";
@@ -104,7 +104,7 @@ export function CustomCoverInput({
           );
           void saveCover(image ?? null);
         }}
-        className={clsx(
+        className={cn(
           "group relative aspect-[3/4] w-full min-w-0 overflow-hidden outline-none transition focus:border-accent",
           className || "rounded-md border border-border bg-surface-hover",
           !disabled && "cursor-pointer hover:border-accent",

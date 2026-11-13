@@ -1,6 +1,6 @@
 [package]
 name = "playcounter"
-version = "1.6.0"
+version = "1.7.0"
 description = "Launcher-agnostic game play tracker"
 authors = ["PlayCounter"]
 edition = "2021"
@@ -47,5 +47,44 @@ miniz_oxide = "0.8"
 hidapi = { version = "2.6", default-features = false, features = ["windows-native"] }
 webview2-com = "0.38.2"
 windows-core = "0.61"
-windows-sys = { version = "0.59", features = ["Wdk_System_Threading", "Win32_Foundation", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Input_XboxController", "Win32_UI_WindowsAndMessaging"] }
-windows = { version = "0.59", features = ["Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.59", features = ["Wdk_System_Threading", "Win32_Foundation", "Win32_Globalization", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Input_XboxController", "Win32_UI_WindowsAndMessaging"] }
+# Screenshots (screenshot.rs): Windows Graphics Capture for one frame of the
+# game window, Direct3D 11 to read it back, WIC to write the JPEG, and the
+# property system for its caption.
+windows = { version = "0.59", features = [
+    "Foundation",
+    "Graphics_Capture",
+    "Graphics_DirectX_Direct3D11",
+    "Security_Authorization_AppCapabilityAccess",
+    "Win32_Devices_Display",
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Imaging",
+    "Win32_Media_Audio",
+    "Win32_Storage_EnhancedStorage",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Ole",
+    "Win32_System_SystemInformation",
+    "Win32_System_Variant",
+    "Win32_System_WinRT_Direct3D11",
+    "Win32_System_WinRT_Graphics_Capture",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Only the screenshot spike (examples/screenshot_spike.rs): its hotkey, its
+# test window, the game's file name.
+windows = { version = "0.59", features = [
+    "Win32_System_LibraryLoader",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+] }

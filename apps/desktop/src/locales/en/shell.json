@@ -36,6 +36,7 @@
   "Expand sidebar (Ctrl+B)": "Expand sidebar (Ctrl+B)",
   "Show sources": "Show sources",
   "Hide sources": "Hide sources",
+  "Emulators": "Emulators",
   "Help & Feedback": "Help & Feedback",
   "Feedback unavailable offline": "Feedback unavailable offline",
   "Installing…": "Installing…",
@@ -108,7 +109,6 @@
   "Clear all": "Clear all",
   "Reply to your feedback": "Reply to your feedback",
   "Can I keep a separate note for a speedrun?": "Can I keep a separate note for a speedrun?",
-  "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.": "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.",
   "Sample reply · practice only": "Sample reply · practice only",
   "Updates from PlayCounter": "Updates from PlayCounter",
   "Close notifications": "Close notifications",
@@ -154,7 +154,6 @@
   "Match them to games or ignore them so PlayCounter tracks the right playtime.": "Match them to games or ignore them so PlayCounter tracks the right playtime.",
   "Open Discovered": "Open Discovered",
   "Update check timed out.": "Update check timed out.",
-  "Version {{version}} is available - {{progress}}": "Version {{version}} is available - {{progress}}",
   "Version {{version}} is available": "Version {{version}} is available",
   "Hide banner in {{view}}": "Hide banner in {{view}}",
   "Show banner in {{view}}": "Show banner in {{view}}",
@@ -177,5 +176,11 @@
   "Also new in {{version}}": "Also new in {{version}}",
   "Also since your last update": "Also since your last update",
   "Show changes": "Show changes",
-  "Hide changes": "Hide changes"
+  "Hide changes": "Hide changes",
+  "Your screenshot of {{game}} came out black": "Your screenshot of {{game}} came out black",
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.",
+  "Launcher groups": "Launcher groups",
+  "Hide empty sources": "Hide empty sources",
+  "Sidebar": "Sidebar",
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions."
 }

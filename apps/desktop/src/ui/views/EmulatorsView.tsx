@@ -2,6 +2,7 @@ import { EyeOff, Gamepad2, RotateCcw, Unlink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { EmulatorId } from "@playcounter/shared";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
+import { findTour } from "../tour/tourDefinitions";
 import { emitTourEvent } from "../tour/TourUI";
 import {
   forgetEmulatorMapping,
@@ -149,11 +150,24 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
     "change" | "forget" | "share" | null
   >(null);
   const [demoForgotten, setDemoForgotten] = useState(false);
+  const tourStepIndex = useAppStore(
+    (state) => state.activeTour?.stepIndex ?? 0,
+  );
+  const demoResetToken = useAppStore((state) => state.demoResetToken);
+  // Every step starts on a fresh sample, so it can be entered from anywhere:
+  // the check note is there only for the step that rings "Looks right".
   useEffect(() => {
-    setDemoMapping(tourDemoEmulatorMapping());
+    const step = activeTourId
+      ? findTour(activeTourId)?.steps[tourStepIndex]
+      : undefined;
+    setDemoMapping({
+      ...tourDemoEmulatorMapping(),
+      needsConfirmation:
+        step?.anchor?.includes("demo-emulator-confirm") === true,
+    });
     setDemoForgotten(false);
     setDemoAction(null);
-  }, [activeTourId]);
+  }, [activeTourId, tourStepIndex, demoResetToken]);
   const displayedObservations = demo ? [] : observations;
   const displayedGameMappings = demo
     ? demoForgotten
@@ -356,7 +370,7 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                           needsConfirmation: false,
                         }));
                         emitTourEvent(
-                          "demo.action-completed",
+                          "demo.step-completed",
                           t(
                             "Sample confirmed. The check badge is gone; its recorded sessions stay intact.",
                           ),
@@ -418,7 +432,7 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
             }));
             setDemoAction(null);
             emitTourEvent(
-              "demo.action-completed",
+              "demo.step-completed",
               t("Sample match changed to {{name}}. Nothing was shared.", {
                 name: choice.name,
               }),
@@ -445,7 +459,7 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                 onClick={() => {
                   if (demoAction === "forget") setDemoForgotten(true);
                   emitTourEvent(
-                    "demo.action-completed",
+                    "demo.step-completed",
                     demoAction === "forget"
                       ? t("Sample match forgotten. Recorded history remains.")
                       : t("Sharing preview finished. No match was submitted."),

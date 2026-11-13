@@ -6,6 +6,7 @@ import {
   type ExeCacheEntry,
 } from "../../store";
 import { Panel } from "../components";
+import { useHiddenGameKeys } from "../useHiddenGameKeys";
 import {
   emulatorTourDemoActive,
   tourDemoEmulatorSession,
@@ -17,6 +18,8 @@ import {
   providerFloors as collectProviderFloors,
 } from "../../library/playtimeFloor";
 import { resolvedCanonicalGameKey } from "../../store";
+import { pausedForSeconds, playedSeconds } from "../../sessionTime";
+import { togglePauseSession } from "../../tracker";
 import { getT } from "../../i18n";
 
 const t = getT("nowPlaying");
@@ -55,14 +58,17 @@ export function NowEmulatingView() {
   );
   const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
   const demo = emulatorTourDemoActive(activeTourId);
+  // A shelf can hide a game from Now Playing, which covers this page too.
+  const hiddenKeys = useHiddenGameKeys("nowPlaying");
   const sessions = useMemo(
     () =>
       allSessions.filter(
         (session) =>
           session.emulator &&
-          !ignored.has(session.emulator.emulatorId.toLowerCase()),
+          !ignored.has(session.emulator.emulatorId.toLowerCase()) &&
+          !hiddenKeys.has(resolvedCanonicalGameKey(session, resolveIgdbId)),
       ),
-    [allSessions, ignored],
+    [allSessions, hiddenKeys, ignored, resolveIgdbId],
   );
   const processes = useAppStore((state) => state.processes);
   const allObservations = useAppStore((state) => state.emulatorObservations);
@@ -149,10 +155,10 @@ export function NowEmulatingView() {
         <ActiveGameHero
           key={session.id}
           session={session}
-          elapsedSeconds={Math.max(
-            0,
-            Math.floor((now - Date.parse(session.startedAt)) / 1000),
-          )}
+          elapsedSeconds={playedSeconds(session, now)}
+          pausedForSeconds={pausedForSeconds(session, now)}
+          onTogglePause={() => void togglePauseSession(session.id)}
+          showCounters
           recentSessions={recentSessions}
           showDurationDays={showDurationDays}
           exeCache={exeCache}

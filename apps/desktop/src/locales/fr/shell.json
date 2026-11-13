@@ -36,6 +36,7 @@
   "Expand sidebar (Ctrl+B)": "Déplier la barre latérale (Ctrl+B)",
   "Show sources": "Afficher les sources",
   "Hide sources": "Masquer les sources",
+  "Emulators": "Émulateurs",
   "Help & Feedback": "Aide et commentaires",
   "Feedback unavailable offline": "Commentaires indisponibles hors ligne",
   "Installing…": "Installation…",
@@ -108,7 +109,6 @@
   "Clear all": "Tout effacer",
   "Reply to your feedback": "Réponse à votre commentaire",
   "Can I keep a separate note for a speedrun?": "Puis-je garder une note séparée pour un speedrun ?",
-  "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.": "Oui. Faites un clic droit sur le jeu, choisissez Parties et créez-en une nommée Speedrun. Chaque partie a sa propre note et sa propre liste de sessions.",
   "Sample reply · practice only": "Exemple de réponse · entraînement uniquement",
   "Updates from PlayCounter": "Nouvelles de PlayCounter",
   "Close notifications": "Fermer les notifications",
@@ -154,7 +154,6 @@
   "Match them to games or ignore them so PlayCounter tracks the right playtime.": "Associez-les à des jeux ou ignorez-les pour que PlayCounter suive le bon temps de jeu.",
   "Open Discovered": "Ouvrir Détectés",
   "Update check timed out.": "La recherche de mise à jour a expiré.",
-  "Version {{version}} is available - {{progress}}": "La version {{version}} est disponible - {{progress}}",
   "Version {{version}} is available": "La version {{version}} est disponible",
   "Hide banner in {{view}}": "Masquer la bannière dans {{view}}",
   "Show banner in {{view}}": "Afficher la bannière dans {{view}}",
@@ -177,5 +176,11 @@
   "Also new in {{version}}": "Autres nouveautés de la {{version}}",
   "Also since your last update": "Aussi depuis votre dernière mise à jour",
   "Show changes": "Afficher les changements",
-  "Hide changes": "Masquer les changements"
+  "Hide changes": "Masquer les changements",
+  "Your screenshot of {{game}} came out black": "Votre capture d'écran de {{game}} est noire",
+  "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows masque aux autres applications les jeux en plein écran exclusif. Passez le jeu en fenêtre sans bordure ou en mode fenêtré, puis réessayez.",
+  "Launcher groups": "Groupes de launchers",
+  "Hide empty sources": "Masquer les sources vides",
+  "Sidebar": "Barre latérale",
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Oui. Faites un clic droit sur le jeu, choisissez {{journal}} puis cliquez sur {{addPlaythrough}}. Appelez-la Speedrun : chaque partie a sa propre note et sa propre liste de sessions."
 }

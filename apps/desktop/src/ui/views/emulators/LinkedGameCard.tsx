@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { cn } from "../../cn";
 import {
   Check,
   FileCode2,
@@ -28,7 +29,7 @@ import {
 import { GameProvenanceBadges, formatDuration } from "../../components";
 import { GameCover } from "../../GameCover";
 import { emulatorDetectionSourceLabel } from "./emulatorPickerModel";
-import { appLocale, getT } from "../../../i18n";
+import { formatNumericDate, formatNumericDateTime, getT } from "../../../i18n";
 import { Trans } from "react-i18next";
 
 const t = getT("emulators");
@@ -301,7 +302,7 @@ function FooterAction({
   return (
     <button
       type="button"
-      className={clsx(
+      className={cn(
         "flex min-h-9 min-w-0 items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-semibold text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text-muted",
         className,
       )}
@@ -319,8 +320,8 @@ function DateRow({ label, iso }: { label: string; iso: string }) {
     <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 [overflow-wrap:anywhere]">
       <dt className="min-w-0 text-text-faint">{label}</dt>
       <dd className="ml-auto min-w-0 max-w-full text-right font-mono tabular-nums text-text-muted">
-        <time dateTime={iso} title={date.toLocaleString(appLocale())}>
-          {date.toLocaleDateString(appLocale())}
+        <time dateTime={iso} title={formatNumericDateTime(date)}>
+          {formatNumericDate(date)}
         </time>
       </dd>
     </div>
@@ -347,7 +348,7 @@ function communityStatus(
       label: t("Shared · in review"),
       tone: "text-community",
       tip: t("Sent {{date}}. You'll get a notification once it's reviewed.", {
-        date: new Date(share.submittedAt).toLocaleDateString(appLocale()),
+        date: formatNumericDate(share.submittedAt),
       }),
     };
   }

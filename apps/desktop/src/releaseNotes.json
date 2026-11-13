@@ -1,5 +1,477 @@
 [
   {
+    "version": "1.7.0",
+    "headline": "Take screenshots of your games, count deaths and bosses, pause a session, and learn every feature with new guides.",
+    "highlights": [
+      {
+        "title": "Screenshots on your sessions",
+        "text": "Press your screenshot key to save a picture of your game, no Steam or Game Bar needed. Add a caption right away, and find each picture on its session in My History.",
+        "hint": "Settings → While you play → Screenshots",
+        "image": "screenshots"
+      },
+      {
+        "title": "Count deaths, bosses and more",
+        "text": "Each game gets its own counters. Count with a key, your controller or the + button, and see the numbers while you play, in My History and in game details.",
+        "hint": "Game details → Counters",
+        "image": "counters"
+      },
+      {
+        "title": "Pause a session",
+        "text": "Take a break without closing the game. The clock stops and later counts on from the same number, all in one session.",
+        "hint": "Now Playing → the button next to the clock, or a hotkey under Settings → While you play",
+        "image": "pause"
+      },
+      {
+        "title": "New guides, all up to date",
+        "text": "Help & guides has 10 new guides, such as Screenshots, Counters and Launcher accounts, and every other guide shows today's app. A step finishes once you've done it, and Show me how starts a guide right where its feature is.",
+        "hint": "The ? in the title bar → Help & guides",
+        "image": "guides"
+      },
+      {
+        "title": "Settings, easier to find",
+        "text": "Settings have a menu with one group per page and a search that finds any setting. Pick how dates and numbers look and a 12- or 24-hour clock, apart from the language.",
+        "hint": "Settings → General → Format region, Clock",
+        "image": "settings"
+      },
+      {
+        "title": "Shelves that hide games",
+        "text": "A shelf you fill yourself can hide its games from All games, My History, Achievements and Now Playing. Pick the places under Hide in."
+      },
+      {
+        "title": "BlueStacks",
+        "text": "PlayCounter now tracks the Android games you play in BlueStacks."
+      },
+      {
+        "title": "Quick add",
+        "text": "Set a Quick add game hotkey to add a game from a small search box, even while you play."
+      },
+      {
+        "title": "More from your cards",
+        "text": "Hold Shift over a card to see its playtime per launcher. The right-click menu shows a game's status, tier and favorite and can start a new shelf, and you can upload or paste a banner for any game."
+      },
+      {
+        "title": "Smoother imports",
+        "text": "A launcher game with only one suggestion of the same name is ready to import right away. Import moves on to the next game at once, the scan warning can be closed for good, and right-clicking a launcher in the sidebar forgets its imported data."
+      },
+      {
+        "title": "Tidier pages",
+        "text": "Shelves that don't fit in one row fold into +N more, two or more emulators share one Emulators group in the sidebar, notices at the top can be closed, and My History opens on the tab you used last."
+      },
+      {
+        "title": "Fixes",
+        "text": "Tier letters on covers show their tier colors, game details keep one height when you switch tabs, a restored window fits on your screen, and World of Warcraft's versions count as separate games by their folder."
+      }
+    ],
+    "translations": {
+      "de": {
+        "headline": "Mach Screenshots von deinen Spielen, zähl Tode und Bosse, pausier eine Sitzung und lern jede Funktion mit neuen Anleitungen kennen.",
+        "highlights": [
+          {
+            "title": "Screenshots an deinen Sitzungen",
+            "text": "Drück deine Screenshot-Taste und speichere ein Bild deines Spiels, ganz ohne Steam oder Game Bar. Schreib gleich eine Bildunterschrift dazu und finde jedes Bild an seiner Sitzung in „Mein Verlauf“.",
+            "hint": "Einstellungen → „Während du spielst“ → „Screenshots“"
+          },
+          {
+            "title": "Tode, Bosse und mehr zählen",
+            "text": "Jedes Spiel bekommt eigene Zähler. Zähl mit einer Taste, deinem Controller oder dem +-Knopf und sieh die Zahlen beim Spielen, in „Mein Verlauf“ und in den Spieldetails.",
+            "hint": "Spieldetails → „Zähler“"
+          },
+          {
+            "title": "Sitzung pausieren",
+            "text": "Mach eine Pause, ohne das Spiel zu schließen. Die Uhr bleibt stehen und zählt später von derselben Zahl weiter, alles in einer Sitzung.",
+            "hint": "„Läuft gerade“ → der Knopf neben der Uhr, oder ein Tastenkürzel unter Einstellungen → „Während du spielst“"
+          },
+          {
+            "title": "Neue Anleitungen, alle aktuell",
+            "text": "„Hilfe & Anleitungen“ hat 10 neue Anleitungen, etwa zu Screenshots, Zählern und Launcher-Konten, und alle anderen zeigen die App, wie sie heute ist. Ein Schritt ist fertig, sobald du ihn gemacht hast, und „Zeig mir, wie“ startet eine Anleitung genau dort, wo ihre Funktion ist.",
+            "hint": "Das ? in der Titelleiste → „Hilfe & Anleitungen“"
+          },
+          {
+            "title": "Einstellungen, leichter zu finden",
+            "text": "Die Einstellungen haben ein Menü mit einer Gruppe pro Seite und eine Suche, die jede Einstellung findet. Leg fest, wie Datum und Zahlen aussehen, und wähl 12 oder 24 Stunden, unabhängig von der Sprache.",
+            "hint": "Einstellungen → „Allgemein“ → „Regionales Format“, „Uhrzeitformat“"
+          },
+          {
+            "title": "Regale, die Spiele ausblenden",
+            "text": "Ein Regal, das du selbst füllst, kann seine Spiele in „Alle Spiele“, „Mein Verlauf“, „Erfolge“ und „Läuft gerade“ ausblenden. Die Orte wählst du unter „Ausblenden in“."
+          },
+          {
+            "title": "BlueStacks",
+            "text": "PlayCounter erfasst jetzt die Android-Spiele, die du in BlueStacks spielst."
+          },
+          {
+            "title": "Schnell hinzufügen",
+            "text": "Leg ein Tastenkürzel für „Spiel schnell hinzufügen“ fest und füg ein Spiel über ein kleines Suchfeld hinzu, auch während du spielst."
+          },
+          {
+            "title": "Mehr aus deinen Kacheln",
+            "text": "Halt Umschalt über einer Kachel gedrückt, um die Spielzeit pro Launcher zu sehen. Das Rechtsklick-Menü zeigt Status, Tier und Favorit eines Spiels und legt ein neues Regal an, und für jedes Spiel kannst du ein Banner hochladen oder einfügen."
+          },
+          {
+            "title": "Einfacher importieren",
+            "text": "Hat ein Launcher-Spiel nur einen Vorschlag mit genau seinem Namen, ist es sofort bereit zum Import. „Importieren“ springt gleich zum nächsten Spiel, die Scan-Warnung lässt sich für immer schließen, und per Rechtsklick auf einen Launcher in der Seitenleiste vergisst du seine importierten Daten."
+          },
+          {
+            "title": "Aufgeräumtere Seiten",
+            "text": "Regale, die nicht in eine Zeile passen, landen unter „+N weitere“, zwei oder mehr Emulatoren teilen sich eine Gruppe „Emulatoren“ in der Seitenleiste, Hinweise oben lassen sich schließen, und „Mein Verlauf“ öffnet den Tab, den du zuletzt benutzt hast."
+          },
+          {
+            "title": "Behoben",
+            "text": "Tier-Buchstaben auf Covern zeigen ihre Tier-Farben, die Spieldetails behalten beim Tab-Wechsel ihre Höhe, ein wiederhergestelltes Fenster passt auf deinen Bildschirm, und die Versionen von World of Warcraft zählen anhand ihres Ordners als eigene Spiele."
+          }
+        ]
+      },
+      "es": {
+        "headline": "Haz capturas de tus juegos, cuenta muertes y jefes, pausa una sesión y aprende cada función con guías nuevas.",
+        "highlights": [
+          {
+            "title": "Capturas en tus sesiones",
+            "text": "Pulsa tu tecla de captura para guardar una imagen de tu juego, sin Steam ni Game Bar. Añade un pie de foto al momento y encuentra cada imagen en su sesión en Mi historial.",
+            "hint": "Configuración → Mientras juegas → Capturas de pantalla"
+          },
+          {
+            "title": "Cuenta muertes, jefes y más",
+            "text": "Cada juego tiene sus propios contadores. Cuenta con una tecla, tu mando o el botón +, y mira los números mientras juegas, en Mi historial y en los detalles del juego.",
+            "hint": "Detalles del juego → Contadores"
+          },
+          {
+            "title": "Pausa una sesión",
+            "text": "Tómate un descanso sin cerrar el juego. El reloj se detiene y luego sigue desde el mismo número, todo en una sola sesión.",
+            "hint": "Jugando ahora → el botón junto al reloj, o un atajo en Configuración → Mientras juegas"
+          },
+          {
+            "title": "Guías nuevas y al día",
+            "text": "Ayuda y guías trae 10 guías nuevas, como Capturas de pantalla, Contadores y Cuentas de lanzadores, y todas las demás muestran la app tal como es hoy. Un paso se completa en cuanto lo haces, y “Muéstrame cómo” abre una guía justo donde está su función.",
+            "hint": "El ? de la barra de título → Ayuda y guías"
+          },
+          {
+            "title": "Configuración más fácil de encontrar",
+            "text": "La configuración tiene un menú con un grupo por página y una búsqueda que encuentra cualquier ajuste. Elige cómo se ven las fechas y los números y un reloj de 12 o 24 horas, aparte del idioma.",
+            "hint": "Configuración → General → Formato regional, Formato de hora"
+          },
+          {
+            "title": "Estantes que ocultan juegos",
+            "text": "Un estante que llenas tú puede ocultar sus juegos en Todos los juegos, Mi historial, Logros y Jugando ahora. Elige los lugares en “Ocultar en”."
+          },
+          {
+            "title": "BlueStacks",
+            "text": "PlayCounter ahora registra los juegos de Android que juegas en BlueStacks."
+          },
+          {
+            "title": "Añadir rápido",
+            "text": "Asigna un atajo a “Añadir juego rápido” para añadir un juego desde un pequeño cuadro de búsqueda, incluso mientras juegas."
+          },
+          {
+            "title": "Más desde tus tarjetas",
+            "text": "Mantén Shift sobre una tarjeta para ver su tiempo de juego por lanzador. El menú del clic derecho muestra el estado, el tier y el favorito de un juego y crea un estante nuevo, y puedes cargar o pegar un banner para cualquier juego."
+          },
+          {
+            "title": "Importaciones más fluidas",
+            "text": "Un juego de un lanzador con una sola sugerencia de su mismo nombre queda listo para importar enseguida. “Importar” pasa al siguiente juego al instante, el aviso del escaneo se puede cerrar para siempre y, con clic derecho en un lanzador de la barra lateral, olvidas sus datos importados."
+          },
+          {
+            "title": "Páginas más ordenadas",
+            "text": "Los estantes que no caben en una fila se agrupan en +N más, dos o más emuladores comparten un grupo Emuladores en la barra lateral, los avisos de arriba se pueden cerrar y Mi historial abre la pestaña que usaste por última vez."
+          },
+          {
+            "title": "Correcciones",
+            "text": "Las letras de tier en las portadas muestran sus colores, los detalles del juego mantienen su altura al cambiar de pestaña, una ventana restaurada cabe en tu pantalla y las versiones de World of Warcraft cuentan como juegos distintos según su carpeta."
+          }
+        ]
+      },
+      "fr": {
+        "headline": "Prenez des captures de vos jeux, comptez morts et boss, mettez une session en pause et découvrez chaque fonction avec de nouveaux guides.",
+        "highlights": [
+          {
+            "title": "Des captures sur vos sessions",
+            "text": "Appuyez sur votre touche de capture pour enregistrer une image de votre jeu, sans Steam ni Game Bar. Ajoutez tout de suite une légende et retrouvez chaque image sur sa session dans Mon historique.",
+            "hint": "Paramètres → Pendant que vous jouez → Captures d'écran"
+          },
+          {
+            "title": "Comptez morts, boss et plus",
+            "text": "Chaque jeu a ses propres compteurs. Comptez avec une touche, votre manette ou le bouton +, et voyez les chiffres pendant que vous jouez, dans Mon historique et dans les détails du jeu.",
+            "hint": "Détails du jeu → Compteurs"
+          },
+          {
+            "title": "Mettre une session en pause",
+            "text": "Faites une pause sans fermer le jeu. Le chronomètre s'arrête puis reprend au même chiffre, le tout dans une seule session.",
+            "hint": "En jeu → le bouton à côté du chronomètre, ou un raccourci dans Paramètres → Pendant que vous jouez"
+          },
+          {
+            "title": "Des guides neufs et à jour",
+            "text": "Aide et guides propose 10 nouveaux guides, dont Captures d'écran, Compteurs et Comptes des launchers, et tous les autres montrent l'application telle qu'elle est aujourd'hui. Une étape se termine dès qu'elle est faite, et « Me montrer » lance un guide à l'endroit même de sa fonction.",
+            "hint": "Le ? de la barre de titre → Aide et guides"
+          },
+          {
+            "title": "Des paramètres plus faciles à trouver",
+            "text": "Les paramètres ont un menu avec un groupe par page et une recherche qui trouve n'importe quel réglage. Choisissez l'affichage des dates et des nombres et une horloge sur 12 ou 24 heures, indépendamment de la langue.",
+            "hint": "Paramètres → Général → Format régional, Format de l'heure"
+          },
+          {
+            "title": "Des étagères qui masquent des jeux",
+            "text": "Une étagère remplie à la main peut masquer ses jeux dans Tous les jeux, Mon historique, Succès et En jeu. Choisissez les endroits dans « Masquer dans »."
+          },
+          {
+            "title": "BlueStacks",
+            "text": "PlayCounter suit désormais les jeux Android auxquels vous jouez dans BlueStacks."
+          },
+          {
+            "title": "Ajout rapide",
+            "text": "Définissez un raccourci pour « Ajout rapide de jeu » et ajoutez un jeu depuis une petite zone de recherche, même en pleine partie."
+          },
+          {
+            "title": "Plus d'infos sur vos vignettes",
+            "text": "Maintenez Maj sur une vignette pour voir son temps de jeu par launcher. Le menu du clic droit affiche le statut, le tier et le favori d'un jeu et crée une nouvelle étagère, et vous pouvez importer ou coller une bannière pour n'importe quel jeu."
+          },
+          {
+            "title": "Des imports plus fluides",
+            "text": "Un jeu de launcher avec une seule suggestion portant exactement son nom est prêt à importer tout de suite. « Importer » passe aussitôt au jeu suivant, l'avertissement du scan peut être fermé pour de bon, et un clic droit sur un launcher dans la barre latérale oublie ses données importées."
+          },
+          {
+            "title": "Des pages plus nettes",
+            "text": "Les étagères qui ne tiennent pas sur une ligne se replient dans « +N autres », deux émulateurs ou plus partagent un groupe Émulateurs dans la barre latérale, les notifications du haut se ferment, et Mon historique s'ouvre sur le dernier onglet utilisé."
+          },
+          {
+            "title": "Corrections",
+            "text": "Les lettres de tier sur les jaquettes affichent leurs couleurs, les détails du jeu gardent la même hauteur d'un onglet à l'autre, une fenêtre restaurée tient sur l'écran, et les versions de World of Warcraft comptent comme des jeux distincts selon leur dossier."
+          }
+        ]
+      },
+      "pl": {
+        "headline": "Zrzuty ekranu z gier, liczniki śmierci i bossów, pauza w sesji i nowe przewodniki po każdej funkcji.",
+        "highlights": [
+          {
+            "title": "Zrzuty ekranu w sesjach",
+            "text": "Naciśnij klawisz zrzutu ekranu, aby zapisać obraz z gry, bez Steama i Game Bar. Od razu dodaj podpis i znajdź każdy obraz przy jego sesji w Mojej historii.",
+            "hint": "Ustawienia → Podczas gry → Zrzuty ekranu"
+          },
+          {
+            "title": "Licz śmierci, bossów i więcej",
+            "text": "Każda gra ma własne liczniki. Licz klawiszem, kontrolerem lub przyciskiem +, a liczby zobaczysz podczas gry, w Mojej historii i w szczegółach gry.",
+            "hint": "Szczegóły gry → Liczniki"
+          },
+          {
+            "title": "Wstrzymaj sesję",
+            "text": "Zrób przerwę bez zamykania gry. Zegar staje, a potem liczy dalej od tej samej liczby, wszystko w jednej sesji.",
+            "hint": "Teraz grasz → przycisk obok zegara albo skrót w Ustawienia → Podczas gry"
+          },
+          {
+            "title": "Nowe i aktualne przewodniki",
+            "text": "Pomoc i przewodniki ma 10 nowych przewodników, m.in. Zrzuty ekranu, Liczniki i Konta launcherów, a wszystkie pozostałe pokazują aplikację taką, jaka jest dziś. Krok kończy się, gdy go wykonasz, a „Pokaż mi, jak” uruchamia przewodnik tam, gdzie jest jego funkcja.",
+            "hint": "Znak ? na pasku tytułu → Pomoc i przewodniki"
+          },
+          {
+            "title": "Ustawienia łatwiejsze do znalezienia",
+            "text": "Ustawienia mają menu z jedną grupą na stronę i wyszukiwarkę, która znajdzie każde ustawienie. Wybierz wygląd dat i liczb oraz zegar 12- lub 24-godzinny, niezależnie od języka.",
+            "hint": "Ustawienia → Ogólne → Format regionalny, Format godziny"
+          },
+          {
+            "title": "Półki, które ukrywają gry",
+            "text": "Półka wypełniana ręcznie może ukryć swoje gry w widokach Wszystkie gry, Moja historia, Osiągnięcia i Teraz grasz. Miejsca wybierzesz w „Ukryj w”."
+          },
+          {
+            "title": "BlueStacks",
+            "text": "PlayCounter śledzi teraz gry na Androida, w które grasz w BlueStacks."
+          },
+          {
+            "title": "Szybkie dodawanie",
+            "text": "Ustaw skrót „Szybkie dodawanie gry”, aby dodać grę z małego pola wyszukiwania, nawet podczas gry."
+          },
+          {
+            "title": "Więcej z kafelków",
+            "text": "Przytrzymaj Shift nad kafelkiem, aby zobaczyć czas gry w każdym launcherze. Menu pod prawym przyciskiem pokazuje status gry, jej tier i to, czy jest ulubiona, oraz tworzy nową półkę, a dla każdej gry możesz przesłać lub wkleić baner."
+          },
+          {
+            "title": "Płynniejszy import",
+            "text": "Gra z launchera z jedną propozycją o dokładnie tej samej nazwie jest od razu gotowa do importu. „Importuj” od razu przechodzi do następnej gry, ostrzeżenie skanowania można zamknąć na stałe, a prawy przycisk na launcherze na pasku bocznym pozwala zapomnieć jego zaimportowane dane."
+          },
+          {
+            "title": "Bardziej uporządkowane strony",
+            "text": "Półki, które nie mieszczą się w jednym wierszu, chowają się pod „+N więcej”, dwa lub więcej emulatorów dzieli jedną grupę Emulatory na pasku bocznym, powiadomienia u góry można zamknąć, a Moja historia otwiera ostatnio używaną kartę."
+          },
+          {
+            "title": "Poprawki",
+            "text": "Litery tierów na okładkach mają swoje kolory, szczegóły gry zachowują wysokość przy zmianie kart, przywrócone okno mieści się na ekranie, a wersje World of Warcraft liczą się jako osobne gry według folderu."
+          }
+        ]
+      },
+      "pt-BR": {
+        "headline": "Tire capturas dos seus jogos, conte mortes e chefes, pause uma sessão e aprenda cada recurso com guias novos.",
+        "highlights": [
+          {
+            "title": "Capturas nas suas sessões",
+            "text": "Aperte sua tecla de captura para salvar uma imagem do jogo, sem o Steam nem a Game Bar. Adicione uma legenda na hora e encontre cada imagem na sessão dela em Meu histórico.",
+            "hint": "Configurações → Enquanto você joga → Capturas de tela"
+          },
+          {
+            "title": "Conte mortes, chefes e mais",
+            "text": "Cada jogo tem seus próprios contadores. Conte com uma tecla, seu controle ou o botão +, e veja os números enquanto joga, em Meu histórico e nos detalhes do jogo.",
+            "hint": "Detalhes do jogo → Contadores"
+          },
+          {
+            "title": "Pause uma sessão",
+            "text": "Faça uma pausa sem fechar o jogo. O relógio para e depois continua do mesmo número, tudo em uma só sessão.",
+            "hint": "Jogando agora → o botão ao lado do relógio, ou um atalho em Configurações → Enquanto você joga"
+          },
+          {
+            "title": "Guias novos e atualizados",
+            "text": "Ajuda e guias tem 10 guias novos, como Capturas de tela, Contadores e Contas dos launchers, e todos os outros mostram o app como ele é hoje. Um passo termina assim que você o faz, e “Mostre como” abre um guia bem onde fica o recurso.",
+            "hint": "O ? na barra de título → Ajuda e guias"
+          },
+          {
+            "title": "Configurações mais fáceis de achar",
+            "text": "As configurações têm um menu com um grupo por página e uma busca que encontra qualquer opção. Escolha como datas e números aparecem e um relógio de 12 ou 24 horas, separado do idioma.",
+            "hint": "Configurações → Geral → Formato regional, Formato de hora"
+          },
+          {
+            "title": "Prateleiras que ocultam jogos",
+            "text": "Uma prateleira que você preenche pode ocultar os jogos dela em Todos os jogos, Meu histórico, Conquistas e Jogando agora. Escolha os lugares em “Ocultar em”."
+          },
+          {
+            "title": "BlueStacks",
+            "text": "O PlayCounter agora registra os jogos de Android que você joga no BlueStacks."
+          },
+          {
+            "title": "Adição rápida",
+            "text": "Defina um atalho para “Adicionar jogo rápido” e adicione um jogo por uma pequena caixa de busca, até enquanto joga."
+          },
+          {
+            "title": "Mais dos seus cartões",
+            "text": "Segure Shift sobre um cartão para ver o tempo de jogo por launcher. O menu do botão direito mostra o status, o tier e o favorito de um jogo e cria uma prateleira nova, e você pode carregar ou colar um banner para qualquer jogo."
+          },
+          {
+            "title": "Importação mais fluida",
+            "text": "Um jogo de launcher com só uma sugestão de nome igual fica pronto para importar na hora. “Importar” passa logo para o próximo jogo, o aviso da varredura pode ser fechado de vez, e com o botão direito em um launcher na barra lateral você esquece os dados importados dele."
+          },
+          {
+            "title": "Páginas mais organizadas",
+            "text": "Prateleiras que não cabem em uma linha ficam em +N mais, dois ou mais emuladores dividem um grupo Emuladores na barra lateral, os avisos do topo podem ser fechados e Meu histórico abre na aba usada por último."
+          },
+          {
+            "title": "Correções",
+            "text": "As letras de tier nas capas mostram suas cores, os detalhes do jogo mantêm a mesma altura ao trocar de aba, uma janela restaurada cabe na tela e as versões de World of Warcraft contam como jogos separados pela pasta."
+          }
+        ]
+      },
+      "ru": {
+        "headline": "Делайте скриншоты игр, считайте смерти и боссов, ставьте сессию на паузу и осваивайте каждую функцию с новыми руководствами.",
+        "highlights": [
+          {
+            "title": "Скриншоты в ваших сессиях",
+            "text": "Нажмите клавишу скриншота, чтобы сохранить кадр из игры без Steam и Game Bar. Сразу добавьте подпись и находите каждый кадр в его сессии в «Моей истории».",
+            "hint": "«Настройки» → «Во время игры» → «Скриншоты»"
+          },
+          {
+            "title": "Считайте смерти, боссов и не только",
+            "text": "У каждой игры свои счётчики. Считайте клавишей, геймпадом или кнопкой +, а числа видны во время игры, в «Моей истории» и в «Об игре».",
+            "hint": "«Об игре» → «Счётчики»"
+          },
+          {
+            "title": "Пауза в сессии",
+            "text": "Сделайте перерыв, не закрывая игру. Часы останавливаются, а потом идут дальше с того же числа, и всё это остаётся одной сессией.",
+            "hint": "«Сейчас в игре» → кнопка рядом с часами или сочетание клавиш в «Настройки» → «Во время игры»"
+          },
+          {
+            "title": "Новые и свежие руководства",
+            "text": "В «Помощь и руководства» 10 новых руководств, например «Скриншоты», «Счётчики» и «Аккаунты лаунчеров», а все остальные показывают приложение таким, какое оно сейчас. Шаг завершается, как только вы его выполните, а «Показать как» открывает руководство прямо там, где находится функция.",
+            "hint": "Значок ? в заголовке окна → «Помощь и руководства»"
+          },
+          {
+            "title": "Настройки, которые легко найти",
+            "text": "В настройках теперь меню с одной группой на страницу и поиск, который находит любой параметр. Выберите, как выглядят даты и числа, и 12- или 24-часовой формат времени независимо от языка.",
+            "hint": "«Настройки» → «Общие» → «Региональный формат», «Формат времени»"
+          },
+          {
+            "title": "Полки, которые скрывают игры",
+            "text": "Полка, которую вы заполняете сами, может скрывать свои игры в «Все игры», «Моя история», «Достижения» и «Сейчас в игре». Места выбираются в «Скрыть в»."
+          },
+          {
+            "title": "BlueStacks",
+            "text": "PlayCounter теперь учитывает игры для Android, в которые вы играете в BlueStacks."
+          },
+          {
+            "title": "Быстрое добавление",
+            "text": "Назначьте сочетание клавиш «Быстро добавить игру», чтобы добавить игру через маленькое поле поиска, даже во время игры."
+          },
+          {
+            "title": "Больше от карточек",
+            "text": "Удерживайте Shift над карточкой, чтобы увидеть время в игре по лаунчерам. Меню правого клика показывает статус, тир и избранное игры и создаёт новую полку, а для любой игры можно загрузить или вставить баннер."
+          },
+          {
+            "title": "Удобнее импорт",
+            "text": "Игра из лаунчера с единственным предложением с точно таким же названием сразу готова к импорту. «Импортировать» сразу переходит к следующей игре, предупреждение сканирования можно закрыть навсегда, а правый клик по лаунчеру на боковой панели забывает его импортированные данные."
+          },
+          {
+            "title": "Аккуратнее страницы",
+            "text": "Полки, которые не помещаются в одну строку, сворачиваются в «+N ещё», два и больше эмуляторов объединяются в группу «Эмуляторы» на боковой панели, уведомления вверху можно закрыть, а «Моя история» открывается на последней вкладке."
+          },
+          {
+            "title": "Исправления",
+            "text": "Буквы тиров на обложках теперь цветные, «Об игре» сохраняет высоту при смене вкладок, восстановленное окно помещается на экран, а версии World of Warcraft считаются разными играми по своей папке."
+          }
+        ]
+      },
+      "zh-CN": {
+        "headline": "为你的游戏截图，统计死亡次数和 Boss，暂停一次游玩记录，并通过新指南了解每项功能。",
+        "highlights": [
+          {
+            "title": "截图挂在游玩记录上",
+            "text": "按下截图键即可保存游戏画面，无需 Steam 或 Game Bar。可以马上添加说明，并在“我的历史”中对应的游玩记录里找到每张截图。",
+            "hint": "“设置” → “游戏时” → “截图”"
+          },
+          {
+            "title": "统计死亡、Boss 等次数",
+            "text": "每个游戏都有自己的计数器。用按键、手柄或 + 按钮计数，并在游戏时、“我的历史”和游戏详情中查看数字。",
+            "hint": "游戏详情 → “计数器”"
+          },
+          {
+            "title": "暂停游玩记录",
+            "text": "不关闭游戏也能休息一下。计时停止，之后从同一时间继续，全部算作一次游玩记录。",
+            "hint": "“正在游玩” → 时钟旁的按钮，或在“设置” → “游戏时”中设置快捷键"
+          },
+          {
+            "title": "全新且最新的指南",
+            "text": "“帮助与指南”新增 10 篇指南，例如“截图”“计数器”和“启动器账户”，其他指南也都展示应用现在的样子。完成一步后它会自动结束，“演示给我看”会在功能所在的位置直接启动指南。",
+            "hint": "标题栏中的 ? → “帮助与指南”"
+          },
+          {
+            "title": "更容易找到的设置",
+            "text": "设置现在有侧边菜单，每页一个分组，还有可以找到任何设置的搜索。可以独立于语言选择日期和数字的格式，以及 12 或 24 小时制。",
+            "hint": "“设置” → “常规” → “区域格式”“时间格式”"
+          },
+          {
+            "title": "可以隐藏游戏的分类架",
+            "text": "你手动整理的分类架可以在“所有游戏”“我的历史”“成就”和“正在游玩”中隐藏其中的游戏。在“隐藏于”中选择位置。"
+          },
+          {
+            "title": "BlueStacks",
+            "text": "PlayCounter 现在会记录你在 BlueStacks 中玩的安卓游戏。"
+          },
+          {
+            "title": "快速添加",
+            "text": "为“快速添加游戏”设置快捷键，即可通过一个小搜索框添加游戏，游戏时也可以。"
+          },
+          {
+            "title": "卡片上的更多信息",
+            "text": "在卡片上按住 Shift 可查看每个启动器的游戏时长。右键菜单会显示游戏的状态、评级和收藏，还能新建分类架；你也可以为任何游戏上传或粘贴横幅。"
+          },
+          {
+            "title": "更顺畅的导入",
+            "text": "如果启动器游戏只有一个同名建议，它会直接准备好导入。“导入”会立即跳到下一个游戏，扫描警告可以永久关闭，在侧边栏右键点击启动器即可清除其导入的数据。"
+          },
+          {
+            "title": "更整洁的页面",
+            "text": "一行放不下的分类架会收进“另 N 个”，两个及以上的模拟器在侧边栏中合并为“模拟器”分组，顶部的通知可以关闭，“我的历史”会打开你上次使用的标签页。"
+          },
+          {
+            "title": "修复",
+            "text": "封面上的评级字母现在显示对应颜色，切换标签页时游戏详情保持同一高度，恢复的窗口能完整显示在屏幕上，World of Warcraft 的各个版本按文件夹算作不同的游戏。"
+          }
+        ]
+      }
+    }
+  },
+  {
     "version": "1.6.0",
     "headline": "Bring in your PlayStation games, see how long a game takes and look back at any dates in My History.",
     "highlights": [

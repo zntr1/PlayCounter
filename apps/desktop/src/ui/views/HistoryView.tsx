@@ -56,12 +56,14 @@ import { TopGamesBars } from "../charts/TopGamesBars";
 import { formatDuration } from "../components";
 import { hasOpenContextMenu } from "../ContextMenu";
 import { Button, Modal, Select } from "../primitives";
-import { findTour } from "../tour/tourDefinitions";
 import {
   useLibraryPractice,
   usePersonalLibraryApi,
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
+import { useHiddenGameKeys } from "../useHiddenGameKeys";
+import { ScreenshotsHistoryPractice } from "../tour/TourScreenshotsPractice";
+import { showsHistorySample } from "../tour/tourHistorySample";
 import { HistoryHero, type HeroArtworkGame } from "./history/HistoryHero";
 import {
   historySelectionLabel,
@@ -81,15 +83,28 @@ import {
   EditSessionDialog,
   SplitSessionDialog,
 } from "./history/SessionChangeDialogs";
-import { appLocale, getT } from "../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../i18n";
 
 const t = getT("history");
 
 type HistorySort = "newest" | "oldest" | "duration";
-type HistoryTab = "sessions" | "insights" | "games";
+export type HistoryTab = "sessions" | "insights" | "games";
 type PendingChange = {
   kind: "edit" | "split" | "combine";
   session: Session;
+};
+
+/** What a guide's step asks of its sample history
+ *  (tour/TourStatsPractice.tsx). The page is mounted anew for every step, so
+ *  each one starts on its own tab and range with nothing left open. */
+export type HistoryGuideScene = {
+  tab: HistoryTab;
+  /** The range the step starts on; All time when left out. */
+  selection?: HistorySelection;
+  /** The player picked another range. */
+  onRangeChange?: () => void;
+  /** The player opened another tab. */
+  onTabChange?: (tab: HistoryTab) => void;
 };
 
 function historySorts(): Array<{ id: HistorySort; label: string }> {
@@ -118,13 +133,10 @@ function fallbackGameName(exeName: string) {
 
 function formatStartTime(startedAt: string) {
   const date = new Date(startedAt);
-  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
-    appLocale(),
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  )}`;
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(appLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
 }
 
 function formatSessionCount(count: number) {
@@ -154,7 +166,20 @@ function useHistoryNow() {
   return nowMs;
 }
 
-export function HistoryView() {
+/** My History; while the Screenshots guide runs, its sample history. */
+export function HistoryView({ scene }: { scene?: HistoryGuideScene } = {}) {
+  const inPractice = useLibraryPractice();
+  const sampleGuide = useAppStore((state) =>
+    showsHistorySample(state.activeTour?.tourId),
+  );
+  return sampleGuide && !inPractice ? (
+    <ScreenshotsHistoryPractice Page={HistoryPage} />
+  ) : (
+    <HistoryPage scene={scene} />
+  );
+}
+
+function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
   const practice = useLibraryPractice();
   const libraryApi = usePersonalLibraryApi();
   const realQuery = useAppStore((state) => state.historyQuery);
@@ -166,7 +191,10 @@ export function HistoryView() {
   const query = practice ? sampleQuery : realQuery;
   const setQuery = practice ? setSampleQuery : setRealQuery;
   const selectedGameKey = practice ? sampleGameKey : realGameKey;
-  const sessions = usePersonalLibraryState((state) => state.recentSessions);
+  const storedSessions = usePersonalLibraryState(
+    (state) => state.recentSessions,
+  );
+  const hiddenKeys = useHiddenGameKeys("history");
   const exeCache = usePersonalLibraryState((state) => state.exeCache);
   const hydratedGameMetadata = usePersonalLibraryState(
     (state) => state.gameMetadata,
@@ -187,24 +215,31 @@ export function HistoryView() {
     (state) => state.settings.showDurationDays,
   );
   const addToast = usePersonalLibraryState((state) => state.addToast);
-  // The stats guide opens the tab its step talks about: Sessions for the
-  // session step, Insights for the chart step.
-  const tourTab = useAppStore((state): HistoryTab | null => {
-    const active = state.activeTour;
-    if (!active || active.tourId !== "stats") return null;
-    const step = findTour(active.tourId)?.steps[active.stepIndex];
-    if (step?.id === "sessions") return "sessions";
-    if (step?.id === "charts") return "insights";
-    return null;
-  });
-  const [selection, setSelection] = useState<HistorySelection>({
-    kind: "all",
-  });
-  const [sort, setSort] = useState<HistorySort>("newest");
-  // My History opens on Insights; a game picked elsewhere opens its sessions.
-  const [tab, setTab] = useState<HistoryTab>(() =>
-    selectedGameKey ? "sessions" : "insights",
+  const [selection, setSelection] = useState<HistorySelection>(
+    () => scene?.selection ?? { kind: "all" },
   );
+  // The range control. A guide's step that asks for another range hears of a
+  // real change only.
+  const changeSelection = (next: HistorySelection) => {
+    setSelection(next);
+    if (JSON.stringify(next) !== JSON.stringify(selection))
+      scene?.onRangeChange?.();
+  };
+  const [sort, setSort] = useState<HistorySort>("newest");
+  const savedTab = useAppStore((state) => state.settings.historyTab);
+  const saveTab = useAppStore((state) => state.setHistoryTab);
+  // My History opens on the tab picked last (Insights at first); a game
+  // picked elsewhere opens its sessions, a guide's step its own tab.
+  const [tab, setTab] = useState<HistoryTab>(
+    () =>
+      scene?.tab ?? (selectedGameKey ? "sessions" : (savedTab ?? "insights")),
+  );
+  // Only the player's own pick is saved, not the guide's or a game filter's.
+  const chooseTab = (next: HistoryTab) => {
+    setTab(next);
+    if (!practice) saveTab(next);
+    scene?.onTabChange?.(next);
+  };
   const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
@@ -214,7 +249,7 @@ export function HistoryView() {
   const timelineBodyRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
   const [insightsReady, setInsightsReady] = useState(() =>
-    hasCachedHistoryInsights(sessions, nowMs),
+    hasCachedHistoryInsights(storedSessions, nowMs),
   );
   const deferredQuery = useDeferredValue(query);
   // Same identity rules as My Games, so launcher totals land on the same
@@ -228,6 +263,18 @@ export function HistoryView() {
       ),
     [exeCache, hydratedGameMetadata, libraryImports],
   );
+  // A shelf can hide games from My History; a game picked on purpose still
+  // shows its own sessions.
+  const sessions = useMemo(
+    () =>
+      hiddenKeys.size === 0
+        ? storedSessions
+        : storedSessions.filter((session) => {
+            const key = getSessionGameKey(session, resolveIgdbId);
+            return !hiddenKeys.has(key) || key === selectedGameKey;
+          }),
+    [hiddenKeys, resolveIgdbId, selectedGameKey, storedSessions],
+  );
 
   useEffect(() => {
     if (insightsReady) return;
@@ -240,10 +287,6 @@ export function HistoryView() {
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [insightsReady]);
-
-  useEffect(() => {
-    if (tourTab) setTab(tourTab);
-  }, [tourTab]);
 
   // A game filter set from elsewhere (banner menu, game details) lands on
   // the journal, which is where it applies.
@@ -401,28 +444,38 @@ export function HistoryView() {
     [neighbours],
   );
 
-  const lifetime = useMemo(
-    () =>
-      selection.kind === "all"
-        ? gameLifetimeTotals({
-            sessions,
-            archivedGameSeconds,
-            archivedConsoleSeconds,
-            playtimeAdjustments,
-            providerFloors: providerFloors(libraryImports.values()),
-            resolveIgdbId,
-          })
-        : null,
-    [
-      archivedConsoleSeconds,
-      archivedGameSeconds,
-      libraryImports,
-      playtimeAdjustments,
-      resolveIgdbId,
-      selection.kind,
+  const lifetime = useMemo(() => {
+    if (selection.kind !== "all") return null;
+    const totals = gameLifetimeTotals({
       sessions,
-    ],
-  );
+      archivedGameSeconds,
+      archivedConsoleSeconds,
+      playtimeAdjustments,
+      providerFloors: providerFloors(libraryImports.values()),
+      resolveIgdbId,
+    });
+    // Archived and launcher time of a hidden game go too, not only sessions.
+    return hiddenKeys.size === 0
+      ? totals
+      : {
+          ...totals,
+          games: new Map(
+            [...totals.games].filter(
+              ([key]) => !hiddenKeys.has(key) || key === selectedGameKey,
+            ),
+          ),
+        };
+  }, [
+    archivedConsoleSeconds,
+    archivedGameSeconds,
+    hiddenKeys,
+    libraryImports,
+    playtimeAdjustments,
+    resolveIgdbId,
+    selectedGameKey,
+    selection.kind,
+    sessions,
+  ]);
   // Name, cover and last played for games no session describes.
   const describeLifetimeGame = useMemo(() => {
     const imported = new Map<
@@ -828,7 +881,7 @@ export function HistoryView() {
       historyTabs()[
         (index + step + historyTabs().length) % historyTabs().length
       ]!;
-    setTab(next.id);
+    chooseTab(next.id);
     document.getElementById(`history-tab-${next.id}`)?.focus();
   };
   const gamesInRange = leaderboardGames.filter((game) => game.key).length;
@@ -842,7 +895,7 @@ export function HistoryView() {
     <div className="flex min-w-0 flex-col gap-6">
       <HistoryHero
         selection={selection}
-        onSelectionChange={setSelection}
+        onSelectionChange={changeSelection}
         rangeLabel={rangeLabel}
         range={analytics.selectedRange}
         nowMs={nowMs}
@@ -887,12 +940,16 @@ export function HistoryView() {
                 role="tab"
                 id={`history-tab-${id}`}
                 data-tour={
-                  id === "insights" ? "history-playtime-chart" : undefined
+                  practice
+                    ? `demo-history-tab-${id}`
+                    : id === "insights"
+                      ? "history-playtime-chart"
+                      : undefined
                 }
                 aria-selected={selected}
                 aria-controls={`history-panel-${id}`}
                 tabIndex={selected ? 0 : -1}
-                onClick={() => setTab(id)}
+                onClick={() => chooseTab(id)}
                 className={clsx(
                   "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                   selected
@@ -1095,6 +1152,7 @@ export function HistoryView() {
           id="history-panel-games"
           role="tabpanel"
           aria-labelledby="history-tab-games"
+          data-tour={practice ? "demo-history-games" : undefined}
         >
           {gamesInRange === 0 ? (
             <div className="py-12 text-center text-sm text-text-muted">
@@ -1130,7 +1188,7 @@ export function HistoryView() {
           onCancel={cancelChange}
           overlapFor={(times) =>
             overlappingSession(
-              sessions,
+              storedSessions,
               pendingChange.session,
               times,
               sessionGameKey,

@@ -50,5 +50,7 @@
   "{{status}} (+{{count}} more)": "{{status}} (+{{count}} więcej)",
   "{{hours}}h {{minutes}}m": "{{hours}} h {{minutes}} min",
   "{{minutes}}m": "{{minutes}} min",
-  "<1m": "<1 min"
+  "<1m": "<1 min",
+  "Paused {{game}} - {{duration}}": "Wstrzymano {{game}} - {{duration}}",
+  "Banner image must be a PNG, JPG, or WebP file.": "Baner musi być plikiem PNG, JPG lub WebP."
 }

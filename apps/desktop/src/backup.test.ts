@@ -340,6 +340,8 @@ describe("backup import", () => {
     ),
     ["settings", { settings: [] }],
     ["settings.viewShowHero", { settings: { viewShowHero: [] } }],
+    ["settings.formatRegion", { settings: { formatRegion: "Germany" } }],
+    ["settings.clockFormat", { settings: { clockFormat: "13h" } }],
     [
       "settings.viewShowHero.history",
       { settings: { viewShowHero: { history: "true" } } },

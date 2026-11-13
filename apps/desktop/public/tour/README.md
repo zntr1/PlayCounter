@@ -18,3 +18,7 @@ to Nintendo. These third-party images are not covered by PlayCounter's MIT licen
 - `gta-v-cover.webp`: [IGDB cover](https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.webp).
 - `zelda-wind-waker-cover.webp`: [IGDB cover](https://images.igdb.com/igdb/image/upload/t_cover_big/co3ohz.webp).
 - `diablo-iv-cover.webp`: [IGDB cover](https://images.igdb.com/igdb/image/upload/t_cover_big/co69sm.webp).
+
+- `sample-cover-1.svg` to `sample-cover-3.svg`, `sample-banner-1.svg`,
+  `sample-banner-2.svg`: original drawings for the Covers and banners guide's
+  picker, so it needs no search. Not game artwork.

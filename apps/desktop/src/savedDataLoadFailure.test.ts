@@ -26,6 +26,9 @@ vi.mock("./desktopOverlayBridge", () => ({
   armDesktopOverlays: vi.fn(),
   emitOverlayEvent: vi.fn(),
   noteDiscoveredExecutable: vi.fn(),
+  newestSession: vi.fn(() => undefined),
+  showCounterOverlay: vi.fn(),
+  showCurrentSessionOverlay: vi.fn(),
 }));
 vi.mock("./controllerBridge", () => ({
   initializeControllerBridge: vi.fn(),
@@ -107,6 +110,8 @@ it("keeps unreadable saved data untouched and says how to recover", async () => 
   expect(useAppStore.getState().runtimeError).toMatch(
     /can't read its saved data.*Import data.*reset PlayCounter/,
   );
+  // Tracking and saving stay paused, so the message can't be closed.
+  expect(useAppStore.getState().runtimeErrorClosable).toBe(false);
   expectNothingRan();
 });
 
@@ -122,6 +127,7 @@ it("keeps saved data untouched when loading it fails", async () => {
   expect(message).toMatch(/couldn't load your saved data.*still there/);
   // Resetting would delete data a fixed version can still load.
   expect(message).not.toMatch(/reset/i);
+  expect(useAppStore.getState().runtimeErrorClosable).toBe(false);
   expectNothingRan();
 });
 

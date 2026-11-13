@@ -1,7 +1,9 @@
+import type { GameSource } from "@playcounter/shared";
 import { useCallback, useMemo } from "react";
 import { create } from "zustand";
 import type { EmulatorMapping } from "./emulators/types";
 import {
+  customHeroArtKey,
   personalGameIdentity,
   useAppStore,
   type AppState,
@@ -50,11 +52,12 @@ export function pickedCoverKey(state: CoverState, game: GameIdentityRef) {
   return sharedIdentity(state)(game);
 }
 
-/* Covers that failed to load in this run: an uploaded file missing after a
-   backup was restored on another PC, a deleted file, or art taken down
-   upstream. They are skipped, so a game falls back to its own cover and then
-   to none. Never saved, and forgotten when the network comes back, so a cover
-   that failed while offline is tried again. */
+/* Covers and banners that failed to load in this run: an uploaded file
+   missing after a backup was restored on another PC, a deleted file, or art
+   taken down upstream. They are skipped, so a game falls back to its own
+   cover (or automatic banner) and then to none. Never saved, and forgotten
+   when the network comes back, so art that failed while offline is tried
+   again. */
 const useUnavailableCovers = create<{ urls: ReadonlySet<string> }>(() => ({
   urls: new Set(),
 }));
@@ -92,6 +95,19 @@ export function pickedCover(
     state.customCoverArt[pickedCoverKey(state, game)],
     useUnavailableCovers.getState().urls,
   );
+}
+
+/** The banner picked or uploaded for a game, unless it failed to load in
+ *  this run; then the game shows its automatic banner. Images drawing it
+ *  report a failure with markCoverUnavailable. */
+export function usePickedBanner(
+  game: { gameId: number; source?: GameSource | null } | null | undefined,
+): string | undefined {
+  const unavailable = useUnavailableCovers((state) => state.urls);
+  const picked = useAppStore((state) =>
+    game ? state.customHeroArt[customHeroArtKey(game)] : undefined,
+  );
+  return usable(picked, unavailable);
 }
 
 /** An emulator mapping names its game only once it is decided. */

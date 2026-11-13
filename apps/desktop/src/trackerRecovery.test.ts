@@ -6,12 +6,17 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: (value: string) => value,
   invoke: invokeMock,
 }));
-vi.mock("./desktopOverlayBridge", () => ({
+vi.mock("./desktopOverlayBridge", async (importOriginal) => ({
   initializeDesktopOverlays: vi.fn(),
   disposeDesktopOverlays: vi.fn(),
   armDesktopOverlays: vi.fn(),
   emitOverlayEvent: vi.fn(),
   noteDiscoveredExecutable: vi.fn(),
+  showCurrentSessionOverlay: vi.fn(),
+  showPauseToggledOverlay: vi.fn(),
+  newestSession: (
+    await importOriginal<typeof import("./desktopOverlayBridge")>()
+  ).newestSession,
 }));
 vi.mock("./controllerBridge", () => ({
   initializeControllerBridge: vi.fn(),
@@ -28,15 +33,22 @@ vi.mock("./achievements/backgroundRefresh", () => ({
 }));
 
 import { useAppStore, type ActiveSession, type ProcessSnapshot } from "./store";
-import { emitOverlayEvent } from "./desktopOverlayBridge";
+import {
+  emitOverlayEvent,
+  showCurrentSessionOverlay,
+  showPauseToggledOverlay,
+} from "./desktopOverlayBridge";
 import { schedulePostGameAchievementRefresh } from "./achievements/backgroundRefresh";
 import {
   closeRunningGame,
   ignoreTrackedProcessLocally,
   initializeTracker,
+  pauseSession,
+  resumeSession,
   scanProcessesNow,
   startGameTimer,
   stopGameTimer,
+  togglePauseFromHotkey,
 } from "./tracker";
 
 const startedAt = "2026-09-06T10:00:00.000Z";
@@ -471,6 +483,162 @@ describe("game timer", () => {
   });
 });
 
+// docs/pause-timer-plan.md, "Rules".
+describe("pause and resume", () => {
+  const at = (time: string) => `2026-09-06T${time}:00.000Z`;
+  const active = () => useAppStore.getState().activeSessions;
+  const saved = () => useAppStore.getState().recentSessions;
+
+  async function playingSince10(now: string) {
+    processes = [runningProcess];
+    await restart(at(now));
+    await scanProcessesNow();
+    expect(active()).toMatchObject([{ id: original.id, startedAt }]);
+  }
+
+  it("counts on from where it stopped: one session without the pause", async () => {
+    await playingSince10("12:00");
+    pauseSession(original.id);
+
+    // The game keeps running for half an hour.
+    vi.setSystemTime(new Date(at("12:30")));
+    await scanProcessesNow();
+    expect(active()).toMatchObject([
+      { id: original.id, pausedAt: at("12:00") },
+    ]);
+
+    resumeSession(original.id);
+    expect(active()[0].pausedAt).toBeUndefined();
+    await stopAt(at("12:40"));
+    expect(saved()).toHaveLength(1);
+    expect(saved()[0]).toMatchObject({
+      id: original.id,
+      startedAt,
+      endedAt: at("12:40"),
+      durationSeconds: (2 * 60 + 10) * 60,
+    });
+  });
+
+  it("game closes while paused: the session saves without the paused part", async () => {
+    await playingSince10("12:00");
+    pauseSession(original.id);
+    await stopAt(at("12:20"));
+    expect(saved()[0]).toMatchObject({
+      endedAt: at("12:20"),
+      durationSeconds: 2 * 3600,
+    });
+  });
+
+  it("stays paused through an app restart", async () => {
+    processes = [runningProcess];
+    await restart(at("12:30"), {
+      activeSessions: [
+        { ...original, checkpointedAt: at("12:29"), pausedAt: at("12:00") },
+      ],
+    });
+    await scanProcessesNow();
+    expect(active()).toMatchObject([
+      { id: original.id, pausedAt: at("12:00") },
+    ]);
+
+    resumeSession(original.id);
+    await stopAt(at("12:45"));
+    expect(saved()[0].durationSeconds).toBe((2 * 60 + 15) * 60);
+  });
+
+  it("a game gone after a restart ends at its last checkpoint, without the paused part", async () => {
+    await restart(at("12:30"), {
+      activeSessions: [
+        { ...original, checkpointedAt: at("10:10"), pausedAt: at("10:05") },
+      ],
+    });
+    await scanProcessesNow();
+    expect(active()).toEqual([]);
+    expect(saved()[0]).toMatchObject({
+      endedAt: at("10:10"),
+      durationSeconds: 5 * 60,
+    });
+  });
+
+  it("a pause during a scan is not lost when the scan saves its checkpoint", async () => {
+    await playingSince10("12:00");
+    vi.setSystemTime(new Date(at("12:01")));
+    const scan = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (command: string, ...rest) => {
+      if (command === "scan_processes") pauseSession(original.id);
+      return scan(command, ...rest);
+    });
+    await scanProcessesNow();
+    expect(active()).toMatchObject([
+      { checkpointedAt: at("12:01"), pausedAt: at("12:01") },
+    ]);
+  });
+
+  it("manual timer: pause, then Stop saves only the played time", async () => {
+    await restart(at("12:00"), { activeSessions: [] });
+    startGameTimer({
+      gameId: original.gameId,
+      gameName: original.gameName,
+      coverUrl: original.coverUrl,
+      source: original.source ?? null,
+      exeName: original.exeName,
+    });
+    const id = active()[0].id;
+    vi.setSystemTime(new Date(at("12:10")));
+    pauseSession(id);
+    vi.setSystemTime(new Date(at("12:40")));
+    resumeSession(id);
+    vi.setSystemTime(new Date(at("12:50")));
+    await stopGameTimer(id);
+    expect(saved()[0]).toMatchObject({
+      origin: "manual",
+      endedAt: at("12:50"),
+      durationSeconds: 20 * 60,
+    });
+  });
+
+  it("the tray says Paused and stops counting", async () => {
+    await playingSince10("12:00");
+    const trayLine = () =>
+      invokeMock.mock.calls
+        .filter(([command]) => command === "update_tray_now_playing")
+        .map(([, args]) => (args as { status: string }).status)
+        .at(-1);
+    pauseSession(original.id);
+    expect(trayLine()).toBe("Paused Game - 2h 0m");
+    vi.setSystemTime(new Date(at("12:30")));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(trayLine()).toBe("Paused Game - 2h 0m");
+  });
+
+  it("hotkey with no game: the session popup says so, nothing changes", async () => {
+    await restart(at("12:00"), { activeSessions: [] });
+    togglePauseFromHotkey();
+    expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
+    expect(showPauseToggledOverlay).not.toHaveBeenCalled();
+    expect(active()).toEqual([]);
+  });
+
+  it("hotkey pauses and resumes the game; a popup answers only while the live timer is off", async () => {
+    await playingSince10("12:00");
+    vi.mocked(showPauseToggledOverlay).mockClear();
+    togglePauseFromHotkey();
+    expect(active()[0].pausedAt).toBe(at("12:00"));
+    expect(showPauseToggledOverlay).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: original.id }),
+      true,
+      2 * 3600,
+    );
+
+    useAppStore.getState().setDesktopOverlaySetting("liveTimerEnabled", true);
+    vi.setSystemTime(new Date(at("12:05")));
+    togglePauseFromHotkey();
+    expect(active()[0].pausedAt).toBeUndefined();
+    // The pill shows the change itself.
+    expect(showPauseToggledOverlay).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("close game", () => {
   const client: ProcessSnapshot = {
     exeName: "Client.exe",
@@ -588,5 +756,70 @@ describe("close game", () => {
       ),
     ).toBe(false);
     expect(useAppStore.getState().activeSessions).toHaveLength(1);
+  });
+});
+
+// docs/counters-plan.md, tests 7 and 8 (the tracker part).
+describe("counts on a running session", () => {
+  const at = (time: string) => `2026-09-06T${time}:00.000Z`;
+  const active = () => useAppStore.getState().activeSessions;
+  const saved = () => useAppStore.getState().recentSessions;
+
+  it("survive the scans that update the session, and go into History when the game ends", async () => {
+    processes = [runningProcess];
+    await restart(at("12:00"));
+    await scanProcessesNow();
+    const store = useAppStore.getState();
+    store.changeSessionCount(original.id, "deaths", 1);
+    store.changeSessionCount(original.id, "deaths", 1);
+
+    // A minute later the scan writes its own copy of the session back.
+    vi.setSystemTime(new Date(at("12:01")));
+    await scanProcessesNow();
+    expect(active()[0].counts).toEqual({ deaths: 2 });
+
+    await stopAt(at("12:30"));
+    expect(saved()[0]).toMatchObject({ id: original.id, counts: { deaths: 2 } });
+  });
+
+  it("survive a scan that read the session before the press (its copy is older)", async () => {
+    processes = [runningProcess];
+    await restart(at("12:00"));
+    await scanProcessesNow();
+    // The player presses while the next scan waits for the process list.
+    const scan = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (command: string, ...rest: unknown[]) => {
+      if (command === "scan_processes")
+        useAppStore.getState().changeSessionCount(original.id, "deaths", 1);
+      return scan(command, ...rest);
+    });
+    vi.setSystemTime(new Date(at("12:05")));
+    await scanProcessesNow();
+    expect(active()[0].counts).toEqual({ deaths: 1 });
+  });
+
+  it("stay with the session through an app restart", async () => {
+    await restart(at("12:30"), {
+      activeSessions: [
+        { ...original, checkpointedAt: at("12:20"), counts: { deaths: 7 } },
+      ],
+    });
+    await scanProcessesNow();
+    expect(active()).toEqual([]);
+    expect(saved()[0]).toMatchObject({ id: original.id, counts: { deaths: 7 } });
+  });
+
+  it("drop what isn't a count when the saved data loads", async () => {
+    await restart(at("12:30"), {
+      activeSessions: [
+        {
+          ...original,
+          checkpointedAt: at("12:20"),
+          counts: { deaths: 3, broken: -2, text: "7", "": 4 },
+        },
+      ],
+    });
+    await scanProcessesNow();
+    expect(saved()[0].counts).toEqual({ deaths: 3 });
   });
 });

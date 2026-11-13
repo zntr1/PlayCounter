@@ -124,6 +124,13 @@ DOSBox, PCSX2, mGBA.
 | guide, tour                  | Anleitung, Rundgang                      | Quick tour: Kurzer Rundgang                                     |
 | What's new                   | Neuigkeiten                              |                                                                 |
 | offline, needs a connection  | offline, braucht eine Internetverbindung |                                                                 |
+| screenshot                   | Screenshot                               | der Screenshot, die Screenshots                                 |
+| Recycle Bin                  | Papierkorb                               | Windows' own word                                               |
+| exclusive fullscreen         | exklusives Vollbild                      |                                                                 |
+| borderless (window)          | randloses Fenster                        | windowed: Fenstermodus                                          |
+| caption (screenshot)         | Bildunterschrift                         | saved in the picture; Explorer shows it as Titel                |
+| counter, counter box         | Zähler, Zählerbox                        | Deaths (the default counter): Tode                              |
+| own key (of a counter)       | eigene Taste                             | the keyboard mark: Tastatur-Symbol                              |
 
 ## Português (Brasil), Español, 中文（简体） — translation drafts
 
@@ -155,52 +162,61 @@ the complete translations still need native-speaker review.
 - Sample game names in guides stay in English (World of Warcraft, Zelda),
   because the sample cards and the sample search use the English names.
 
-| English             | Português (Brasil)            | Español                        | 中文（简体）     |
-| ------------------- | ----------------------------- | ------------------------------ | ---------------- |
-| Now Playing         | Jogando agora                 | Jugando ahora                  | 正在游玩         |
-| Now Emulating       | Emulando agora                | Emulando ahora                 | 正在模拟         |
-| My Games            | Meus jogos                    | Mis juegos                     | 我的游戏         |
-| My History          | Meu histórico                 | Mi historial                   | 我的历史         |
-| Library             | Biblioteca                    | Biblioteca                     | 游戏库           |
-| Discover            | Descobrir                     | Descubrir                      | 发现             |
-| Discovered          | Descobertos                   | Descubiertos                   | 已发现           |
-| Achievements        | Conquistas                    | Logros                         | 成就             |
-| Settings            | Configurações                 | Configuración                  | 设置             |
-| Help & Feedback     | Ajuda e feedback              | Ayuda y comentarios            | 帮助与反馈       |
-| Import library      | Importar biblioteca           | Importar biblioteca            | 导入游戏库       |
-| game                | jogo                          | juego                          | 游戏             |
-| playtime            | tempo de jogo                 | tiempo de juego                | 游戏时长         |
-| session             | sessão                        | sesión                         | 游玩记录         |
-| playthrough         | campanha                      | partida                        | 游玩周目         |
-| Default playthrough | Campanha padrão               | Partida predeterminada         | 默认周目         |
-| journal             | diário                        | diario                         | 日志             |
-| note                | nota                          | nota                           | 笔记             |
-| track               | registrar                     | registrar                      | 记录             |
-| detect              | detectar                      | detectar                       | 检测             |
-| Play                | Jogar                         | Jugar                          | 开始游戏         |
-| shelf               | prateleira                    | estante                        | 分类架           |
-| favorite            | favorito                      | favorito                       | 收藏             |
-| tier (S to F)       | tier                          | tier                           | 评级             |
-| match               | associação                    | asociación                     | 匹配             |
-| ignore              | ignorar                       | ignorar                        | 忽略             |
-| community           | comunidade                    | comunidad                      | 社区             |
-| review              | análise                       | revisión                       | 审核             |
-| trophy              | troféu                        | trofeo                         | 奖杯             |
-| milestone           | marco                         | hito                           | 里程碑           |
-| Game ladders        | Níveis por jogo               | Niveles por juego              | 游戏等级         |
-| tray                | bandeja                       | bandeja                        | 系统托盘         |
-| Close to tray       | Minimizar para a bandeja      | Minimizar a la bandeja         | 最小化到系统托盘 |
-| backup              | backup                        | copia de seguridad             | 备份             |
-| What's new          | Novidades                     | Novedades                      | 更新内容         |
-| Insights            | Estatísticas                  | Estadísticas                   | 统计             |
-| sample              | exemplo                       | ejemplo                        | 示例             |
-| badge               | selo                          | insignia                       | 徽章             |
-| cover               | capa                          | portada                        | 封面             |
-| banner              | banner                        | banner                         | 横幅             |
-| launch path         | caminho de inicialização      | ruta de inicio                 | 启动路径         |
-| controller          | controle                      | mando                          | 手柄             |
-| launcher            | launcher                      | lanzador                       | 启动器           |
-| Report wrong match  | Informar associação incorreta | Informar asociación incorrecta | 报告错误匹配     |
+| English              | Português (Brasil)            | Español                        | 中文（简体）     |
+| -------------------- | ----------------------------- | ------------------------------ | ---------------- |
+| Now Playing          | Jogando agora                 | Jugando ahora                  | 正在游玩         |
+| Now Emulating        | Emulando agora                | Emulando ahora                 | 正在模拟         |
+| My Games             | Meus jogos                    | Mis juegos                     | 我的游戏         |
+| My History           | Meu histórico                 | Mi historial                   | 我的历史         |
+| Library              | Biblioteca                    | Biblioteca                     | 游戏库           |
+| Discover             | Descobrir                     | Descubrir                      | 发现             |
+| Discovered           | Descobertos                   | Descubiertos                   | 已发现           |
+| Achievements         | Conquistas                    | Logros                         | 成就             |
+| Settings             | Configurações                 | Configuración                  | 设置             |
+| Help & Feedback      | Ajuda e feedback              | Ayuda y comentarios            | 帮助与反馈       |
+| Import library       | Importar biblioteca           | Importar biblioteca            | 导入游戏库       |
+| game                 | jogo                          | juego                          | 游戏             |
+| playtime             | tempo de jogo                 | tiempo de juego                | 游戏时长         |
+| session              | sessão                        | sesión                         | 游玩记录         |
+| playthrough          | campanha                      | partida                        | 游玩周目         |
+| Default playthrough  | Campanha padrão               | Partida predeterminada         | 默认周目         |
+| journal              | diário                        | diario                         | 日志             |
+| note                 | nota                          | nota                           | 笔记             |
+| track                | registrar                     | registrar                      | 记录             |
+| detect               | detectar                      | detectar                       | 检测             |
+| Play                 | Jogar                         | Jugar                          | 开始游戏         |
+| shelf                | prateleira                    | estante                        | 分类架           |
+| favorite             | favorito                      | favorito                       | 收藏             |
+| tier (S to F)        | tier                          | tier                           | 评级             |
+| match                | associação                    | asociación                     | 匹配             |
+| ignore               | ignorar                       | ignorar                        | 忽略             |
+| community            | comunidade                    | comunidad                      | 社区             |
+| review               | análise                       | revisión                       | 审核             |
+| trophy               | troféu                        | trofeo                         | 奖杯             |
+| milestone            | marco                         | hito                           | 里程碑           |
+| Game ladders         | Níveis por jogo               | Niveles por juego              | 游戏等级         |
+| tray                 | bandeja                       | bandeja                        | 系统托盘         |
+| Close to tray        | Minimizar para a bandeja      | Minimizar a la bandeja         | 最小化到系统托盘 |
+| backup               | backup                        | copia de seguridad             | 备份             |
+| What's new           | Novidades                     | Novedades                      | 更新内容         |
+| Insights             | Estatísticas                  | Estadísticas                   | 统计             |
+| sample               | exemplo                       | ejemplo                        | 示例             |
+| badge                | selo                          | insignia                       | 徽章             |
+| cover                | capa                          | portada                        | 封面             |
+| banner               | banner                        | banner                         | 横幅             |
+| launch path          | caminho de inicialização      | ruta de inicio                 | 启动路径         |
+| controller           | controle                      | mando                          | 手柄             |
+| launcher             | launcher                      | lanzador                       | 启动器           |
+| Report wrong match   | Informar associação incorreta | Informar asociación incorrecta | 报告错误匹配     |
+| screenshot           | captura de tela               | captura de pantalla            | 截图             |
+| Recycle Bin          | Lixeira                       | Papelera de reciclaje          | 回收站           |
+| exclusive fullscreen | tela cheia exclusiva          | pantalla completa exclusiva    | 独占全屏         |
+| borderless (window)  | janela sem bordas             | ventana sin bordes             | 无边框窗口       |
+| caption (screenshot) | legenda                       | pie de foto                    | 说明             |
+| counter              | contador                      | contador                       | 计数器           |
+| counter box          | caixa de contadores           | caja de contadores             | 计数器窗口       |
+| Deaths (counter)     | Mortes                        | Muertes                        | 死亡次数         |
+| own key (counter)    | tecla própria                 | tecla propia                   | 专属按键         |
 
 ## Русский, Polski, Français — translation drafts
 
@@ -286,6 +302,15 @@ native-speaker review (Weblate).
 | milestone            | рубеж                             | kamień milowy                 | palier                            |
 | Game ladders         | Уровни игр                        | Poziomy gier                  | Échelons par jeu                  |
 | Bronze … Legendary   | Бронза … Легенда                  | Brąz … Legenda                | Bronze … Légendaire               |
+| screenshot           | скриншот                          | zrzut ekranu                  | capture d'écran                   |
+| Recycle Bin          | корзина                           | kosz                          | Corbeille                         |
+| exclusive fullscreen | эксклюзивный полноэкранный режим  | wyłączny tryb pełnoekranowy   | plein écran exclusif              |
+| borderless (window)  | окно без рамки                    | okno bez ramki                | fenêtre sans bordure              |
+| caption (screenshot) | подпись                           | podpis                        | légende                           |
+| counter              | счётчик                           | licznik                       | compteur                          |
+| counter box          | окно счётчиков                    | okienko liczników             | boîte des compteurs               |
+| Deaths (counter)     | Смерти                            | Śmierci                       | Morts                             |
+| own key (counter)    | своя клавиша                      | własny klawisz                | touche dédiée                     |
 | tray                 | трей                              | zasobnik systemowy            | zone de notification              |
 | desktop popup        | всплывающее окно                  | wyskakujące okienko           | fenêtre contextuelle              |
 | keyboard shortcut    | сочетание клавиш                  | skrót klawiszowy              | raccourci clavier                 |

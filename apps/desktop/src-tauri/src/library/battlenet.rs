@@ -876,6 +876,39 @@ mod tests {
     }
 
     #[test]
+    fn scans_wow_forever_from_its_own_folder() {
+        let root = std::env::temp_dir().join(format!("playcounter-bnet-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("_forever_")).unwrap();
+        fs::create_dir_all(root.join("_classic_era_")).unwrap();
+        fs::write(
+            root.join(".build.info"),
+            "Active!DEC:1|Product!STRING:0\n1|wowf\n",
+        )
+        .unwrap();
+        fs::write(root.join("_forever_/Wow.exe"), b"fixture").unwrap();
+        fs::write(root.join("_classic_era_/WowClassic.exe"), b"fixture").unwrap();
+        let result = scan_sources(
+            None,
+            None,
+            vec![Installation {
+                id: "wowf".into(),
+                path: root.clone(),
+                name: None,
+            }],
+        )
+        .unwrap();
+        assert!(result.warnings.is_empty(), "{:?}", result.warnings);
+        assert_eq!(result.games.len(), 1);
+        let game = &result.games[0];
+        assert_eq!(game.external_id, "wowf");
+        assert_eq!(game.name.as_deref(), Some("World of Warcraft: Forever"));
+        assert!(game.install_path.as_ref().unwrap().ends_with("_forever_"));
+        assert_eq!(game.executables.len(), 1);
+        assert_eq!(game.executables[0].file_name, "Wow.exe");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     #[ignore = "Read-only inspection of this Windows machine's Battle.net installation"]
     fn inspect_local_installations() {
         println!(

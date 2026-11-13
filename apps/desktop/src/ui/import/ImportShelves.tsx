@@ -70,6 +70,7 @@ export function ImportShelves({
             role="tab"
             aria-selected={selected}
             aria-controls={`import-panel-${group}`}
+            data-tour={`import-shelf-${group}`}
             onClick={() => onSelect(group)}
             className={clsx(
               "flex min-w-0 items-center gap-4 rounded-2xl border px-4 py-3.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",

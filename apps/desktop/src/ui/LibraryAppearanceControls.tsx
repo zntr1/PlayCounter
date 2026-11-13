@@ -1,8 +1,16 @@
 import clsx from "clsx";
-import type { LucideIcon } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import {
+  Grid2X2,
+  LayoutGrid,
+  List,
+  PanelTop,
+  Settings2,
+  type LucideIcon,
+} from "lucide-react";
+import { forwardRef, type CSSProperties, type ReactNode } from "react";
+import type { MyGamesCardSize } from "./myGamesPresentation";
 import { useLibraryPractice } from "./PersonalLibraryContext";
-import { Switch } from "./primitives";
+import { IconButton, Switch } from "./primitives";
 import { getT } from "../i18n";
 
 const t = getT("myGames");
@@ -11,6 +19,119 @@ const t = getT("myGames");
    practice library in the tour. Every option stays a real checkbox with a
    stable id: tests, the tour anchors and the controller navigation address
    them by id and `data-controller-item`, so only the styling is a switch. */
+
+/** Standard, Large and List: the buttons beside Customize. */
+export function LibraryViewButtons({
+  view,
+  onChange,
+}: {
+  view: MyGamesCardSize;
+  onChange: (size: MyGamesCardSize) => void;
+}) {
+  const buttons = [
+    {
+      size: "grid",
+      label: t("Grid view"),
+      title: t("Standard cards"),
+      icon: LayoutGrid,
+      iconSize: 15,
+    },
+    {
+      size: "large",
+      label: t("Large card view"),
+      title: t("Large cards"),
+      icon: Grid2X2,
+      iconSize: 16,
+    },
+    {
+      size: "list",
+      label: t("List view"),
+      title: t("List"),
+      icon: List,
+      iconSize: 15,
+    },
+  ] as const;
+  return (
+    <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+      {buttons.map(({ size, label, title, icon: Icon, iconSize }) => (
+        <button
+          key={size}
+          type="button"
+          aria-label={label}
+          aria-pressed={view === size}
+          title={title}
+          onClick={() => onChange(size)}
+          className={clsx(
+            "grid h-full w-8 place-items-center rounded-md transition",
+            view === size
+              ? "bg-accent text-accent-fg"
+              : "text-text-muted hover:bg-surface-hover hover:text-text",
+          )}
+        >
+          <Icon size={iconSize} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The gear that opens Customize. `panelId` is the popover it controls. */
+export const LibraryCustomizeButton = forwardRef<
+  HTMLButtonElement,
+  { open: boolean; panelId: string; dataTour?: string; onClick: () => void }
+>(function LibraryCustomizeButton({ open, panelId, dataTour, onClick }, ref) {
+  return (
+    <IconButton
+      ref={ref}
+      data-tour={dataTour}
+      icon={Settings2}
+      aria-label={t("Customize library view")}
+      title={t("Customize")}
+      aria-haspopup="true"
+      aria-expanded={open}
+      aria-controls={panelId}
+      data-controller-item="library-customize"
+      onClick={onClick}
+      className="h-9 w-9 rounded-lg"
+    />
+  );
+});
+
+/** The Customize popover: its heading, then the groups. */
+export function LibraryCustomizePanel({
+  id,
+  dataTour,
+  children,
+}: {
+  id: string;
+  dataTour?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      id={id}
+      data-tour={dataTour}
+      role="group"
+      aria-label={t("Customize library view")}
+      className="w-[400px] max-w-[calc(100vw-2rem)]"
+    >
+      <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-3.5">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent-tint text-accent-ink">
+          <Settings2 size={18} />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-text">
+            {t("Customize Library")}
+          </h2>
+          <p className="text-xs text-text-faint">
+            {t("Adjust how your library looks and behaves.")}
+          </p>
+        </div>
+      </header>
+      <div className="grid gap-3 p-3">{children}</div>
+    </div>
+  );
+}
 
 /** A titled group of options: icon tile, title, one-line hint, then rows. */
 export function CustomizeSection({
@@ -102,7 +223,6 @@ type CardProps = {
   showMatch: boolean;
   showStatus: boolean;
   showNotes: boolean;
-  /** Left out by the tour's practice library, whose games have no tiers. */
   showTiers?: boolean;
   showTrackingWarnings: boolean;
   setMyGamesShowOriginBadges: (value: boolean) => void;
@@ -276,12 +396,29 @@ export function LibraryCardControls({
   );
 }
 
-/** Both groups in one flat list, for the tour's practice library. */
-export function LibraryAppearanceControls(props: LayoutProps & CardProps) {
+/** The "Layout" group. My Games puts its own rows around the two rows every
+ *  library has (LibraryLayoutControls). */
+export function LibraryLayoutSection({ children }: { children: ReactNode }) {
   return (
-    <>
-      <LibraryLayoutControls {...props} />
+    <CustomizeSection
+      icon={PanelTop}
+      title={t("Layout")}
+      hint={t("The main structure of your library.")}
+    >
+      {children}
+    </CustomizeSection>
+  );
+}
+
+/** The "Card details" group. */
+export function LibraryCardSection(props: CardProps) {
+  return (
+    <CustomizeSection
+      icon={LayoutGrid}
+      title={t("Card details")}
+      hint={t("What each game card shows.")}
+    >
       <LibraryCardControls {...props} />
-    </>
+    </CustomizeSection>
   );
 }

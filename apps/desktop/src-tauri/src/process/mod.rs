@@ -16,6 +16,18 @@ pub struct ProcessSnapshot {
     pub open_files: Option<Vec<String>>,
     /// The newest entry of an emulator's recent-games list (melonDS only).
     pub recent_file: Option<String>,
+    /// The Android app in front (BlueStacks only).
+    pub foreground_app: Option<ForegroundApp>,
+}
+
+/// An Android app as BlueStacks names it: its package, and its name and Play
+/// category when the instance's app list has them.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForegroundApp {
+    pub package: String,
+    pub label: Option<String>,
+    pub category: Option<String>,
 }
 
 #[async_trait]
@@ -25,6 +37,8 @@ pub trait ProcessScanner: Send + Sync {
 
 pub(crate) mod emulator;
 
+#[cfg(target_os = "windows")]
+mod bluestacks;
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]

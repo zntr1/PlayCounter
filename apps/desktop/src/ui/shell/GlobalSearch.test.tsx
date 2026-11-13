@@ -46,6 +46,7 @@ const escapeOwner: Record<ViewId, "title bar" | "page"> = {
   azahar: "title bar",
   melonds: "title bar",
   xenia: "title bar",
+  bluestacks: "title bar",
   games: "page",
   import: "title bar",
   accounts: "title bar",

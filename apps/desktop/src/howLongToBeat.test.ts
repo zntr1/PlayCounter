@@ -411,6 +411,7 @@ describe("values for adding your time", () => {
     expect(emulated("azahar")).toBe("Nintendo 3DS");
     expect(emulated("melonds")).toBe("Nintendo DS");
     expect(emulated("xenia")).toBe("Xbox 360");
+    expect(emulated("bluestacks")).toBe("Mobile");
     expect(emulated("dosbox")).toBe("PC");
     // Dolphin runs GameCube and Wii games, mGBA Game Boy, Game Boy Color and
     // Game Boy Advance games (its content keys drop the file extension): the

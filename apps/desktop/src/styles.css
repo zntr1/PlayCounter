@@ -70,6 +70,21 @@
   --color-status-not-planned: 113 113 122;
 }
 
+/* Tier colours (journalStyles.ts), hot to cold: S rose, A orange, B yellow,
+   C lime, D sky, F grey; then the favourite star's yellow. The black cover
+   badge keeps them in the light theme too (.status-on-dark), like the status
+   colours. */
+:root,
+.status-on-dark {
+  --color-tier-s: 253 164 175;
+  --color-tier-a: 253 186 116;
+  --color-tier-b: 253 230 138;
+  --color-tier-c: 190 242 100;
+  --color-tier-d: 125 211 252;
+  --color-tier-f: 161 161 170;
+  --color-favorite: 252 211 77;
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
 
@@ -122,6 +137,15 @@
   --color-status-want-to-play: 39 39 42;
   --color-status-want-to-replay: 29 78 216;
   --color-status-not-planned: 113 113 122;
+  /* Tier and favourite colours dark enough to stand out on the paper menus;
+     the cover badge's light ones would fade there. */
+  --color-tier-s: 190 18 60;
+  --color-tier-a: 194 65 12;
+  --color-tier-b: 161 98 7;
+  --color-tier-c: 77 124 15;
+  --color-tier-d: 3 105 161;
+  --color-tier-f: 113 113 122;
+  --color-favorite: 217 119 6;
 
   --shadow-raised:
     0 1px 2px rgba(60, 44, 20, 0.06), 0 4px 16px rgba(60, 44, 20, 0.1);
@@ -179,6 +203,11 @@
   transition:
     background-color 180ms ease,
     border-color 180ms ease;
+}
+
+/* The key art lies behind the bar, in the layer it shares with the notices. */
+.app-titlebar[data-art] {
+  background: transparent;
 }
 
 [data-tauri-drag-region] {
@@ -815,6 +844,12 @@ html[data-window="live-timer"] #live-timer-root {
   animation: quick-note-in 160ms ease-out;
 }
 
+/* The quick add box is as high as what it shows; its window follows. */
+.quick-note-card.quick-add-card {
+  height: auto;
+  max-height: 432px;
+}
+
 @keyframes quick-note-in {
   from {
     opacity: 0;
@@ -937,6 +972,109 @@ html[data-window="live-timer"] #live-timer-root {
   width: 20px;
   height: 20px;
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+}
+
+/* Paused: an amber pause mark in place of the logo, the digits dimmed. Same
+   size, so the pill does not jump. */
+.live-timer-paused {
+  border-color: rgb(var(--color-warning) / 0.5);
+}
+
+.live-timer-paused time {
+  opacity: 0.55;
+}
+
+.live-timer-pause-mark {
+  width: 20px;
+  height: 20px;
+  color: rgb(var(--color-warning));
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+}
+
+/* Counts after the time (docs/counters-plan.md): a thin line, then a skull or
+   the counter's name, then the number. */
+.live-timer-count-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.live-timer-divider {
+  width: 1px;
+  height: 18px;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.live-timer-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-timer-count b {
+  display: inline-block;
+  font-weight: 700;
+}
+
+.live-timer-skull {
+  width: 17px;
+  height: 17px;
+  color: rgb(255 255 255 / 0.85);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+}
+
+.live-timer-count-name {
+  max-width: 110px;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.62);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+/* One short pulse when a press changes a count. */
+.live-timer-pulse {
+  border-color: rgb(var(--color-accent) / 0.75);
+}
+
+.live-timer-count-pulse b {
+  animation: live-timer-bump 0.5s ease-out;
+}
+
+@keyframes live-timer-bump {
+  25% {
+    color: rgb(var(--color-accent));
+    transform: scale(1.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-timer-count-pulse b {
+    animation: none;
+    color: rgb(var(--color-accent));
+  }
+}
+
+/* Shown while the mouse rests on the pill, and while paused (Resume). */
+.live-timer-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  margin: -2px -9px -2px 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+  cursor: pointer;
+  text-shadow: none;
+}
+
+.live-timer-button:hover,
+.live-timer-paused .live-timer-button {
+  border-color: rgb(var(--color-accent));
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-fg));
 }
 
 .desktop-overlay-glints i {
@@ -1344,6 +1482,26 @@ select {
   margin-left: auto;
 }
 
+/* Shelves past the rail's one row wait behind "+N more" (fitShelves in
+   LibraryOrganization.tsx). The toolbar's measuring above counts every shelf
+   and leaves "+N more" out; fitting lines every chip up in one row. */
+[data-library-shelf-rail] > [data-rail-hidden] {
+  display: none;
+}
+
+[data-library-shelf-rail][data-fitting] {
+  flex-wrap: nowrap;
+}
+
+.library-toolbar[data-measuring] [data-library-shelf-rail] > [data-rail-hidden],
+[data-library-shelf-rail][data-fitting] > [data-rail-hidden] {
+  display: inline-flex;
+}
+
+.library-toolbar[data-measuring] [data-library-shelf-rail] > [data-shelf-more] {
+  display: none;
+}
+
 @container library-toolbar (width < 560px) {
   .library-summary-stat {
     display: none;
@@ -1417,8 +1575,27 @@ select {
 
 .library-game-dragging
   [data-library-shelf-rail]
-  > button:not([data-library-drop-shelf]):not([data-library-drag-blocked]) {
+  > button:not([data-library-drop-shelf]):not([data-library-drag-blocked]):not(
+    [data-shelf-more]
+  ),
+.library-game-dragging
+  [role="menu"]
+  [data-library-shelf]:not([data-library-drop-shelf]) {
   opacity: 0.4;
+}
+
+/* Rows in the "+N more" list take games like the chips, but stay rows. */
+.library-game-dragging
+  [role="menu"]
+  [data-library-drop-shelf]:not([data-library-drag-blocked]):hover {
+  box-shadow: none;
+}
+
+.library-game-dragging
+  [role="menu"]
+  [data-library-drop-shelf]:not([data-library-drag-blocked]):hover
+  > svg {
+  color: inherit;
 }
 
 .library-game-dragging
@@ -1655,25 +1832,18 @@ select {
   transform: translateX(0.5rem);
 }
 
-.game-library-card:has(.level-up-cta:hover) .game-card-name-default {
-  display: inline;
-}
-
-.game-library-card:has(.level-up-cta:hover) .game-card-name-exe {
-  display: none;
-}
-
-/* The card title only swaps to the .exe names while Shift is held. */
+/* Shift + hover shows the card's playtime panel (CardShiftPanel), and the
+   panel hides the badges under it. */
 body.shift-held
   .game-library-card:not(:has(.level-up-cta:hover)):hover
-  .game-card-name-default {
-  display: none;
+  .game-card-shift-view {
+  display: flex;
 }
 
 body.shift-held
   .game-library-card:not(:has(.level-up-cta:hover)):hover
-  .game-card-name-exe {
-  display: inline;
+  .game-card-journal-badges:has(~ .game-card-shift-view) {
+  visibility: hidden;
 }
 
 .level-up-arrow {
@@ -1749,6 +1919,163 @@ body.shift-held
 .pc-switch:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* Settings: a menu of groups beside one group per page. Both follow the
+   content width, which includes the sidebar and CSS zoom; when it is narrow,
+   the menu becomes a row of buttons above the page. A container query
+   can't style the container itself, so the grid sits one level inside. */
+.settings-shell {
+  container: settings / inline-size;
+}
+
+.settings-layout {
+  display: grid;
+  gap: 18px;
+  max-width: 1100px;
+}
+
+.settings-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-menu-search {
+  flex: 1 1 100%;
+  margin-bottom: 4px;
+}
+
+.settings-menu-label {
+  white-space: nowrap;
+}
+
+.settings-menu-break {
+  display: none;
+}
+
+@container settings (min-width: 860px) {
+  .settings-layout {
+    grid-template-columns: 236px minmax(0, 1fr);
+    align-items: start;
+    gap: 28px;
+  }
+
+  .settings-menu {
+    position: sticky;
+    top: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .settings-menu-search {
+    margin-bottom: 8px;
+  }
+
+  .settings-menu-label {
+    flex: 1 1 0%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .settings-menu-break {
+    display: block;
+    height: 1px;
+    margin: 6px 10px;
+    background: rgb(var(--color-border) / 0.6);
+  }
+}
+
+.settings-page {
+  container: settings-page / inline-size;
+  min-width: 0;
+  max-width: 820px;
+}
+
+.settings-card > * + * {
+  border-top: 1px solid rgb(var(--color-border) / 0.6);
+}
+
+.settings-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 12px 18px;
+}
+
+.settings-row-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-row-below {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.settings-row-off > .settings-row-text,
+.settings-row-off > .settings-row-below {
+  opacity: 0.55;
+}
+
+.settings-hint {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  color: rgb(var(--color-text-muted));
+  font-size: 12.5px;
+}
+
+/* Rows under the switch they need: indented, with a line per level. */
+.settings-row-l1,
+.settings-hint-l1 {
+  padding-left: 46px;
+  background: rgb(var(--color-bg) / 0.28);
+}
+
+.settings-row-l2,
+.settings-hint-l2 {
+  padding-left: 72px;
+  background: rgb(var(--color-bg) / 0.45);
+}
+
+.settings-row-l1::before,
+.settings-row-l2::before,
+.settings-hint-l1::before,
+.settings-hint-l2::before,
+.settings-row-l2::after,
+.settings-hint-l2::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 27px;
+  width: 2px;
+  background: rgb(var(--color-border));
+}
+
+.settings-row-l2::after,
+.settings-hint-l2::after {
+  left: 53px;
+}
+
+@container settings-page (width < 560px) {
+  .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-row-control {
+    justify-content: flex-start;
+  }
 }
 
 /* Keep native range keyboard and pointer behavior with the app's track and thumb. */
@@ -1919,11 +2246,54 @@ body.shift-held
   border-radius: 16px;
   background: rgb(var(--color-bg));
 }
+/* The guide's card fills the column the app leaves free beside it: every step
+   as a checklist, the current one open (TourCard.tsx). */
 .tour-guide-card {
   top: 76px;
   right: 16px;
+  bottom: 16px;
   width: 390px;
-  max-height: calc(100dvh - 92px);
+}
+/* The step count sits in the progress row; the title row shows it only when
+   the card is docked at the bottom. */
+.tour-card-count {
+  display: none;
+}
+/* A line joins the step marks. */
+.tour-step::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: rgb(var(--color-border));
+}
+.tour-step:last-child::before {
+  display: none;
+}
+.tour-step[data-state="was"]::before {
+  background: rgb(var(--color-success) / 0.5);
+}
+@keyframes tour-done-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.tour-done-pop {
+  animation: tour-done-pop 0.35s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-done-pop {
+    animation: none;
+  }
 }
 body[data-tour-dock="side"] [data-tour-viewport] {
   margin-right: 418px;
@@ -1983,6 +2353,37 @@ body[data-tour-dock] [data-modal-backdrop] > [role="dialog"] {
     left: 16px;
     width: auto;
     max-height: var(--tour-guide-height);
+  }
+  /* Docked at the bottom there is no room for the list: one title line with
+     the step count, and the current step only. */
+  .tour-step:not([data-state="now"]),
+  .tour-step-dot,
+  .tour-step::before,
+  .tour-card-icon,
+  .tour-card-meta,
+  .tour-card-progress,
+  .tour-card-keys {
+    display: none;
+  }
+  .tour-card-count {
+    display: block;
+  }
+  .tour-card-head {
+    padding: 10px 12px 2px 18px;
+  }
+  .tour-card-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgb(var(--color-accent-ink));
+  }
+  .tour-steps {
+    padding-top: 2px;
+    padding-bottom: 0;
+  }
+  .tour-step {
+    padding-bottom: 6px;
   }
   body[data-tour-dock] [data-modal-backdrop],
   body[data-tour-dock] [data-tour="demo-log-session-backdrop"] {

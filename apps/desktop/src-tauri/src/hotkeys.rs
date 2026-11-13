@@ -11,6 +11,33 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 #[derive(Default)]
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
+/// What a hotkey can do.
+const ACTIONS: [&str; 10] = [
+    "show-window",
+    "current-session",
+    "quick-note",
+    "live-timer",
+    "pause-timer",
+    "screenshot",
+    "screenshot-caption",
+    "quick-add",
+    "counter-undo",
+    "counter-box",
+];
+/// A counter's own key: this prefix plus the counter's id (counterInput.ts).
+const COUNTER_KEY_PREFIX: &str = "counter-key:";
+
+/// The counter a counter key is for, if the action is one.
+fn counter_key_id(action: &str) -> Option<&str> {
+    action
+        .strip_prefix(COUNTER_KEY_PREFIX)
+        .filter(|id| !id.is_empty() && id.len() <= 64)
+}
+
+fn is_known_action(action: &str) -> bool {
+    ACTIONS.contains(&action) || counter_key_id(action).is_some()
+}
+
 // Registration dispatches to the main loop, so never block it with synchronous IPC.
 #[tauri::command(async)]
 pub fn set_global_hotkey(
@@ -23,10 +50,7 @@ pub fn set_global_hotkey(
     if window.label() != "main" {
         return Err("unauthorized window".into());
     }
-    if !matches!(
-        action.as_str(),
-        "show-window" | "current-session" | "quick-note" | "live-timer"
-    ) {
+    if !is_known_action(&action) {
         return Err("Unknown hotkey action".into());
     }
     let next = shortcut
@@ -61,8 +85,42 @@ pub fn set_global_hotkey(
                         crate::quick_note::remember_foreground(app);
                         let _ = app.emit_to("main", "playcounter:quick-note-hotkey", ());
                     }
+                    "quick-add" => {
+                        // As for the note: focus goes back to the window in
+                        // front when the box closes.
+                        crate::quick_note::remember_foreground(app);
+                        let _ = app.emit_to("main", "playcounter:quick-add-hotkey", ());
+                    }
                     "live-timer" => {
                         let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
+                    }
+                    "pause-timer" => {
+                        let _ = app.emit_to("main", "playcounter:pause-timer-hotkey", ());
+                    }
+                    "counter-undo" => {
+                        let _ = app.emit_to("main", "playcounter:counter-undo-hotkey", ());
+                    }
+                    "counter-box" => {
+                        // As for the note: focus goes back to the game when
+                        // the box closes.
+                        crate::quick_note::remember_foreground(app);
+                        let _ = app.emit_to("main", "playcounter:counter-box-hotkey", ());
+                    }
+                    action if counter_key_id(action).is_some() => {
+                        let id = counter_key_id(action).unwrap_or_default().to_string();
+                        let _ = app.emit_to("main", "playcounter:counter-key-hotkey", id);
+                    }
+                    "screenshot" => {
+                        // The picture is taken right here, before the main
+                        // window says which session it belongs to.
+                        crate::screenshot::commands::key_pressed(app);
+                        let _ = app.emit_to("main", "playcounter:screenshot-hotkey", ());
+                    }
+                    "screenshot-caption" => {
+                        // The same picture; the main window then opens the
+                        // caption box over the game.
+                        crate::screenshot::commands::key_pressed(app);
+                        let _ = app.emit_to("main", "playcounter:screenshot-caption-hotkey", ());
                     }
                     _ => {
                         let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
@@ -93,12 +151,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn knows_the_screenshot_actions_and_nothing_made_up() {
+        for action in [
+            "show-window",
+            "current-session",
+            "quick-note",
+            "live-timer",
+            "pause-timer",
+            "screenshot",
+            "screenshot-caption",
+            "quick-add",
+            "counter-undo",
+            "counter-box",
+            "counter-key:deaths",
+            "counter-key:0b8f6c3e-2c1d-4a8e-9f00-1234567890ab",
+        ] {
+            assert!(is_known_action(action), "{action}");
+        }
+        assert!(!is_known_action("delete-everything"));
+        assert!(!is_known_action(""));
+        assert!(!is_known_action("counter-key:"));
+        assert!(!is_known_action(&format!("counter-key:{}", "x".repeat(65))));
+    }
+
+    #[test]
+    fn a_counter_key_names_its_counter() {
+        assert_eq!(counter_key_id("counter-key:deaths"), Some("deaths"));
+        assert_eq!(counter_key_id("counter-undo"), None);
+        // Gone: counters have their own keys now.
+        assert!(!is_known_action("counter-add"));
+    }
+
+    #[test]
     fn parses_the_recorders_physical_key_names() {
         for key in [
             "Control+Shift+KeyP",
             "Alt+Digit1",
             "Super+ArrowUp",
             "Control+Shift+Equal",
+            "NumpadAdd",
+            "NumpadSubtract",
+            "Numpad1",
+            "Control+Numpad5",
             "Control+Space",
             "Control+BracketLeft",
             "Control+Backquote",

@@ -52,12 +52,14 @@ import { GameStatusIcon } from "./GameStatusIcon";
 import { formatDuration } from "./components";
 import { GameCover } from "./GameCover";
 import { SessionNote } from "./SessionNote";
+import { SessionScreenshotsTableRow } from "./SessionScreenshots";
 import { useGameJournal } from "./useGameJournal";
 import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
 import { getSessionGameKey } from "../historyStats";
 import { usePickedCovers } from "../pickedCovers";
-import { appLocale, getT } from "../i18n";
+import { playedSeconds } from "../sessionTime";
+import { appLocale, formatNumericDate, getT } from "../i18n";
 import { Trans } from "react-i18next";
 
 const t = getT("dialogs");
@@ -252,11 +254,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const runningSecondsFor = (id: string | null) =>
     running
       .filter((s) => (s.playthroughId ?? null) === id)
-      .reduce(
-        (sum, s) =>
-          sum + Math.max(0, Math.floor((now - Date.parse(s.startedAt)) / 1000)),
-        0,
-      );
+      .reduce((sum, s) => sum + playedSeconds(s, now), 0);
   const sessionCountFor = (id: string | null) =>
     gameSessions.filter((s) => (s.playthroughId ?? null) === id).length;
   // One pass over the ledger: every row needs its own total, and the longest
@@ -340,7 +338,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     t("{{count}} sessions", { count: gameSessions.length }),
     lastPlayedAt
       ? t("last played {{date}}", {
-          date: new Date(lastPlayedAt).toLocaleDateString(appLocale()),
+          date: formatNumericDate(lastPlayedAt),
         })
       : t("no sessions yet"),
   ];
@@ -566,9 +564,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               <p className="mt-1 text-xs text-text-muted">
                 {playthrough
                   ? t("Started {{date}}", {
-                      date: new Date(playthrough.createdAt).toLocaleDateString(
-                        appLocale(),
-                      ),
+                      date: formatNumericDate(playthrough.createdAt),
                     })
                   : t(
                       "All sessions that are not assigned to a named playthrough.",
@@ -706,7 +702,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </h4>
             <p className="mt-0.5 text-[13px] text-text-muted">
               {t(
-                "Keep track of where you are, your goals, and anything else about your journey.",
+                "Goals, plans and anything else for this playthrough. Where you stopped goes on the session.",
               )}
             </p>
             <textarea
@@ -719,9 +715,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onBlur={saveNote}
-              placeholder={t(
-                "Where did you stop? What do you want to do next?",
-              )}
+              placeholder={t("Goals, your build, things to remember")}
               className="mt-3 w-full resize-y rounded-xl border border-border bg-bg p-4 text-sm leading-relaxed text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
             />
             <div className="mt-2 flex items-center gap-3">
@@ -804,10 +798,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                             {t("Playing now")}
                           </span>
                         }
-                        seconds={Math.max(
-                          0,
-                          Math.floor((now - Date.parse(s.startedAt)) / 1000),
-                        )}
+                        seconds={playedSeconds(s, now)}
                         showDays={showDays}
                       />
                     ))}
@@ -820,9 +811,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                         onEditingNoteChange={(editing) =>
                           setEditingNoteId(editing ? s.id : null)
                         }
-                        date={new Date(s.startedAt).toLocaleDateString(
-                          appLocale(),
-                        )}
+                        date={formatNumericDate(s.startedAt)}
                         seconds={s.durationSeconds ?? 0}
                         showDays={showDays}
                       />
@@ -862,6 +851,7 @@ function JournalSessionRows({
   editingNote: boolean;
   onEditingNoteChange: (editing: boolean) => void;
 }) {
+  const practice = useLibraryPractice();
   const noteLabel = session.note
     ? t("Edit session note")
     : t("Add session note");
@@ -877,6 +867,7 @@ function JournalSessionRows({
         </td>
         <td className="px-2 py-1.5 text-right">
           <IconButton
+            data-tour={practice ? "demo-session-note" : undefined}
             icon={NotebookPen}
             aria-label={noteLabel}
             title={noteLabel}
@@ -886,7 +877,11 @@ function JournalSessionRows({
       </tr>
       {session.note || editingNote ? (
         <tr className="!border-t-0">
-          <td colSpan={4} className="px-3 pb-2.5">
+          <td
+            data-tour={practice ? "demo-session-note-editor" : undefined}
+            colSpan={4}
+            className="px-3 pb-2.5"
+          >
             <SessionNote
               session={session}
               editing={editingNote}
@@ -895,6 +890,11 @@ function JournalSessionRows({
           </td>
         </tr>
       ) : null}
+      <SessionScreenshotsTableRow
+        sessionId={session.id}
+        gameName={session.gameName}
+        colSpan={4}
+      />
     </>
   );
 }

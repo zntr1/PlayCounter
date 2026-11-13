@@ -4,6 +4,7 @@ import { usePickedCovers } from "../../pickedCovers";
 import { formatDuration } from "../components";
 import { GameCover as LibraryCover } from "../GameCover";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
+import { cn } from "../cn";
 import { appLocale, getT } from "../../i18n";
 
 const t = getT("common");
@@ -364,11 +365,14 @@ function GameCover({ game, className }: { game: TopGame; className: string }) {
       src={game.coverUrl}
       alt=""
       loading="lazy"
-      className={`rounded object-cover shadow-raised ${className}`}
+      className={cn("rounded object-cover shadow-raised", className)}
     />
   ) : (
     <span
-      className={`grid place-items-center rounded bg-surface-hover text-text-faint shadow-sm ${className}`}
+      className={cn(
+        "grid place-items-center rounded bg-surface-hover text-text-faint shadow-sm",
+        className,
+      )}
     >
       <Timer size={13} />
     </span>

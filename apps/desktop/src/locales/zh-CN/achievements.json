@@ -92,5 +92,8 @@
   "Legendary": "传奇",
   "{{title}} · Unlocked {{date}}": "{{title}} · {{date}} 解锁",
   "{{title}} · Locked": "{{title}} · 未解锁",
-  "{{count}} {{tier}}": "{{count}} {{tier}}"
+  "{{count}} {{tier}}": "{{count}} {{tier}}",
+  "screenshot": "截图",
+  "Screenshot came out black": "截图全黑",
+  "Show more games": "显示更多游戏"
 }

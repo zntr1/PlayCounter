@@ -1,27 +1,38 @@
 import {
+  usePersonalLibraryApi,
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
 import {
   BookOpen,
   CircleDot,
+  EyeOff,
   FolderHeart,
   Medal,
+  Plus,
   Star,
   StickyNote,
   X,
 } from "lucide-react";
-import { GAME_TIERS, gameStatusLabel, type GameTier } from "../personalLibrary";
-import { type GameIdentityRef } from "../store";
+import {
+  GAME_TIERS,
+  gameStatusLabel,
+  shelfHides,
+  type GameTier,
+} from "../personalLibrary";
+import type { GameIdentityRef } from "../store";
 import {
   ContextMenuHeading,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuSubmenu,
 } from "./primitives";
 import { GAME_STATUS_LIST, TIER_TONES } from "./journalStyles";
 import { GameStatusIcon } from "./GameStatusIcon";
+import { putGameOnShelf } from "./putGameOnShelf";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
+import { Trans } from "react-i18next";
 
 const t = getT("dialogs");
 
@@ -38,6 +49,8 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
   const update = usePersonalLibraryState((s) => s.updateGameJournal);
+  const openNewShelf = usePersonalLibraryState((s) => s.openNewShelf);
+  const libraryApi = usePersonalLibraryApi();
   const shelves = usePersonalLibraryState((s) => s.personalShelves);
   const showShelves = usePersonalLibraryState(
     (s) => s.settings.libraryShowShelves !== false,
@@ -52,6 +65,17 @@ export function GameJournalMenu({
       <ContextMenuItem
         dataTour={practice ? "demo-menu-favorite" : undefined}
         icon={Star}
+        // A favourite shows the cover's yellow star.
+        mark={
+          journal.favorite ? (
+            <Star
+              size={14}
+              aria-hidden="true"
+              fill="currentColor"
+              className="shrink-0 text-favorite"
+            />
+          ) : undefined
+        }
         onClick={() => {
           onClose();
           update(game, { favorite: !journal.favorite });
@@ -69,10 +93,21 @@ export function GameJournalMenu({
       >
         {t("Journal")}
       </ContextMenuItem>
-      <ContextMenuSubmenu label={t("Status")} icon={CircleDot}>
+      <ContextMenuSubmenu
+        label={t("Status")}
+        icon={CircleDot}
+        mark={
+          journal.status ? (
+            <GameStatusIcon status={journal.status} />
+          ) : undefined
+        }
+        dataTour={practice ? "demo-menu-status" : undefined}
+        menuDataTour={practice ? "demo-status-menu" : undefined}
+      >
         {GAME_STATUS_LIST.map((status) => (
           <ContextMenuItem
             key={status}
+            dataTour={practice ? `demo-status-${status}` : undefined}
             selected={journal.status === status}
             onClick={() => {
               onClose();
@@ -88,6 +123,7 @@ export function GameJournalMenu({
         ))}
         {journal.status ? (
           <ContextMenuItem
+            dataTour={practice ? "demo-menu-clear-status" : undefined}
             icon={X}
             onClick={() => {
               onClose();
@@ -101,16 +137,18 @@ export function GameJournalMenu({
       <ContextMenuSubmenu
         label={t("Tier")}
         icon={Medal}
+        mark={journal.tier ? <TierMark tier={journal.tier} /> : undefined}
         dataTour={practice ? "demo-menu-tier" : undefined}
         menuDataTour={practice ? "demo-tier-menu" : undefined}
       >
         <GameTierMenuItems game={game} onClose={onClose} />
       </ContextMenuSubmenu>
-      {showShelves && handShelves.length ? (
+      {showShelves ? (
         // A game can sit on several shelves: a pick adds or removes one.
         <ContextMenuSubmenu
           label={t("Shelves")}
           icon={FolderHeart}
+          dataTour={practice ? "demo-menu-shelves" : undefined}
           menuDataTour={practice ? "demo-shelf-menu" : undefined}
         >
           {handShelves.map((shelf) => {
@@ -118,31 +156,74 @@ export function GameJournalMenu({
             return (
               <ContextMenuItem
                 key={shelf.id}
+                dataTour={practice ? "demo-menu-shelf" : undefined}
+                icon={shelfHides(shelf) ? EyeOff : FolderHeart}
                 selected={member}
                 onClick={() => {
                   onClose();
-                  update(game, {
-                    shelfIds: member
-                      ? journal.shelfIds.filter((id) => id !== shelf.id)
-                      : [...journal.shelfIds, shelf.id],
-                  });
+                  if (member)
+                    update(game, {
+                      shelfIds: journal.shelfIds.filter(
+                        (id) => id !== shelf.id,
+                      ),
+                    });
+                  else putGameOnShelf(libraryApi, game, shelf.id);
                 }}
               >
                 {shelf.name}
               </ContextMenuItem>
             );
           })}
+          {handShelves.length ? <ContextMenuSeparator /> : null}
+          <ContextMenuItem
+            dataTour={practice ? "demo-menu-new-shelf" : undefined}
+            icon={Plus}
+            onClick={() => {
+              onClose();
+              openNewShelf(game);
+            }}
+          >
+            {t("New shelf")}
+          </ContextMenuItem>
         </ContextMenuSubmenu>
       ) : null}
     </>
   );
 }
 
-/** The ends say which way the scale runs; the letters between need no words. */
+/** The picked tier in its cover colour, where a menu row draws its icon. CSS
+ *  draws the letter, so the row's text stays "Tier" and typing T finds it. */
+function TierMark({ tier }: { tier: GameTier }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-tier={tier}
+      className={`w-3.5 shrink-0 text-center font-mono text-[13px] font-bold leading-none before:content-[attr(data-tier)] ${TIER_TONES[tier]}`}
+    />
+  );
+}
+
+/** The ends say which way the scale runs; the letters between need no words.
+ *  The letter wears its cover colour, the words keep the row's. */
 function tierMenuLabel(tier: GameTier) {
-  if (tier === "S") return t("S – Best");
-  if (tier === "F") return t("F – Worst");
-  return tier;
+  const letter = <span className={TIER_TONES[tier]} />;
+  if (tier === "S")
+    return (
+      <Trans
+        t={t}
+        i18nKey="<tier>S</tier> – Best"
+        components={{ tier: letter }}
+      />
+    );
+  if (tier === "F")
+    return (
+      <Trans
+        t={t}
+        i18nKey="<tier>F</tier> – Worst"
+        components={{ tier: letter }}
+      />
+    );
+  return <span className={TIER_TONES[tier]}>{tier}</span>;
 }
 
 /** S to F, the current one checked, and Clear once there is one. Shared by
@@ -174,6 +255,7 @@ export function GameTierMenuItems({
       ))}
       {journal.tier ? (
         <ContextMenuItem
+          dataTour={practice ? "demo-menu-clear-tier" : undefined}
           icon={X}
           onClick={() => {
             onClose();
@@ -187,8 +269,11 @@ export function GameTierMenuItems({
   );
 }
 
+// No text colour here: each badge sets its own. Tailwind orders same-kind
+// classes alphabetically, so a shared "text-white" would beat "text-amber-300"
+// and the tier colours whatever their place in the class list.
 const badgeShell =
-  "grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-md";
+  "grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 shadow-md";
 
 /** What the journal knows about a game, read from its cover: a note to pick up,
  *  a favorite, your tier, and where the game stands. Nothing else earns cover
@@ -227,7 +312,7 @@ export function GameJournalBadges({
   if (!hasNote && !journal.favorite && !tier && !status) return null;
   return (
     <div
-      className={`status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
+      className={`game-card-journal-badges status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
     >
       {status ? (
         // First, so it sits in the same spot on every card. The icon alone,
@@ -252,7 +337,7 @@ export function GameJournalBadges({
             event.stopPropagation();
             open({ game, tab: "note", playthroughId: notePlaythroughId });
           }}
-          className={`${badgeShell} transition hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${compact ? "h-6 w-6" : ""}`}
+          className={`${badgeShell} text-white transition hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${compact ? "h-6 w-6" : ""}`}
         >
           <StickyNote size={compact ? 12 : 14} />
         </button>
@@ -261,7 +346,7 @@ export function GameJournalBadges({
         <span
           aria-label={t("Favorite")}
           title={t("Favorite")}
-          className={`${badgeShell} text-amber-300 ${compact ? "h-6 w-6" : ""}`}
+          className={`${badgeShell} text-favorite ${compact ? "h-6 w-6" : ""}`}
         >
           <Star size={compact ? 11 : 13} fill="currentColor" />
         </span>

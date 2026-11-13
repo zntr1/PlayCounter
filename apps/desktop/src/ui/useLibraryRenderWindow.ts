@@ -1,42 +1,48 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useAppStore } from "../store";
+import { useAppStore, type ViewId } from "../store";
 import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
 } from "./libraryRenderWindow";
 
-/** Mount more cards only as the user approaches them, including on revisits. */
-export function useLibraryRenderWindow(key: string, total: number) {
-  const active = useAppStore((state) => state.activeView === "games");
+/** Mount more cards only as the user approaches them, including on revisits.
+ *  `batch` is both the first count and each step; `view` is the page the
+ *  list lives on, so a hidden page stops loading. */
+export function useLibraryRenderWindow(
+  key: string,
+  total: number,
+  {
+    view = "games",
+    batch = INITIAL_LIBRARY_RENDER_COUNT,
+  }: { view?: ViewId; batch?: number } = {},
+) {
+  const active = useAppStore((state) => state.activeView === view);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
   const [renderWindow, setRenderWindow] = useState({
     key,
-    limit: INITIAL_LIBRARY_RENDER_COUNT,
+    limit: batch,
   });
-  const limit =
-    renderWindow.key === key
-      ? renderWindow.limit
-      : INITIAL_LIBRARY_RENDER_COUNT;
+  const limit = renderWindow.key === key ? renderWindow.limit : batch;
   const hasMore = limit < total;
 
   useEffect(() => {
-    if (renderWindow.key !== key)
-      setRenderWindow({ key, limit: INITIAL_LIBRARY_RENDER_COUNT });
-  }, [key, renderWindow.key]);
+    if (renderWindow.key !== key) setRenderWindow({ key, limit: batch });
+  }, [batch, key, renderWindow.key]);
 
   const loadMore = useCallback(() => {
-    if (useAppStore.getState().activeView !== "games") return;
+    if (useAppStore.getState().activeView !== view) return;
     startTransition(() => {
       setRenderWindow((current) => ({
         key,
         limit: nextLibraryRenderLimit(
-          current.key === key ? current.limit : INITIAL_LIBRARY_RENDER_COUNT,
+          current.key === key ? current.limit : batch,
           total,
+          batch,
         ),
       }));
     });
-  }, [key, total]);
+  }, [batch, key, total, view]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

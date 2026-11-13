@@ -13,6 +13,9 @@ import {
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
+import { openQuickAdd } from "./quickAdd";
+import { takeScreenshot } from "./screenshots";
+import { togglePauseFromHotkey } from "./tracker";
 import { useAppStore } from "./store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -23,7 +26,10 @@ vi.mock("./desktopOverlayBridge", () => ({
 vi.mock("./quickNote", () => ({
   openQuickNoteForCurrentSession: vi.fn(),
 }));
+vi.mock("./quickAdd", () => ({ openQuickAdd: vi.fn() }));
 vi.mock("./liveTimer", () => ({ cycleLiveTimer: vi.fn() }));
+vi.mock("./screenshots", () => ({ takeScreenshot: vi.fn() }));
+vi.mock("./tracker", () => ({ togglePauseFromHotkey: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
 
@@ -44,6 +50,10 @@ beforeEach(() => {
       currentSessionHotkey: null,
       quickNoteHotkey: null,
       liveTimerHotkey: null,
+      pauseTimerHotkey: null,
+      screenshotHotkey: null,
+      screenshotCaptionHotkey: null,
+      quickAddHotkey: null,
     },
   }));
 });
@@ -62,6 +72,10 @@ describe("global hotkeys", () => {
         currentSessionHotkey: "Alt+F8",
         quickNoteHotkey: "Alt+F9",
         liveTimerHotkey: "Alt+F10",
+        pauseTimerHotkey: "Alt+F6",
+        screenshotHotkey: "Alt+F11",
+        screenshotCaptionHotkey: "Alt+F12",
+        quickAddHotkey: "Alt+F7",
       },
     }));
     initializeHotkeys();
@@ -71,6 +85,12 @@ describe("global hotkeys", () => {
       "playcounter:current-session-hotkey",
       "playcounter:quick-note-hotkey",
       "playcounter:live-timer-hotkey",
+      "playcounter:pause-timer-hotkey",
+      "playcounter:screenshot-hotkey",
+      "playcounter:screenshot-caption-hotkey",
+      "playcounter:quick-add-hotkey",
+      "playcounter:counter-undo-hotkey",
+      "playcounter:counter-box-hotkey",
     ]);
     expect(invokeMock.mock.calls).toEqual([
       [
@@ -80,6 +100,15 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "current-session", shortcut: "Alt+F8" }],
       ["set_global_hotkey", { action: "quick-note", shortcut: "Alt+F9" }],
       ["set_global_hotkey", { action: "live-timer", shortcut: "Alt+F10" }],
+      ["set_global_hotkey", { action: "pause-timer", shortcut: "Alt+F6" }],
+      ["set_global_hotkey", { action: "screenshot", shortcut: "Alt+F11" }],
+      [
+        "set_global_hotkey",
+        { action: "screenshot-caption", shortcut: "Alt+F12" },
+      ],
+      ["set_global_hotkey", { action: "quick-add", shortcut: "Alt+F7" }],
+      ["set_global_hotkey", { action: "counter-undo", shortcut: null }],
+      ["set_global_hotkey", { action: "counter-box", shortcut: null }],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
@@ -94,6 +123,35 @@ describe("global hotkeys", () => {
     expect(showCurrentSessionOverlay).toHaveBeenCalledTimes(2);
     listenMock.mock.calls[2][1]({ payload: null } as never);
     expect(cycleLiveTimer).toHaveBeenCalledOnce();
+    // docs/pause-timer-plan.md: the pause hotkey.
+    listenMock.mock.calls[3][1]({ payload: null } as never);
+    expect(togglePauseFromHotkey).toHaveBeenCalledOnce();
+    listenMock.mock.calls[4][1]({ payload: null } as never);
+    expect(takeScreenshot).toHaveBeenCalledOnce();
+    expect(takeScreenshot).toHaveBeenLastCalledWith();
+    // The caption key takes the same picture, then asks for a caption.
+    listenMock.mock.calls[5][1]({ payload: null } as never);
+    expect(takeScreenshot).toHaveBeenCalledTimes(2);
+    expect(takeScreenshot).toHaveBeenLastCalledWith({ caption: true });
+  });
+
+  it("opens the quick add box from its hotkey, with no game running", async () => {
+    await saveHotkey("quickAddHotkey", "Control+Alt+KeyA");
+    expect(invokeMock).toHaveBeenCalledWith("set_global_hotkey", {
+      action: "quick-add",
+      shortcut: "Control+Alt+KeyA",
+    });
+    expect(useAppStore.getState().settings.quickAddHotkey).toBe(
+      "Control+Alt+KeyA",
+    );
+    const quickAdd = listenMock.mock.calls.find(
+      ([event]) => event === "playcounter:quick-add-hotkey",
+    );
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    quickAdd![1]({ payload: null } as never);
+    expect(openQuickAdd).toHaveBeenCalledOnce();
+    expect(openQuickNoteForCurrentSession).not.toHaveBeenCalled();
+    expect(showCurrentSessionOverlay).not.toHaveBeenCalled();
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {
@@ -150,6 +208,12 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "current-session", shortcut: null }],
       ["set_global_hotkey", { action: "quick-note", shortcut: null }],
       ["set_global_hotkey", { action: "live-timer", shortcut: null }],
+      ["set_global_hotkey", { action: "pause-timer", shortcut: null }],
+      ["set_global_hotkey", { action: "screenshot", shortcut: null }],
+      ["set_global_hotkey", { action: "screenshot-caption", shortcut: null }],
+      ["set_global_hotkey", { action: "quick-add", shortcut: null }],
+      ["set_global_hotkey", { action: "counter-undo", shortcut: null }],
+      ["set_global_hotkey", { action: "counter-box", shortcut: null }],
     ]);
   });
 });

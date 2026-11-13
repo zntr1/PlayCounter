@@ -71,3 +71,42 @@ it("turns software tracking on when the switch is not touched", async () => {
 
   expect(useAppStore.getState().settings.trackTools).toBe(true);
 });
+
+it("shows both switches, on, with both buttons", async () => {
+  await openWelcome();
+  const switches = [
+    ...document.querySelectorAll<HTMLInputElement>(
+      '[role="dialog"] input[type="checkbox"]',
+    ),
+  ];
+  expect(
+    switches.map((toggle) => [
+      toggle.closest("label")?.querySelector("span > span")?.textContent,
+      toggle.checked,
+    ]),
+  ).toEqual([
+    ["Use PlayCounter as a launcher", true],
+    ["Track software", true],
+  ]);
+  expect(button("Take the tour")).toBeTruthy();
+  expect(button("Maybe later")).toBeTruthy();
+});
+
+it("saves both choices and starts the quick tour from Take the tour", async () => {
+  await openWelcome();
+  const launcher = [...document.querySelectorAll("label")]
+    .find((element) =>
+      element.textContent?.includes("Use PlayCounter as a launcher"),
+    )!
+    .querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+  await act(async () => softwareSwitch()!.click());
+  await act(async () => button("Take the tour").click());
+
+  const state = useAppStore.getState();
+  expect(launcher.checked).toBe(true);
+  expect(state.settings.gameLaunchingEnabled).toBe(true);
+  expect(state.settings.trackTools).toBe(false);
+  expect(state.activeTour?.tourId).toBe("core");
+  // Seen: the welcome does not come back.
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+});

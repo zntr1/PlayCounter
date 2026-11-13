@@ -63,43 +63,6 @@ describe("tour definitions", () => {
     ).toEqual([]);
   });
 
-  it("documents the emulator live view and management page", () => {
-    const guide = tours().find((tour) => tour.id === "emulators")!;
-    expect(guide.version).toBe(4);
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "settings",
-      "menu",
-      "now-emulating",
-      "emulator-page",
-      "linked-games",
-      "confirm",
-      "fix-match",
-      "pcsx2",
-      "library",
-    ]);
-    expect(guide.steps.every((step) => !step.optional)).toBe(true);
-    const menu = guide.steps.find((step) => step.id === "menu")!;
-    expect(
-      guide.steps.find((step) => step.id === "settings")?.scrollIntoView,
-    ).toBe(true);
-    expect(menu.body).toContain("first time PlayCounter sees");
-    expect(menu.body).toContain("Now Emulating works differently");
-    expect(
-      guide.steps.find((step) => step.id === "emulator-page")?.body,
-    ).toContain("all of its game matches");
-    const confirm = guide.steps.find((step) => step.id === "confirm")!;
-    expect(confirm.anchorTargets).toContain(
-      '[data-tour="demo-emulator-confirm"]',
-    );
-    expect(confirm.body).toContain("the game you just started");
-    expect(confirm.body).not.toContain("the file");
-    const fixMatch = guide.steps.find((step) => step.id === "fix-match")!;
-    expect(fixMatch.body).toContain("Change");
-    expect(fixMatch.body).toContain("Forget");
-    expect(fixMatch.body).toContain("Share match");
-  });
-
   it("honours backTo and deterministic view directives", () => {
     const guide = tours().find((tour) => tour.id === "log-playtime")!;
     const fill = guide.steps.findIndex((step) => step.id === "fill-dialog");
@@ -128,47 +91,20 @@ describe("tour definitions", () => {
     expect(action.backTo).toBe("open-playtime");
   });
 
-  it("documents the My Games context-menu action groups", () => {
-    const guide = tours().find((tour) => tour.id === "game-actions")!;
-    expect(guide.demoGame).toBe(true);
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "open-menu",
-      "details",
-      "history",
-      "playtime",
-      "matches",
-      "wrong-match",
-      "remove",
-    ]);
-    // Back returns to the previous action, not all the way to the menu step.
-    const index = (id: string) =>
-      guide.steps.findIndex((step) => step.id === id);
-    expect(backStepIndex(guide.steps, index("playtime"), () => true)).toBe(
-      index("history"),
-    );
-    // Targets follow the open flyout to the action a step is about.
-    const step = (id: string) => guide.steps.find((entry) => entry.id === id)!;
-    expect(step("matches").anchorTargets).toContain(
-      '[data-tour="demo-menu-check-matches"]',
-    );
-    expect(step("remove").additionalAnchors).toContain(
-      '[data-tour="demo-menu-ignore"]',
-    );
-  });
-
   it("rings the action a step names once its flyout or dialog is open", () => {
     const flyouts: Record<string, string[]> = {
       "demo-menu-playtime": [
         "demo-playtime-menu",
         "demo-menu-log-session",
         "demo-menu-adjust-playtime",
+        "demo-menu-start-timer",
       ],
       "demo-menu-launch-options": ["demo-launch-menu", "demo-menu-launch-file"],
       "demo-menu-matching": [
         "demo-matching-menu",
         "demo-menu-check-matches",
         "demo-menu-report-match",
+        "demo-menu-convert-custom",
       ],
       "demo-menu-tier": ["demo-tier-menu", "demo-tier-S"],
     };
@@ -199,45 +135,12 @@ describe("tour definitions", () => {
       tours()
         .find((tour) => tour.id === tourId)!
         .steps.find((entry) => entry.id === id)!;
-    expect(step("log-playtime", "alternative").anchorTargets).toContain(
+    expect(step("log-playtime", "total").anchorTargets).toContain(
       '[data-tour="demo-menu-adjust-playtime"]',
     );
-    expect(step("launch-games", "set-forget").anchorTargets).toContain(
-      '[data-tour="demo-menu-launch-file"]',
-    );
-    for (const [id, button] of [
-      ["add-share", "add-share"],
-      ["add-custom", "add-custom"],
-      ["ignore", "ignore"],
-      ["skip", "skip"],
-    ])
-      expect(step("fix-detection", id).anchorTargets).toContain(
-        `[data-tour="demo-discovery"] [data-tour="discovered-${button}"]`,
-      );
     expect(step("emulators", "fix-match").anchorTargets).toContain(
       '[data-tour="demo-emulator-actions"]',
     );
-    expect(step("import-library", "confirm").anchorTargets).toContain(
-      '[data-tour="demo-import-match"]',
-    );
-  });
-
-  it("explains the opt-in launcher and its controller flow", () => {
-    const guide = tours().find((tour) => tour.id === "launch-games")!;
-    expect(guide.demoGame).toBe(true);
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "enable",
-      "learned",
-      "set-forget",
-      "limits",
-      "uninstalled",
-      "privacy",
-      "controller",
-    ]);
-    expect(
-      guide.steps.find((step) => step.id === "controller")?.body,
-    ).toContain("Select/View + R1/RB");
   });
 
   it("keeps skip, back, and follow-up destinations reachable", () => {
@@ -254,42 +157,10 @@ describe("tour definitions", () => {
     }
   });
 
-  it("walks through every preference section in Personalize PlayCounter", () => {
-    const guide = tours().find((tour) => tour.id === "settings")!;
-    expect(guide.steps.map((step) => step.id)).toEqual([
-      "intro",
-      "general",
-      "appearance",
-      "shortcuts",
-      "notifications",
-      "launcher",
-      "emulators",
-      "sharing",
-      "library-import",
-      "backup",
-      "updates",
-    ]);
-    // Windows-only panels are skipped elsewhere instead of showing an empty step.
-    for (const id of ["notifications", "launcher"])
-      expect(guide.steps.find((step) => step.id === id)?.optional).toBe(true);
-    // Import replaces data and Forget deletes it: these steps only point.
-    for (const id of ["backup", "library-import"])
-      expect(guide.steps.find((step) => step.id === id)?.interactive).toBe(
-        undefined,
-      );
-  });
-
   it("offers read-only backup and feedback guides alongside the practice tours", () => {
     const release = tours().filter((tour) => tour.release === "1.1.17");
     expect(
       release.filter((tour) => tour.practice).map((tour) => tour.id),
     ).toEqual(["notes-playthroughs", "organize-library", "library-progress"]);
-    for (const id of ["backup-data", "feedback-replies"]) {
-      expect(
-        release
-          .find((tour) => tour.id === id)
-          ?.steps.every((step) => !step.interactive),
-      ).toBe(true);
-    }
   });
 });

@@ -66,6 +66,7 @@ import {
   useAnchoredMenu,
 } from "../primitives";
 import { BattleNetPlaytimeNotice } from "../import/BattleNetPlaytimeNotice";
+import { GuideLink } from "../tour/GuideLink";
 
 const t = getT("accounts");
 const commonT = getT("common");
@@ -280,6 +281,10 @@ export function LauncherAccountsView() {
             {t("Choose which games to import after connecting an account.")}
           </p>
         </div>
+        <GuideLink
+          tourId="launcher-accounts"
+          className="ml-auto mt-0.5 shrink-0"
+        />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         {providerTabConfigs().map((provider) => {
@@ -396,6 +401,7 @@ export function LauncherAccountsView() {
                 icon={RefreshCw}
                 variant="secondary"
                 className="w-full"
+                data-tour="accounts-action"
                 disabled={Boolean(activity)}
                 onClick={() => setSteamAttempt((previous) => previous + 1)}
               >
@@ -406,6 +412,7 @@ export function LauncherAccountsView() {
                 icon={Download}
                 variant="secondary"
                 className="w-full"
+                data-tour="accounts-action"
                 disabled={!connected || Boolean(activity)}
                 onClick={() => openLauncherImport("steam")}
               >
@@ -417,6 +424,7 @@ export function LauncherAccountsView() {
               icon={LogIn}
               variant="primary"
               className="w-full"
+              data-tour="accounts-action"
               disabled={!supported || Boolean(activity)}
               onClick={() => void connect(service!)}
             >
@@ -427,6 +435,7 @@ export function LauncherAccountsView() {
               icon={Download}
               variant="secondary"
               className="w-full"
+              data-tour="accounts-action"
               disabled={!supported || Boolean(activity)}
               onClick={() => openLauncherImport(id)}
             >
@@ -437,6 +446,7 @@ export function LauncherAccountsView() {
               icon={LogIn}
               variant="primary"
               className="w-full"
+              data-tour="accounts-action"
               disabled={!supported || Boolean(activity)}
               onClick={() => {
                 if (platform !== "windows") openLauncherImport(id);
@@ -456,6 +466,15 @@ export function LauncherAccountsView() {
           return (
             <section
               key={id}
+              data-tour="accounts-card"
+              // The guide "Launcher accounts" rings a card by how it stands.
+              data-tour-state={
+                connected
+                  ? "signed-in"
+                  : needsSignIn
+                    ? "needs-sign-in"
+                    : "signed-out"
+              }
               aria-labelledby={`launcher-account-${id}`}
               className="flex min-w-0 flex-col rounded-xl border border-border bg-surface p-5"
             >
@@ -512,6 +531,7 @@ export function LauncherAccountsView() {
                   </div>
                   <p
                     aria-live="polite"
+                    data-tour="accounts-status"
                     className={clsx(
                       "mt-0.5 flex items-center gap-2 text-sm",
                       tone === "warn" ? "text-warning" : "text-text-muted",
@@ -826,6 +846,7 @@ function CardMenu({
       <IconButton
         ref={menu.anchorRef}
         data-controller-item="library-option"
+        data-tour="accounts-more"
         aria-label={commonT("More")}
         title={commonT("More")}
         aria-haspopup="menu"

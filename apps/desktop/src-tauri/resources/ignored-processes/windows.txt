@@ -1187,3 +1187,26 @@ bootstrapper.exe
 eaclauncher.exe
 eosbootstrapper.exe
 start_protected_game.exe
+
+# BlueStacks' helpers and tools (its install folders, BlueStacks 5.22, 2026-11-10).
+# HD-Player.exe is missing on purpose: it is the emulator PlayCounter tracks.
+bluestacksairun.exe
+bluestacksappplayerweb.exe
+bluestacksservices.exe
+bluestacksuninstaller.exe
+bstksvc.exe
+bstkvmmgr.exe
+hd-aapt.exe
+hd-adb.exe
+hd-checkcpu.exe
+hd-comregistrar.exe
+hd-datamanager.exe
+hd-diskcompaction.exe
+hd-diskformatcheck.exe
+hd-enablehyperv.exe
+hd-forcegpu.exe
+hd-glcheck.exe
+hd-hvutl.exe
+hd-logcollector.exe
+hd-multiinstancemanager.exe
+hd-vnc.exe

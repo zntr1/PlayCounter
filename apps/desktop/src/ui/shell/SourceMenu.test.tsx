@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Platform } from "@playcounter/shared";
 import type { LibraryImportEntry } from "../../library/types";
 import { useAppStore } from "../../store";
+import { forgetImportedLibraryData } from "../../tracker";
 import { useLibrarySources } from "../librarySources";
 import { LibraryTestShell } from "../views/libraryTestShell";
 
@@ -32,6 +33,7 @@ let container: HTMLDivElement;
 
 beforeEach(() => {
   mocks.platform = "windows";
+  vi.mocked(forgetImportedLibraryData).mockClear();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(document, "elementFromPoint").mockReturnValue(null);
   localStorage.clear();
@@ -90,13 +92,23 @@ function menuItem(label: string) {
   return item!;
 }
 
+function dialogButton(label: string) {
+  const button = [
+    ...(document
+      .querySelector('[role="dialog"]')
+      ?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find((entry) => entry.textContent?.trim() === label);
+  expect(button, `missing dialog button ${label}`).toBeDefined();
+  return button!;
+}
+
 function buttonLabels() {
   return [...container.querySelectorAll("button")].map((button) =>
     button.textContent?.trim(),
   );
 }
 
-it.each(["steam", "xbox", "battlenet", "epic", "gog"])(
+it.each(["xbox", "battlenet", "epic", "gog"])(
   "right-click on the %s launcher in the sidebar shows Manage accounts and Import games",
   async (launcher) => {
     await act(() => root.render(<LibraryTestShell />));
@@ -104,6 +116,42 @@ it.each(["steam", "xbox", "battlenet", "epic", "gog"])(
     expect(menuItems()).toEqual(["Manage accounts", "Import games"]);
   },
 );
+
+it("a launcher with imported games also offers Forget imported data", async () => {
+  await act(() => root.render(<LibraryTestShell />));
+  await rightClick("steam");
+  expect(menuItems()).toEqual([
+    "Manage accounts",
+    "Import games",
+    "Forget imported data",
+  ]);
+});
+
+it("Forget imported data asks with the launcher's own text, like Settings, and forgets that launcher", async () => {
+  await act(() => root.render(<LibraryTestShell />));
+  await rightClick("steam");
+  await act(() => menuItem("Forget imported data").click());
+  expect(menu()).toBeNull();
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog).not.toBeNull();
+  expect(dialog!.textContent).toContain("Forget imported Steam data?");
+  expect(dialog!.textContent).toContain(
+    "Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed.",
+  );
+  expect(forgetImportedLibraryData).not.toHaveBeenCalled();
+  await act(() => dialogButton("Forget imported data").click());
+  expect(forgetImportedLibraryData).toHaveBeenCalledWith("steam");
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+});
+
+it("Cancel in the dialog forgets nothing", async () => {
+  await act(() => root.render(<LibraryTestShell />));
+  await rightClick("steam");
+  await act(() => menuItem("Forget imported data").click());
+  await act(() => dialogButton("Cancel").click());
+  expect(forgetImportedLibraryData).not.toHaveBeenCalled();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+});
 
 it("Manage accounts opens Launcher accounts", async () => {
   await act(() => root.render(<LibraryTestShell />));
@@ -130,7 +178,8 @@ it("leaves Import games out where the launcher has no import, like Import more i
   );
   expect(buttonLabels()).not.toContain("Import more from Steam");
   await rightClick("steam");
-  expect(menuItems()).toEqual(["Manage accounts"]);
+  // Forgetting needs no import, so it stays.
+  expect(menuItems()).toEqual(["Manage accounts", "Forget imported data"]);
 });
 
 it("right-click on PlayCounter in the sidebar shows Manage accounts", async () => {

@@ -89,6 +89,7 @@ export function GlobalSearch() {
   return (
     <div
       role="search"
+      data-tour="title-search"
       className="global-search relative flex h-11 w-full max-w-[640px] items-center"
     >
       <Search

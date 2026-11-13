@@ -24,8 +24,11 @@ import {
   type HistorySelection,
   type SummaryStats,
 } from "../../../historyStats";
-import { usePickedCovers } from "../../../pickedCovers";
-import { customHeroArtKey, useAppStore } from "../../../store";
+import {
+  markCoverUnavailable,
+  usePickedBanner,
+  usePickedCovers,
+} from "../../../pickedCovers";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -113,11 +116,7 @@ export function HistoryHero({
   practice: boolean;
 }) {
   const details = useGameDetails(artworkGame?.igdbId);
-  const pickedArt = useAppStore((state) =>
-    artworkGame
-      ? state.customHeroArt[customHeroArtKey(artworkGame)]
-      : undefined,
-  );
+  const pickedArt = usePickedBanner(artworkGame);
   const wideArt = heroArtwork(
     pickedArt,
     details.status === "ready" ? details.details : null,
@@ -132,6 +131,8 @@ export function HistoryHero({
   const [pickerOpen, setPickerOpen] = useState(false);
   const chips = historyChips();
   const onChip = chips.some((chip) => chip.kind === selection.kind);
+  // What a guide rings on its sample history.
+  const guideName = (name: string) => (practice ? name : undefined);
   const pick = (next: HistorySelection) => {
     setPickerOpen(false);
     onSelectionChange(next);
@@ -147,7 +148,10 @@ export function HistoryHero({
       "aria-expanded"?: boolean;
     },
   ) => (
-    <span className="inline-flex h-8 items-stretch rounded-full border border-accent bg-accent text-[13px] font-semibold text-accent-fg shadow-sm">
+    <span
+      data-tour={guideName("demo-history-stepper")}
+      className="inline-flex h-8 items-stretch rounded-full border border-accent bg-accent text-[13px] font-semibold text-accent-fg shadow-sm"
+    >
       <button
         type="button"
         aria-label={t("Previous period")}
@@ -216,6 +220,7 @@ export function HistoryHero({
           src={artwork}
           alt=""
           aria-hidden="true"
+          onError={() => markCoverUnavailable(artwork)}
           className={clsx(
             "history-hero-art pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_30%]",
             coverOnly && "scale-125 blur-3xl saturate-150",
@@ -240,7 +245,10 @@ export function HistoryHero({
           </p>
           {hasPlaytime ? (
             <>
-              <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text drop-shadow-md [text-wrap:balance] sm:text-[42px]">
+              <h1
+                data-tour={guideName("demo-history-total")}
+                className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text drop-shadow-md [text-wrap:balance] sm:text-[42px]"
+              >
                 {lifetimeSeconds !== null ? (
                   <Trans
                     t={t}
@@ -342,6 +350,7 @@ export function HistoryHero({
                     <ComparisonLine
                       seconds={rangeStats.totalSeconds}
                       comparison={comparison}
+                      dataTour={guideName("demo-history-compare")}
                     />
                   ) : null}
                 </>
@@ -364,6 +373,7 @@ export function HistoryHero({
           <div
             role="group"
             aria-label={t("Range")}
+            data-tour={guideName("demo-history-ranges")}
             className="mt-5 flex flex-wrap gap-1.5"
           >
             {chips.map((chip) =>
@@ -486,9 +496,11 @@ export function HistoryHero({
 function ComparisonLine({
   seconds,
   comparison,
+  dataTour,
 }: {
   seconds: number;
   comparison: HistoryComparison;
+  dataTour?: string;
 }) {
   const change =
     (seconds - comparison.previousSeconds) / comparison.previousSeconds;
@@ -502,6 +514,7 @@ function ComparisonLine({
   return (
     <p
       data-history-compare
+      data-tour={dataTour}
       className="mt-1.5 flex items-center gap-1.5 text-sm text-text-muted"
     >
       <Icon aria-hidden="true" size={15} className="shrink-0 text-text" />

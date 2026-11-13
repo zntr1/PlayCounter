@@ -19,6 +19,7 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 mod automatic_backups;
 mod close_game;
 mod controller;
+mod date_format;
 mod emulator_launch;
 mod exe_details;
 mod fullscreen;
@@ -32,9 +33,11 @@ mod playstation_pad;
 mod process;
 mod quick_note;
 mod reset;
+pub mod screenshot;
 mod session;
 mod shell_open;
 mod webview_args;
+mod window_fit;
 
 // English defaults until the main window sends the texts in its language.
 const TRAY_STATUS_IDLE: &str = "No game active";
@@ -191,8 +194,43 @@ fn save_picked_cover(
     if key.is_empty() || key.len() > 64 {
         return Err("Invalid cover key.".to_string());
     }
-    let stem: String = key
-        .chars()
+    write_cover(
+        &app,
+        &format!("picked-{}", key_file_stem(&key)),
+        &extension,
+        bytes,
+    )
+}
+
+/// An uploaded banner, for any game, also one IGDB and SteamGridDB do not
+/// know. The file is named after the banner key (`igdb:123`, `custom:-5`)
+/// under its own prefix, so it never overwrites a cover.
+#[tauri::command]
+fn save_picked_banner(
+    app: tauri::AppHandle,
+    key: String,
+    extension: String,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
+    write_banner(&cover_dir(&app)?, &key, &extension, bytes)
+}
+
+fn write_banner(dir: &Path, key: &str, extension: &str, bytes: Vec<u8>) -> Result<String, String> {
+    if key.is_empty() || key.len() > 64 {
+        return Err("Invalid banner key.".to_string());
+    }
+    write_art(
+        dir,
+        &format!("banner-{}", key_file_stem(key)),
+        extension,
+        bytes,
+        ArtKind::Banner,
+    )
+}
+
+/// `igdb#123` → `igdb-123`: safe as a file name on every system.
+fn key_file_stem(key: &str) -> String {
+    key.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() {
                 c.to_ascii_lowercase()
@@ -200,8 +238,45 @@ fn save_picked_cover(
                 '-'
             }
         })
-        .collect();
-    write_cover(&app, &format!("picked-{stem}"), &extension, bytes)
+        .collect()
+}
+
+/// What an uploaded image is for; its errors name it.
+#[derive(Clone, Copy)]
+enum ArtKind {
+    Cover,
+    Banner,
+}
+
+impl ArtKind {
+    fn empty(self) -> &'static str {
+        match self {
+            Self::Cover => "Cover image is empty.",
+            Self::Banner => "Banner image is empty.",
+        }
+    }
+
+    fn too_large(self) -> &'static str {
+        match self {
+            Self::Cover => "Cover image must be 8 MB or smaller.",
+            Self::Banner => "Banner image must be 8 MB or smaller.",
+        }
+    }
+
+    fn wrong_type(self) -> &'static str {
+        match self {
+            Self::Cover => "Cover image must be a PNG, JPG, or WebP file.",
+            Self::Banner => "Banner image must be a PNG, JPG, or WebP file.",
+        }
+    }
+}
+
+fn cover_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("covers"))
 }
 
 fn write_cover(
@@ -210,24 +285,30 @@ fn write_cover(
     extension: &str,
     bytes: Vec<u8>,
 ) -> Result<String, String> {
-    const MAX_COVER_BYTES: usize = 8 * 1024 * 1024;
+    write_art(&cover_dir(app)?, stem, extension, bytes, ArtKind::Cover)
+}
+
+fn write_art(
+    dir: &Path,
+    stem: &str,
+    extension: &str,
+    bytes: Vec<u8>,
+    kind: ArtKind,
+) -> Result<String, String> {
+    const MAX_ART_BYTES: usize = 8 * 1024 * 1024;
 
     if bytes.is_empty() {
-        return Err("Cover image is empty.".to_string());
+        return Err(kind.empty().to_string());
     }
-    if bytes.len() > MAX_COVER_BYTES {
-        return Err("Cover image must be 8 MB or smaller.".to_string());
+    if bytes.len() > MAX_ART_BYTES {
+        return Err(kind.too_large().to_string());
     }
 
-    let extension = normalize_cover_extension(extension, &bytes)?;
-    let cover_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?
-        .join("covers");
-    fs::create_dir_all(&cover_dir).map_err(|error| error.to_string())?;
+    let extension = normalize_cover_extension(extension, &bytes)
+        .ok_or_else(|| kind.wrong_type().to_string())?;
+    fs::create_dir_all(dir).map_err(|error| error.to_string())?;
 
-    let path = cover_dir.join(format!("{stem}.{extension}"));
+    let path = dir.join(format!("{stem}.{extension}"));
     fs::write(&path, bytes).map_err(|error| error.to_string())?;
     path_to_string(path)
 }
@@ -468,6 +549,7 @@ pub fn run() {
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
         .manage(quick_note::QuickNoteState::default())
+        .manage(screenshot::commands::ScreenshotState::default())
         .manage(live_timer::LiveTimerState::default())
         .manage(library::battlenet_account::AccountState::default())
         .manage(library::epic_account::EpicAccountState::default())
@@ -543,10 +625,12 @@ pub fn run() {
             hotkeys::set_global_hotkey,
             install_uuid,
             adopt_install_uuid,
+            date_format::system_date_pattern,
             ignored_processes,
             set_user_ignored_process,
             save_custom_cover,
             save_picked_cover,
+            save_picked_banner,
             read_text_file,
             write_text_file,
             backup_local_data,
@@ -621,9 +705,26 @@ pub fn run() {
             quick_note::quick_note_open,
             quick_note::quick_note_ready,
             quick_note::quick_note_close,
+            quick_note::quick_add_search,
+            quick_note::quick_add_pick,
+            quick_note::quick_add_reply,
+            quick_note::quick_add_fit,
+            quick_note::counter_box_action,
+            quick_note::counter_box_update,
+            screenshot::commands::screenshot_take,
+            screenshot::commands::screenshot_list,
+            screenshot::commands::screenshot_preview,
+            screenshot::commands::screenshot_caption,
+            screenshot::commands::screenshot_open,
+            screenshot::commands::screenshot_reveal,
+            screenshot::commands::screenshot_delete,
+            screenshot::commands::screenshot_folder,
+            screenshot::commands::screenshot_open_folder,
             live_timer::live_timer_show,
             live_timer::live_timer_hide,
-            live_timer::live_timer_ready
+            live_timer::live_timer_ready,
+            live_timer::live_timer_toggle_pause,
+            live_timer::live_timer_fit
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
@@ -637,6 +738,11 @@ pub fn run() {
         .on_window_event(|window, event| {
             if window.label() != notification_overlay::MAIN_LABEL {
                 return;
+            }
+            // Restore button, title-bar double-click, Win+Down, leaving
+            // fullscreen: a normal window must fit on its screen.
+            if let tauri::WindowEvent::Resized(_) = event {
+                window_fit::keep_on_screen(window);
             }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
@@ -719,6 +825,8 @@ fn show_main_window(app: &tauri::AppHandle) {
         set_main_window_in_tray(&window, false);
         let _ = window.unminimize();
         let _ = window.show();
+        // A saved normal size can be the whole screen.
+        window_fit::keep_on_screen(&window.as_ref().window());
         let _ = window.set_focus();
     }
 }
@@ -812,17 +920,19 @@ fn escape_menu_text(text: &str) -> String {
     text.replace('&', "&&")
 }
 
-fn normalize_cover_extension(extension: &str, bytes: &[u8]) -> Result<&'static str, String> {
+/// The file extension for an image, only when the bytes really are that
+/// PNG, JPG or WebP.
+fn normalize_cover_extension(extension: &str, bytes: &[u8]) -> Option<&'static str> {
     let requested = extension
         .trim()
         .trim_start_matches('.')
         .to_ascii_lowercase();
 
     match requested.as_str() {
-        "jpg" | "jpeg" if is_jpeg(bytes) => Ok("jpg"),
-        "png" if is_png(bytes) => Ok("png"),
-        "webp" if is_webp(bytes) => Ok("webp"),
-        _ => Err("Cover image must be a PNG, JPG, or WebP file.".to_string()),
+        "jpg" | "jpeg" if is_jpeg(bytes) => Some("jpg"),
+        "png" if is_png(bytes) => Some("png"),
+        "webp" if is_webp(bytes) => Some("webp"),
+        _ => None,
     }
 }
 
@@ -875,6 +985,76 @@ fn open_folder(path: &Path) -> Result<(), String> {
 
 fn open_url(url: &str) -> Result<(), String> {
     shell_open::open_url(url)
+}
+
+#[cfg(test)]
+mod banner_tests {
+    use super::write_banner;
+    use std::fs;
+    use std::path::PathBuf;
+
+    const PNG: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+
+    fn covers_dir() -> PathBuf {
+        std::env::temp_dir()
+            .join(format!("playcounter-banner-{}", uuid::Uuid::new_v4()))
+            .join("covers")
+    }
+
+    // Discord report, 2026-11-10: a game IGDB does not know had no way to a
+    // banner. Its own Custom game cover sits in the same folder.
+    #[test]
+    fn saves_a_custom_games_banner_next_to_its_cover_without_touching_it() {
+        let dir = covers_dir();
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("-12.png"), "own cover").unwrap();
+
+        let path = write_banner(&dir, "custom:-12", "png", PNG.to_vec()).unwrap();
+
+        assert_eq!(PathBuf::from(&path), dir.join("banner-custom--12.png"));
+        assert_eq!(fs::read(&path).unwrap(), PNG);
+        assert_eq!(
+            fs::read_to_string(dir.join("-12.png")).unwrap(),
+            "own cover"
+        );
+        fs::remove_dir_all(dir.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn creates_the_covers_folder_on_a_first_upload() {
+        let dir = covers_dir();
+        let jpeg = vec![0xFF, 0xD8, 0xFF, 0xE0];
+
+        let path = write_banner(&dir, "igdb:1942", "jpeg", jpeg).unwrap();
+
+        assert_eq!(PathBuf::from(&path), dir.join("banner-igdb-1942.jpg"));
+        fs::remove_dir_all(dir.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn refuses_with_banner_messages() {
+        let dir = covers_dir();
+        assert_eq!(
+            write_banner(&dir, "custom:-12", "gif", b"GIF89a".to_vec()),
+            Err("Banner image must be a PNG, JPG, or WebP file.".to_string())
+        );
+        // A PNG renamed to .jpg is not a JPG.
+        assert_eq!(
+            write_banner(&dir, "custom:-12", "jpg", PNG.to_vec()),
+            Err("Banner image must be a PNG, JPG, or WebP file.".to_string())
+        );
+        assert_eq!(
+            write_banner(&dir, "custom:-12", "png", Vec::new()),
+            Err("Banner image is empty.".to_string())
+        );
+        let mut too_large = PNG.to_vec();
+        too_large.resize(8 * 1024 * 1024 + 1, 0);
+        assert_eq!(
+            write_banner(&dir, "custom:-12", "png", too_large),
+            Err("Banner image must be 8 MB or smaller.".to_string())
+        );
+        assert!(!dir.exists());
+    }
 }
 
 #[cfg(test)]

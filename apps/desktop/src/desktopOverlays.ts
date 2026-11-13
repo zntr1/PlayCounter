@@ -7,7 +7,7 @@ import type {
   DesktopOverlayMessage,
   OverlayRenderContext,
 } from "./desktopOverlayProtocol";
-import { getT } from "./i18n";
+import { appLocale, getT } from "./i18n";
 
 const t = getT("overlays");
 export {
@@ -24,6 +24,7 @@ export type {
 export const OVERLAY_PRIORITY: Record<DesktopOverlayKind, number> = {
   "current-session": 7,
   "live-timer": 7,
+  screenshot: 7,
   "playtime-reminder": 6,
   "action-required": 6,
   milestone: 5,
@@ -51,6 +52,7 @@ export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
   "current-session": 6_000,
   "live-timer": 3_000,
+  screenshot: 3_000,
   "playtime-reminder": 10_000,
   "action-required": 15_000,
   "session-start": 10_000,
@@ -63,6 +65,7 @@ const HOLD_MS: Record<DesktopOverlayKind, number> = {
 const TTL_MS: Record<DesktopOverlayKind, number> = {
   "current-session": 10_000,
   "live-timer": 10_000,
+  screenshot: 10_000,
   "playtime-reminder": 5 * 60_000,
   "action-required": 15 * 60_000,
   "session-start": 20_000,
@@ -117,11 +120,61 @@ export type OverlayEvent =
       todaySeconds: number;
     }
   /** Null = switched off. */
-  | { type: "live-timer"; corner: LiveTimerCorner | null };
+  | { type: "live-timer"; corner: LiveTimerCorner | null }
+  /** The pause hotkey's answer while the live timer is off. */
+  | {
+      type: "pause-toggled";
+      paused: boolean;
+      gameName: string;
+      coverUrl?: string;
+      durationSeconds: number;
+    }
+  /** A counter hotkey's answer while the live timer doesn't show it. */
+  | {
+      type: "counter-changed";
+      counterName: string;
+      gameName: string;
+      coverUrl?: string;
+      /** This playthrough's count. */
+      count: number;
+    }
+  /** A counting press with nothing to count: the game has no counters, or
+   *  none has the controller icon. */
+  | {
+      type: "counter-missing";
+      reason: "no-counters" | "no-controller-counter";
+      gameName: string;
+      coverUrl?: string;
+    }
+  | {
+      type: "screenshot";
+      outcome: ScreenshotOutcome;
+      gameName?: string;
+      coverUrl?: string;
+      /** Written in the caption box. */
+      caption?: string;
+    };
+
+/** How the screenshot key went. */
+export type ScreenshotOutcome =
+  | "saved"
+  | "black"
+  | "minimized"
+  | "no-window"
+  | "failed";
 
 export type TrackerOverlayEvent = Exclude<
   OverlayEvent,
-  { type: "discovery-burst" | "playtime-reminder" | "live-timer" }
+  {
+    type:
+      | "discovery-burst"
+      | "playtime-reminder"
+      | "live-timer"
+      | "screenshot"
+      | "pause-toggled"
+      | "counter-changed"
+      | "counter-missing";
+  }
 >;
 
 let nextSequence = 0;
@@ -136,6 +189,10 @@ export function overlayGate(
 ): DesktopOverlayKind | null {
   // Requested explicitly by a hotkey; automatic notification preferences do not apply.
   if (event.type === "current-session") return "current-session";
+  // A hotkey's answer, shown like the current session card.
+  if (event.type === "pause-toggled") return "current-session";
+  if (event.type === "counter-changed" || event.type === "counter-missing")
+    return "current-session";
   // Switched on by the player for themselves, apart from the popup settings.
   if (event.type === "playtime-reminder") return "playtime-reminder";
   if (event.type === "live-timer") return "live-timer";
@@ -225,6 +282,36 @@ function overlayCopy(
       showClock: event.showClock,
     };
   }
+  if (event.type === "pause-toggled") {
+    return {
+      kicker: event.paused ? t("TIMER PAUSED") : t("TIMER RESUMED"),
+      title: event.gameName,
+      metric: formatDuration(event.durationSeconds),
+      coverUrl: event.coverUrl,
+    };
+  }
+  if (event.type === "counter-changed") {
+    return {
+      kicker: event.counterName.toLocaleUpperCase(appLocale()),
+      title: event.gameName,
+      body: t("This playthrough"),
+      metric: event.count.toLocaleString(appLocale()),
+      coverUrl: event.coverUrl,
+    };
+  }
+  if (event.type === "counter-missing") {
+    return {
+      kicker: t("COUNTERS"),
+      title: event.gameName,
+      body:
+        event.reason === "no-counters"
+          ? t("This game has no counters yet. Add one in the counter box.")
+          : t(
+              "No counter has the controller icon. Click it on the counter the controller should count.",
+            ),
+      coverUrl: event.coverUrl,
+    };
+  }
   if (event.type === "playtime-reminder") {
     return {
       kicker: t("PLAYTIME REMINDER"),
@@ -245,6 +332,26 @@ function overlayCopy(
       kicker: t("LIVE TIMER"),
       title: event.corner ? titles[event.corner] : t("Live timer off"),
       body: event.corner ? t("It appears while a game is running.") : undefined,
+    };
+  }
+  if (event.type === "screenshot") {
+    const bodies: Record<ScreenshotOutcome, string> = {
+      saved: event.caption
+        ? t("“{{caption}}”", { caption: event.caption })
+        : t("Added to this session."),
+      black: t(
+        "The picture came out black. Switch the game to borderless or windowed, then try again.",
+      ),
+      minimized: t("The game is minimized. Bring it back and try again."),
+      "no-window": t("PlayCounter couldn't find the game's window."),
+      failed: t("PlayCounter couldn't take the screenshot."),
+    };
+    return {
+      kicker:
+        event.outcome === "saved" ? t("SCREENSHOT SAVED") : t("NO SCREENSHOT"),
+      title: event.gameName ?? t("Screenshot"),
+      body: bodies[event.outcome],
+      coverUrl: event.coverUrl,
     };
   }
   if (kind === "action-required" && event.type === "choice-required") {

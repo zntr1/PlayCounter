@@ -11,7 +11,7 @@ export const TOUR_SAMPLE_CHOICES: CommunityMetadataCandidate[] = [
     igdbId: -1,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    releaseYear: 2004,
+    releaseYear: 2023,
   },
   {
     igdbId: -2,
@@ -24,10 +24,14 @@ export const TOUR_SAMPLE_CHOICES: CommunityMetadataCandidate[] = [
 /** The real search/review form, supplied only with bundled sample results. */
 export function TourSampleSearch({
   exeName,
+  share = false,
   onConfirm,
   onClose,
 }: {
   exeName: string;
+  /** The sample stands in for Add & Share: the form keeps that dialog's
+   *  title and button, so a guide can name them. */
+  share?: boolean;
   onConfirm: (choice: CommunityMetadataCandidate) => void;
   onClose: () => void;
 }) {
@@ -38,8 +42,8 @@ export function TourSampleSearch({
   );
   return (
     <CommunitySuggestionForm
-      practice
-      title={t("Choose the sample game")}
+      practice={share ? "share" : true}
+      title={share ? undefined : t("Choose the sample game")}
       exeName={exeName}
       candidates={choices}
       selection={selection}
@@ -50,7 +54,7 @@ export function TourSampleSearch({
           ? t(
               "Review the title and cover, then confirm. Practice only; nothing is shared.",
             )
-          : t("No sample result. Try World of Warcraft or Zelda.")
+          : t("No sample result. Try Diablo or Zelda.")
       }
       onSearchChange={setQuery}
       onApplyCandidate={setSelection}

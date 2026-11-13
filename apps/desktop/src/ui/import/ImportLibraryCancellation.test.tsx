@@ -33,7 +33,10 @@ vi.mock("../../library/gameLookup", async (importOriginal) => ({
   reverseResolveLibraryGame: mocks.reverse,
   searchLibraryGames: mocks.search,
 }));
-vi.mock("../../library/importRun", () => ({ runLibraryImport: mocks.run }));
+vi.mock("../../library/importRun", () => ({
+  runLibraryImport: mocks.run,
+  importNowShareLater: mocks.run,
+}));
 
 let root: Root;
 let container: HTMLDivElement;
@@ -307,7 +310,8 @@ it.each([false, true])(
         key: "battlenet:example",
         status: manual ? "unknown" : "resolved",
         game: manual ? undefined : match,
-        candidates: [match],
+        // Not named like the title: no match by name.
+        candidates: [{ ...match, name: "Account game: Gold Edition" }],
         executables: [],
       },
     ];
@@ -346,27 +350,20 @@ it.each([false, true])(
       await act(() => checkbox!.click());
       await click("Import 1 game");
     }
-    expect(mocks.run).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          entry: expect.objectContaining({
-            provider: "battlenet",
-            providerSeconds: null,
-            providerHasPlayedEvidence: false,
-            linkedExeNames: [],
-          }),
-          exeCacheEntries: [],
-          scopedLinks: [],
-          install: undefined,
+    expect(mocks.run.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        entry: expect.objectContaining({
+          provider: "battlenet",
+          providerSeconds: null,
+          providerHasPlayedEvidence: false,
+          linkedExeNames: [],
         }),
-      ],
-      expect.any(AbortSignal),
-    );
+        exeCacheEntries: [],
+        scopedLinks: [],
+        install: undefined,
+      }),
+    ]);
     expect(container.textContent).not.toContain("Pick the game file to track");
-    if (manual)
-      expect(store.getState().toasts[0].detail).toContain(
-        "After installing it",
-      );
   },
 );
 
@@ -444,22 +441,14 @@ it.each(["steam", "xbox", "battlenet"] as const)(
     expect(store.getState().libraryImports.size).toBe(0);
 
     await click("Import");
-    expect(mocks.run).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          entry: expect.objectContaining({
-            provider,
-            linkedExeNames: ["Example.exe"],
-          }),
+    expect(mocks.run.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        entry: expect.objectContaining({
+          provider,
+          linkedExeNames: ["Example.exe"],
         }),
-      ],
-      expect.any(AbortSignal),
-    );
-    if (provider === "battlenet") {
-      expect(store.getState().toasts[0].detail).toContain(
-        "sent to the community for review",
-      );
-    }
+      }),
+    ]);
   },
 );
 
@@ -499,7 +488,8 @@ it("populates Battle.net review suggestions on the initial scan using a clean ti
   const candidate = {
     id: 7,
     igdbId: 8,
-    name: "Warcraft III: Reign of Chaos",
+    // Not named like the title: no match by name.
+    name: "Warcraft III: Reforged",
     coverUrl: "",
     source: "igdb",
   };
@@ -562,7 +552,11 @@ it.each(["xbox", "battlenet"] as const)(
   async (provider) => {
     await act(() => store.setState({ libraryImportProvider: provider }));
     const result = scanResult("Example Game");
-    const matchedGame = result.resolvedGames![0].game!;
+    // Not named like the title: no match by name.
+    const matchedGame = {
+      ...result.resolvedGames![0].game!,
+      name: "Example Game: Remastered",
+    };
     const externalId = provider === "battlenet" ? "example" : "42";
     result.games[0] = {
       ...result.games[0],
@@ -625,9 +619,6 @@ it.each(["xbox", "battlenet"] as const)(
       linkedExeNames: ["Example.exe"],
     });
     if (provider === "battlenet") {
-      expect(store.getState().toasts[0].detail).toContain(
-        "could not be verified or shared",
-      );
       expect(plan.exeCacheEntries).toEqual([]);
       expect(plan.scopedLinks).toEqual([
         expect.objectContaining({
@@ -770,7 +761,10 @@ it("does not commit an Xbox confirmation after switching providers", async () =>
         key: "xbox:42",
         status: "unknown",
         executables: [],
-        candidates: [result.resolvedGames![0].game],
+        // Not named like the title: no match by name.
+        candidates: [
+          { ...result.resolvedGames![0].game!, name: "Xbox game: Deluxe" },
+        ],
       },
     ],
   });

@@ -61,6 +61,9 @@ importers:
       react-i18next:
         specifier: ^17.0.16
         version: 17.0.16(i18next@26.4.3(typescript@5.9.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3)
+      tailwind-merge:
+        specifier: ^2.6.1
+        version: 2.6.1
       zustand:
         specifier: ^5.0.5
         version: 5.0.13(@types/react@19.2.15)(react@19.2.6)(use-sync-external-store@1.7.0(react@19.2.6))
@@ -1333,6 +1336,9 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  tailwind-merge@2.6.1:
+    resolution: {integrity: sha512-Oo6tHdpZsGpkKG88HJ8RR1rg/RdnEkQEfMoEk2x1XRI3F1AxeU+ijRXpiVUF4UbLfcxxRGw6TbUINKYdWVsQTQ==}
+
   tailwindcss@3.4.19:
     resolution: {integrity: sha512-3ofp+LL8E+pK/JuPLPggVAIaEuhvIz4qNcf3nA1Xn2o/7fb7s/TYpHhwGDv1ZU3PkBluUVaF8PyCHcm48cKLWQ==}
     engines: {node: '>=14.0.0'}
@@ -2547,6 +2553,8 @@ snapshots:
       ts-interface-checker: 0.1.13
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  tailwind-merge@2.6.1: {}
 
   tailwindcss@3.4.19(tsx@4.22.3):
     dependencies:

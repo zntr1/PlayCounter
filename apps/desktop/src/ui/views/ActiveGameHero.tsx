@@ -5,7 +5,9 @@ import {
   Clock3,
   Flag,
   Gamepad2,
+  Pause,
   Play,
+  Skull,
   Square,
   StickyNote,
 } from "lucide-react";
@@ -47,6 +49,8 @@ import {
 } from "../../personalLibrary";
 import { getT } from "../../i18n";
 import { igdbTerm } from "../../igdbTerms";
+import { NowPlayingCounters } from "../counters/CounterParts";
+import { openGameCounters } from "../openGameDetails";
 
 const t = getT("nowPlaying");
 
@@ -67,6 +71,14 @@ type ActiveGameHeroProps = {
   onReport?: () => void;
   /** Only for a timer: Stop sits next to its clock. */
   onStopTimer?: () => void;
+  /** Pause / Resume next to the clock. */
+  onTogglePause?: () => void;
+  /** How long the running pause has lasted, while paused. */
+  pausedForSeconds?: number;
+  /** The game's counters under the figures; absent on tour cards. */
+  showCounters?: boolean;
+  /** A guide's sample session: its name for a ring. The clock box, Pause
+   *  and Stop then carry `demo-session-…` names of their own. */
   tourAnchor?: string;
 };
 
@@ -92,8 +104,12 @@ export function ActiveGameHero({
   statusLabel,
   onReport,
   onStopTimer,
+  onTogglePause,
+  pausedForSeconds = 0,
+  showCounters = false,
   tourAnchor,
 }: ActiveGameHeroProps) {
+  const paused = Boolean(session.pausedAt);
   const journal = useGameJournal(session);
   const pickedCovers = usePickedCovers();
   const provenance = useAppStore(
@@ -126,7 +142,12 @@ export function ActiveGameHero({
         archivedConsoleSeconds,
         resolveIgdbId,
       }),
-    [archivedConsoleSeconds, archivedGameSeconds, recentSessions, resolveIgdbId],
+    [
+      archivedConsoleSeconds,
+      archivedGameSeconds,
+      recentSessions,
+      resolveIgdbId,
+    ],
   );
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
@@ -252,10 +273,17 @@ export function ActiveGameHero({
 
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-success-border/70 bg-success-tint/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-success">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" />
-              {statusLabel}
-            </div>
+            {paused ? (
+              <div className="inline-flex items-center gap-2 rounded-lg border border-warning-border/70 bg-warning-tint/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-warning">
+                <Pause size={11} fill="currentColor" strokeWidth={0} />
+                {t("Paused")}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-lg border border-success-border/70 bg-success-tint/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-success">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                {statusLabel}
+              </div>
+            )}
             {canReport ? (
               <Button
                 variant="ghost"
@@ -323,6 +351,16 @@ export function ActiveGameHero({
             >
               {t("Journal")}
             </Button>
+            {showCounters ? (
+              <Button
+                variant="secondary"
+                icon={Skull}
+                onClick={() => openGameCounters(session)}
+                className="h-9 rounded-lg border-border/70 bg-bg/40 backdrop-blur"
+              >
+                {t("Counters")}
+              </Button>
+            ) : null}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -398,25 +436,74 @@ export function ActiveGameHero({
       </div>
 
       <div className="active-hero-figures relative mx-7 mb-7 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] divide-x divide-border/60 rounded-xl border border-border/60">
-        <div className="px-6 py-4">
-          <FigureLabel icon={Play}>{t("This session")}</FigureLabel>
-          <div className="mt-1.5 flex items-center gap-5">
-            <div className="font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent-ink drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]">
+        <div
+          className="px-6 py-4"
+          data-tour={tourAnchor ? "demo-session-clock" : undefined}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <FigureLabel icon={Play}>{t("This session")}</FigureLabel>
+            {paused ? (
+              <span className="text-xs font-semibold tabular-nums text-warning">
+                {t("paused {{time}}", { time: formatClock(pausedForSeconds) })}
+              </span>
+            ) : null}
+          </div>
+          {/* A narrow window puts Pause and Stop under the clock, so they
+              never spill into Total playtime. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div
+              className={
+                paused
+                  ? "font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-text-muted"
+                  : "font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent-ink drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]"
+              }
+            >
               {formatClock(elapsedSeconds)}
             </div>
-            {onStopTimer ? (
-              <button
-                type="button"
-                aria-label={t("Stop the timer for {{gameName}}", {
-                  gameName: session.gameName,
-                })}
-                title={t("Stop")}
-                onClick={onStopTimer}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-danger/50 bg-danger/10 text-danger transition hover:border-danger-solid hover:bg-danger-solid hover:text-white hover:shadow-[0_0_18px_rgb(var(--color-danger-solid)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
-              >
-                <Square size={14} fill="currentColor" aria-hidden="true" />
-              </button>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {onTogglePause ? (
+                <button
+                  type="button"
+                  aria-label={
+                    paused
+                      ? t("Resume the timer for {{gameName}}", {
+                          gameName: session.gameName,
+                        })
+                      : t("Pause the timer for {{gameName}}", {
+                          gameName: session.gameName,
+                        })
+                  }
+                  title={paused ? t("Resume") : t("Pause")}
+                  data-tour={tourAnchor ? "demo-session-pause" : undefined}
+                  onClick={onTogglePause}
+                  className={
+                    paused
+                      ? "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-accent bg-accent text-accent-fg shadow-[0_0_18px_rgb(var(--color-accent)/0.35)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                      : "grid h-10 w-10 shrink-0 place-items-center rounded-full border border-accent/50 bg-accent/10 text-accent-ink transition hover:border-accent hover:bg-accent hover:text-accent-fg hover:shadow-[0_0_18px_rgb(var(--color-accent)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  }
+                >
+                  {paused ? (
+                    <Play size={15} fill="currentColor" aria-hidden="true" />
+                  ) : (
+                    <Pause size={15} fill="currentColor" aria-hidden="true" />
+                  )}
+                </button>
+              ) : null}
+              {onStopTimer ? (
+                <button
+                  type="button"
+                  aria-label={t("Stop the timer for {{gameName}}", {
+                    gameName: session.gameName,
+                  })}
+                  title={t("Stop")}
+                  data-tour={tourAnchor ? "demo-session-stop" : undefined}
+                  onClick={onStopTimer}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-danger/50 bg-danger/10 text-danger transition hover:border-danger-solid hover:bg-danger-solid hover:text-white hover:shadow-[0_0_18px_rgb(var(--color-danger-solid)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
+                >
+                  <Square size={14} fill="currentColor" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
         <div className="px-6 py-4">
@@ -432,6 +519,7 @@ export function ActiveGameHero({
           </div>
         </div>
       </div>
+      {showCounters ? <NowPlayingCounters session={session} /> : null}
     </section>
   );
 }

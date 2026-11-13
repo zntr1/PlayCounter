@@ -16,7 +16,7 @@ vi.mock("../../../gameDetails", () => ({
 }));
 
 import { commitLibraryImports } from "../../../library/commit";
-import { appLocale } from "../../../i18n";
+import { formatNumericDate } from "../../../i18n";
 import { getGameJournal, useAppStore } from "../../../store";
 import { MyGamesView } from "../MyGamesView";
 
@@ -140,7 +140,7 @@ function played(
   };
 }
 
-const day = (iso: string) => new Date(iso).toLocaleDateString(appLocale());
+const day = (iso: string) => formatNumericDate(iso);
 
 async function openTab() {
   await act(() => root.render(<MyGamesView />));
@@ -187,6 +187,8 @@ describe("its own tab", () => {
       "game-details-tab-achievements",
       "game-details-tab-howLongToBeat",
       "game-details-tab-files",
+      // docs/counters-plan.md: Counters comes last.
+      "game-details-tab-counters",
     ]);
   });
 

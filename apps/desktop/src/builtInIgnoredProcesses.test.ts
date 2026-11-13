@@ -32,6 +32,20 @@ describe("built-in ignored processes", () => {
     expect(matchesProcessPatternSet(exeName, builtIn)).toBe(true);
   });
 
+  // What ran next to BlueStacks' player on 2026-11-10 (BlueStacks 5.22).
+  it.each([
+    "BlueStacksAppplayerWeb.exe",
+    "BlueStacksServices.exe",
+    "BstkSVC.exe",
+    "HD-Adb.exe",
+  ])("hides BlueStacks' helper %s", (exeName) => {
+    expect(matchesProcessPatternSet(exeName, builtIn)).toBe(true);
+  });
+
+  it("keeps BlueStacks' player, which is tracked as an emulator", () => {
+    expect(matchesProcessPatternSet("HD-Player.exe", builtIn)).toBe(false);
+  });
+
   it.each(["Game.exe", "javaw.exe", "eldenring.exe", "fm.exe"])(
     "keeps the game file %s",
     (exeName) => {

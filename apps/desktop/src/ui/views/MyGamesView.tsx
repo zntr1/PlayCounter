@@ -7,6 +7,7 @@ import {
 } from "../LibraryAppearanceControls";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import {
+  PersonalLibraryContext,
   useLibraryPractice,
   usePersonalLibraryState,
 } from "../PersonalLibraryContext";
@@ -34,6 +35,7 @@ import {
   ClockPlus,
   Download,
   ExternalLink,
+  EyeOff,
   Flag,
   FolderOpen,
   FolderSearch,
@@ -42,7 +44,6 @@ import {
   History,
   ImagePlus,
   Info,
-  FolderTree,
   LayoutGrid,
   PanelTop,
   List,
@@ -115,6 +116,7 @@ import {
   startGameTimer,
   stopGameTimer,
   setCustomGameCover,
+  setPickedBannerFile,
   setPickedCoverFile,
   suggestTrackedGameToCommunity,
   submitLocalLinkToCommunity,
@@ -128,6 +130,7 @@ import {
   fileMatchSource,
   canSwitchApprovedSuggestionToCommunity,
   createGameIdentityResolver,
+  customHeroArtKey,
   findPendingCommunitySuggestionEntry,
   gameMetadataKey,
   resolvedCanonicalGameKey,
@@ -136,10 +139,12 @@ import {
   type ActiveSession,
   type ExeCacheEntry,
   type GameMetadata,
+  type LaunchTarget,
   type PendingCommunitySuggestionTarget,
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { formatClock } from "./ActiveGameHero";
+import { playedMs, playedSeconds } from "../../sessionTime";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
@@ -149,6 +154,7 @@ import {
 } from "../../playtimeAdjustments";
 import { recordedSecondsByGame } from "../../milestones";
 import {
+  launcherPlaytimes,
   providerFloorKey,
   providerFloorRecord,
   providerFloors,
@@ -220,7 +226,11 @@ import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
-import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { GameDetailsDialog, type DetailsTab } from "./games/GameDetailsDialog";
+import {
+  type GameDetailsRequest,
+  useGameDetailsRequest,
+} from "../openGameDetails";
 import { achievementSources } from "./games/GameAchievementsTab";
 import { isRejectedGameFile } from "../../rejectedGameFiles";
 import { PickGameFileDialog } from "./games/GameFileList";
@@ -258,8 +268,10 @@ import { LibraryGameDropHint } from "../LibraryGameDropHint";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 import {
   defaultPlaythroughName,
+  journalHiddenIn,
   matchesLibraryFilters,
   normalizeLibraryFilters,
+  shelfHides,
   type LibraryFilters,
   type PersonalShelf,
 } from "../../personalLibrary";
@@ -275,11 +287,19 @@ import {
   TOUR_DEMO_GAME,
   TOUR_DEMO_EMULATOR,
   TOUR_GTA_GAME_ID,
+  TOUR_SAMPLE_ART,
+  sampleStageForStep,
+  stepAsksForSampleEntry,
+  tourSampleMatches,
+  tourSessionsForGame,
 } from "../tour/tourDemoGame";
-import { emitTourEvent, useTourDemo } from "../tour/TourUI";
+import { emitTourEvent, tourDoneFlash, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
+import { cn } from "../cn";
+import { createLibraryTourStore } from "../tour/libraryTourStore";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
 import { StatsPractice } from "../tour/TourStatsPractice";
+import { GameJournalHost } from "../GameJournalDialog";
 import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
@@ -358,13 +378,24 @@ import { type MyGamesCardSize } from "../myGamesPresentation";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
-import { appLocale, getT } from "../../i18n";
+import { appLocale, formatNumericDate, getT } from "../../i18n";
 import { nativeText } from "../../nativeText";
 
 const t = getT("myGames");
 
 type SortKey = MyGamesSortKey;
 type ViewMode = MyGamesCardSize;
+
+/** The library search: a game's name or the emulator it runs in. */
+function matchesLibrarySearch(
+  game: Pick<GameSummary, "name" | "emulatorLabels">,
+  needle: string,
+) {
+  return (
+    game.name.toLowerCase().includes(needle) ||
+    game.emulatorLabels.some((label) => label.toLowerCase().includes(needle))
+  );
+}
 
 function sortOptions(): Array<{ key: SortKey; label: string }> {
   return [
@@ -482,12 +513,17 @@ type PendingStopTracking = {
   aliases: GameAliasRef[];
 } | null;
 
+// The sample of the guides: found by its game file and matched by the
+// community, like a game PlayCounter picked up by itself. In every guide, so
+// its menu has what such a real card's menu has.
 function makeTourDemoGame(
   addedSeconds: number,
   addedSessions: number,
   showSourceBadges: boolean,
-  source: GameSource | null = null,
   adjustmentSeconds = 0,
+  /** The "Custom games" guide: a game file the player named, so its menu has
+   *  Change Game…, Suggest to Community and Check for Matches. */
+  custom = false,
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
   return {
@@ -495,12 +531,12 @@ function makeTourDemoGame(
     gameId: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    source,
-    sources: showSourceBadges
-      ? ["community", "igdb", "custom"]
-      : source
-        ? [source]
-        : [],
+    source: custom ? "custom" : "community",
+    sources: custom
+      ? ["custom"]
+      : showSourceBadges
+        ? ["community", "igdb", "custom"]
+        : ["community"],
     aliases: [],
     totalSeconds: totalSeconds + adjustmentSeconds,
     sessionSeconds: totalSeconds,
@@ -571,6 +607,23 @@ export function makeCoreTourDemoGames(): GameSummary[] {
   ];
 }
 
+/** A sample card's own library: Favorites, Status, Tier, Shelves and the
+ *  journal work on it like on a real card, and nothing reaches the player's. */
+function createSampleLibrary(game: GameSummary) {
+  const library = createLibraryTourStore(useAppStore.getState().settings);
+  library.setState({ recentSessions: tourSessionsForGame(game) });
+  return library;
+}
+
+/** Where a sample's game file would be: only shown, never opened. */
+function sampleLaunchPath(game: GameSummary) {
+  const exeName = game.exeNames[0];
+  if (!exeName || game.emulatorIds.length > 0) return null;
+  return game.gameId === TOUR_DEMO_GAME.gameId
+    ? TOUR_DEMO_GAME.exePath
+    : `C:\\Games\\${game.name}\\${exeName}`; // i18n-exempt: sample path
+}
+
 function matchedEntriesByGame(
   entries: ExeCacheEntry[],
   resolveIgdbId: ReturnType<typeof createGameIdentityResolver>,
@@ -619,13 +672,10 @@ function sourceRank(source: GameSource | null | undefined) {
 
 function formatLastPlayed(value: string) {
   const date = new Date(value);
-  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
-    appLocale(),
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  )}`;
+  return `${formatNumericDate(date)} ${date.toLocaleTimeString(appLocale(), {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
 }
 
 function formatGameActivity(game: GameSummary) {
@@ -738,13 +788,8 @@ function playButtonState(
 }
 
 function activeDurationSeconds(activeSession: ActiveSession) {
-  return Math.max(
-    0,
-    Math.round(
-      (Date.parse(activeSession.checkpointedAt) -
-        Date.parse(activeSession.startedAt)) /
-        1000,
-    ),
+  return Math.round(
+    playedMs(activeSession, Date.parse(activeSession.checkpointedAt)) / 1000,
   );
 }
 
@@ -776,6 +821,19 @@ export function MyGamesView({
     skippedCount: number;
   } | null>(null);
   const [addingGame, setAddingGame] = useState(false);
+  // The "Add a game yourself" guide practises the dialog on bundled titles.
+  // Its steps say whether the dialog is open, so a step reached from anywhere
+  // finds it as it needs it.
+  const addGameSample = tourDemo.active && tourDemo.tourId === "add-game";
+  const addGameStep = useAppStore((state) =>
+    state.activeTour?.tourId === "add-game"
+      ? findTour("add-game")?.steps[state.activeTour.stepIndex]?.id
+      : undefined,
+  );
+  useEffect(() => {
+    if (addGameStep === undefined) return;
+    setAddingGame(addGameStep === "search" || addGameStep === "result");
+  }, [addGameStep]);
   const [levelingUp, setLevelingUp] = useState(false);
   const isOffline = useIsOffline();
   const query = useAppStore((state) => state.libraryQuery);
@@ -982,14 +1040,8 @@ export function MyGamesView({
   const showProviderTabs = useAppStore(
     (state) => state.settings.libraryShowProviderTabs !== false,
   );
-  const setMyGamesShowProviderTabs = useAppStore(
-    (state) => state.setMyGamesShowProviderTabs,
-  );
   const hideEmptyProviderTabs = useAppStore(
     (state) => state.settings.libraryHideEmptyProviderTabs === true,
-  );
-  const setMyGamesHideEmptyProviderTabs = useAppStore(
-    (state) => state.setMyGamesHideEmptyProviderTabs,
   );
   const statCardIds = useMemo(
     () => resolveLibraryStatCardIds({ libraryStatCards: statCardSetting }),
@@ -1052,9 +1104,16 @@ export function MyGamesView({
       adjustmentSeconds: 0,
     });
     setLibraryTab("all");
+    // The sample sits under All games: no shelf chip of the player's stays
+    // selected next to it.
+    if (tourDemo.active) {
+      setShelfSelection("all");
+      setLibraryFilters({});
+      setFiltersOpen(false);
+    }
   }, [renderContent, tourDemo.active, tourDemo.resetToken]);
 
-  // Hovering a card reveals its .exe names only while Shift is held.
+  // Hovering a card with Shift held shows its CardShiftPanel.
   useEffect(() => {
     const setShiftHeld = (held: boolean) => {
       document.body.classList.toggle("shift-held", held);
@@ -1119,7 +1178,9 @@ export function MyGamesView({
     return () => window.clearTimeout(timer);
   }, [activeSessions, recentSortNow]);
 
-  const games = useMemo(() => {
+  // The quick add box reads the same places through myGamesKeys
+  // (library/myGamesKeys.ts): a new place here goes there too.
+  const ownGames = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
     const isIgnored = (exeName: string) =>
       matchesProcessPatternSet(exeName, ignoredExeNames);
@@ -1853,22 +1914,64 @@ export function MyGamesView({
         demoPlaytime.addedSeconds,
         demoPlaytime.addedSessions,
         tourDemo.tourId === "source-badges",
-        tourDemo.tourId === "game-actions" ? "community" : null,
         demoPlaytime.adjustmentSeconds,
+        tourDemo.tourId === "custom-games",
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
+  // While a guide shows its sample, My Games shows the sample only: the
+  // grid, the numbers beside the title, the shelf chips and the sources.
+  // The player's own games stay out of it, the running one included.
+  const sampleOnly = tourDemo.active;
+  const games = sampleOnly ? demoGames : ownGames;
+
+  // Details opened outside the grid (Now Playing's "Counters", the banner).
+  // Not on the game's card, which may not be built yet or is hidden by a
+  // search, filter, tab or shelf: a copy of the card without the card
+  // (detailsOnly) opens it, so it has every action the card's Details has.
+  const detailsRequest = useGameDetailsRequest((state) => state.request);
+  const [detailsHost, setDetailsHost] = useState<
+    (GameDetailsRequest & { id: number; open: boolean }) | null
+  >(null);
+  useEffect(() => {
+    if (!detailsRequest) return;
+    // Taken once: coming back to My Games later doesn't open it again.
+    useGameDetailsRequest.setState({ request: null });
+    setDetailsHost((current) => ({
+      ...detailsRequest,
+      id: (current?.id ?? 0) + 1,
+      open: true,
+    }));
+  }, [detailsRequest]);
+  useEffect(() => {
+    // Opened once. When the copy is built again (back from the tray, the
+    // first visit to My Games), Details stays closed.
+    if (detailsHost?.open) setDetailsHost({ ...detailsHost, open: false });
+  }, [detailsHost]);
+  const detailsGame = useMemo(
+    () =>
+      detailsHost
+        ? ownGames.find((game) =>
+            game.aliases.some(
+              (alias) =>
+                alias.gameId === detailsHost.gameId &&
+                alias.source === detailsHost.source,
+            ),
+          )
+        : undefined,
+    [detailsHost, ownGames],
+  );
+  useEffect(() => {
+    // Not in the library: nothing to open, and nothing to open later either.
+    if (detailsHost && !detailsGame) setDetailsHost(null);
+  }, [detailsHost, detailsGame]);
+
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
-  const allLibraryGames = tourDemo.active ? demoGames : games;
+  const allLibraryGames = games;
   // Only shelves empty across the full library should preview every game.
   const allShelfCounts = useMemo(
-    () =>
-      countShelfGames(
-        tourDemo.active ? demoGames : games,
-        journalFor,
-        personalShelves,
-      ),
-    [games, demoGames, tourDemo.active, journalFor, personalShelves],
+    () => countShelfGames(games, journalFor, personalShelves),
+    [games, journalFor, personalShelves],
   );
   // Apply shelf rules before the source selection so every badge describes
   // the games available in that source within the current view.
@@ -1887,8 +1990,9 @@ export function MyGamesView({
     return games.filter((game) => {
       const journal = journalFor({ ...game, gameName: game.name });
       return (
-        (previewFilters ||
-          matchesShelf(game, journal, shelfSelection, personalShelves)) &&
+        (previewFilters
+          ? matchesShelf(game, journal, "all", personalShelves)
+          : matchesShelf(game, journal, shelfSelection, personalShelves)) &&
         matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
       );
     });
@@ -1920,13 +2024,7 @@ export function MyGamesView({
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
-      ? shelfGames.filter(
-          (game) =>
-            game.name.toLowerCase().includes(needle) ||
-            game.emulatorLabels.some((label) =>
-              label.toLowerCase().includes(needle),
-            ),
-        )
+      ? shelfGames.filter((game) => matchesLibrarySearch(game, needle))
       : shelfGames;
   }, [query, shelfGames]);
   const platform = currentPlatform();
@@ -1957,10 +2055,6 @@ export function MyGamesView({
   const hasImportedGames = providerTabInputs.some(
     (provider) => provider.gameCount > 0,
   );
-  const canHideEmptyProviderTabs =
-    showProviderTabs &&
-    hasImportedGames &&
-    hasEmptyProviderTabs(providerTabInputs);
   // Tab visibility and import prompts still depend on the full library:
   // a shelf with no matches must not hide a source or imply it was never imported.
   const tabs = visibleLibraryTabs({
@@ -1972,10 +2066,9 @@ export function MyGamesView({
   }).map((tab) => ({
     ...tab,
     count:
-      tab.id === "all" && isCoreTourDemo
+      tab.id === "all" && sampleOnly
         ? demoGames.length
-        : filterByLibraryTab(matchingGames, tab.id).length +
-          (tab.id === "all" ? demoGames.length : 0),
+        : filterByLibraryTab(matchingGames, tab.id).length,
   }));
   const activeLibraryTab = resolveLibraryTab(libraryTab, tabs);
   useEffect(() => {
@@ -2095,34 +2188,45 @@ export function MyGamesView({
       ),
     [displayedGames, bulkSelection.selected],
   );
+  // The guide opens All games (see the effect above); on another source
+  // there is no sample to show.
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
-  const libraryGames =
-    isCoreTourDemo && activeLibraryTab === "all"
-      ? demoGames
-      : [...demoForTab, ...tabGames];
-  const visibleGames =
-    isCoreTourDemo && activeLibraryTab === "all"
-      ? demoGames
-      : [...demoForTab, ...displayedGames];
+  const libraryGames = sampleOnly ? demoForTab : tabGames;
+  const visibleGames = sampleOnly ? demoForTab : displayedGames;
   const layout = myGamesLayout({
     libraryGameCount: allLibraryGames.length,
     tabs,
     requestedTab: libraryTab,
-    activeTabGameCount: sourceGames.length + demoForTab.length,
+    activeTabGameCount: sampleOnly ? demoForTab.length : sourceGames.length,
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
+  const hidesNew = personalShelves.some((shelf) => shelfHides(shelf, "new"));
+  // The banner is always one of the player's games (hidden during a guide).
   const defaultFeatured = useMemo(
-    () => pickFeaturedGame(games, featuredSetting),
-    [featuredSetting, games],
-  );
-  const featured = useMemo(
     () =>
-      selectedShelf?.featuredGame
-        ? pickFeaturedGame(games, selectedShelf.featuredGame, featuredSetting)
-        : defaultFeatured,
-    [defaultFeatured, featuredSetting, games, selectedShelf?.featuredGame],
+      pickFeaturedGame(
+        hidesNew
+          ? ownGames.filter(
+              (game) =>
+                !journalHiddenIn(
+                  journalFor({ ...game, gameName: game.name }),
+                  personalShelves,
+                  "new",
+                ),
+            )
+          : ownGames,
+        featuredSetting,
+      ),
+    [featuredSetting, ownGames, hidesNew, journalFor, personalShelves],
   );
+  const featured = useMemo(() => {
+    const shelfPin = selectedShelf?.featuredGame;
+    const pinned = shelfPin
+      ? ownGames.find((game) => matchesFeaturedGame(game, shelfPin))
+      : undefined;
+    return pinned ? { game: pinned, pinned: true } : defaultFeatured;
+  }, [defaultFeatured, ownGames, selectedShelf?.featuredGame]);
   const shelfBannerPinned = Boolean(
     featured &&
     selectedShelf?.featuredGame &&
@@ -2134,7 +2238,9 @@ export function MyGamesView({
     showHero &&
     layout.panel !== "empty-library" &&
     featured !== null &&
-    !isCoreTourDemo;
+    // The banner is the player's own; a sample's "Pin to banner" answers with
+    // a sample result instead.
+    !sampleOnly;
   // The New row holds the new games of what the list shows: tab, shelf and
   // filters. "Recently added" already puts them first, and search results
   // are short enough to show them (docs/new-games-row-plan.md).
@@ -2149,19 +2255,81 @@ export function MyGamesView({
   const newGames = useMemo(
     () =>
       newRowAllowed
-        ? newRowGames(displayedGames, Date.now(), newGamesSeen)
+        ? newRowGames(
+            hidesNew
+              ? displayedGames.filter(
+                  (game) =>
+                    !journalHiddenIn(
+                      journalFor({ ...game, gameName: game.name }),
+                      personalShelves,
+                      "new",
+                    ),
+                )
+              : displayedGames,
+            Date.now(),
+            newGamesSeen,
+          )
         : NO_NEW_GAMES,
-    [newRowAllowed, displayedGames, newGamesSeen],
+    [
+      newRowAllowed,
+      displayedGames,
+      newGamesSeen,
+      hidesNew,
+      journalFor,
+      personalShelves,
+    ],
   );
   const newRowVisible = newRowAllowed && newGames.length > 0;
+  // Under All games: how many games the open source, filters and search
+  // would show if no shelf hid them, and which shelves those are.
+  const hiddenHint = useMemo(() => {
+    if (
+      shelfSelection !== "all" ||
+      tourDemo.active ||
+      !personalShelves.some((shelf) => shelfHides(shelf, "all"))
+    )
+      return null;
+    const needle = query.trim().toLowerCase();
+    const shelfIds = new Set<string>();
+    let count = 0;
+    for (const game of filterByLibraryTab(games, activeLibraryTab)) {
+      const journal = journalFor({ ...game, gameName: game.name });
+      if (
+        !journalHiddenIn(journal, personalShelves, "all") ||
+        !matchesLibraryFilters(game, journal, libraryFilters, recentSortNow) ||
+        (needle && !matchesLibrarySearch(game, needle))
+      )
+        continue;
+      count += 1;
+      for (const id of journal.shelfIds) shelfIds.add(id);
+    }
+    if (!count) return null;
+    return {
+      count,
+      searching: Boolean(needle),
+      shelves: personalShelves.filter(
+        (shelf) => shelfIds.has(shelf.id) && shelfHides(shelf, "all"),
+      ),
+    };
+  }, [
+    activeLibraryTab,
+    games,
+    journalFor,
+    libraryFilters,
+    personalShelves,
+    query,
+    recentSortNow,
+    shelfSelection,
+    tourDemo.active,
+  ]);
   useEffect(() => {
     publishLibrarySources({
       tabs,
       activeTab: activeLibraryTab,
-      gameCount: isCoreTourDemo
-        ? demoGames.length
-        : matchingGames.length + demoGames.length,
+      gameCount: sampleOnly ? demoGames.length : matchingGames.length,
       visible: layout.showTabs,
+      canHideEmptySources:
+        hasImportedGames && hasEmptyProviderTabs(providerTabInputs),
       heroVisible,
       heroArt: heroVisible ? useLibrarySources.getState().heroArt : null,
       featured: defaultFeatured,
@@ -2225,10 +2393,37 @@ export function MyGamesView({
     });
   }, []);
 
+  const detailsCard =
+    detailsHost && detailsGame ? (
+      <GameLibraryCard
+        key={detailsHost.id}
+        detailsOnly={{ tab: detailsHost.tab, open: detailsHost.open }}
+        game={detailsGame}
+        localLinks={localLinks}
+        launchKey="details-host"
+        launchBlocked={launchingGameKey !== null}
+        onAcquireLaunch={acquireLaunchLock}
+        onReleaseLaunch={releaseLaunchLock}
+        showDurationDays={showDurationDays}
+        showOrigin={showOrigin}
+        showMatch={showMatch}
+        showTrackingWarning={showTrackingWarnings}
+        view={view}
+        onRemove={requestRemoval}
+        onStopTracking={detailsGame.source ? requestStopTracking : undefined}
+        onDragGame={libraryDrag.start}
+        selectionMode={false}
+        selected={false}
+        onToggleSelection={bulkSelection.toggleGame}
+      />
+    ) : null;
+
   // Other views can request the shared library data without mounting cards.
   // Once My Games has been opened, App keeps its content mounted as before,
   // except while the window is parked in the tray.
-  if (!renderContent || parked) return null;
+  if (parked) return null;
+  // The banner on another page opens Details there.
+  if (!renderContent) return detailsCard;
 
   return (
     <div ref={bulkSelection.rootRef} onKeyDown={bulkSelection.onKeyDown}>
@@ -2238,21 +2433,38 @@ export function MyGamesView({
           className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 text-sm"
         >
           <h3 className="font-semibold">
-            {t("Badge examples: origin and recognition")}
+            {t("Badge examples: recognition and origin")}
           </h3>
-          <div className="flex flex-wrap items-center gap-3">
+          <div
+            data-tour="demo-match-examples"
+            className="flex flex-wrap items-center gap-3"
+          >
+            <span className="text-text-muted">{t("File match")}</span>
+            <SourceBadge source="community" dataTour="demo-legend-community" />
+            <SourceBadge source="igdb" dataTour="demo-legend-igdb" />
+            {/* A custom match, as it is added, sent and approved. */}
+            <span
+              data-tour="demo-legend-custom"
+              className="inline-flex flex-wrap items-center gap-3"
+            >
+              <SourceBadge source="custom" />
+              <SourceBadge source="custom" approval="pending" />
+              <SourceBadge source="custom" approval="approved" />
+            </span>
+          </div>
+          <div
+            data-tour="demo-launcher-examples"
+            className="flex flex-wrap items-center gap-3"
+          >
             <span className="text-text-muted">{t("Launcher origin")}</span>
             <ProviderBadge provider="steam" />
             <ProviderBadge provider="xbox" />
             <ProviderBadge provider="battlenet" />
             <ProviderBadge provider="epic" />
             <ProviderBadge provider="gog" />
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+            <ProviderBadge provider="playstation" />
             <span className="text-text-muted">{t("Emulator")}</span>
             <EmulatorBadge emulatorId="dolphin" label="Dolphin" />
-            <span className="text-text-muted">{t("File match")}</span>
-            <SourceBadge source="community" />
           </div>
           <p className="text-xs text-text-muted">
             {t(
@@ -2266,7 +2478,10 @@ export function MyGamesView({
         onDismiss={libraryDrag.dismissHint}
       />
       {layout.panel === "empty-library" ? (
-        <EmptyLibraryPanel platform={platform} />
+        <EmptyLibraryPanel
+          platform={platform}
+          onAddGame={() => setAddingGame(true)}
+        />
       ) : (
         <>
           {heroVisible && featured ? (
@@ -2458,7 +2673,12 @@ export function MyGamesView({
                       variant="secondary"
                       icon={Plus}
                       data-controller-item="view-link"
-                      disabled={tourDemo.active || isOffline}
+                      data-tour="demo-add-game-button"
+                      disabled={
+                        tourDemo.active
+                          ? tourDemo.tourId !== "add-game"
+                          : isOffline
+                      }
                       title={
                         isOffline
                           ? t("Needs a connection")
@@ -2556,6 +2776,7 @@ export function MyGamesView({
                       aria-expanded={customizeMenu.open}
                       aria-controls="library-customize"
                       data-controller-item="library-customize"
+                      data-tour="library-customize"
                       onClick={customizeMenu.toggle}
                       className="h-9 w-9 rounded-lg"
                     />
@@ -2629,65 +2850,6 @@ export function MyGamesView({
                         checked={highResCovers}
                         onChange={setMyGamesHighResCovers}
                       />
-                    </CustomizeSection>
-
-                    <CustomizeSection
-                      icon={LayoutGrid}
-                      title={t("Card details")}
-                      hint={t("What each game card shows.")}
-                    >
-                      <LibraryCardControls
-                        showOrigin={showOrigin}
-                        showMatch={showMatch}
-                        showStatus={showStatus}
-                        showNotes={showNotes}
-                        showTiers={showTiers}
-                        showTrackingWarnings={showTrackingWarnings}
-                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
-                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
-                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
-                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
-                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
-                        setMyGamesShowTrackingWarnings={
-                          setMyGamesShowTrackingWarnings
-                        }
-                      />
-                    </CustomizeSection>
-
-                    <CustomizeSection
-                      icon={FolderTree}
-                      title={t("Library structure")}
-                      hint={t("How your games are grouped.")}
-                    >
-                      <OptionRow
-                        id="library-show-provider-tabs"
-                        label={t("Launcher groups")}
-                        help={t(
-                          "Steam, Xbox, Battle.net, Epic Games and GOG as their own entries under My Games.",
-                        )}
-                        checked={showProviderTabs}
-                        onChange={setMyGamesShowProviderTabs}
-                      />
-                      <OptionRow
-                        id="library-hide-empty-tabs"
-                        label={t("Hide empty sources")}
-                        help={
-                          !showProviderTabs
-                            ? t(
-                                "Turn on launcher groups to choose which sources appear.",
-                              )
-                            : !hasImportedGames
-                              ? t("Available after you import games.")
-                              : canHideEmptyProviderTabs
-                                ? t(
-                                    "Hide launchers you have not imported from yet.",
-                                  )
-                                : t("All sources in the sidebar have games.")
-                        }
-                        checked={hideEmptyProviderTabs}
-                        disabled={!canHideEmptyProviderTabs}
-                        onChange={setMyGamesHideEmptyProviderTabs}
-                      />
                       <OptionRow
                         id="library-show-stats"
                         label={t("Summary numbers")}
@@ -2746,6 +2908,29 @@ export function MyGamesView({
                           </div>
                         </fieldset>
                       ) : null}
+                    </CustomizeSection>
+
+                    <CustomizeSection
+                      icon={LayoutGrid}
+                      title={t("Card details")}
+                      hint={t("What each game card shows.")}
+                    >
+                      <LibraryCardControls
+                        showOrigin={showOrigin}
+                        showMatch={showMatch}
+                        showStatus={showStatus}
+                        showNotes={showNotes}
+                        showTiers={showTiers}
+                        showTrackingWarnings={showTrackingWarnings}
+                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
+                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
+                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
+                        setMyGamesShowTrackingWarnings={
+                          setMyGamesShowTrackingWarnings
+                        }
+                      />
                     </CustomizeSection>
                   </div>
                 </div>
@@ -2943,13 +3128,61 @@ export function MyGamesView({
                   ) : null}
                 </>
               )}
+              {hiddenHint ? (
+                <p
+                  data-library-hidden-hint=""
+                  className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[12.5px] text-text-faint"
+                >
+                  <EyeOff size={13} aria-hidden="true" className="shrink-0" />
+                  <span data-library-hidden-hint-text="">
+                    {hiddenHint.searching
+                      ? t("{{count}} more matches are hidden here by:", {
+                          count: hiddenHint.count,
+                        })
+                      : t("{{count}} games are hidden here by:", {
+                          count: hiddenHint.count,
+                        })}
+                  </span>
+                  {hiddenHint.shelves.map((shelf) => (
+                    <button
+                      key={shelf.id}
+                      type="button"
+                      className="rounded text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      onClick={() => {
+                        // With the shelf row off, its shelf could not show.
+                        if (!showShelves) setMyGamesShowShelves(true);
+                        selectShelf(shelf.id);
+                      }}
+                    >
+                      {shelf.name}
+                    </button>
+                  ))}
+                </p>
+              ) : null}
             </div>
           </div>
         </>
       )}
       {addingGame ? (
         <AddGameDialog
-          libraryIgdbIds={new Set(games.flatMap((game) => game.igdbId ?? []))}
+          libraryIgdbIds={
+            new Set(
+              addGameSample
+                ? []
+                : ownGames.flatMap((game) => game.igdbId ?? []),
+            )
+          }
+          sample={
+            addGameSample
+              ? {
+                  prefilled: addGameStep === "result",
+                  onDone: () => {
+                    setAddingGame(false);
+                    emitTourEvent("demo.step-completed");
+                  },
+                }
+              : undefined
+          }
           onClose={() => setAddingGame(false)}
         />
       ) : null}
@@ -2981,6 +3214,7 @@ export function MyGamesView({
           }}
         />
       ) : null}
+      {detailsCard}
       {pendingBulkMove ? (
         <MoveToPlayCounterDialog
           games={pendingBulkMove.games}
@@ -3068,9 +3302,12 @@ export function MyGamesView({
 
 function EmptyLibraryPanel({
   platform,
+  onAddGame,
 }: {
   platform: ReturnType<typeof currentPlatform>;
+  onAddGame: () => void;
 }) {
+  const isOffline = useIsOffline();
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setLibraryImportProvider = useAppStore(
     (state) => state.setLibraryImportProvider,
@@ -3094,6 +3331,21 @@ function EmptyLibraryPanel({
             "Start a game from any launcher or a standalone install. Keep PlayCounter running, and it will add recognized games here and track your playtime automatically.",
           )}
         </p>
+        <Button
+          variant="primary"
+          icon={Plus}
+          className="mx-auto mt-6"
+          data-controller-item="view-link"
+          disabled={isOffline}
+          title={
+            isOffline
+              ? t("Needs a connection")
+              : t("Add a game by name, with or without its .exe")
+          }
+          onClick={onAddGame}
+        >
+          {t("Or add a game manually")}
+        </Button>
       </div>
       {importProviders.length > 0 ? (
         <div className="border-t border-border/60 px-6 py-6">
@@ -3254,6 +3506,7 @@ export function GameLibraryCard({
   demo = false,
   compact = false,
   onMarkSeen,
+  detailsOnly,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3282,36 +3535,58 @@ export function GameLibraryCard({
   compact?: boolean;
   /** The New row's ×: this game is seen, it leaves the row and its badge. */
   onMarkSeen?: (gameKeys: readonly string[]) => void;
+  /** No card, only its dialogs: Details opened outside the grid (Now
+   *  Playing, the banner) with every action the card's own has. `open`:
+   *  Details opens on `tab` when this is built. */
+  detailsOnly?: { tab: DetailsTab; open: boolean };
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
     name: string;
     source: GameSource;
   } | null>(null);
-  const game = useMemo(
-    () =>
-      demo
+  // Sessions logged on a sample whose list does not count them itself (the
+  // practice library).
+  const [demoLogged, setDemoLogged] = useState({ seconds: 0, sessions: 0 });
+  const game = useMemo(() => {
+    if (!demo) return originalGame;
+    const recordedSeconds = originalGame.recordedSeconds + demoLogged.seconds;
+    return {
+      ...originalGame,
+      ...(demoIdentity
+        ? { ...demoIdentity, sources: [demoIdentity.source] }
+        : {}),
+      totalSeconds: originalGame.totalSeconds + demoLogged.seconds,
+      sessionSeconds: originalGame.sessionSeconds + demoLogged.seconds,
+      recordedSeconds,
+      sessionCount: originalGame.sessionCount + demoLogged.sessions,
+      ...(demoTotal !== null
         ? {
-            ...originalGame,
-            ...(demoIdentity
-              ? { ...demoIdentity, sources: [demoIdentity.source] }
-              : {}),
-            ...(demoTotal !== null
-              ? {
-                  totalSeconds: demoTotal,
-                  adjustmentSeconds: demoTotal - originalGame.recordedSeconds,
-                }
-              : {}),
+            totalSeconds: demoTotal,
+            adjustmentSeconds: demoTotal - recordedSeconds,
           }
-        : originalGame,
-    [demo, demoTotal, demoIdentity, originalGame],
-  );
+        : {}),
+    };
+  }, [demo, demoTotal, demoIdentity, demoLogged, originalGame]);
   const libraryPractice = useLibraryPractice();
-  const openGameJournal = usePersonalLibraryState((s) => s.openGameJournal);
+  // The two kinds of sample cards: one in My Games while a guide with a
+  // sample game runs, and the cards of the practice library.
+  const guideSample = demo && !libraryPractice;
+  // Favorites, Status, Tier, Shelves and the journal of a sample in My Games
+  // live in a library of its own, thrown away with the card. The practice
+  // library brings its own.
+  const [sampleLibrary] = useState(() =>
+    guideSample ? createSampleLibrary(originalGame) : null,
+  );
+  const openLibraryJournal = usePersonalLibraryState((s) => s.openGameJournal);
+  const openGameJournal: typeof openLibraryJournal = (target) =>
+    sampleLibrary
+      ? sampleLibrary.getState().openGameJournal(target)
+      : openLibraryJournal(target);
   const controllerKind = useControllerKind();
   // The tour walks through both halves, so its demo card always shows them.
-  const originVisible = (demo && !libraryPractice) || showOrigin;
-  const matchVisible = (demo && !libraryPractice) || showMatch;
+  const originVisible = guideSample || showOrigin;
+  const matchVisible = guideSample || showMatch;
   const averageSeconds = Math.round(
     game.sessionSeconds / Math.max(1, game.sessionCount),
   );
@@ -3336,20 +3611,45 @@ export function GameLibraryCard({
     "history" | "matching" | "remove" | "ignore" | "launch" | null
   >(null);
   const [demoRemoved, setDemoRemoved] = useState(false);
-  const [demoLaunchPath, setDemoLaunchPath] = useState<string | null>(
-    TOUR_DEMO_GAME.exePath,
+  // A sample's cover and banner picks (Covers and banners guide): only this
+  // card remembers them, nothing is saved.
+  const [demoArt, setDemoArt] = useState<{
+    cover: string | null;
+    banner: string | null;
+  }>({ cover: null, banner: null });
+  // What a sample entry answered, shown on the card until the next one.
+  const [sampleResult, setSampleResult] = useState<string | null>(null);
+  // The game file a sample pretends to have been started from.
+  const [demoLaunchPath, setDemoLaunchPath] = useState<string | null>(() =>
+    demo ? sampleLaunchPath(originalGame) : null,
   );
-  const showDemoContextMenu = useAppStore(
-    (state) =>
-      (state.activeTour?.tourId === "log-playtime" &&
-        [2, 3, 6].includes(state.activeTour.stepIndex)) ||
-      (state.activeTour?.tourId === "game-actions" &&
-        state.activeTour.stepIndex >= 2) ||
-      (state.activeTour?.tourId === "launch-games" &&
-        state.activeTour.stepIndex === 3),
-  );
+  // A sample's own timer (Playtime › Start timer): when it was started.
+  const [sampleTimerStartedAt, setSampleTimerStartedAt] = useState<
+    string | null
+  >(null);
   const activeTour = useAppStore((state) => state.activeTour);
   const launchTourDemo = demo && activeTour?.tourId === "launch-games";
+  // The running guide's step, and what it needs from the sample in My Games:
+  // read from the step itself, never from its number (sampleStageForStep).
+  const tourStep = useMemo(
+    () =>
+      guideSample && activeTour
+        ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
+        : undefined,
+    [guideSample, activeTour?.tourId, activeTour?.stepIndex],
+  );
+  const stage = useMemo(() => sampleStageForStep(tourStep), [tourStep]);
+  // The restore step needs a picked cover to restore: entered from anywhere,
+  // the sample has one.
+  useEffect(() => {
+    if (!guideSample || !stepAsksForSampleEntry(tourStep, "restore-cover"))
+      return;
+    setDemoArt((current) =>
+      current.cover === null
+        ? { ...current, cover: TOUR_SAMPLE_ART.covers[0].url }
+        : current,
+    );
+  }, [guideSample, tourStep]);
   const setLibraryFeaturedGame = useAppStore(
     (state) => state.setLibraryFeaturedGame,
   );
@@ -3370,16 +3670,15 @@ export function GameLibraryCard({
       coverUrl: game.coverUrl,
     },
     onDragGame,
-    (demo && !libraryPractice) || (selectionMode && !selected),
+    guideSample || (selectionMode && !selected),
   );
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
+  const [bannerBusy, setBannerBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(
-    () =>
-      demo &&
-      activeTour?.tourId === "log-playtime" &&
-      activeTour.stepIndex === 4,
+    () => stage.logSession,
   );
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
@@ -3400,18 +3699,21 @@ export function GameLibraryCard({
           ),
     [game.igdbId, playcounterLibrary],
   );
-  const [showDetails, setShowDetails] = useState(false);
-  // "Achievements" in the card menu opens Details on that tab.
-  const [detailsTab, setDetailsTab] = useState<"general" | "achievements">(
-    "general",
+  const [showDetails, setShowDetails] = useState(
+    detailsOnly?.open ?? stage.details !== null,
   );
-  const openDetails = (tab: "general" | "achievements" = "general") => {
+  // "Achievements" in the card menu opens Details on that tab.
+  const [detailsTab, setDetailsTab] = useState<DetailsTab>(
+    detailsOnly?.tab ?? stage.details ?? "general",
+  );
+  const openDetails = (tab: DetailsTab = "general") => {
     setDetailsTab(tab);
     setShowDetails(true);
   };
+  // A sample always has the entry: its Details carries sample achievements.
   const hasGameAchievements = useMemo(
-    () => achievementSources(game).length > 0,
-    [game],
+    () => demo || achievementSources(game).length > 0,
+    [demo, game],
   );
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -3443,56 +3745,179 @@ export function GameLibraryCard({
     start?: () => void;
   } | null>(null);
 
-  const closeDemoDialogs = () => {
+  /** Puts away what a sample has open, except what `keep` names. */
+  const closeDemoDialogs = (
+    keep: { logSession?: boolean; details?: boolean } = {},
+  ) => {
     setDemoAction(null);
-    setShowDetails(false);
+    if (!keep.details) setShowDetails(false);
     setShowConvert(false);
+    setShowRename(false);
     setReportOpen(false);
+    setFilePick(null);
     setShowAdjustPlaytime(false);
-    setShowAddPlaytime(false);
+    if (!keep.logSession) setShowAddPlaytime(false);
     setShowMatchCheck(false);
+    setShowArtPicker(false);
     setDemoRemoved(false);
+    setSampleResult(null);
+    setSampleTimerStartedAt(null);
+    sampleLibrary?.getState().openGameJournal(null);
+    sampleEntry.current = null;
   };
-  // Next on a free-practice step closes whatever the learner opened there,
-  // including when the next step shows another view.
-  const previousDemoStep = useRef(activeTour);
-  useEffect(() => {
-    const left = previousDemoStep.current;
-    previousDemoStep.current = activeTour;
-    if (!demo || libraryPractice || !left) return;
-    if (
-      left.tourId === activeTour?.tourId &&
-      left.stepIndex === activeTour.stepIndex
-    )
-      return;
-    if (findTour(left.tourId)?.steps[left.stepIndex]?.manualAdvance) {
-      contextMenu.close();
-      closeDemoDialogs();
-    }
-  }, [activeTour?.tourId, activeTour?.stepIndex]);
 
-  useEffect(() => {
-    if (!demo || libraryPractice) return;
-    if (!showDemoContextMenu) {
-      contextMenu.close();
-      return;
+  // The entry of the card a sample action started from ("details",
+  // "log-session", …). Done on a step that rings it, it finishes the step.
+  // Every entry sets it where it is clicked.
+  const sampleEntry = useRef<string | null>(null);
+  const taskJustDone = useRef(false);
+  const startSample = (entry: string) => {
+    if (!demo) return;
+    sampleEntry.current = entry;
+    setSampleResult(null);
+  };
+  /** A sample action is done. Its message goes to the guide's card and, with
+   *  `onCard`, onto the sample card. */
+  const finishSample = (message?: string, onCard = true) => {
+    const entry = sampleEntry.current;
+    sampleEntry.current = null;
+    if (message) {
+      if (onCard) setSampleResult(message);
+      emitTourEvent("demo.action-completed", message);
     }
-    closeDemoDialogs();
-    const frame = requestAnimationFrame(() => {
-      const rect = cardRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      contextMenu.openAt({
-        x: rect.left + rect.width / 2,
-        y: rect.top + Math.min(rect.height / 2, 160),
+    if (guideSample && entry && stepAsksForSampleEntry(tourStep, entry)) {
+      // The step moves on: the next stage waits while its card says "Done".
+      if (
+        tourStep?.advanceOn?.type === "event" &&
+        tourStep.advanceOn.name === "demo.step-completed"
+      )
+        taskJustDone.current = true;
+      emitTourEvent("demo.step-completed", message);
+    }
+  };
+  /** "Log missed session", from the menu or the cover's clock button.
+   *  Opening the dialog is what a step ringing either one asks for. */
+  // On a sample the dialog itself is the exercise: closing it or logging a
+  // session finishes the step that asked for it, opening it does not.
+  const openLogSession = (entry: string) => {
+    startSample(entry);
+    setShowAddPlaytime(true);
+  };
+  /** A sample shows every entry a real card has. One that cannot work on a
+   *  sample answers with this. */
+  const sampleOnly = (entry: string, label: string) => {
+    contextMenu.close();
+    startSample(entry);
+    finishSample(
+      t("Sample: nothing was changed. “{{entry}}” works on your own games.", {
+        entry: label,
+      }),
+    );
+  };
+  /** The `data-tour` name of an entry, on samples only. */
+  const sampleName = (name: string) => (demo ? name : undefined);
+  /** Favorites, Status, Tier, Shelves and the journal of a sample in My Games
+   *  read and write its own library, never the player's. */
+  const inSampleLibrary = (node: React.ReactNode) =>
+    sampleLibrary ? (
+      <PersonalLibraryContext.Provider value={sampleLibrary}>
+        {node}
+      </PersonalLibraryContext.Provider>
+    ) : (
+      node
+    );
+  /** What the last sample action answered, on the card. */
+  const sampleResultNote = (className: string) =>
+    sampleResult ? (
+      <p
+        role="status"
+        data-tour="demo-action-result"
+        className={cn(
+          "rounded-md border border-accent/30 bg-accent-tint px-2 py-1.5 text-[11px] leading-4 text-accent-ink",
+          className,
+        )}
+      >
+        {sampleResult}
+      </p>
+    ) : null;
+  // "New shelf" of a sample in My Games: the shelf editor belongs to the
+  // player's library, so the sample answers instead.
+  const answerNewShelf = useRef(() => {});
+  answerNewShelf.current = () => sampleOnly("new-shelf", t("New shelf"));
+  useEffect(
+    () =>
+      sampleLibrary?.subscribe((state) => {
+        if (!state.newShelfGame) return;
+        state.openNewShelf(null);
+        answerNewShelf.current();
+      }),
+    [sampleLibrary],
+  );
+
+  // The sample in My Games follows the guide. On every step it puts away
+  // what was opened on the step before and opens what the new step needs:
+  // its menu, a flyout, a dialog (sampleStageForStep). After a finished task
+  // it waits while the guide's card says "Done", so the result stays in view.
+  const menuOpen = useRef(false);
+  menuOpen.current = contextMenu.open;
+  useEffect(() => {
+    if (!guideSample || !tourStep) return;
+    let frame = 0;
+    let timer = 0;
+    const setStage = () => {
+      taskJustDone.current = false;
+      closeDemoDialogs({
+        logSession: stage.logSession,
+        details: stage.details !== null,
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [
-    demo,
-    showDemoContextMenu,
-    showDemoContextMenu ? activeTour?.stepIndex : null,
-  ]);
-  const hasActiveSession = useAppStore((state) =>
+      if (stage.logSession) setShowAddPlaytime(true);
+      if (stage.details) openDetails(stage.details);
+      if (!stage.menu) {
+        contextMenu.close();
+        return;
+      }
+      // A menu the player opened stays where it is.
+      if (menuOpen.current) return;
+      frame = requestAnimationFrame(() => {
+        const rect = cardRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        contextMenu.openAt({
+          x: rect.left + rect.width / 2,
+          y: rect.top + Math.min(rect.height / 2, 160),
+        });
+      });
+    };
+    // Right away, so nothing of the step before is left over when the new
+    // step starts (its view may be another one).
+    // What the task opened stays a moment in any case: the player sees it
+    // open before it goes.
+    if (taskJustDone.current)
+      timer = window.setTimeout(setStage, Math.max(tourDoneFlash.ms, 100));
+    else setStage();
+    return () => {
+      window.clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
+  }, [guideSample, activeTour?.tourId, tourStep?.id]);
+
+  // A sample's timer counts on the card only; no session is started.
+  const sampleTimerSession = useMemo<ActiveSession | undefined>(
+    () =>
+      sampleTimerStartedAt
+        ? {
+            id: game.gameId,
+            gameId: game.gameId,
+            gameName: game.name,
+            exeName: game.exeNames[0] ?? "",
+            coverUrl: game.coverUrl,
+            startedAt: sampleTimerStartedAt,
+            checkpointedAt: sampleTimerStartedAt,
+            timer: true,
+          }
+        : undefined,
+    [game, sampleTimerStartedAt],
+  );
+  const hasRealSession = useAppStore((state) =>
     state.activeSessions.some((session) =>
       game.aliases.some(
         (alias) =>
@@ -3501,7 +3926,8 @@ export function GameLibraryCard({
       ),
     ),
   );
-  const timerSession = useAppStore((state) =>
+  const hasActiveSession = hasRealSession || sampleTimerSession !== undefined;
+  const realTimerSession = useAppStore((state) =>
     state.activeSessions.find(
       (session) =>
         session.timer &&
@@ -3512,6 +3938,7 @@ export function GameLibraryCard({
         ),
     ),
   );
+  const timerSession = sampleTimerSession ?? realTimerSession;
   // The game runs on this PC (not a timer), so it can be closed. Only the
   // id: a checkpoint of the running session must not re-render the card.
   const runningSessionId = useAppStore(
@@ -3527,19 +3954,20 @@ export function GameLibraryCard({
           ),
       )?.id,
   );
+  // A sample's Play shows "Starting…" like a real launch, then says on the
+  // card what happened: nothing was started.
   useEffect(() => {
-    if (!launching || !launchTourDemo) return;
+    if (!launching || !demo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
-      emitTourEvent(
-        "mygames.demo-launch-attempted",
-        t("Sample launch complete. No program was started."),
-      );
+      const message = t("Sample launch complete. No program was started.");
+      emitTourEvent("mygames.demo-launch-attempted", message);
+      finishSample(message);
     }, DEMO_LAUNCH_MS);
     return () => window.clearTimeout(timeout);
-  }, [launchTourDemo, launching]);
+  }, [demo, launching]);
   useEffect(() => {
-    if (!launching || hasActiveSession || launchTourDemo) return;
+    if (!launching || hasActiveSession || demo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
       onReleaseLaunch(launchKey);
@@ -3555,15 +3983,15 @@ export function GameLibraryCard({
     return () => window.clearTimeout(timeout);
   }, [
     addToast,
+    demo,
     game.name,
     hasActiveSession,
     launchKey,
-    launchTourDemo,
     launching,
     onReleaseLaunch,
   ]);
   useEffect(() => {
-    if (!launching || !hasActiveSession) return;
+    if (!launching || !hasActiveSession || demo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
       onReleaseLaunch(launchKey);
@@ -3710,8 +4138,31 @@ export function GameLibraryCard({
     emulatorAutoLaunchTargets,
     emulatorManualLaunchTargets,
   });
+  // A sample has Play and Launch options like a real card found by its game
+  // file: in the launch guide always, elsewhere when the player lets
+  // PlayCounter launch games. Its file is a made-up path; nothing is started.
+  const sampleLaunch =
+    demo &&
+    sampleLaunchPath(originalGame) !== null &&
+    (launchTourDemo || canLaunchExecutables);
+  // The files Launch options lists: a sample's made-up one, or the real ones.
+  const launchFiles = useMemo<LaunchTarget[]>(
+    () =>
+      !demo
+        ? ownedLaunchTargets
+        : sampleLaunch && demoLaunchPath
+          ? [
+              {
+                exeName: game.exeNames[0] ?? "",
+                path: demoLaunchPath,
+                owner: { gameId: game.gameId, source: game.source },
+              },
+            ]
+          : [],
+    [demo, sampleLaunch, demoLaunchPath, game, ownedLaunchTargets],
+  );
   const showPlayButton =
-    (launchTourDemo && Boolean(demoLaunchPath)) ||
+    (sampleLaunch && Boolean(demoLaunchPath)) ||
     (!demo && canLaunchExecutables && hasPrimaryLaunchTarget);
   // An imported Steam game that is no longer installed offers Steam's
   // installer where Play would be.
@@ -3725,7 +4176,7 @@ export function GameLibraryCard({
   const showLaunchFooter =
     showPlayButton ||
     showInstallInSteam ||
-    launchTourDemo ||
+    sampleLaunch ||
     (!demo &&
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
@@ -3762,7 +4213,8 @@ export function GameLibraryCard({
     game.name,
     launching,
     hasActiveSession,
-    launchBlocked,
+    // A sample starts nothing, so no real launch holds it back.
+    !demo && launchBlocked,
   );
   const playState =
     xboxLaunchEntry && !manualTarget
@@ -3806,10 +4258,11 @@ export function GameLibraryCard({
     />
   ) : null;
   const canEditCover = game.source === "custom";
-  const shownCover = useCoverUrl(
+  const storedCover = useCoverUrl(
     { ...game, gameName: game.name },
     game.coverUrl,
   );
+  const shownCover = demo && demoArt.cover ? demoArt.cover : storedCover;
   const coverPicked = useAppStore(
     (state) =>
       pickedCover(state, { ...game, gameName: game.name }) !== undefined,
@@ -3907,9 +4360,10 @@ export function GameLibraryCard({
 
   // The user's own file can get another game here, as long as no suggestion
   // for it waits for review (cancel that first).
-  const canChangeGame =
-    !demo && primaryLocalLink !== undefined && !pendingCommunitySuggestion;
-  // Shown in place of the title while hovering the card with Shift held.
+  const canChangeGame = demo
+    ? game.source === "custom"
+    : primaryLocalLink !== undefined && !pendingCommunitySuggestion;
+  // The game's files, in the name's tooltip.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
   const newGamesSeenAt = useAppStore(
@@ -4011,7 +4465,7 @@ export function GameLibraryCard({
     canCheckMatches,
   );
   const showLaunchActions =
-    launchTourDemo ||
+    sampleLaunch ||
     (!demo &&
       (canConfigureLaunch ||
         (canLaunchExecutables && gameEmulatorMappings.length > 0)));
@@ -4044,6 +4498,14 @@ export function GameLibraryCard({
   function submitRename() {
     const name = renameName.trim();
     if (!name) return;
+    if (demo) {
+      setDemoIdentity({ name, source: "custom" });
+      setShowRename(false);
+      finishSample(
+        t("Sample renamed to {{name}}. Nothing was saved.", { name }),
+      );
+      return;
+    }
     renameCustomGame(game.gameId, name);
     addToast({
       tone: "success",
@@ -4064,7 +4526,8 @@ export function GameLibraryCard({
   }
 
   function openMatchCheck() {
-    if (!checksLibraryGame) {
+    // A sample has its one file and bundled matches (tourSampleMatches).
+    if (!checksLibraryGame && !demo) {
       if (checkableFiles.length > 1) {
         setFilePick("check");
         return;
@@ -4075,11 +4538,11 @@ export function GameLibraryCard({
   }
 
   function openConvert() {
-    if (convertibleFiles.length > 1) {
+    if (!demo && convertibleFiles.length > 1) {
       setFilePick("convert");
       return;
     }
-    setMatchFile(convertibleFiles[0]?.exeName ?? null);
+    setMatchFile(demo ? null : (convertibleFiles[0]?.exeName ?? null));
     setConvertName(game.name);
     setShowConvert(true);
   }
@@ -4116,8 +4579,7 @@ export function GameLibraryCard({
     if (demo) {
       setDemoIdentity({ name, source: "custom" });
       setShowConvert(false);
-      emitTourEvent(
-        "demo.action-completed",
+      finishSample(
         t(
           "Sample converted to {{name}}. Its time is kept and nothing is shared.",
           { name },
@@ -4135,6 +4597,14 @@ export function GameLibraryCard({
   }
 
   const handleApplyMatch = (match: Game, pendingCommunity: boolean) => {
+    if (demo) {
+      setDemoIdentity({ name: match.name, source: match.source });
+      setShowMatchCheck(false);
+      finishSample(
+        t("Match applied to the sample. Nothing was saved to your library."),
+      );
+      return;
+    }
     const exeName = flowExeName;
     if (!exeName) return;
     if (pendingCommunity && match.source === "community") {
@@ -4501,6 +4971,16 @@ export function GameLibraryCard({
 
   const handleStartTimer = () => {
     contextMenu.close();
+    if (demo) {
+      startSample("start-timer");
+      setSampleTimerStartedAt(new Date().toISOString());
+      finishSample(
+        t(
+          "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.",
+        ),
+      );
+      return;
+    }
     startGameTimer({
       gameId: game.gameId,
       igdbId: game.igdbId,
@@ -4515,6 +4995,33 @@ export function GameLibraryCard({
     });
   };
 
+  /** A session lands on a sample: in the list that counts its sessions, or
+   *  on the card itself. */
+  const addSampleSession = (durationSeconds: number) => {
+    if (demoTotal !== null) setDemoTotal(demoTotal + durationSeconds);
+    if (onDemoPlaytimeLogged) onDemoPlaytimeLogged(durationSeconds);
+    else
+      setDemoLogged((current) => ({
+        seconds: current.seconds + durationSeconds,
+        sessions: current.sessions + 1,
+      }));
+  };
+
+  const handleStopSampleTimer = () => {
+    contextMenu.close();
+    if (!sampleTimerSession) return;
+    startSample("stop-timer");
+    const seconds = playedSeconds(sampleTimerSession, Date.now());
+    setSampleTimerStartedAt(null);
+    if (seconds > 0) addSampleSession(seconds);
+    finishSample(
+      t(
+        "Sample timer stopped after {{time}}. On your own games that time becomes a session.",
+        { time: formatClock(seconds) },
+      ),
+    );
+  };
+
   const handleAddPlaytime = (
     durationSeconds: number,
     endedAt: string,
@@ -4522,8 +5029,7 @@ export function GameLibraryCard({
   ) => {
     if (demo) {
       setShowAddPlaytime(false);
-      if (demoTotal !== null) setDemoTotal(demoTotal + durationSeconds);
-      onDemoPlaytimeLogged?.(durationSeconds);
+      addSampleSession(durationSeconds);
       addToast({
         tone: "success",
         title: t("Tutorial session added"),
@@ -4540,6 +5046,8 @@ export function GameLibraryCard({
         ),
       });
       emitTourEvent("mygames.demo-session-logged");
+      // The card itself shows the result: its playtime and sessions grew.
+      finishSample(undefined);
       return;
     }
     addManualSession({
@@ -4573,8 +5081,7 @@ export function GameLibraryCard({
       setShowAdjustPlaytime(false);
       if (onDemoTotalAdjusted) onDemoTotalAdjusted(targetSeconds);
       else setDemoTotal(targetSeconds);
-      emitTourEvent(
-        "demo.action-completed",
+      finishSample(
         t("Sample total updated to {{duration}}. No session was added.", {
           duration: formatDuration(targetSeconds),
         }),
@@ -4650,7 +5157,35 @@ export function GameLibraryCard({
     }
   }
 
-  async function handlePasteCover() {
+  // Any game can carry its own banner, also one IGDB and SteamGridDB do not
+  // know; it is stored like a SteamGridDB pick.
+  async function saveBanner(file: File | Blob | null) {
+    if (!file || bannerBusy) return;
+
+    setBannerBusy(true);
+    try {
+      await setPickedBannerFile(customHeroArtKey(game), file);
+      addToast({
+        tone: "success",
+        title: t("Banner updated"),
+        detail: t("{{name}} now uses the selected banner.", {
+          name: game.name,
+        }),
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: t("Banner update failed"),
+        detail: formatError(error),
+      });
+    } finally {
+      setBannerBusy(false);
+      if (bannerInputRef.current) bannerInputRef.current.value = "";
+    }
+  }
+
+  /** Paste cover and Paste banner: the first image on the clipboard. */
+  async function pasteArt(kind: "cover" | "banner") {
     contextMenu.close();
     if (!navigator.clipboard?.read) {
       addToast({
@@ -4666,19 +5201,24 @@ export function GameLibraryCard({
       for (const item of items) {
         const imageType = item.types.find((type) => type.startsWith("image/"));
         if (!imageType) continue;
-        await saveCover(await item.getType(imageType));
+        const image = await item.getType(imageType);
+        await (kind === "cover" ? saveCover(image) : saveBanner(image));
         return;
       }
 
       addToast({
         tone: "error",
         title: t("No image in clipboard"),
-        detail: t("Copy an image, then try Paste cover again."),
+        detail:
+          kind === "cover"
+            ? t("Copy an image, then try Paste cover again.")
+            : t("Copy an image, then try Paste banner again."),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: t("Paste cover failed"),
+        title:
+          kind === "cover" ? t("Paste cover failed") : t("Paste banner failed"),
         detail: formatError(error),
       });
     }
@@ -4751,16 +5291,18 @@ export function GameLibraryCard({
     alongsideOthers = false,
   ) {
     contextMenu.close();
-    if (launchTourDemo) {
+    if (demo) {
+      // The entry it came from (Play, Launch options › Play) is set there.
       // Show the usual Starting… state first; the sample finishes on a timer.
-      if (demoLaunchPath) setLaunching(true);
-      else
-        emitTourEvent(
-          "mygames.demo-launch-attempted",
-          t(
-            "This sample has no saved launch file. Set one in Launch options to restore Play.",
-          ),
-        );
+      if (demoLaunchPath) {
+        setLaunching(true);
+        return;
+      }
+      const message = t(
+        "This sample has no saved launch file. Set one in Launch options to restore Play.",
+      );
+      emitTourEvent("mygames.demo-launch-attempted", message);
+      finishSample(message);
       return;
     }
     if (!target) {
@@ -5135,7 +5677,10 @@ export function GameLibraryCard({
   }
 
   function handlePreferredLaunch() {
-    if (manualTarget) {
+    if (demo) {
+      startSample("play");
+      void handleLaunch();
+    } else if (manualTarget) {
       void handleLaunch(manualTarget);
     } else if (xboxLaunchEntry) {
       void handleXboxLaunch();
@@ -5155,7 +5700,8 @@ export function GameLibraryCard({
   }
 
   function handleLaunchFooterClick(element: HTMLElement) {
-    if (launchTourDemo && !demoLaunchPath) {
+    if (sampleLaunch && !demoLaunchPath) {
+      startSample("launch-file");
       setDemoAction("launch");
       return;
     }
@@ -5176,6 +5722,12 @@ export function GameLibraryCard({
 
   async function handleSetLaunchFile() {
     contextMenu.close();
+    if (demo) {
+      // No file picker on a sample: a dialog with its made-up file instead.
+      startSample("launch-file");
+      setDemoAction("launch");
+      return;
+    }
     try {
       const target = await chooseLaunchTarget(
         game.exeNames,
@@ -5204,6 +5756,14 @@ export function GameLibraryCard({
 
   function handleForgetLaunchFile() {
     contextMenu.close();
+    if (demo) {
+      startSample("forget-launch-file");
+      setDemoLaunchPath(null);
+      finishSample(
+        t("Sample launch path forgotten. Game history is unchanged."),
+      );
+      return;
+    }
     if (!primaryLaunchTarget) return;
     if (manualTarget && primaryLaunchTarget === manualTarget) {
       forgetManualLaunchTarget(manualTarget.owner);
@@ -5221,6 +5781,7 @@ export function GameLibraryCard({
 
   async function handleOpenInExplorer() {
     contextMenu.close();
+    if (demo) return sampleOnly("open-explorer", t("Open in Explorer"));
     if (!primaryLaunchTarget) return;
     try {
       await revealGameExecutable(primaryLaunchTarget);
@@ -5249,6 +5810,37 @@ export function GameLibraryCard({
           canEditCover,
         }}
         initialTab={artPickerTab}
+        sample={
+          demo
+            ? {
+                current: demoArt,
+                onPick: (tab, url) => {
+                  setDemoArt((current) => ({ ...current, [tab]: url }));
+                  finishSample(
+                    tab === "cover"
+                      ? t(
+                          "Sample cover picked. Nothing was saved to your library.",
+                        )
+                      : t(
+                          "Sample banner picked. Nothing was saved to your library.",
+                        ),
+                  );
+                },
+                onRestore: (tab) => {
+                  setDemoArt((current) => ({ ...current, [tab]: null }));
+                  finishSample(
+                    tab === "cover"
+                      ? t(
+                          "Sample cover restored. Nothing was saved to your library.",
+                        )
+                      : t(
+                          "Sample banner restored. Nothing was saved to your library.",
+                        ),
+                  );
+                },
+              }
+            : undefined
+        }
         onClose={() => setShowArtPicker(false)}
       />
     ) : showMoveToPlayCounter ? (
@@ -5258,13 +5850,19 @@ export function GameLibraryCard({
       />
     ) : showDetails ? (
       <GameDetailsDialog
+        // A guide's step can ask for another tab while Details is open.
+        key={demo ? detailsTab : undefined}
         game={game}
         initialTab={detailsTab}
         launchKey={`${launchKey}:details`}
         launchBlocked={launchBlocked}
         onAcquireLaunch={onAcquireLaunch}
         onReleaseLaunch={onReleaseLaunch}
-        onClose={() => setShowDetails(false)}
+        onClose={() => {
+          setShowDetails(false);
+          // Looked at and closed: that is what a guide asks for.
+          finishSample();
+        }}
         onDemoHistory={() => {
           setShowDetails(false);
           setDemoAction("history");
@@ -5285,23 +5883,32 @@ export function GameLibraryCard({
       />
     ) : null;
 
+  // One menu for real cards and for both kinds of sample cards: an entry
+  // added here shows on the samples too. On a sample, an entry runs its
+  // sample version, or answers with sampleOnly when it cannot work there.
+  // Every entry carries a `data-tour` name on samples, so a guide can ring it
+  // (MyGamesSampleMenu.test.tsx compares the menus).
   const renderContextMenu = () => {
     if (!contextMenu.open) return null;
-    if (libraryPractice)
-      return (
-        <ContextMenu
-          open
-          position={contextMenu.position}
-          onClose={contextMenu.close}
-          dataTour="demo-library-menu"
-          focusFirstItem
-        >
-          <GameJournalMenu
-            game={{ ...game, gameName: game.name }}
-            onClose={contextMenu.close}
-          />
-        </ContextMenu>
-      );
+    // The flyouts of the practice library carry its menu's name: the guide
+    // lets clicks through there without listing each one.
+    const flyoutName = (name: string) =>
+      libraryPractice ? "demo-library-menu" : sampleName(name);
+    const journalMenu = (
+      <GameJournalMenu
+        heading={false}
+        game={{ ...game, gameName: game.name }}
+        onClose={contextMenu.close}
+      />
+    );
+    const pinLabel =
+      bannerShelf && !demo
+        ? featuredInBanner
+          ? t("Use library banner")
+          : t("Pin to shelf banner")
+        : featuredInBanner
+          ? t("Unpin from banner")
+          : t("Pin to banner");
     return (
       <ContextMenu
         open={contextMenu.open}
@@ -5310,13 +5917,20 @@ export function GameLibraryCard({
         returnFocusRef={contextMenu.anchorRef}
         ariaLabel={t("{{game}} actions", { game: game.name })}
         className="min-w-56"
-        dataTour={demo ? "demo-context-menu" : undefined}
-        focusFirstItem
+        dataTour={
+          libraryPractice
+            ? "demo-library-menu"
+            : sampleName("demo-context-menu")
+        }
+        // Focus on the first entry would close the flyout a guide's step
+        // opened (see stage.flyout).
+        focusFirstItem={!stage.flyout}
       >
         {showPlayButton ? (
           <ContextMenuItem
             icon={Play}
-            disabled={hasActiveSession || launching || launchBlocked}
+            dataTour={sampleName("demo-menu-play")}
+            disabled={hasActiveSession || launching || (!demo && launchBlocked)}
             onClick={handlePreferredLaunch}
           >
             {t("Play")}
@@ -5331,9 +5945,10 @@ export function GameLibraryCard({
         ) : null}
         <ContextMenuItem
           icon={Info}
-          dataTour={demo ? "demo-menu-details" : undefined}
+          dataTour={sampleName("demo-menu-details")}
           onClick={() => {
             contextMenu.close();
+            startSample("details");
             openDetails();
           }}
         >
@@ -5342,8 +5957,10 @@ export function GameLibraryCard({
         {hasGameAchievements ? (
           <ContextMenuItem
             icon={Trophy}
+            dataTour={sampleName("demo-menu-achievements")}
             onClick={() => {
               contextMenu.close();
+              startSample("achievements");
               openDetails("achievements");
             }}
           >
@@ -5351,53 +5968,45 @@ export function GameLibraryCard({
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
-          dataTour={demo ? "demo-menu-show-history" : undefined}
+          dataTour={sampleName("demo-menu-show-history")}
           icon={History}
-          onClick={handleShowHistory}
+          onClick={() => {
+            startSample("show-history");
+            handleShowHistory();
+          }}
         >
           {t("Show History")}
         </ContextMenuItem>
-        {!demo ? (
-          <ContextMenuItem
-            icon={featuredInBanner ? PinOff : Pin}
-            onClick={() => {
-              contextMenu.close();
-              const featuredGame = featuredInBanner
-                ? null
-                : {
-                    gameId: game.gameId,
-                    source: game.source,
-                    igdbId: game.igdbId,
-                  };
-              if (bannerShelf)
-                saveBannerShelf({ ...bannerShelf, featuredGame });
-              else setLibraryFeaturedGame(featuredGame);
-            }}
-          >
-            {bannerShelf
-              ? featuredInBanner
-                ? t("Use library banner")
-                : t("Pin to shelf banner")
-              : featuredInBanner
-                ? t("Unpin from banner")
-                : t("Pin to banner")}
-          </ContextMenuItem>
-        ) : null}
-        {!demo ? <ContextMenuSeparator /> : null}
-        {!demo ? (
-          <GameJournalMenu
-            heading={false}
-            game={{ ...game, gameName: game.name }}
-            onClose={contextMenu.close}
-          />
-        ) : null}
+        <ContextMenuItem
+          icon={featuredInBanner ? PinOff : Pin}
+          dataTour={sampleName("demo-menu-pin-banner")}
+          onClick={() => {
+            // The banner above My Games is the player's own.
+            if (demo) return sampleOnly("pin-banner", pinLabel);
+            contextMenu.close();
+            const featuredGame = featuredInBanner
+              ? null
+              : {
+                  gameId: game.gameId,
+                  source: game.source,
+                  igdbId: game.igdbId,
+                };
+            if (bannerShelf) saveBannerShelf({ ...bannerShelf, featuredGame });
+            else setLibraryFeaturedGame(featuredGame);
+          }}
+        >
+          {pinLabel}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        {inSampleLibrary(journalMenu)}
         <ContextMenuSeparator />
         {showLaunchOptions ? (
           <ContextMenuSubmenu
             label={t("Launch options")}
             icon={FolderSearch}
-            dataTour={demo ? "demo-menu-launch-options" : undefined}
-            menuDataTour={demo ? "demo-launch-menu" : undefined}
+            defaultOpen={stage.flyout === "demo-launch-menu"}
+            dataTour={sampleName("demo-menu-launch-options")}
+            menuDataTour={flyoutName("demo-launch-menu")}
           >
             {steamActions.showOpenInLauncher ? (
               <>
@@ -5466,18 +6075,6 @@ export function GameLibraryCard({
                 </ContextMenuItem>
               </>
             ) : null}
-            {launchTourDemo ? (
-              <ContextMenuItem
-                dataTour="demo-menu-launch-file"
-                icon={FolderSearch}
-                onClick={() => {
-                  contextMenu.close();
-                  setDemoAction("launch");
-                }}
-              >
-                {t("Set or change launch file…")}
-              </ContextMenuItem>
-            ) : null}
             {showPickLaunchFile ? (
               <ContextMenuItem
                 icon={FolderSearch}
@@ -5489,55 +6086,61 @@ export function GameLibraryCard({
                 {t("Set launch file…")}
               </ContextMenuItem>
             ) : null}
-            {!demo && canConfigureLaunch ? (
+            {(demo ? sampleLaunch : canConfigureLaunch) ? (
               <>
-                {ownedLaunchTargets.length > 0
-                  ? ownedLaunchTargets.map((target) => (
-                      <ContextMenuItem
-                        key={target.exeName.toLowerCase()}
-                        icon={Play}
-                        disabled={
-                          hasActiveSession || launching || launchBlocked
-                        }
-                        title={
-                          hasActiveSession
-                            ? t("Already running")
-                            : launching
-                              ? t("Starting…")
-                              : launchBlocked
-                                ? t("Another game is starting")
-                                : undefined
-                        }
-                        onClick={() => void handleLaunch(target)}
-                      >
-                        {ownedLaunchTargets.length > 1
-                          ? t("Play ({{exeName}})", {
-                              exeName: target.exeName,
-                            })
-                          : t("Play")}
-                      </ContextMenuItem>
-                    ))
-                  : null}
+                {launchFiles.map((target) => {
+                  const blocked = !demo && launchBlocked;
+                  return (
+                    <ContextMenuItem
+                      key={target.exeName.toLowerCase()}
+                      icon={Play}
+                      dataTour={sampleName("demo-menu-launch-play")}
+                      disabled={hasActiveSession || launching || blocked}
+                      title={
+                        hasActiveSession
+                          ? t("Already running")
+                          : launching
+                            ? t("Starting…")
+                            : blocked
+                              ? t("Another game is starting")
+                              : undefined
+                      }
+                      onClick={() => {
+                        startSample("launch-play");
+                        void handleLaunch(target);
+                      }}
+                    >
+                      {launchFiles.length > 1
+                        ? t("Play ({{exeName}})", {
+                            exeName: target.exeName,
+                          })
+                        : t("Play")}
+                    </ContextMenuItem>
+                  );
+                })}
                 <ContextMenuItem
                   icon={FolderSearch}
+                  dataTour={sampleName("demo-menu-launch-file")}
                   onClick={() => void handleSetLaunchFile()}
                 >
-                  {ownedLaunchTargets.length > 0
+                  {launchFiles.length > 0
                     ? t("Change launch file…")
                     : t("Set launch file…")}
                 </ContextMenuItem>
-                {primaryLaunchTarget ? (
+                {launchFiles[0] ? (
                   <ContextMenuItem
                     icon={FolderOpen}
-                    title={primaryLaunchTarget.path}
+                    dataTour={sampleName("demo-menu-open-explorer")}
+                    title={launchFiles[0].path}
                     onClick={() => void handleOpenInExplorer()}
                   >
                     {t("Open in Explorer")}
                   </ContextMenuItem>
                 ) : null}
-                {ownedLaunchTargets.length > 0 ? (
+                {launchFiles.length > 0 ? (
                   <ContextMenuItem
                     icon={Trash2}
+                    dataTour={sampleName("demo-menu-forget-launch-file")}
                     onClick={handleForgetLaunchFile}
                   >
                     {t("Forget launch file")}
@@ -5620,144 +6223,209 @@ export function GameLibraryCard({
         ) : null}
         <ContextMenuSubmenu
           label={t("Playtime")}
-          defaultOpen={
-            demo &&
-            activeTour?.tourId === "log-playtime" &&
-            activeTour.stepIndex === 3
-          }
+          defaultOpen={stage.flyout === "demo-playtime-menu"}
           icon={Clock3}
-          dataTour={demo ? "demo-menu-playtime" : undefined}
-          menuDataTour={demo ? "demo-playtime-menu" : undefined}
+          dataTour={sampleName("demo-menu-playtime")}
+          menuDataTour={flyoutName("demo-playtime-menu")}
         >
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-log-session" : undefined}
+            dataTour={sampleName("demo-menu-log-session")}
             icon={ClockPlus}
             onClick={() => {
               contextMenu.close();
-              setShowAddPlaytime(true);
+              openLogSession("log-session");
             }}
           >
             {t("Log missed session")}
           </ContextMenuItem>
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-adjust-playtime" : undefined}
+            dataTour={sampleName("demo-menu-adjust-playtime")}
             icon={Clock3}
             onClick={() => {
               contextMenu.close();
+              startSample("adjust-playtime");
               setShowAdjustPlaytime(true);
             }}
           >
             {t("Adjust total playtime")}
           </ContextMenuItem>
-          {demo ? null : timerSession ? (
+          {timerSession ? (
             <StopTimerMenuItem
-              startedAt={timerSession.startedAt}
+              session={timerSession}
+              dataTour={sampleName("demo-menu-stop-timer")}
               onClick={() => {
+                if (demo) return handleStopSampleTimer();
                 contextMenu.close();
                 void stopGameTimer(timerSession.id);
               }}
             />
           ) : !hasActiveSession ? (
-            <ContextMenuItem icon={Timer} onClick={handleStartTimer}>
+            <ContextMenuItem
+              icon={Timer}
+              dataTour={sampleName("demo-menu-start-timer")}
+              onClick={handleStartTimer}
+            >
               {t("Start timer")}
             </ContextMenuItem>
           ) : null}
         </ContextMenuSubmenu>
-        {!demo || canEditCover ? (
-          <ContextMenuSubmenu label={t("Appearance")} icon={Palette}>
-            {canEditCover ? (
-              <ContextMenuItem
-                dataTour={demo ? "demo-menu-rename" : undefined}
-                icon={Pencil}
-                onClick={() => {
-                  contextMenu.close();
-                  setRenameName(game.name);
-                  setShowRename(true);
-                }}
-              >
-                {t("Rename Game")}
-              </ContextMenuItem>
-            ) : null}
-            {!demo ? (
-              <>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    setArtPickerTab("banner");
-                    setShowArtPicker(true);
-                  }}
-                >
-                  {t("Choose banner…")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    setArtPickerTab("cover");
-                    setShowArtPicker(true);
-                  }}
-                >
-                  {t("Choose cover…")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    coverInputRef.current?.click();
-                  }}
-                >
-                  {t("Upload cover")}
-                </ContextMenuItem>
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-paste-cover" : undefined}
-                  icon={Clipboard}
-                  onClick={() => void handlePasteCover()}
-                >
-                  {t("Paste Cover")}
-                </ContextMenuItem>
-                {canEditCover && game.coverUrl ? (
-                  <ContextMenuItem
-                    dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                    icon={Trash2}
-                    onClick={handleClearCover}
-                  >
-                    {t("Delete Cover")}
-                  </ContextMenuItem>
-                ) : !canEditCover && coverPicked ? (
-                  <ContextMenuItem
-                    icon={RotateCcw}
-                    onClick={handleResetPickedCover}
-                  >
-                    {t("Restore Cover")}
-                  </ContextMenuItem>
-                ) : null}
-              </>
-            ) : null}
-          </ContextMenuSubmenu>
-        ) : null}
+        <ContextMenuSubmenu
+          label={t("Appearance")}
+          icon={Palette}
+          defaultOpen={stage.flyout === "demo-appearance-menu"}
+          dataTour={sampleName("demo-menu-appearance")}
+          menuDataTour={flyoutName("demo-appearance-menu")}
+        >
+          {canEditCover ? (
+            <ContextMenuItem
+              dataTour={sampleName("demo-menu-rename")}
+              icon={Pencil}
+              onClick={() => {
+                contextMenu.close();
+                startSample("rename");
+                setRenameName(game.name);
+                setShowRename(true);
+              }}
+            >
+              {t("Rename Game")}
+            </ContextMenuItem>
+          ) : null}
+          {/* Artwork of a sample is bundled: each entry answers with a
+              sample result. */}
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-choose-banner")}
+            onClick={() => {
+              startSample("choose-banner");
+              contextMenu.close();
+              setArtPickerTab("banner");
+              setShowArtPicker(true);
+            }}
+          >
+            {t("Choose banner…")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-upload-banner")}
+            onClick={() => {
+              if (demo) return sampleOnly("upload-banner", t("Upload banner"));
+              contextMenu.close();
+              bannerInputRef.current?.click();
+            }}
+          >
+            {t("Upload banner")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={Clipboard}
+            dataTour={sampleName("demo-menu-paste-banner")}
+            onClick={() =>
+              demo
+                ? sampleOnly("paste-banner", t("Paste banner"))
+                : void pasteArt("banner")
+            }
+          >
+            {t("Paste banner")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-choose-cover")}
+            onClick={() => {
+              startSample("choose-cover");
+              contextMenu.close();
+              setArtPickerTab("cover");
+              setShowArtPicker(true);
+            }}
+          >
+            {t("Choose cover…")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ImagePlus}
+            dataTour={sampleName("demo-menu-upload-cover")}
+            onClick={() => {
+              if (demo) return sampleOnly("upload-cover", t("Upload cover"));
+              contextMenu.close();
+              coverInputRef.current?.click();
+            }}
+          >
+            {t("Upload cover")}
+          </ContextMenuItem>
+          <ContextMenuItem
+            dataTour={sampleName("demo-menu-paste-cover")}
+            icon={Clipboard}
+            onClick={() =>
+              demo
+                ? sampleOnly("paste-cover", t("Paste Cover"))
+                : void pasteArt("cover")
+            }
+          >
+            {t("Paste Cover")}
+          </ContextMenuItem>
+          {canEditCover && game.coverUrl ? (
+            <ContextMenuItem
+              dataTour={sampleName("demo-menu-delete-cover")}
+              icon={Trash2}
+              onClick={() =>
+                demo
+                  ? sampleOnly("delete-cover", t("Delete Cover"))
+                  : handleClearCover()
+              }
+            >
+              {t("Delete Cover")}
+            </ContextMenuItem>
+          ) : !canEditCover &&
+            (coverPicked || (demo && demoArt.cover !== null)) ? (
+            <ContextMenuItem
+              icon={RotateCcw}
+              dataTour={sampleName("demo-menu-restore-cover")}
+              onClick={() => {
+                if (!demo) return handleResetPickedCover();
+                contextMenu.close();
+                startSample("restore-cover");
+                setDemoArt((current) => ({ ...current, cover: null }));
+                finishSample(
+                  t(
+                    "Sample cover restored. Nothing was saved to your library.",
+                  ),
+                );
+              }}
+            >
+              {t("Restore Cover")}
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenuSubmenu>
         {showMatchingActions ? (
           <ContextMenuSubmenu
             label={t("Matching")}
             icon={Search}
-            dataTour={demo ? "demo-menu-matching" : undefined}
-            menuDataTour={demo ? "demo-matching-menu" : undefined}
+            defaultOpen={stage.flyout === "demo-matching-menu"}
+            dataTour={sampleName("demo-menu-matching")}
+            menuDataTour={flyoutName("demo-matching-menu")}
           >
             {canCheckMatches ? (
               <ContextMenuItem
-                dataTour={demo ? "demo-menu-check-matches" : undefined}
+                dataTour={sampleName("demo-menu-check-matches")}
                 icon={Search}
                 onClick={() => {
                   contextMenu.close();
-                  if (demo) setDemoAction("matching");
-                  else openMatchCheck();
+                  startSample("check-matches");
+                  openMatchCheck();
                 }}
               >
                 {t("Check for Matches")}
               </ContextMenuItem>
             ) : null}
             {canChangeGame ? (
-              <ContextMenuItem icon={Replace} onClick={openChangeGame}>
+              <ContextMenuItem
+                icon={Replace}
+                dataTour={sampleName("demo-menu-change-game")}
+                onClick={() => {
+                  if (!demo) return openChangeGame();
+                  // The bundled sample search, never the real one.
+                  contextMenu.close();
+                  startSample("change-game");
+                  setDemoAction("matching");
+                }}
+              >
                 {t("Change Game…")}
               </ContextMenuItem>
             ) : null}
@@ -5775,11 +6443,12 @@ export function GameLibraryCard({
                   </ContextMenuItem>
                 ) : canSuggestToCommunity ? (
                   <ContextMenuItem
-                    dataTour={demo ? "demo-menu-suggest-community" : undefined}
+                    dataTour={sampleName("demo-menu-suggest-community")}
                     icon={Send}
                     onClick={() => {
                       contextMenu.close();
                       if (demo) {
+                        startSample("suggest-community");
                         setDemoAction("matching");
                         return;
                       }
@@ -5792,10 +6461,11 @@ export function GameLibraryCard({
                 {canReportMatch ? (
                   <>
                     <ContextMenuItem
-                      dataTour={demo ? "demo-menu-report-match" : undefined}
+                      dataTour={sampleName("demo-menu-report-match")}
                       icon={Flag}
                       onClick={() => {
                         contextMenu.close();
+                        startSample("report-match");
                         openReport();
                       }}
                     >
@@ -5803,10 +6473,11 @@ export function GameLibraryCard({
                     </ContextMenuItem>
                     {canConvertToCustom ? (
                       <ContextMenuItem
-                        dataTour={demo ? "demo-menu-convert-custom" : undefined}
+                        dataTour={sampleName("demo-menu-convert-custom")}
                         icon={Gamepad2}
                         onClick={() => {
                           contextMenu.close();
+                          startSample("convert-custom");
                           openConvert();
                         }}
                       >
@@ -5830,11 +6501,13 @@ export function GameLibraryCard({
         <ContextMenuSeparator />
         {onStopTracking || demo ? (
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-ignore" : undefined}
+            dataTour={sampleName("demo-menu-ignore")}
             icon={Ban}
             onClick={() => {
-              if (demo) setDemoAction("ignore");
-              else onStopTracking?.(game);
+              if (demo) {
+                startSample("ignore");
+                setDemoAction("ignore");
+              } else onStopTracking?.(game);
               contextMenu.close();
             }}
           >
@@ -5842,12 +6515,14 @@ export function GameLibraryCard({
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
-          dataTour={demo ? "demo-menu-remove" : undefined}
+          dataTour={sampleName("demo-menu-remove")}
           icon={Trash2}
           danger
           onClick={() => {
-            if (demo) setDemoAction("remove");
-            else onRemove(game);
+            if (demo) {
+              startSample("remove");
+              setDemoAction("remove");
+            } else onRemove(game);
             contextMenu.close();
           }}
         >
@@ -5857,18 +6532,26 @@ export function GameLibraryCard({
     );
   };
 
+  // Looked at and closed: what a step that rings Show History asks for.
+  const closeDemoAction = () => {
+    setDemoAction(null);
+    finishSample();
+  };
   const renderDemoAction = () => {
     if (!demo || !demoAction) return null;
     if (demoAction === "matching")
       return (
         <TourSampleSearch
-          exeName={game.exeNames[0] ?? "Wow.exe"}
+          exeName={game.exeNames[0] ?? TOUR_DEMO_GAME.exeName}
           onClose={() => setDemoAction(null)}
           onConfirm={(choice) => {
-            setDemoIdentity({ name: choice.name, source: "igdb" });
+            // A game the player added stays their own after Change Game….
+            setDemoIdentity({
+              name: choice.name,
+              source: originalGame.source === "custom" ? "custom" : "igdb",
+            });
             setDemoAction(null);
-            emitTourEvent(
-              "demo.action-completed",
+            finishSample(
               t(
                 "Sample reviewed as {{name}}. Nothing was submitted or saved to your library.",
                 { name: choice.name },
@@ -5894,8 +6577,7 @@ export function GameLibraryCard({
           onConfirm={(clearHistory) => {
             setDemoAction(null);
             setDemoRemoved(true);
-            emitTourEvent(
-              "demo.action-completed",
+            finishSample(
               clearHistory
                 ? t(
                     "Sample ignored and its history cleared. Nothing on this PC was blocked.",
@@ -5916,8 +6598,7 @@ export function GameLibraryCard({
           onConfirm={(clearHistory) => {
             setDemoAction(null);
             setDemoRemoved(true);
-            emitTourEvent(
-              "demo.action-completed",
+            finishSample(
               clearHistory
                 ? t(
                     "Sample removed together with its history, notes, playthroughs, and shelf membership.",
@@ -5940,9 +6621,11 @@ export function GameLibraryCard({
             ? t("Sample history")
             : t("Sample launch file")
         }
-        onClose={() => setDemoAction(null)}
+        onClose={closeDemoAction}
         footer={
-          <Button onClick={() => setDemoAction(null)}>{t("Done")}</Button>
+          <Button data-tour="demo-game-action-done" onClick={closeDemoAction}>
+            {t("Done")}
+          </Button>
         }
       >
         {demoAction === "history" ? (
@@ -5969,7 +6652,7 @@ export function GameLibraryCard({
                   );
                 }}
               >
-                {t("Use sample Wow.exe")}
+                {t("Use sample {{file}}", { file: TOUR_DEMO_GAME.exeName })}
               </Button>
               <Button
                 disabled={!demoLaunchPath}
@@ -6010,6 +6693,256 @@ export function GameLibraryCard({
           : undefined,
       }
     : {};
+
+  // The card's dialogs, in both layouts. Alone (detailsOnly) they are the
+  // Details that Now Playing and the banner open, with every action.
+  const renderDialogs = () => (
+    <>
+      {renderContextMenu()}
+      {renderDetailsDialog()}
+      {launchFileDialog}
+      {closeGameDialog}
+      {renderDemoAction()}
+      {sampleLibrary ? (
+        // The sample's own journal, opened from its menu or cover.
+        <PersonalLibraryContext.Provider value={sampleLibrary}>
+          <GameJournalHost />
+        </PersonalLibraryContext.Provider>
+      ) : null}
+      {showAddPlaytime ? (
+        <AddPlaytimeDialog
+          game={game}
+          demo={demo}
+          onCancel={() => {
+            setShowAddPlaytime(false);
+            if (demo) finishSample();
+          }}
+          onConfirm={handleAddPlaytime}
+        />
+      ) : null}
+      {showAdjustPlaytime ? (
+        <AdjustPlaytimeDialog
+          game={game}
+          disabled={hasActiveSession}
+          onCancel={() => setShowAdjustPlaytime(false)}
+          onConfirm={handleAdjustPlaytime}
+        />
+      ) : null}
+      {showMatchCheck ? (
+        checksLibraryGame ? (
+          <LibraryImportMatchCheckDialog
+            apiEndpoint={apiEndpoint}
+            entry={matchCheckImportEntry?.entry}
+            install={matchCheckImportEntry?.install}
+            playcounterGame={playcounterMatchEntry}
+            ignoredProcesses={ignoredProcesses}
+            offeredExecutableMatches={matchOffer?.executableMatches}
+            onCancel={() => setShowMatchCheck(false)}
+            onApplied={(executableNames) => {
+              setShowMatchCheck(false);
+              addToast({
+                tone: "success",
+                title: t("Match applied"),
+                detail: t("{{join}} will now be tracked as {{name}}.", {
+                  join: executableNames.join(", "),
+                  name: game.name,
+                }),
+              });
+            }}
+          />
+        ) : (
+          <MatchCheckDialog
+            game={game}
+            // A sample checks its one file against bundled matches; nothing
+            // is looked up, and the player's own files play no part.
+            sampleMatches={demo ? tourSampleMatches() : undefined}
+            exeName={demo ? (game.exeNames[0] ?? "") : (flowExeName ?? "")}
+            current={
+              demo ? { gameId: game.gameId, source: game.source } : flowFileGame
+            }
+            onCancel={() => setShowMatchCheck(false)}
+            onApply={handleApplyMatch}
+            onReport={() => {
+              setShowMatchCheck(false);
+              if (demo) startSample("report-match");
+              openReport(demo ? undefined : flowExeName);
+            }}
+            onSearchCommunity={
+              demo
+                ? () => {
+                    setShowMatchCheck(false);
+                    setDemoAction("matching");
+                  }
+                : canSuggestToCommunity || localSearchOnly
+                  ? () => {
+                      setShowMatchCheck(false);
+                      openSearch();
+                    }
+                  : undefined
+            }
+          />
+        )
+      ) : null}
+      {reportOpen ? (
+        <ReportWrongMatchDialog
+          demo={demo}
+          exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
+          gameName={game.name}
+          coverUrl={shownCover}
+          files={demo ? undefined : databaseFiles}
+          onPickFile={setMatchFile}
+          onCancel={() => setReportOpen(false)}
+          onDifferentGame={() => {
+            setReportOpen(false);
+            if (demo) setDemoAction("matching");
+            else if (localSearchOnly) openSearch();
+            else setShareOpen(true);
+          }}
+          onNotAGame={(exeName) => {
+            if (demo) {
+              setReportOpen(false);
+              setDemoRemoved(true);
+              finishSample(t("Sample ignored. No anonymous report was sent."));
+            } else void handleNegativeReport(exeName);
+          }}
+          // A sample offers every answer the real dialog has; each one ends
+          // with a sample result and changes nothing.
+          onSoftware={() => {
+            setReportOpen(false);
+            if (!demo) return setSoftwareOpen(true);
+            finishSample(
+              t(
+                "Sample counted as an app. On your own games its time moves to the Software page.",
+              ),
+            );
+          }}
+          onIgnoreApp={(exeName) => {
+            if (!demo) return handleIgnoreApp(exeName);
+            setReportOpen(false);
+            setDemoRemoved(true);
+            finishSample(
+              t("Sample ignored as an app. Nothing was reported or blocked."),
+            );
+          }}
+          onNotThisGame={(exeName) => {
+            if (!demo) return void handleNotThisGame(exeName);
+            setReportOpen(false);
+            finishSample(
+              t(
+                "{{file}} no longer counts for the sample. Nothing was reported or saved.",
+                { file: exeName },
+              ),
+            );
+          }}
+        />
+      ) : null}
+      {softwareOpen && flowExeName ? (
+        <SoftwareDialog
+          exeName={flowExeName}
+          suggestedName={exeProductName(
+            peekExeDetails(
+              useAppStore
+                .getState()
+                .launchTargets.get(flowExeName.toLowerCase())?.path,
+            ),
+            flowExeName,
+          )}
+          tracked={{ gameName: game.name }}
+          isOffline={isOffline}
+          onClose={() => setSoftwareOpen(false)}
+        />
+      ) : null}
+      {cancelSuggestionTarget ? (
+        <CancelCommunitySuggestionDialog
+          gameName={game.name}
+          exeName={cancelSuggestionTarget.exeName}
+          isOffline={isOffline}
+          onCancel={() => setCancelSuggestionTarget(null)}
+          onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
+        />
+      ) : null}
+      {confirmShareOpen && primaryLocalLink ? (
+        <SuggestToCommunityDialog
+          gameName={primaryLocalLink.gameName ?? game.name}
+          exeName={primaryLocalLink.exeName}
+          isOffline={isOffline}
+          onCancel={() => setConfirmShareOpen(false)}
+          onConfirm={() => void shareLinkNow()}
+        />
+      ) : null}
+      {shareOpen ? (
+        <CommunitySuggestionForm
+          candidates={correction.candidates}
+          exeName={flowExeName ?? ""}
+          hasMore={correction.hasMore}
+          message={correction.message}
+          search={correction.search}
+          selection={correction.selection}
+          state={correction.state}
+          isOffline={isOffline}
+          onApplyCandidate={correction.applyCandidate}
+          onCancel={closeShare}
+          onLoadMore={correction.loadMore}
+          onSearch={correction.searchFirstPage}
+          onSearchChange={correction.setSearch}
+          onSearchOptionsChange={correction.resetResults}
+          localOnly={localSearchOnly || searchMode === "change"}
+          localAction={searchMode === "change" ? t("Change game") : undefined}
+          onSubmit={() =>
+            localSearchOnly
+              ? applySearchedGameLocally()
+              : searchMode === "change"
+                ? changeGameNow()
+                : void correction.submit()
+          }
+        />
+      ) : null}
+      {filePick ? (
+        <PickGameFileDialog
+          action={filePickList.action}
+          gameName={game.name}
+          files={filePickList.files}
+          canPick={filePickList.canPick}
+          onPick={pickFile}
+          onCancel={() => setFilePick(null)}
+        />
+      ) : null}
+      {showConvert ? (
+        <GameNameDialog
+          demo={demo}
+          title={t("Convert to a custom game")}
+          subtitle={
+            demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
+          }
+          description={t(
+            "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
+          )}
+          confirmLabel={t("Convert to custom")}
+          name={convertName}
+          onNameChange={setConvertName}
+          onCancel={() => setShowConvert(false)}
+          onConfirm={submitConvertToCustom}
+        />
+      ) : null}
+      {showRename ? (
+        <GameNameDialog
+          demo={demo}
+          title={t("Rename game")}
+          subtitle={game.name}
+          description={t(
+            "Changes the display name of this custom game everywhere, including recorded sessions.",
+          )}
+          confirmLabel={t("Rename")}
+          name={renameName}
+          onNameChange={setRenameName}
+          onCancel={() => setShowRename(false)}
+          onConfirm={submitRename}
+        />
+      ) : null}
+    </>
+  );
+
+  if (detailsOnly) return renderDialogs();
 
   if (demoRemoved)
     return (
@@ -6086,9 +7019,11 @@ export function GameLibraryCard({
             cover in another ratio (SteamGridDB grids are 2:3) would otherwise
             stretch the whole card. */}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
-          {(!demo || libraryPractice) && !compact ? (
-            <GameJournalBadges game={{ ...game, gameName: game.name }} />
-          ) : null}
+          {!compact
+            ? inSampleLibrary(
+                <GameJournalBadges game={{ ...game, gameName: game.name }} />,
+              )
+            : null}
           {shownCover ? (
             <GameCover
               src={shownCover}
@@ -6165,47 +7100,50 @@ export function GameLibraryCard({
                 trackingWarningVisible &&
                   "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
                 trackingWarningVisible ? "top-12" : "top-2",
-                launchTourDemo && "translate-x-0 opacity-100",
+                // A step about these buttons shows them without the pointer.
+                (launchTourDemo || stage.hoverButtons) &&
+                  "translate-x-0 opacity-100",
               )}
             >
               <IconButton
                 icon={Info}
+                data-tour={sampleName("demo-card-details")}
                 aria-label={t("Open details for {{name}}", { name: game.name })}
                 title={t("Open details")}
-                onClick={() => openDetails()}
+                onClick={() => {
+                  startSample("details");
+                  openDetails();
+                }}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
-              {!demo || libraryPractice ? (
-                <IconButton
-                  icon={BookOpen}
-                  aria-label={t("Open journal for {{name}}", {
-                    name: game.name,
-                  })}
-                  title={t("Journal")}
-                  onClick={() =>
-                    openGameJournal({
-                      game: { ...game, gameName: game.name },
-                      tab: "note",
-                    })
-                  }
-                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-                />
-              ) : null}
               <IconButton
-                icon={ClockPlus}
-                aria-label={t("Log a missed session for {{name}}", {
+                icon={BookOpen}
+                data-tour={sampleName("demo-card-journal")}
+                aria-label={t("Open journal for {{name}}", {
                   name: game.name,
                 })}
-                title={t("Log missed session")}
-                onClick={(event) =>
-                  demo
-                    ? openDemoMenu(event.currentTarget)
-                    : setShowAddPlaytime(true)
+                title={t("Journal")}
+                onClick={() =>
+                  openGameJournal({
+                    game: { ...game, gameName: game.name },
+                    tab: "note",
+                  })
                 }
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               <IconButton
+                icon={ClockPlus}
+                data-tour={sampleName("demo-card-log-session")}
+                aria-label={t("Log a missed session for {{name}}", {
+                  name: game.name,
+                })}
+                title={t("Log missed session")}
+                onClick={() => openLogSession("log-session")}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+              <IconButton
                 icon={MoreHorizontal}
+                data-tour={sampleName("demo-card-more")}
                 aria-label={t("More actions for {{name}}", { name: game.name })}
                 aria-haspopup="menu"
                 title={t("More")}
@@ -6241,6 +7179,11 @@ export function GameLibraryCard({
               />
             </div>
           ) : null}
+          <CardShiftPanel
+            game={game}
+            compact={compact}
+            showDurationDays={showDurationDays}
+          />
         </div>
         <input
           ref={coverInputRef}
@@ -6250,6 +7193,16 @@ export function GameLibraryCard({
           disabled={coverBusy}
           onChange={(event) => {
             void saveCover(event.currentTarget.files?.[0] ?? null);
+          }}
+        />
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          disabled={bannerBusy}
+          onChange={(event) => {
+            void saveBanner(event.currentTarget.files?.[0] ?? null);
           }}
         />
 
@@ -6283,16 +7236,7 @@ export function GameLibraryCard({
               )}
               title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
             >
-              {exeLabel ? (
-                <>
-                  <span className="game-card-name-default">{game.name}</span>
-                  <span className="game-card-name-exe hidden font-mono text-[13px]">
-                    {exeLabel}
-                  </span>
-                </>
-              ) : (
-                game.name
-              )}
+              {game.name}
             </NameHeading>
             {/* Everything in the New row is new: no badge there. */}
             {isNew && !compact ? <NewGameBadge /> : null}
@@ -6338,6 +7282,7 @@ export function GameLibraryCard({
               </span>
             </div>
           )}
+          {sampleResultNote("mt-2")}
 
           {/* Persistent Community Prompts */}
           {game.communityUpgradeExeName && !compact ? (
@@ -6487,7 +7432,7 @@ export function GameLibraryCard({
                       ? t("Choose emulator game…")
                       : t("Set launch file…")
             }
-            data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+            data-tour={sampleName("demo-launch-play")}
             disabled={showPlayButton && playState.disabled}
             onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
             className={clsx(
@@ -6596,213 +7541,7 @@ export function GameLibraryCard({
             {t("Not launchable")}
           </div>
         ) : null}
-        {renderContextMenu()}
-        {renderDetailsDialog()}
-        {launchFileDialog}
-        {closeGameDialog}
-        {renderDemoAction()}
-        {showAddPlaytime ? (
-          <AddPlaytimeDialog
-            game={game}
-            demo={demo}
-            onCancel={() => setShowAddPlaytime(false)}
-            onConfirm={handleAddPlaytime}
-          />
-        ) : null}
-        {showAdjustPlaytime ? (
-          <AdjustPlaytimeDialog
-            game={game}
-            disabled={hasActiveSession}
-            onCancel={() => setShowAdjustPlaytime(false)}
-            onConfirm={handleAdjustPlaytime}
-          />
-        ) : null}
-        {showMatchCheck ? (
-          checksLibraryGame ? (
-            <LibraryImportMatchCheckDialog
-              apiEndpoint={apiEndpoint}
-              entry={matchCheckImportEntry?.entry}
-              install={matchCheckImportEntry?.install}
-              playcounterGame={playcounterMatchEntry}
-              ignoredProcesses={ignoredProcesses}
-              offeredExecutableMatches={matchOffer?.executableMatches}
-              onCancel={() => setShowMatchCheck(false)}
-              onApplied={(executableNames) => {
-                setShowMatchCheck(false);
-                addToast({
-                  tone: "success",
-                  title: t("Match applied"),
-                  detail: t("{{join}} will now be tracked as {{name}}.", {
-                    join: executableNames.join(", "),
-                    name: game.name,
-                  }),
-                });
-              }}
-            />
-          ) : (
-            <MatchCheckDialog
-              game={game}
-              exeName={flowExeName ?? ""}
-              current={flowFileGame}
-              onCancel={() => setShowMatchCheck(false)}
-              onApply={handleApplyMatch}
-              onReport={() => {
-                setShowMatchCheck(false);
-                openReport(flowExeName);
-              }}
-              onSearchCommunity={
-                canSuggestToCommunity || localSearchOnly
-                  ? () => {
-                      setShowMatchCheck(false);
-                      openSearch();
-                    }
-                  : undefined
-              }
-            />
-          )
-        ) : null}
-        {reportOpen ? (
-          <ReportWrongMatchDialog
-            demo={demo}
-            exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
-            gameName={game.name}
-            coverUrl={shownCover}
-            files={demo ? undefined : databaseFiles}
-            onPickFile={setMatchFile}
-            onCancel={() => setReportOpen(false)}
-            onDifferentGame={() => {
-              setReportOpen(false);
-              if (demo) setDemoAction("matching");
-              else if (localSearchOnly) openSearch();
-              else setShareOpen(true);
-            }}
-            onNotAGame={(exeName) => {
-              if (demo) {
-                setReportOpen(false);
-                setDemoRemoved(true);
-                emitTourEvent(
-                  "demo.action-completed",
-                  t("Sample ignored. No anonymous report was sent."),
-                );
-              } else void handleNegativeReport(exeName);
-            }}
-            onSoftware={
-              demo
-                ? undefined
-                : () => {
-                    setReportOpen(false);
-                    setSoftwareOpen(true);
-                  }
-            }
-            onIgnoreApp={demo ? undefined : handleIgnoreApp}
-            onNotThisGame={
-              demo ? undefined : (exeName) => void handleNotThisGame(exeName)
-            }
-          />
-        ) : null}
-        {softwareOpen && flowExeName ? (
-          <SoftwareDialog
-            exeName={flowExeName}
-            suggestedName={exeProductName(
-              peekExeDetails(
-                useAppStore
-                  .getState()
-                  .launchTargets.get(flowExeName.toLowerCase())?.path,
-              ),
-              flowExeName,
-            )}
-            tracked={{ gameName: game.name }}
-            isOffline={isOffline}
-            onClose={() => setSoftwareOpen(false)}
-          />
-        ) : null}
-        {cancelSuggestionTarget ? (
-          <CancelCommunitySuggestionDialog
-            gameName={game.name}
-            exeName={cancelSuggestionTarget.exeName}
-            isOffline={isOffline}
-            onCancel={() => setCancelSuggestionTarget(null)}
-            onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
-          />
-        ) : null}
-        {confirmShareOpen && primaryLocalLink ? (
-          <SuggestToCommunityDialog
-            gameName={primaryLocalLink.gameName ?? game.name}
-            exeName={primaryLocalLink.exeName}
-            isOffline={isOffline}
-            onCancel={() => setConfirmShareOpen(false)}
-            onConfirm={() => void shareLinkNow()}
-          />
-        ) : null}
-        {shareOpen ? (
-          <CommunitySuggestionForm
-            candidates={correction.candidates}
-            exeName={flowExeName ?? ""}
-            hasMore={correction.hasMore}
-            message={correction.message}
-            search={correction.search}
-            selection={correction.selection}
-            state={correction.state}
-            isOffline={isOffline}
-            onApplyCandidate={correction.applyCandidate}
-            onCancel={closeShare}
-            onLoadMore={correction.loadMore}
-            onSearch={correction.searchFirstPage}
-            onSearchChange={correction.setSearch}
-            onSearchOptionsChange={correction.resetResults}
-            localOnly={localSearchOnly || searchMode === "change"}
-            localAction={searchMode === "change" ? t("Change game") : undefined}
-            onSubmit={() =>
-              localSearchOnly
-                ? applySearchedGameLocally()
-                : searchMode === "change"
-                  ? changeGameNow()
-                  : void correction.submit()
-            }
-          />
-        ) : null}
-        {filePick ? (
-          <PickGameFileDialog
-            action={filePickList.action}
-            gameName={game.name}
-            files={filePickList.files}
-            canPick={filePickList.canPick}
-            onPick={pickFile}
-            onCancel={() => setFilePick(null)}
-          />
-        ) : null}
-        {showConvert ? (
-          <GameNameDialog
-            demo={demo}
-            title={t("Convert to a custom game")}
-            subtitle={
-              demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
-            }
-            description={t(
-              "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
-            )}
-            confirmLabel={t("Convert to custom")}
-            name={convertName}
-            onNameChange={setConvertName}
-            onCancel={() => setShowConvert(false)}
-            onConfirm={submitConvertToCustom}
-          />
-        ) : null}
-        {showRename ? (
-          <GameNameDialog
-            demo={demo}
-            title={t("Rename game")}
-            subtitle={game.name}
-            description={t(
-              "Changes the display name of this custom game everywhere, including recorded sessions.",
-            )}
-            confirmLabel={t("Rename")}
-            name={renameName}
-            onNameChange={setRenameName}
-            onCancel={() => setShowRename(false)}
-            onConfirm={submitRename}
-          />
-        ) : null}
+        {renderDialogs()}
       </SelectableLibraryCard>
     );
   }
@@ -6862,12 +7601,12 @@ export function GameLibraryCard({
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
-          {!demo || libraryPractice ? (
+          {inSampleLibrary(
             <GameJournalBadges
               game={{ ...game, gameName: game.name }}
               compact
-            />
-          ) : null}
+            />,
+          )}
           {shownCover ? (
             <GameCover
               src={shownCover}
@@ -6909,16 +7648,7 @@ export function GameLibraryCard({
               className="truncate text-base font-semibold text-text"
               title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
             >
-              {exeLabel ? (
-                <>
-                  <span className="game-card-name-default">{game.name}</span>
-                  <span className="game-card-name-exe hidden font-mono text-sm">
-                    {exeLabel}
-                  </span>
-                </>
-              ) : (
-                game.name
-              )}
+              {game.name}
             </h2>
             {isNew ? <NewGameBadge /> : null}
             {matchVisible ? (
@@ -6950,6 +7680,7 @@ export function GameLibraryCard({
                 game.emulatorLabels.join(", ")}
             </span>
           </div>
+          {sampleResultNote("mt-2 w-fit max-w-full")}
 
           {primaryEmulatorCandidate && primaryEmulatorMapping ? (
             <button
@@ -7063,7 +7794,7 @@ export function GameLibraryCard({
             <IconButton
               aria-label={playState.ariaLabel}
               title={playState.title}
-              data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+              data-tour={sampleName("demo-launch-play")}
               disabled={playState.disabled}
               onClick={handlePreferredLaunch}
               className={clsx(
@@ -7117,23 +7848,21 @@ export function GameLibraryCard({
             <div
               className={clsx(
                 "flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
-                launchTourDemo && "opacity-100",
+                (launchTourDemo || stage.hoverButtons) && "opacity-100",
               )}
             >
               <IconButton
                 icon={ClockPlus}
+                data-tour={sampleName("demo-card-log-session")}
                 aria-label={t("Log a missed session for {{name}}", {
                   name: game.name,
                 })}
                 title={t("Log missed session")}
-                onClick={(event) =>
-                  demo
-                    ? openDemoMenu(event.currentTarget)
-                    : setShowAddPlaytime(true)
-                }
+                onClick={() => openLogSession("log-session")}
               />
               <IconButton
                 icon={MoreHorizontal}
+                data-tour={sampleName("demo-card-more")}
                 aria-label={t("More actions for {{name}}", { name: game.name })}
                 aria-haspopup="menu"
                 title={t("More")}
@@ -7153,213 +7882,17 @@ export function GameLibraryCard({
           void saveCover(event.currentTarget.files?.[0] ?? null);
         }}
       />
-      {renderContextMenu()}
-      {renderDetailsDialog()}
-      {launchFileDialog}
-      {closeGameDialog}
-      {renderDemoAction()}
-      {showAddPlaytime ? (
-        <AddPlaytimeDialog
-          game={game}
-          demo={demo}
-          onCancel={() => setShowAddPlaytime(false)}
-          onConfirm={handleAddPlaytime}
-        />
-      ) : null}
-      {showAdjustPlaytime ? (
-        <AdjustPlaytimeDialog
-          game={game}
-          disabled={hasActiveSession}
-          onCancel={() => setShowAdjustPlaytime(false)}
-          onConfirm={handleAdjustPlaytime}
-        />
-      ) : null}
-      {showMatchCheck ? (
-        checksLibraryGame ? (
-          <LibraryImportMatchCheckDialog
-            apiEndpoint={apiEndpoint}
-            entry={matchCheckImportEntry?.entry}
-            install={matchCheckImportEntry?.install}
-            playcounterGame={playcounterMatchEntry}
-            ignoredProcesses={ignoredProcesses}
-            offeredExecutableMatches={matchOffer?.executableMatches}
-            onCancel={() => setShowMatchCheck(false)}
-            onApplied={(executableNames) => {
-              setShowMatchCheck(false);
-              addToast({
-                tone: "success",
-                title: t("Match applied"),
-                detail: t("{{join}} will now be tracked as {{name}}.", {
-                  join: executableNames.join(", "),
-                  name: game.name,
-                }),
-              });
-            }}
-          />
-        ) : (
-          <MatchCheckDialog
-            game={game}
-            exeName={flowExeName ?? ""}
-            current={flowFileGame}
-            onCancel={() => setShowMatchCheck(false)}
-            onApply={handleApplyMatch}
-            onReport={() => {
-              setShowMatchCheck(false);
-              openReport(flowExeName);
-            }}
-            onSearchCommunity={
-              canSuggestToCommunity || localSearchOnly
-                ? () => {
-                    setShowMatchCheck(false);
-                    openSearch();
-                  }
-                : undefined
-            }
-          />
-        )
-      ) : null}
-      {reportOpen ? (
-        <ReportWrongMatchDialog
-          demo={demo}
-          exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
-          gameName={game.name}
-          coverUrl={shownCover}
-          files={demo ? undefined : databaseFiles}
-          onPickFile={setMatchFile}
-          onCancel={() => setReportOpen(false)}
-          onDifferentGame={() => {
-            setReportOpen(false);
-            if (demo) setDemoAction("matching");
-            else if (localSearchOnly) openSearch();
-            else setShareOpen(true);
-          }}
-          onNotAGame={(exeName) => {
-            if (demo) {
-              setReportOpen(false);
-              setDemoRemoved(true);
-              emitTourEvent(
-                "demo.action-completed",
-                t("Sample ignored. No anonymous report was sent."),
-              );
-            } else void handleNegativeReport(exeName);
-          }}
-          onSoftware={
-            demo
-              ? undefined
-              : () => {
-                  setReportOpen(false);
-                  setSoftwareOpen(true);
-                }
-          }
-          onIgnoreApp={demo ? undefined : handleIgnoreApp}
-          onNotThisGame={
-            demo ? undefined : (exeName) => void handleNotThisGame(exeName)
-          }
-        />
-      ) : null}
-      {softwareOpen && flowExeName ? (
-        <SoftwareDialog
-          exeName={flowExeName}
-          suggestedName={exeProductName(
-            peekExeDetails(
-              useAppStore
-                .getState()
-                .launchTargets.get(flowExeName.toLowerCase())?.path,
-            ),
-            flowExeName,
-          )}
-          tracked={{ gameName: game.name }}
-          isOffline={isOffline}
-          onClose={() => setSoftwareOpen(false)}
-        />
-      ) : null}
-      {cancelSuggestionTarget ? (
-        <CancelCommunitySuggestionDialog
-          gameName={game.name}
-          exeName={cancelSuggestionTarget.exeName}
-          isOffline={isOffline}
-          onCancel={() => setCancelSuggestionTarget(null)}
-          onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
-        />
-      ) : null}
-      {confirmShareOpen && primaryLocalLink ? (
-        <SuggestToCommunityDialog
-          gameName={primaryLocalLink.gameName ?? game.name}
-          exeName={primaryLocalLink.exeName}
-          isOffline={isOffline}
-          onCancel={() => setConfirmShareOpen(false)}
-          onConfirm={() => void shareLinkNow()}
-        />
-      ) : null}
-      {shareOpen ? (
-        <CommunitySuggestionForm
-          candidates={correction.candidates}
-          exeName={flowExeName ?? ""}
-          hasMore={correction.hasMore}
-          message={correction.message}
-          search={correction.search}
-          selection={correction.selection}
-          state={correction.state}
-          isOffline={isOffline}
-          onApplyCandidate={correction.applyCandidate}
-          onCancel={closeShare}
-          onLoadMore={correction.loadMore}
-          onSearch={correction.searchFirstPage}
-          onSearchChange={correction.setSearch}
-          onSearchOptionsChange={correction.resetResults}
-          localOnly={localSearchOnly || searchMode === "change"}
-          localAction={searchMode === "change" ? t("Change game") : undefined}
-          onSubmit={() =>
-            localSearchOnly
-              ? applySearchedGameLocally()
-              : searchMode === "change"
-                ? changeGameNow()
-                : void correction.submit()
-          }
-        />
-      ) : null}
-      {filePick ? (
-        <PickGameFileDialog
-          action={filePickList.action}
-          gameName={game.name}
-          files={filePickList.files}
-          canPick={filePickList.canPick}
-          onPick={pickFile}
-          onCancel={() => setFilePick(null)}
-        />
-      ) : null}
-      {showConvert ? (
-        <GameNameDialog
-          demo={demo}
-          title={t("Convert to a custom game")}
-          subtitle={
-            demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
-          }
-          description={t(
-            "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
-          )}
-          confirmLabel={t("Convert to custom")}
-          name={convertName}
-          onNameChange={setConvertName}
-          onCancel={() => setShowConvert(false)}
-          onConfirm={submitConvertToCustom}
-        />
-      ) : null}
-      {showRename ? (
-        <GameNameDialog
-          demo={demo}
-          title={t("Rename game")}
-          subtitle={game.name}
-          description={t(
-            "Changes the display name of this custom game everywhere, including recorded sessions.",
-          )}
-          confirmLabel={t("Rename")}
-          name={renameName}
-          onNameChange={setRenameName}
-          onCancel={() => setShowRename(false)}
-          onConfirm={submitRename}
-        />
-      ) : null}
+      <input
+        ref={bannerInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        disabled={bannerBusy}
+        onChange={(event) => {
+          void saveBanner(event.currentTarget.files?.[0] ?? null);
+        }}
+      />
+      {renderDialogs()}
     </SelectableLibraryCard>
   );
 }
@@ -7368,11 +7901,13 @@ const MemoizedGameLibraryCard = memo(GameLibraryCard);
 
 // Counts while the Playtime menu is open; menus only render while open.
 function StopTimerMenuItem({
-  startedAt,
+  session,
   onClick,
+  dataTour,
 }: {
-  startedAt: string;
+  session: ActiveSession;
   onClick: () => void;
+  dataTour?: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -7382,13 +7917,12 @@ function StopTimerMenuItem({
   return (
     <ContextMenuItem
       icon={Square}
+      dataTour={dataTour}
       className="tabular-nums [&>svg]:fill-current"
       onClick={onClick}
     >
       {t("Stop timer · {{time}}", {
-        time: formatClock(
-          Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000)),
-        ),
+        time: formatClock(playedSeconds(session, now)),
       })}
     </ContextMenuItem>
   );
@@ -7402,6 +7936,99 @@ function NewGameBadge() {
     >
       {t("New")}
     </span>
+  );
+}
+
+/* Shift + hover on a card (docs/shift-hover-plan.md): each launcher's
+   playtime for a game from two or more launchers, otherwise when it was last
+   played. Always rendered; styles.css shows it while Shift is held. */
+function CardShiftPanel({
+  game,
+  compact,
+  showDurationDays,
+}: {
+  game: GameSummary;
+  /** The New row's small card: a 12-hour time would wrap at 13px. */
+  compact: boolean;
+  showDurationDays: boolean;
+}) {
+  const launchers = launcherPlaytimes(
+    game.libraryImports.map((item) => item.entry),
+  );
+  const shell = clsx(
+    "game-card-shift-view pointer-events-none absolute z-40 hidden flex-col rounded-[10px] border border-white/10 bg-bg/90 py-1 shadow-[0_8px_24px_rgb(0_0_0/0.45)] backdrop-blur-sm",
+    compact ? "inset-x-1.5 bottom-1.5 px-2" : "inset-x-2 bottom-2 px-2.5",
+  );
+  if (launchers.length < 2) {
+    // The list view's rule and format ("Last played …" / "Added …").
+    const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
+    return (
+      <div className={shell}>
+        <div className="py-1">
+          <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-text-faint">
+            <Clock3 size={12} aria-hidden="true" />
+            {played ? t("Last played") : t("Added")}
+          </div>
+          <div
+            className={clsx(
+              "font-mono font-semibold text-text",
+              compact ? "text-xs" : "text-[13px]",
+            )}
+          >
+            {formatLastPlayed(game.lastPlayedAt)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // What PlayCounter adds on top of the launchers, so the rows add up to the
+  // card's total (before Set total).
+  const onTopSeconds =
+    effectiveTotalSeconds(
+      game.recordedSeconds,
+      0,
+      game.providerFloorSeconds,
+      game.trackedSinceImportSeconds,
+    ) - game.providerFloorSeconds;
+  const row =
+    "flex min-h-[28px] items-center gap-2 border-t border-white/10 text-[12.5px] first:border-t-0";
+  return (
+    <div className={shell}>
+      {launchers.map(({ provider, seconds }) => (
+        <div key={provider} className={row}>
+          <ProviderBadge provider={provider} variant="mark" />
+          <span className="min-w-0 flex-1 truncate text-text/85">
+            {LIBRARY_PROVIDER_LABELS[provider]}
+          </span>
+          {seconds === null ? (
+            <span className="shrink-0 text-xs text-text-faint">
+              {provider === "battlenet"
+                ? t("Not available")
+                : t("Not reported")}
+            </span>
+          ) : (
+            <span className="shrink-0 font-mono font-semibold text-text">
+              {formatDuration(seconds, showDurationDays)}
+            </span>
+          )}
+        </div>
+      ))}
+      {onTopSeconds >= 60 ? (
+        <div className={row}>
+          <img
+            src="/brand/playcounter-mark-small.svg"
+            alt=""
+            className="h-[22px] w-[22px] shrink-0 object-contain"
+          />
+          <span className="min-w-0 flex-1 truncate text-text-muted">
+            PlayCounter
+          </span>
+          <span className="shrink-0 font-mono font-semibold text-text-muted">
+            +{formatDuration(onTopSeconds, showDurationDays)}
+          </span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -8229,6 +8856,7 @@ function MatchCheckDialog({
   onApply,
   onReport,
   onSearchCommunity,
+  sampleMatches,
 }: {
   game: GameSummary;
   /** The file being checked, picked by the user when the card has more. */
@@ -8240,8 +8868,12 @@ function MatchCheckDialog({
   /** "Report wrong match…": the full report picker for this file. */
   onReport: () => void;
   onSearchCommunity?: () => void;
+  /** A guide's sample: these are the results, nothing is looked up. */
+  sampleMatches?: Game[];
 }) {
-  const isOffline = useIsOffline();
+  const sample = sampleMatches !== undefined;
+  // A sample's bundled results need no connection.
+  const isOffline = useIsOffline() && !sample;
   const [state, setState] = useState<"loading" | "error" | "done">("loading");
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
@@ -8272,7 +8904,14 @@ function MatchCheckDialog({
           hiddenCount: hidden,
           pendingCommunityGameIds: pendingIds,
           flaggedIdentifier: flag,
-        } = await findGameMatches(exeName);
+        } = sampleMatches
+          ? {
+              games: sampleMatches,
+              hiddenCount: 0,
+              pendingCommunityGameIds: undefined,
+              flaggedIdentifier: undefined,
+            }
+          : await findGameMatches(exeName);
         if (cancelled) return;
         const pendingIdSet = new Set(pendingIds ?? []);
         setCandidates(sortMatchCandidates(games));
@@ -8351,6 +8990,7 @@ function MatchCheckDialog({
           <Button
             variant="primary"
             icon={Check}
+            data-tour={sample ? "demo-match-check-use" : undefined}
             disabled={!selection || isOffline || isCurrentMatch(selection)}
             onClick={() => {
               if (selection && !isCurrentMatch(selection))
@@ -8372,6 +9012,8 @@ function MatchCheckDialog({
 
   return (
     <Modal
+      dataTour={sample ? "demo-match-check-dialog" : undefined}
+      backdropDataTour={sample ? "demo-library-modal" : undefined}
       size="md"
       labelId="match-check-title"
       eyebrow={t("Database match")}
