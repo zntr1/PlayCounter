@@ -18,6 +18,7 @@
   "No games match “{{query}}”.": "Aucun jeu ne correspond à « {{query}} ».",
   "Show more games": "Afficher plus de jeux",
   "No games detected yet": "Aucun jeu détecté pour l'instant",
+  "Or add a game manually": "Ou ajouter un jeu manuellement",
   "Start a game from any launcher or a standalone install. Keep PlayCounter running, and it will add recognized games here and track your playtime automatically.": "Lancez un jeu depuis n'importe quel launcher ou une installation autonome. Laissez PlayCounter tourner : il ajoutera ici les jeux reconnus et suivra votre temps de jeu automatiquement.",
   "You can also import games and past playtime. It's completely optional.": "Vous pouvez aussi importer des jeux et votre temps de jeu passé. C'est entièrement facultatif.",
   "Starting {{gameName}}…": "Lancement de {{gameName}}…",

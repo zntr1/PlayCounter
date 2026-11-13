@@ -38,10 +38,10 @@ function emptyPanelButton(label: string) {
   );
 }
 
-it("an empty library offers Add game, and it opens the Add game dialog", async () => {
+it("an empty library offers Or add a game manually, and it opens the Add game dialog", async () => {
   await act(() => root.render(<MyGamesView />));
 
-  const button = emptyPanelButton("Add game");
+  const button = emptyPanelButton("Or add a game manually");
   expect(button).toBeDefined();
   expect(document.querySelector('[role="dialog"]')).toBeNull();
 
@@ -50,13 +50,13 @@ it("an empty library offers Add game, and it opens the Add game dialog", async (
   expect(document.querySelector('[role="dialog"]')).not.toBeNull();
 });
 
-it("Add game in an empty library waits for a connection when offline", async () => {
+it("Or add a game manually in an empty library waits for a connection when offline", async () => {
   useAppStore.setState({
     backendHealth: { ...useAppStore.getState().backendHealth, status: "offline" },
   });
   await act(() => root.render(<MyGamesView />));
 
-  const button = emptyPanelButton("Add game");
+  const button = emptyPanelButton("Or add a game manually");
   expect(button?.disabled).toBe(true);
   expect(button?.title).toBe("Needs a connection");
 });

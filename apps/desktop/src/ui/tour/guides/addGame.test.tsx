@@ -289,17 +289,8 @@ describe("the walk through the guide", () => {
 });
 
 describe("the empty My Games screen", () => {
-  it("offers Show me how for importing a library", async () => {
+  it("offers no Show me how for importing a library", async () => {
     await act(async () => {
-      root.render(<LibraryTestShell />);
-    });
-    await wait();
-    expect(find('[data-guide-link="import-library"]')).not.toBeNull();
-  });
-
-  it("hides it while a guide runs", async () => {
-    await act(async () => {
-      useAppStore.getState().startTour("add-game");
       root.render(<LibraryTestShell />);
     });
     await wait();

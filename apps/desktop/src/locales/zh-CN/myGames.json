@@ -18,6 +18,7 @@
   "No games match “{{query}}”.": "没有与“{{query}}”匹配的游戏。",
   "Show more games": "显示更多游戏",
   "No games detected yet": "尚未检测到游戏",
+  "Or add a game manually": "或手动添加游戏",
   "Start a game from any launcher or a standalone install. Keep PlayCounter running, and it will add recognized games here and track your playtime automatically.": "从任意启动器或独立安装中启动游戏。保持 PlayCounter 运行，它会把识别出的游戏添加到这里，并自动记录你的游戏时长。",
   "You can also import games and past playtime. It's completely optional.": "你也可以导入游戏和过去的游戏时长，完全可选。",
   "Starting {{gameName}}…": "正在启动 {{gameName}}…",

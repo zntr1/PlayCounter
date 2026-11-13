@@ -18,6 +18,7 @@
   "No games match “{{query}}”.": "Нет игр по запросу «{{query}}».",
   "Show more games": "Показать больше игр",
   "No games detected yet": "Игр пока не обнаружено",
+  "Or add a game manually": "Или добавить игру вручную",
   "Start a game from any launcher or a standalone install. Keep PlayCounter running, and it will add recognized games here and track your playtime automatically.": "Запустите игру из любого лаунчера или отдельной установки. Держите PlayCounter запущенным, и он добавит сюда распознанные игры и будет автоматически учитывать время в игре.",
   "You can also import games and past playtime. It's completely optional.": "Можно также импортировать игры и прошлое время в игре. Это совсем не обязательно.",
   "Starting {{gameName}}…": "Запуск {{gameName}}…",

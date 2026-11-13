@@ -296,7 +296,6 @@ import {
 import { emitTourEvent, tourDoneFlash, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
 import { cn } from "../cn";
-import { GuideLink } from "../tour/GuideLink";
 import { createLibraryTourStore } from "../tour/libraryTourStore";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
 import { StatsPractice } from "../tour/TourStatsPractice";
@@ -3345,7 +3344,7 @@ function EmptyLibraryPanel({
           }
           onClick={onAddGame}
         >
-          {t("Add game")}
+          {t("Or add a game manually")}
         </Button>
       </div>
       {importProviders.length > 0 ? (
@@ -3364,7 +3363,6 @@ function EmptyLibraryPanel({
               "You can also import games and past playtime. It's completely optional.",
             )}
           </p>
-          <GuideLink tourId="import-library" className="mt-2" />
           <div className="mt-4 flex flex-wrap justify-center gap-3">
             {importProviders.map((config) => (
               <Button
