@@ -624,6 +624,7 @@ const GROUPS: SettingsGroupDef[] = [
       t(
         "PlayCounter starts the game file you picked directly, or hands a saved game file to a supported emulator. Games managed by a launcher, and games that ask for administrator rights, may still need their normal shortcut. Remembered paths stay on this device and are left out of backups.",
       ),
+    guide: "launch-games",
     sections: [
       {
         id: "launching",
@@ -702,6 +703,7 @@ const GROUPS: SettingsGroupDef[] = [
         "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. Install paths and the game files linked to them always stay on this PC.",
       ),
     dataTour: "settings-library-import",
+    guide: "watch-folders",
     sections: [
       {
         id: "new-games",
@@ -771,6 +773,7 @@ const GROUPS: SettingsGroupDef[] = [
         emulators: emulatorLabelList("or"),
       }),
     dataTour: "settings-emulators",
+    guide: "emulators",
     sections: [
       {
         id: "detection",
@@ -825,6 +828,7 @@ const GROUPS: SettingsGroupDef[] = [
     title: () => t("Discovery"),
     description: () =>
       t("Tune how PlayCounter finds apps and retries unknown ones."),
+    guide: "track-software",
     sections: [
       {
         id: "discovery",
@@ -869,6 +873,7 @@ const GROUPS: SettingsGroupDef[] = [
         "Protect your play history, notes, playthroughs, and shelves, or move them to another PC. Backups are plain JSON files.",
       ),
     dataTour: "settings-backup",
+    guide: "backup-data",
     sections: [
       {
         id: "automatic",

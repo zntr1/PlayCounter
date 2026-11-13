@@ -2,7 +2,7 @@
 /* "Personalize PlayCounter" on the real Settings page: every step rings a
    single row (never a whole group), names only what its page shows, opens
    its own page from anywhere, and skips what this computer doesn't have.
-   Settings → While you play and Keyboard shortcuts offer "Show me how". */
+   Settings pages with a guide of their own offer "Show me how". */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -237,18 +237,24 @@ describe("Show me how", () => {
     expect(link()?.closest("header")).not.toBeNull();
   });
 
-  it("is on no other page", async () => {
-    for (const group of [
-      "general",
-      "appearance",
-      "popups",
-      "launching",
-      "library",
-      "emulators",
-      "discovery",
-      "backup",
-      "about",
+  it("starts the guide of a page from its head, where the page has one", async () => {
+    for (const [group, guide] of [
+      ["launching", "launch-games"],
+      ["library", "watch-folders"],
+      ["emulators", "emulators"],
+      ["discovery", "track-software"],
+      ["backup", "backup-data"],
     ] as const) {
+      await openPage(group);
+      expect(link()?.dataset.guideLink, group).toBe(guide);
+      expect(link()?.closest("header"), group).not.toBeNull();
+    }
+    await act(async () => link()!.click());
+    expect(useAppStore.getState().activeTour?.tourId).toBe("backup-data");
+  });
+
+  it("is on no other page", async () => {
+    for (const group of ["general", "appearance", "popups", "about"] as const) {
       await openPage(group);
       expect(link(), group).toBeNull();
     }
