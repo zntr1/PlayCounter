@@ -32,7 +32,7 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCurrentWindow>);
   useAppStore.setState({
     activeSessions: [],
-    settings: createDefaultSettings(),
+    settings: { ...createDefaultSettings(), hideToTrayOnGameStart: true },
   });
 });
 
@@ -51,8 +51,8 @@ describe("hide to tray when a launched game starts", () => {
     await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1));
   });
 
-  it("is on by default", () => {
-    expect(createDefaultSettings().hideToTrayOnGameStart).toBe(true);
+  it("is off by default", () => {
+    expect(createDefaultSettings().hideToTrayOnGameStart).toBe(false);
   });
 
   it("ignores other games and the same id from another source", async () => {

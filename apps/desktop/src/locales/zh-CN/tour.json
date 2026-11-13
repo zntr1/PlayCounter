@@ -522,7 +522,7 @@
   "The card's menu has <b>Launch options</b> with <b>Change launch file…</b> (<b>Set launch file…</b> if none), <b>Open in Explorer</b> and <b>Forget launch file</b>. Paths stay on this PC.": "卡片菜单里有<b>启动选项</b>，其中有<b>更改启动文件…</b>（没有时是<b>设置启动文件…</b>）、<b>在资源管理器中打开</b>和<b>清除启动文件路径</b>。路径只保存在这台电脑上。",
   "Right-click the sample card, open <b>Launch options</b>, click <b>Change launch file…</b> and use the sample file.": "右键点击示例卡片，打开<b>启动选项</b>，点击<b>更改启动文件…</b>，并使用示例文件。",
   "Stop a game, and hide to tray": "停止游戏，并隐藏到托盘",
-  "A running game's card shows <b>Stop</b>; it asks, then closes the game. <b>Hide to tray when a game starts</b> is on by default: PlayCounter moves to the tray once the game runs.": "运行中的游戏卡片会显示<b>停止</b>；它会先询问，再关闭游戏。<b>启动游戏时最小化到系统托盘</b>默认开启：游戏运行后，PlayCounter 会移到托盘。",
+  "A running game's card shows <b>Stop</b>; it asks, then closes the game. Turn on <b>Hide to tray when a game starts</b> and PlayCounter moves to the tray once the game runs.": "运行中的游戏卡片会显示<b>停止</b>；它会先询问，再关闭游戏。开启<b>启动游戏时最小化到系统托盘</b>后，游戏运行时 PlayCounter 会移到托盘。",
   "PlayCounter checks at start-up and when you return to its window whether imported launcher games are still installed. Uninstalled ones lose Play. <b>Show Install in Steam</b> adds an install button for Steam games.": "PlayCounter 会在启动时和你回到它的窗口时检查已导入的启动器游戏是否仍已安装。已卸载的游戏会失去开始游戏按钮。<b>显示“在 Steam 中安装”</b>会为 Steam 游戏添加安装按钮。",
   "<b>Controller navigation</b> lets a pad move around PlayCounter. Hold View + RB for two seconds to bring PlayCounter to the front. PlayStation pads: Create + R1.": "<b>手柄导航</b>让手柄可以在 PlayCounter 中操作。按住 View + RB 两秒可把 PlayCounter 切到前台。PlayStation 手柄：Create + R1。",
   "Keyboard and fullscreen": "键盘与全屏",

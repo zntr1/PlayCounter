@@ -210,7 +210,7 @@ export function LaunchDirectlyRow({ level, disabled }: SettingsRowProps) {
 
 export function HideToTrayRow({ level, disabled }: SettingsRowProps) {
   const checked = useAppStore(
-    (state) => state.settings.hideToTrayOnGameStart !== false,
+    (state) => state.settings.hideToTrayOnGameStart === true,
   );
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
   return (

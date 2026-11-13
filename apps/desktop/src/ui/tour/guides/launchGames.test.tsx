@@ -103,12 +103,13 @@ describe("the guide's steps", () => {
     expect(body).toMatch(/Battle\.net/);
   });
 
-  it("teach Stop and hide to tray, which is on by default", () => {
+  it("teach Stop and hide to tray, which the player turns on", () => {
     expect(bold(step("running").body)).toEqual([
       "Stop",
       "Hide to tray when a game starts",
     ]);
-    expect(step("running").body).toMatch(/default/);
+    expect(step("running").body).toMatch(/Turn on/);
+    expect(step("running").body).not.toMatch(/default/);
   });
 
   it("describe the controller chord as it works: held two seconds, Create on PlayStation", () => {

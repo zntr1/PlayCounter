@@ -101,7 +101,7 @@ export function launchGamesGuide(): TourDefinition {
         anchor: row("hideToTray"),
         title: t("Stop a game, and hide to tray"),
         body: t(
-          "A running game's card shows <b>Stop</b>; it asks, then closes the game. <b>Hide to tray when a game starts</b> is on by default: PlayCounter moves to the tray once the game runs.",
+          "A running game's card shows <b>Stop</b>; it asks, then closes the game. Turn on <b>Hide to tray when a game starts</b> and PlayCounter moves to the tray once the game runs.",
         ),
       },
       {

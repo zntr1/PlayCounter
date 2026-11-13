@@ -896,7 +896,7 @@ const defaultSettings: Settings = {
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
-  hideToTrayOnGameStart: true,
+  hideToTrayOnGameStart: false,
   autoAddInstalledGames: true,
   showInstallInSteam: false,
   showAdultArt: false,

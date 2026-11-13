@@ -28,7 +28,7 @@ export function hideToTrayWhenGameStarts(aliases: readonly GameAliasRef[]) {
     );
     if (!started) return;
     stop();
-    if (state.settings.hideToTrayOnGameStart !== false) void hideMainWindow();
+    if (state.settings.hideToTrayOnGameStart === true) void hideMainWindow();
   });
   const timer = window.setTimeout(stop, WAIT_FOR_GAME_MS);
   stopWatching = stop;
