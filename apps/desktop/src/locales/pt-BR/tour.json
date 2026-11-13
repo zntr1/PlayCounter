@@ -325,9 +325,7 @@
   "Check Discovered now and then": "Dê uma olhada em Descobertos de vez em quando",
   "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.": "No app, Descobertos mostra um número na barra lateral enquanto há apps esperando. Passe por eles uma vez, e o PlayCounter lembra cada resposta.",
   "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.": "Todo cartão em <b>Meus jogos</b> tem um menu de clique direito com todas as ações. Este cartão de World of Warcraft é um exemplo: nada é salvo.",
-  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.": "<b>Remover da biblioteca</b> tira um jogo até você jogá-lo de novo. <b>Ignorar jogo</b> também bloqueia o arquivo dele; desfaça isso em <b>Descobertos</b> → <b>Ignorado</b>. No app, todo cartão tem esse menu.",
   "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.": "O PlayCounter perdeu uma sessão, ou você jogou em outro lugar? Adicione o tempo você mesmo. Este cartão de World of Warcraft é um exemplo: nada é salvo.",
-  "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.": "<b>Ajustar tempo de jogo total</b> define um número total e não adiciona sessão. No app, use o botão do relógio ou <b>Tempo de jogo</b> no menu de um cartão.",
   "Your playtime in one number": "Seu tempo de jogo em um número",
   "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.": "O número grande é o que você jogou no período escolhido. Este é um histórico de exemplo com seis sessões: nada é salvo, e seu histórico real não muda.",
   "Pick a time span": "Escolha um período",
@@ -632,5 +630,13 @@
   "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.": "O PlayCounter procura o arquivo do jogo de novo no IGDB e nas associações da comunidade. Assim, um jogo personalizado pode virar um jogo associado.",
   "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.": "Abra <b>Associação</b> e clique em <b>Verificar associações</b>. Escolha a associação do IGDB e clique em <b>Usar esta associação</b>.",
   "Your own games": "Seus próprios jogos",
-  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "No app, clique com o botão direito em um jogo personalizado e abra <b>Associação</b>. O guia Entenda os selos dos jogos mostra o selo Personalizado, seu relógio e seu visto."
+  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "No app, clique com o botão direito em um jogo personalizado e abra <b>Associação</b>. O guia Entenda os selos dos jogos mostra o selo Personalizado, seu relógio e seu visto.",
+  "<b>Adjust total playtime</b> sets a lifetime number and adds no session.": "<b>Ajustar tempo de jogo total</b> define um número total e não adiciona sessão.",
+  "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.": "Abra <b>Tempo de jogo</b>, clique em <b>Ajustar tempo de jogo total</b>, digite um total e clique em <b>Salvar total</b>.",
+  "On your own games": "Nos seus próprios jogos",
+  "In the app, use the clock button or <b>Playtime</b> in a card's menu.": "No app, use o botão do relógio ou <b>Tempo de jogo</b> no menu de um cartão.",
+  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.": "<b>Remover da biblioteca</b> tira um jogo até você jogá-lo de novo. <b>Ignorar jogo</b> também bloqueia o arquivo dele; desfaça isso em <b>Descobertos</b> → <b>Ignorado</b>.",
+  "Right-click the sample card, choose <b>Ignore Game</b> and confirm.": "Clique com o botão direito no cartão de exemplo, escolha <b>Ignorar jogo</b> e confirme.",
+  "Every card has this menu": "Todo cartão tem esse menu",
+  "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "No app, clique com o botão direito em qualquer cartão de <b>Meus jogos</b>, ou aponte para ele e clique em <b>Mais</b>."
 }

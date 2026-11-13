@@ -324,9 +324,7 @@
   "Check Discovered now and then": "Sieh ab und zu in „Entdeckt“ nach",
   "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.": "In der App zeigt „Entdeckt“ eine Zahl in der Seitenleiste, solange Apps warten. Geh sie einmal durch, und PlayCounter merkt sich jede Antwort.",
   "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.": "Jede Kachel in <b>Meine Spiele</b> hat ein Rechtsklick-Menü mit allen ihren Aktionen. Diese World-of-Warcraft-Kachel ist ein Beispiel: Es wird nichts gespeichert.",
-  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.": "<b>Aus Bibliothek entfernen</b> nimmt ein Spiel heraus, bis du es wieder spielst. <b>Spiel ignorieren</b> sperrt zusätzlich seine Datei; mach das unter <b>Entdeckt</b> → <b>Ignoriert</b> rückgängig. In der App hat jede Kachel dieses Menü.",
   "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.": "PlayCounter hat eine Sitzung verpasst, oder du hast woanders gespielt? Füg die Zeit selbst hinzu. Diese World-of-Warcraft-Kachel ist ein Beispiel: Es wird nichts gespeichert.",
-  "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.": "<b>Gesamte Spielzeit anpassen</b> setzt eine Gesamtzahl und fügt keine Sitzung hinzu. Nutze in der App die Uhr-Schaltfläche oder <b>Spielzeit</b> im Menü einer Kachel.",
   "Your playtime in one number": "Deine Spielzeit in einer Zahl",
   "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.": "Die große Zahl ist das, was du im gewählten Zeitraum gespielt hast. Das ist ein Beispielverlauf mit sechs Sitzungen: Es wird nichts gespeichert, und dein eigener Verlauf bleibt, wie er ist.",
   "Pick a time span": "Einen Zeitraum wählen",
@@ -630,5 +628,13 @@
   "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.": "PlayCounter sucht die Spieldatei erneut in IGDB und in den Zuordnungen der Community. So kann aus einem eigenen Spiel ein zugeordnetes Spiel werden.",
   "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.": "Öffne <b>Zuordnung</b> und klick auf <b>Nach Treffern suchen</b>. Wähle den IGDB-Treffer und klick dann auf <b>Diesen Treffer verwenden</b>.",
   "Your own games": "Deine eigenen Spiele",
-  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "Klick in der App mit rechts auf ein eigenes Spiel und öffne <b>Zuordnung</b>. Die Anleitung „Spielabzeichen verstehen“ zeigt das Abzeichen „Eigenes“, seine Uhr und seinen Haken."
+  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "Klick in der App mit rechts auf ein eigenes Spiel und öffne <b>Zuordnung</b>. Die Anleitung „Spielabzeichen verstehen“ zeigt das Abzeichen „Eigenes“, seine Uhr und seinen Haken.",
+  "<b>Adjust total playtime</b> sets a lifetime number and adds no session.": "<b>Gesamte Spielzeit anpassen</b> setzt eine Gesamtzahl und fügt keine Sitzung hinzu.",
+  "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.": "Öffne <b>Spielzeit</b>, klick auf <b>Gesamte Spielzeit anpassen</b>, gib eine Gesamtzeit ein und klick auf <b>Gesamtzeit speichern</b>.",
+  "On your own games": "Bei deinen eigenen Spielen",
+  "In the app, use the clock button or <b>Playtime</b> in a card's menu.": "Nutze in der App die Uhr-Schaltfläche oder <b>Spielzeit</b> im Menü einer Kachel.",
+  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.": "<b>Aus Bibliothek entfernen</b> nimmt ein Spiel heraus, bis du es wieder spielst. <b>Spiel ignorieren</b> sperrt zusätzlich seine Datei; mach das unter <b>Entdeckt</b> → <b>Ignoriert</b> rückgängig.",
+  "Right-click the sample card, choose <b>Ignore Game</b> and confirm.": "Klick mit rechts auf die Beispielkachel, wähl <b>Spiel ignorieren</b> und bestätige.",
+  "Every card has this menu": "Jede Kachel hat dieses Menü",
+  "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "Klick in der App mit rechts auf eine Kachel in <b>Meine Spiele</b>, oder zeig darauf und klick auf <b>Mehr</b>."
 }

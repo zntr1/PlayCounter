@@ -8,7 +8,7 @@ const t = getT("tour");
 export function logPlaytimeGuide(): TourDefinition {
   return {
     id: "log-playtime",
-    version: 4,
+    version: 5,
     kind: "guide",
     category: "playtime",
     icon: Clock,
@@ -138,20 +138,33 @@ export function logPlaytimeGuide(): TourDefinition {
         task: t("Open <b>Playtime</b> and click <b>Start timer</b>."),
       },
       {
-        id: "alternative",
+        id: "total",
         view: "games",
         anchor: a("demo-game-card"),
         anchorTargets: [
-          a("demo-action-result"),
+          a("demo-adjust-dialog"),
           a("demo-menu-adjust-playtime"),
           a("demo-menu-playtime"),
         ],
         interactive: true,
         manualAdvance: true,
         allow: sampleCardAllow,
+        advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Only know the total?"),
         body: t(
-          "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.",
+          "<b>Adjust total playtime</b> sets a lifetime number and adds no session.",
+        ),
+        task: t(
+          "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.",
+        ),
+      },
+      {
+        id: "finish",
+        view: "games",
+        anchor: a("demo-game-card"),
+        title: t("On your own games"),
+        body: t(
+          "In the app, use the clock button or <b>Playtime</b> in a card's menu.",
         ),
       },
     ],

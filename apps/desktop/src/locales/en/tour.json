@@ -324,9 +324,7 @@
   "Check Discovered now and then": "Check Discovered now and then",
   "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.": "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.",
   "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.": "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.",
-  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.": "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.",
   "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.": "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.",
-  "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.": "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.",
   "Your playtime in one number": "Your playtime in one number",
   "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.": "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.",
   "Pick a time span": "Pick a time span",
@@ -630,5 +628,13 @@
   "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.": "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.",
   "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.": "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.",
   "Your own games": "Your own games",
-  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check."
+  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.",
+  "<b>Adjust total playtime</b> sets a lifetime number and adds no session.": "<b>Adjust total playtime</b> sets a lifetime number and adds no session.",
+  "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.": "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.",
+  "On your own games": "On your own games",
+  "In the app, use the clock button or <b>Playtime</b> in a card's menu.": "In the app, use the clock button or <b>Playtime</b> in a card's menu.",
+  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.": "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.",
+  "Right-click the sample card, choose <b>Ignore Game</b> and confirm.": "Right-click the sample card, choose <b>Ignore Game</b> and confirm.",
+  "Every card has this menu": "Every card has this menu",
+  "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>."
 }

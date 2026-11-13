@@ -32,16 +32,18 @@ describe("the guide's steps", () => {
       "result",
       "clock",
       "timer",
-      "alternative",
+      "total",
+      "finish",
     ]);
-    expect(guide().version).toBe(4);
+    expect(guide().version).toBe(5);
     expect(guide().release).toBeUndefined();
   });
 
   it("follow the rules of every guide", () => {
     // Step count, text lengths, the app's own names for controls, one ring
-    // per step, the sample said once, a last step for reading.
-    expectStepRules(guide());
+    // per step, the sample said once, a last step for reading. Ten steps:
+    // the total is an exercise of its own before the last step.
+    expectStepRules(guide(), { maxSteps: 10 });
   });
 
   it("keep the chain's way back: closing a stage returns to the one before", () => {
@@ -79,7 +81,19 @@ describe("the guide's steps", () => {
     expect(bold(step("timer").body)).toEqual(["Start timer", "Now Playing"]);
     expect(step("timer").body).toMatch(/restarts/);
     expect(bold(step("timer").task!)).toEqual(["Playtime", "Start timer"]);
-    expect(bold(step("alternative").body)).toContain("Adjust total playtime");
+    expect(bold(step("total").body)).toContain("Adjust total playtime");
+  });
+
+  it("make Adjust total playtime an exercise that ends when the total is saved", () => {
+    expect(bold(step("total").task!)).toEqual([
+      "Playtime",
+      "Adjust total playtime",
+      "Save total",
+    ]);
+    expect(step("total").advanceOn).toEqual({
+      type: "event",
+      name: "demo.step-completed",
+    });
   });
 
   it("say on the last step where the two ways are in the app", () => {
@@ -188,10 +202,10 @@ describe("the walk through the guide", () => {
   });
 
   it("sets the stage of a step entered cold, whatever its number", async () => {
-    // "alternative" moved from step 7 to step 9: a sample that opened its
+    // "total" moved from step 7 to step 9: a sample that opened its
     // menu on step numbers would leave this one without the menu.
-    await start("alternative");
-    expect(find(a("demo-context-menu")), "alternative").not.toBeNull();
+    await start("total");
+    expect(find(a("demo-context-menu")), "total").not.toBeNull();
     await act(async () =>
       useAppStore.getState().goToTourStep(index("pick-item"), true),
     );
@@ -240,15 +254,18 @@ describe("the walk through the guide", () => {
     await click(a("demo-menu-playtime"));
     await click(a("demo-menu-start-timer"));
     await wait(50);
-    expect(stepNow()).toBe("alternative");
+    expect(stepNow()).toBe("total");
     expect(useAppStore.getState().activeSessions).toEqual([]);
   });
 
-  it("lets Adjust total playtime change the sample's total on the last step", async () => {
-    await start("alternative");
+  it("lets Adjust total playtime change the sample's total, and moves on once it is saved", async () => {
+    await start("total");
     await click(a("demo-menu-playtime"));
     await click(a("demo-menu-adjust-playtime"));
     const dialog = find(a("demo-adjust-dialog"))!;
+    // Opening the dialog is not the task.
+    await wait(1000);
+    expect(stepNow()).toBe("total");
     await type(
       dialog.querySelectorAll<HTMLInputElement>('input[type="number"]')[0],
       "10",
@@ -263,5 +280,7 @@ describe("the walk through the guide", () => {
     await wait(50);
     expect(find(a("demo-playtime-result"))!.textContent).toContain("10h");
     expect(useAppStore.getState().playtimeAdjustments).toEqual({});
+    await wait(1500);
+    expect(stepNow()).toBe("finish");
   });
 });

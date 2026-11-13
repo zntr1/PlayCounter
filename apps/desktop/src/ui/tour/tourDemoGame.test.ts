@@ -119,7 +119,7 @@ describe("what the sample card shows when a step starts", () => {
       logSession: true,
     });
     expect(stageOf("log-playtime", "result").menu).toBe(false);
-    expect(stageOf("log-playtime", "alternative").menu).toBe(true);
+    expect(stageOf("log-playtime", "total").menu).toBe(true);
     expect(stageOf("game-actions", "open-menu").menu).toBe(false);
     expect(stageOf("launch-games", "play").menu).toBe(false);
     expect(stageOf("launch-games", "launch-file").menu).toBe(true);

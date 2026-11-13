@@ -135,7 +135,7 @@ describe("tour definitions", () => {
       tours()
         .find((tour) => tour.id === tourId)!
         .steps.find((entry) => entry.id === id)!;
-    expect(step("log-playtime", "alternative").anchorTargets).toContain(
+    expect(step("log-playtime", "total").anchorTargets).toContain(
       '[data-tour="demo-menu-adjust-playtime"]',
     );
     expect(step("emulators", "fix-match").anchorTargets).toContain(

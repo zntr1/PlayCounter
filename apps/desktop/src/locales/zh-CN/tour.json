@@ -323,9 +323,7 @@
   "Check Discovered now and then": "时不时看看“已发现”",
   "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.": "在应用中，有应用等待处理时，侧边栏的“已发现”上会显示一个数字。处理一遍，PlayCounter 就会记住你的每个回答。",
   "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.": "<b>我的游戏</b>中的每张卡片都有右键菜单，包含它的所有操作。这张《魔兽世界》卡片是示例：不会保存任何内容。",
-  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.": "<b>从游戏库中移除</b>会把游戏移出，直到你再次游玩它。<b>忽略游戏</b>还会屏蔽它的文件；可在<b>已发现</b> → <b>已忽略</b>中撤销。在应用中，每张卡片都有这个菜单。",
   "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.": "PlayCounter 漏掉了一次游玩，或者你在别处玩的？自己补上时长。这张《魔兽世界》卡片是示例：不会保存任何内容。",
-  "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.": "<b>调整累计游戏时长</b>会设置一个累计数字，不会添加游玩记录。在应用中，使用卡片菜单里的时钟按钮或<b>游戏时长</b>。",
   "Your playtime in one number": "一个数字看你的游戏时长",
   "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.": "大数字是你在所选范围内的游玩时长。这是一份有六条游玩记录的示例历史：不会保存任何内容，你自己的历史保持不变。",
   "Pick a time span": "选择时间范围",
@@ -628,5 +626,13 @@
   "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.": "PlayCounter 会在 IGDB 和社区匹配中重新查找这个游戏文件。自定义游戏可以通过这种方式变成已匹配的游戏。",
   "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.": "打开<b>匹配</b>，点击<b>检查匹配</b>。选择 IGDB 的匹配项，然后点击<b>使用此匹配</b>。",
   "Your own games": "你自己的游戏",
-  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "在应用中右键点击一个自定义游戏，打开<b>匹配</b>。“了解游戏徽章”指南会介绍“自定义”徽章、它的时钟和对勾。"
+  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "在应用中右键点击一个自定义游戏，打开<b>匹配</b>。“了解游戏徽章”指南会介绍“自定义”徽章、它的时钟和对勾。",
+  "<b>Adjust total playtime</b> sets a lifetime number and adds no session.": "<b>调整累计游戏时长</b>会设置一个累计数字，不会添加游玩记录。",
+  "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.": "打开<b>游戏时长</b>，点击<b>调整累计游戏时长</b>，输入一个总时长，然后点击<b>保存总时长</b>。",
+  "On your own games": "在你自己的游戏中",
+  "In the app, use the clock button or <b>Playtime</b> in a card's menu.": "在应用中，使用卡片菜单里的时钟按钮或<b>游戏时长</b>。",
+  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.": "<b>从游戏库中移除</b>会把游戏移出，直到你再次游玩它。<b>忽略游戏</b>还会屏蔽它的文件；可在<b>已发现</b> → <b>已忽略</b>中撤销。",
+  "Right-click the sample card, choose <b>Ignore Game</b> and confirm.": "右键点击示例卡片，选择<b>忽略游戏</b>并确认。",
+  "Every card has this menu": "每张卡片都有这个菜单",
+  "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "在应用中，右键点击<b>我的游戏</b>里的任意卡片，或把鼠标移到卡片上并点击<b>更多</b>。"
 }

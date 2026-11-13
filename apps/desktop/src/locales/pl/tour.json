@@ -326,9 +326,7 @@
   "Check Discovered now and then": "Zaglądaj do Wykrytych",
   "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.": "W aplikacji Wykryte pokazuje liczbę w panelu bocznym, gdy aplikacje czekają. Przejrzyj je raz, a PlayCounter zapamięta każdą odpowiedź.",
   "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.": "Każdy kafelek w <b>Moje gry</b> ma menu prawego przycisku ze wszystkimi akcjami. Ten kafelek World of Warcraft jest przykładowy: nic nie jest zapisywane.",
-  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.": "<b>Usuń z biblioteki</b> usuwa grę, dopóki znów w nią nie zagrasz. <b>Ignoruj grę</b> blokuje też jej plik; cofniesz to w <b>Wykryte</b> → <b>Zignorowane</b>. W aplikacji każdy kafelek ma to menu.",
   "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.": "PlayCounter pominął sesję albo grasz gdzie indziej? Dodaj czas sam. Ten kafelek World of Warcraft jest przykładowy: nic nie jest zapisywane.",
-  "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.": "<b>Dostosuj łączny czas gry</b> ustawia sumę z całego czasu i nie dodaje sesji. W aplikacji użyj przycisku zegara lub <b>Czas gry</b> w menu kafelka.",
   "Your playtime in one number": "Twój czas gry w jednej liczbie",
   "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.": "Duża liczba to czas, który grasz w wybranym zakresie. To przykładowa historia z sześcioma sesjami: nic nie jest zapisywane, a twoja historia zostaje bez zmian.",
   "Pick a time span": "Wybierz zakres czasu",
@@ -634,5 +632,13 @@
   "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.": "PlayCounter ponownie szuka pliku gry w IGDB i w powiązaniach społeczności. W ten sposób własna gra może stać się dopasowaną grą.",
   "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.": "Otwórz <b>Powiązanie</b> i kliknij <b>Sprawdź dopasowania</b>. Wybierz dopasowanie z IGDB, potem kliknij <b>Użyj tego dopasowania</b>.",
   "Your own games": "Twoje własne gry",
-  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "W aplikacji kliknij własną grę prawym przyciskiem i otwórz <b>Powiązanie</b>. Przewodnik Zrozum odznaki gier pokazuje odznakę Własne, jej zegar i znacznik."
+  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "W aplikacji kliknij własną grę prawym przyciskiem i otwórz <b>Powiązanie</b>. Przewodnik Zrozum odznaki gier pokazuje odznakę Własne, jej zegar i znacznik.",
+  "<b>Adjust total playtime</b> sets a lifetime number and adds no session.": "<b>Dostosuj łączny czas gry</b> ustawia sumę z całego czasu i nie dodaje sesji.",
+  "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.": "Otwórz <b>Czas gry</b>, kliknij <b>Dostosuj łączny czas gry</b>, wpisz sumę i kliknij <b>Zapisz sumę</b>.",
+  "On your own games": "W twoich własnych grach",
+  "In the app, use the clock button or <b>Playtime</b> in a card's menu.": "W aplikacji użyj przycisku zegara lub <b>Czas gry</b> w menu kafelka.",
+  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.": "<b>Usuń z biblioteki</b> usuwa grę, dopóki znów w nią nie zagrasz. <b>Ignoruj grę</b> blokuje też jej plik; cofniesz to w <b>Wykryte</b> → <b>Zignorowane</b>.",
+  "Right-click the sample card, choose <b>Ignore Game</b> and confirm.": "Kliknij przykładowy kafelek prawym przyciskiem, wybierz <b>Ignoruj grę</b> i potwierdź.",
+  "Every card has this menu": "Każdy kafelek ma to menu",
+  "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "W aplikacji kliknij prawym przyciskiem dowolny kafelek w <b>Moje gry</b> albo najedź na niego i kliknij <b>Więcej</b>."
 }

@@ -33,8 +33,9 @@ describe("the guide's steps", () => {
       "playtime",
       "wrong-match",
       "remove",
+      "finish",
     ]);
-    expect(guide().version).toBe(6);
+    expect(guide().version).toBe(7);
     expect(guide().release).toBeUndefined();
     expect(guide().demoGame).toBe(true);
   });
@@ -80,18 +81,19 @@ describe("the guide's steps", () => {
     expect(step("wrong-match").body).toMatch(/which file/);
   });
 
-  it("say that Ignore can be undone under Discovered → Ignored, and what to do on real cards", () => {
-    const last = guide().steps.at(-1)!;
-    expect(last.id).toBe("remove");
-    expect(bold(last.body)).toEqual([
+  it("say that Ignore can be undone under Discovered → Ignored, and practise it", () => {
+    expect(bold(step("remove").body)).toEqual([
       "Remove from Library",
       "Ignore Game",
       "Discovered",
       "Ignored",
     ]);
-    // For reading; Ignore and Remove can still be tried.
+    expect(bold(step("remove").task!)).toEqual(["Ignore Game"]);
+    // The last step is for reading: what to do on real cards.
+    const last = guide().steps.at(-1)!;
+    expect(last.id).toBe("finish");
     expect(last.task).toBeUndefined();
-    expect(last.interactive).toBe(true);
+    expect(last.interactive).toBeUndefined();
   });
 
   it("finish every task by itself, and Skip step only steps over that one", () => {
@@ -101,6 +103,7 @@ describe("the guide's steps", () => {
       "details",
       "history",
       "wrong-match",
+      "remove",
     ]);
     for (const entry of tasks) {
       expect(entry.interactive, entry.id).toBe(true);
@@ -115,7 +118,7 @@ describe("the guide's steps", () => {
       expect(entry.additionalAnchors ?? [], entry.id).toEqual([]);
     // The entry before its flyout's trigger: first present wins.
     expect(step("remove").anchorTargets).toEqual([
-      a("demo-action-result"),
+      a("demo-ignore-dialog"),
       a("demo-menu-ignore"),
     ]);
   });
@@ -278,7 +281,9 @@ describe("the walk through the guide", () => {
     await clickButton("Ignore game", a("demo-ignore-dialog"));
     const result = find(a("demo-action-result"))!;
     expect(result.textContent).toContain("Sample removed");
-    await clickButton("Restore sample card", a("demo-action-result"));
+    // Confirming is the task: the guide moves on and the sample is back.
+    await wait(1500);
+    expect(stepNow()).toBe("finish");
     expect(find(a("demo-game-card"))).not.toBeNull();
   });
 

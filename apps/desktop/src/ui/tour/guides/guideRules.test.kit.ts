@@ -27,9 +27,16 @@ export const stepOf = (guide: TourDefinition, id: string): TourStep => {
 export const indexOf = (guide: TourDefinition, id: string) =>
   guide.steps.findIndex((step) => step.id === id);
 
-export function expectStepRules(guide: TourDefinition) {
-  expect(guide.steps.length, "4 to 9 steps").toBeGreaterThanOrEqual(4);
-  expect(guide.steps.length, "4 to 9 steps").toBeLessThanOrEqual(9);
+export function expectStepRules(
+  guide: TourDefinition,
+  { maxSteps = 9 }: { maxSteps?: number } = {},
+) {
+  expect(guide.steps.length, `4 to ${maxSteps} steps`).toBeGreaterThanOrEqual(
+    4,
+  );
+  expect(guide.steps.length, `4 to ${maxSteps} steps`).toBeLessThanOrEqual(
+    maxSteps,
+  );
   for (const step of guide.steps) {
     const at = `${guide.id}/${step.id}`;
     expect(step.title.length, `${at} title`).toBeLessThanOrEqual(40);

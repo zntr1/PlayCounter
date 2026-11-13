@@ -19,7 +19,7 @@ const tryIt = {
 export function gameActionsGuide(): TourDefinition {
   return {
     id: "game-actions",
-    version: 6,
+    version: 7,
     kind: "guide",
     category: "library",
     icon: SlidersHorizontal,
@@ -120,13 +120,26 @@ export function gameActionsGuide(): TourDefinition {
         id: "remove",
         view: "games",
         anchor: a("demo-game-card"),
-        anchorTargets: [a("demo-action-result"), a("demo-menu-ignore")],
+        anchorTargets: [a("demo-ignore-dialog"), a("demo-menu-ignore")],
         interactive: true,
         manualAdvance: true,
         allow: sampleCardAllow,
+        advanceOn: { type: "event", name: "demo.step-completed" },
         title: t("Remove or ignore"),
         body: t(
-          "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.",
+          "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.",
+        ),
+        task: t(
+          "Right-click the sample card, choose <b>Ignore Game</b> and confirm.",
+        ),
+      },
+      {
+        id: "finish",
+        view: "games",
+        anchor: a("demo-game-card"),
+        title: t("Every card has this menu"),
+        body: t(
+          "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.",
         ),
       },
     ],

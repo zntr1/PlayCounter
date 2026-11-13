@@ -326,9 +326,7 @@
   "Check Discovered now and then": "Иногда заглядывайте в «Обнаруженные»",
   "In the app, Discovered shows a number in the sidebar while apps wait. Go through them once, and PlayCounter remembers every answer.": "В приложении «Обнаруженные» показывает в боковой панели число, пока приложения ждут решения. Разберите их один раз, и PlayCounter запомнит каждый ответ.",
   "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.": "У каждой карточки в <b>Мои игры</b> есть меню по правому клику со всеми действиями. Эта карточка World of Warcraft — пример: ничего не сохраняется.",
-  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>. In the app, every card has this menu.": "<b>Убрать из библиотеки</b> убирает игру, пока вы не сыграете в неё снова. <b>Игнорировать игру</b> ещё и блокирует её файл; отменить это можно в <b>Обнаруженные</b> → <b>Игнорируется</b>. В приложении это меню есть у каждой карточки.",
   "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.": "PlayCounter пропустил сессию, или вы играли в другом месте? Добавьте время сами. Эта карточка World of Warcraft — пример: ничего не сохраняется.",
-  "<b>Adjust total playtime</b> sets a lifetime number and adds no session. In the app, use the clock button or <b>Playtime</b> in a card's menu.": "<b>Изменить общее время в игре</b> задаёт общее число и не добавляет сессию. В приложении используйте кнопку с часами или <b>Время в игре</b> в меню карточки.",
   "Your playtime in one number": "Ваше время в игре одним числом",
   "The big number is what you played in the range you picked. This is a sample history with six sessions: nothing is saved, and your own history stays as it is.": "Большое число — это сколько вы играли за выбранный период. Это пример истории с шестью сессиями: ничего не сохраняется, а ваша история остаётся прежней.",
   "Pick a time span": "Выберите период",
@@ -634,5 +632,13 @@
   "PlayCounter looks the game file up again in IGDB and in the community's matches. A custom game can become a matched game this way.": "PlayCounter заново ищет файл игры в IGDB и среди привязок сообщества. Так своя игра может стать распознанной.",
   "Open <b>Matching</b> and click <b>Check for Matches</b>. Pick the IGDB match, then click <b>Use this match</b>.": "Откройте <b>Привязка</b> и нажмите <b>Проверить совпадения</b>. Выберите совпадение из IGDB, затем нажмите <b>Использовать это совпадение</b>.",
   "Your own games": "Ваши свои игры",
-  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "В приложении щёлкните свою игру правой кнопкой и откройте <b>Привязка</b>. Руководство «Что значат значки игр» показывает значок «Своё», его часы и галочку."
+  "In the app, right-click a custom game and open <b>Matching</b>. The guide Understand game badges shows the Custom badge, its clock and its check.": "В приложении щёлкните свою игру правой кнопкой и откройте <b>Привязка</b>. Руководство «Что значат значки игр» показывает значок «Своё», его часы и галочку.",
+  "<b>Adjust total playtime</b> sets a lifetime number and adds no session.": "<b>Изменить общее время в игре</b> задаёт общее число и не добавляет сессию.",
+  "Open <b>Playtime</b>, click <b>Adjust total playtime</b>, enter a total and click <b>Save total</b>.": "Откройте <b>Время в игре</b>, нажмите <b>Изменить общее время в игре</b>, введите общее время и нажмите <b>Сохранить сумму</b>.",
+  "On your own games": "В ваших собственных играх",
+  "In the app, use the clock button or <b>Playtime</b> in a card's menu.": "В приложении используйте кнопку с часами или <b>Время в игре</b> в меню карточки.",
+  "<b>Remove from Library</b> takes a game out until you play it again. <b>Ignore Game</b> also blocks its file; undo that under <b>Discovered</b> → <b>Ignored</b>.": "<b>Убрать из библиотеки</b> убирает игру, пока вы не сыграете в неё снова. <b>Игнорировать игру</b> ещё и блокирует её файл; отменить это можно в <b>Обнаруженные</b> → <b>Игнорируется</b>.",
+  "Right-click the sample card, choose <b>Ignore Game</b> and confirm.": "Щёлкните карточку-пример правой кнопкой, выберите <b>Игнорировать игру</b> и подтвердите.",
+  "Every card has this menu": "Это меню есть у каждой карточки",
+  "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "В приложении щёлкните правой кнопкой любую карточку в <b>Мои игры</b> или наведите на неё курсор и нажмите <b>Ещё</b>."
 }

@@ -145,14 +145,26 @@ describe("guide steps", () => {
     ).toEqual([]);
   });
 
+  it("end with reading: the last step is no exercise", () => {
+    // Phil, 2026-11-13: on the last step the card already shows the guide as
+    // done, so a try-it there looked finished before the player was.
+    expect(
+      tours()
+        .filter((tour) => {
+          const last = tour.steps.at(-1)!;
+          return Boolean(last.task || last.interactive);
+        })
+        .map((tour) => tour.id),
+    ).toEqual([]);
+  });
+
   it("that are optional can tell before their view opens whether they show", () => {
     // The engine decides on the step before; the step's own view is not
     // open yet, so its anchor cannot answer.
     expect(
       all()
         .filter(
-          ({ step }) =>
-            step.optional && !step.settingsGroup && !step.shownWhen,
+          ({ step }) => step.optional && !step.settingsGroup && !step.shownWhen,
         )
         .map(({ id }) => id),
     ).toEqual([]);
@@ -169,9 +181,7 @@ describe("guide steps", () => {
         ...(stage.details
           ? ["demo-game-details", `demo-details-panel-${stage.details}`]
           : []),
-        ...(sampleSessionForStep(step).shown
-          ? ["now-playing-demo"]
-          : []),
+        ...(sampleSessionForStep(step).shown ? ["now-playing-demo"] : []),
       ];
       return tourNames(step.advanceOn.selector)
         .filter((name) => opened.includes(name))
