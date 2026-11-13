@@ -340,6 +340,53 @@ describe("hotkeys save as soon as you press them", () => {
     expect(text().match(/the game may minimize while/g)?.length ?? 0).toBe(1);
   });
 
+  it("shows each While you play feature's key right under it, so nobody misses it", async () => {
+    await renderSettings("play");
+    expect(
+      [...container.querySelectorAll("[data-row]")].map((row) =>
+        row.getAttribute("data-row"),
+      ),
+    ).toEqual([
+      "liveTimerEnabled",
+      "liveTimerCorner",
+      "liveTimerHotkey",
+      "pauseTimerHotkey",
+      "playtimeReminder",
+      "controllerCounting",
+      "counterBoxHotkey",
+      "counterUndoHotkey",
+      "screenshotFolder",
+      "screenshotHotkey",
+      "screenshotCaptionHotkey",
+    ]);
+  });
+
+  it("sets the live timer key while the timer is off, because the key turns it on", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, liveTimerEnabled: false },
+    }));
+    await renderSettings("play");
+    const key = byLabel<HTMLButtonElement>("Show or hide live timer hotkey");
+    expect(key.disabled).toBe(false);
+    await click(key);
+    await press(key, { key: "t", code: "KeyT", ctrlKey: true, altKey: true });
+    expect(mocks.saveHotkey).toHaveBeenCalledWith(
+      "liveTimerHotkey",
+      "Control+Alt+KeyT",
+    );
+  });
+
+  it("shows a key set on While you play under Keyboard shortcuts too", async () => {
+    await renderSettings("play");
+    const key = byLabel<HTMLButtonElement>("Take a screenshot hotkey");
+    await click(key);
+    await press(key, { key: "F9", code: "F9" });
+    await click(menuItem("Keyboard shortcuts"));
+    expect(
+      byLabel<HTMLButtonElement>("Take a screenshot hotkey").textContent,
+    ).toContain("F9");
+  });
+
   it("moved the session popup's clock to Desktop popups", async () => {
     await renderSettings("shortcuts");
     expect(text()).not.toContain("Show clock in session popup");

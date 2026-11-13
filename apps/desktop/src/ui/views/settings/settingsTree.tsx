@@ -155,6 +155,63 @@ function hotkey(
 const desktopPopupsOn = (settings: Settings) =>
   settings.desktopOverlaysEnabled === true;
 
+// Keys that Keyboard shortcuts lists and While you play shows again under
+// their feature, so players find them there too.
+const liveTimerKey = hotkey(
+  "liveTimerHotkey",
+  () => t("Show or hide live timer"),
+  () =>
+    t(
+      "Each press moves the live timer to the next corner: top left, top right, bottom right, bottom left, then off. The last choice stays for your next games.",
+    ),
+  popupsUnsupported,
+);
+const pauseTimerKey = hotkey(
+  "pauseTimerHotkey",
+  () => t("Pause or resume timer"),
+  () =>
+    t(
+      "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.",
+    ),
+  popupsUnsupported,
+);
+const counterBoxKey = hotkey(
+  "counterBoxHotkey",
+  () => t("Open counter box"),
+  () =>
+    t(
+      "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key.",
+    ),
+  popupsUnsupported,
+);
+const counterUndoKey = hotkey(
+  "counterUndoHotkey",
+  () => t("Take one back"),
+  () =>
+    t(
+      "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.",
+    ),
+  popupsUnsupported,
+);
+const screenshotKey = hotkey(
+  "screenshotHotkey",
+  () => t("Take a screenshot"),
+  () =>
+    t(
+      "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games.",
+    ),
+  screenshotsUnsupported,
+);
+const screenshotCaptionKey = hotkey(
+  "screenshotCaptionHotkey",
+  () => t("Screenshot with caption"),
+  () =>
+    t(
+      "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one.",
+    ),
+  screenshotsUnsupported,
+);
+
 const GROUPS: SettingsGroupDef[] = [
   {
     id: "general",
@@ -338,73 +395,19 @@ const GROUPS: SettingsGroupDef[] = [
               ),
             popupsUnsupported,
           ),
-          hotkey(
-            "liveTimerHotkey",
-            () => t("Show or hide live timer"),
-            () =>
-              t(
-                "Each press moves the live timer to the next corner: top left, top right, bottom right, bottom left, then off. The last choice stays for your next games.",
-              ),
-            popupsUnsupported,
-          ),
-          hotkey(
-            "pauseTimerHotkey",
-            () => t("Pause or resume timer"),
-            () =>
-              t(
-                "Stops counting the game you're playing while you're away, and counts on when you press it again. The game stays open.",
-              ),
-            popupsUnsupported,
-          ),
+          liveTimerKey,
+          pauseTimerKey,
         ],
       },
       {
         id: "counters",
         title: () => t("Counters"),
-        nodes: [
-          hotkey(
-            "counterBoxHotkey",
-            () => t("Open counter box"),
-            () =>
-              t(
-                "Opens a small box over your game with all its counters. Add counters there, count any of them and give one its own key.",
-              ),
-            popupsUnsupported,
-          ),
-          hotkey(
-            "counterUndoHotkey",
-            () => t("Take one back"),
-            () =>
-              t(
-                "Takes one off the counter you counted last, if you pressed its key by mistake. Each counter gets its own key in the counter box or in Game Details.",
-              ),
-            popupsUnsupported,
-          ),
-        ],
+        nodes: [counterBoxKey, counterUndoKey],
       },
       {
         id: "screenshots",
         title: () => t("Screenshots"),
-        nodes: [
-          hotkey(
-            "screenshotHotkey",
-            () => t("Take a screenshot"),
-            () =>
-              t(
-                "Saves a picture of the game you're playing and adds it to the session. Works in windowed and borderless games.",
-              ),
-            screenshotsUnsupported,
-          ),
-          hotkey(
-            "screenshotCaptionHotkey",
-            () => t("Screenshot with caption"),
-            () =>
-              t(
-                "Takes the picture at once, then opens a small box over your game for a caption. Enter saves and takes you back to the game. Esc keeps the picture without one.",
-              ),
-            screenshotsUnsupported,
-          ),
-        ],
+        nodes: [screenshotKey, screenshotCaptionKey],
       },
     ],
   },
@@ -440,6 +443,9 @@ const GROUPS: SettingsGroupDef[] = [
               },
             ],
           },
+          // Not under the switch: the key turns the timer on.
+          liveTimerKey,
+          pauseTimerKey,
           {
             id: "playtimeReminder",
             title: () => t("Playtime reminder"),
@@ -459,6 +465,8 @@ const GROUPS: SettingsGroupDef[] = [
             available: onWindows,
             Row: ControllerCountingRow,
           },
+          counterBoxKey,
+          counterUndoKey,
           {
             id: "screenshotFolder",
             title: () => t("Screenshots"),
@@ -468,6 +476,8 @@ const GROUPS: SettingsGroupDef[] = [
               ),
             Row: ScreenshotFolderRow,
           },
+          screenshotKey,
+          screenshotCaptionKey,
         ],
       },
     ],
