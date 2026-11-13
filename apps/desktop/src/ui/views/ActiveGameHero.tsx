@@ -448,7 +448,9 @@ export function ActiveGameHero({
               </span>
             ) : null}
           </div>
-          <div className="mt-1.5 flex items-center gap-5">
+          {/* A narrow window puts Pause and Stop under the clock, so they
+              never spill into Total playtime. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-5 gap-y-2">
             <div
               className={
                 paused

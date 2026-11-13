@@ -331,14 +331,15 @@ export function TourCard({
             {t("Back")}
           </Button>
           {isLast ? (
-            <>
+            // One pair: a long language moves both below Back, not one.
+            <div className="ml-auto flex items-center gap-2">
               <Button variant="ghost" onClick={onMoreGuides}>
                 {t("More guides")}
               </Button>
               <Button variant="primary" onClick={onFinish}>
                 {finishLabel(tour.finishView)}
               </Button>
-            </>
+            </div>
           ) : canSkip ? (
             <Button variant="ghost" onClick={onSkip}>
               {t("Skip step")}

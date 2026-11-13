@@ -267,6 +267,15 @@ describe("the last step", () => {
     expect(button("Next")).toBeUndefined();
   });
 
+  it("keeps More guides and the page button together, apart from Back", async () => {
+    // A long language wraps the pair below Back as one, never one button
+    // alone on a row.
+    await showCard({ stepIndex: 3 });
+    const pair = button("More guides")!.parentElement!;
+    expect(pair).toBe(button("Open My Games")!.parentElement);
+    expect(pair.contains(button("Back")!)).toBe(false);
+  });
+
   it("says Finish when the guide ends where it started", async () => {
     await showCard({
       tour: { ...shelves, finishView: undefined, nextTourId: undefined },
