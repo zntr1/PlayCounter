@@ -1,5 +1,4 @@
 {
-  "Badge examples: origin and recognition": "Przykłady odznak: pochodzenie i rozpoznanie",
   "Launcher origin": "Launcher źródłowy",
   "Emulator": "Emulator",
   "File match": "Powiązanie pliku",
@@ -34,7 +33,6 @@
   "Open Battle.net": "Otwórz Battle.net",
   "Play in Epic Games": "Graj w Epic Games",
   "Open Epic Games": "Otwórz Epic Games",
-  "Set or change launch file…": "Ustaw lub zmień plik uruchomieniowy…",
   "Set launch file…": "Ustaw plik uruchomieniowy…",
   "Open in Explorer": "Otwórz w Eksploratorze",
   "Forget launch file": "Zapomnij plik uruchomieniowy",
@@ -779,5 +777,18 @@
   "{{name}} now uses the selected banner.": "{{name}} używa teraz wybranego banera.",
   "Banner update failed": "Nie udało się zaktualizować banera",
   "Copy an image, then try Paste banner again.": "Skopiuj obraz i spróbuj ponownie „Wklej baner”.",
-  "Paste banner failed": "Nie udało się wkleić banera"
+  "Paste banner failed": "Nie udało się wkleić banera",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "Przykład: nic nie zmieniono. Opcja „{{entry}}” działa na twoich własnych grach.",
+  "Sample renamed to {{name}}. Nothing was saved.": "Przykład zmieniono na {{name}}. Nic nie zapisano.",
+  "Match applied to the sample. Nothing was saved to your library.": "Powiązanie zastosowano do przykładu. Nic nie zapisano w twojej bibliotece.",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "Przykładowy stoper uruchomiony. Zatrzymasz go z tego samego menu; przy własnych grach także w Teraz grasz.",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "Przykładowy stoper zatrzymany po {{time}}. Przy własnych grach ten czas staje się sesją.",
+  "Sample counted as an app. On your own games its time moves to the Software page.": "Przykład policzony jako aplikacja. Przy własnych grach jego czas trafia na stronę Oprogramowanie.",
+  "Sample ignored as an app. Nothing was reported or blocked.": "Przykład zignorowany jako aplikacja. Nic nie zgłoszono ani nie zablokowano.",
+  "{{file}} no longer counts for the sample. Nothing was reported or saved.": "Plik {{file}} nie jest już liczony dla przykładu. Nic nie zgłoszono ani nie zapisano.",
+  "Badge examples: recognition and origin": "Przykłady odznak: rozpoznanie i pochodzenie",
+  "Sample cover picked. Nothing was saved to your library.": "Przykładową okładkę wybrano. Nic nie zapisano w twojej bibliotece.",
+  "Sample banner picked. Nothing was saved to your library.": "Przykładowy baner wybrano. Nic nie zapisano w twojej bibliotece.",
+  "Sample cover restored. Nothing was saved to your library.": "Przykładową okładkę przywrócono. Nic nie zapisano w twojej bibliotece.",
+  "Sample banner restored. Nothing was saved to your library.": "Przykładowy baner przywrócono. Nic nie zapisano w twojej bibliotece."
 }

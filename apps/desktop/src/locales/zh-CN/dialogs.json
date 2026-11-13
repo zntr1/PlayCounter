@@ -255,5 +255,7 @@
   "Add session note": "添加游玩记录笔记",
   "Edit session note": "编辑游玩记录笔记",
   "Added to {{shelf}}. It's hidden from All games now.": "已添加到 {{shelf}}。它现在已从所有游戏中隐藏。",
-  "Undo": "撤销"
+  "Undo": "撤销",
+  "This is a sample: nothing was added to your library.": "这是示例：没有向你的游戏库添加任何内容。",
+  "Sample pictures. Nothing is searched or saved.": "示例图片。不会搜索或保存任何内容。"
 }

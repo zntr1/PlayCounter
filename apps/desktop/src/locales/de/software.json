@@ -36,5 +36,6 @@
   "Could not ignore the app": "Die App konnte nicht ignoriert werden",
   "{{name}} is back in Discovered": "{{name}} ist wieder in „Entdeckt“",
   "Your shared suggestion is withdrawn. Add it as a game there, or ignore it.": "Dein geteilter Vorschlag ist zurückgezogen. Füge die App dort als Spiel hinzu oder ignoriere sie.",
-  "Add it as a game there, or ignore it.": "Füge die App dort als Spiel hinzu oder ignoriere sie."
+  "Add it as a game there, or ignore it.": "Füge die App dort als Spiel hinzu oder ignoriere sie.",
+  "Software has no sessions, only time per day. That is what one app's numbers show.": "Software hat keine Sitzungen, nur Zeit pro Tag. Das zeigen die Zahlen einer App."
 }

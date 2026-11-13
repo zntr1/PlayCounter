@@ -78,8 +78,6 @@
   "Apps from the latest scan.": "Приложения из последнего сканирования.",
   "Not running": "Не запущено",
   "Apps PlayCounter saw earlier. They stay here until you decide.": "Приложения, которые PlayCounter видел раньше. Они остаются здесь, пока вы не решите.",
-  "Tutorial app": "Приложение из обучения",
-  "{{exeName}} exists only inside this guide. Nothing was changed or saved.": "{{exeName}} существует только в этом руководстве. Ничего не изменено и не сохранено.",
   "Last scan {{date}}": "Последнее сканирование: {{date}}",
   "No scan yet": "Сканирования ещё не было",
   "Search apps...": "Поиск приложений...",

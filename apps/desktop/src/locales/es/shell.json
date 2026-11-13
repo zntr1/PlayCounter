@@ -109,7 +109,6 @@
   "Clear all": "Borrar todo",
   "Reply to your feedback": "Respuesta a tus comentarios",
   "Can I keep a separate note for a speedrun?": "¿Puedo guardar una nota separada para un speedrun?",
-  "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.": "Sí. Haz clic derecho en el juego, elige “Partidas” y crea una llamada Speedrun. Cada partida tiene su propia nota y su propia lista de sesiones.",
   "Sample reply · practice only": "Respuesta de ejemplo · solo para practicar",
   "Updates from PlayCounter": "Actualizaciones de PlayCounter",
   "Close notifications": "Cerrar notificaciones",
@@ -182,5 +181,6 @@
   "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows oculta los juegos en pantalla completa exclusiva a otras aplicaciones. Pon el juego en ventana sin bordes o modo ventana e inténtalo de nuevo.",
   "Launcher groups": "Grupos de lanzadores",
   "Hide empty sources": "Ocultar fuentes vacías",
-  "Sidebar": "Barra lateral"
+  "Sidebar": "Barra lateral",
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Sí. Haz clic derecho en el juego, elige {{journal}} y pulsa {{addPlaythrough}}. Ponle el nombre Speedrun: cada partida tiene su propia nota y su propia lista de sesiones."
 }

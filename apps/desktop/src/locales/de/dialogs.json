@@ -256,5 +256,7 @@
   "Add session note": "Sitzungsnotiz hinzufügen",
   "Edit session note": "Sitzungsnotiz bearbeiten",
   "Added to {{shelf}}. It's hidden from All games now.": "Zu {{shelf}} hinzugefügt. Es ist jetzt in „Alle Spiele“ ausgeblendet.",
-  "Undo": "Rückgängig"
+  "Undo": "Rückgängig",
+  "This is a sample: nothing was added to your library.": "Das ist ein Beispiel: Deiner Bibliothek wurde nichts hinzugefügt.",
+  "Sample pictures. Nothing is searched or saved.": "Beispielbilder. Es wird nichts gesucht oder gespeichert."
 }

@@ -258,5 +258,7 @@
   "Add session note": "Dodaj notatkę do sesji",
   "Edit session note": "Edytuj notatkę do sesji",
   "Added to {{shelf}}. It's hidden from All games now.": "Dodano do półki {{shelf}}. Gra jest teraz ukryta we Wszystkich grach.",
-  "Undo": "Cofnij"
+  "Undo": "Cofnij",
+  "This is a sample: nothing was added to your library.": "To przykład: nic nie dodano do twojej biblioteki.",
+  "Sample pictures. Nothing is searched or saved.": "Przykładowe obrazy. Nic nie jest wyszukiwane ani zapisywane."
 }

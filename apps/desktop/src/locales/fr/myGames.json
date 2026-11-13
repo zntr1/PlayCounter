@@ -1,5 +1,4 @@
 {
-  "Badge examples: origin and recognition": "Exemples de badges : provenance et reconnaissance",
   "Launcher origin": "Launcher d'origine",
   "Emulator": "Émulateur",
   "File match": "Association de fichier",
@@ -34,7 +33,6 @@
   "Open Battle.net": "Ouvrir Battle.net",
   "Play in Epic Games": "Jouer dans Epic Games",
   "Open Epic Games": "Ouvrir Epic Games",
-  "Set or change launch file…": "Définir ou changer le fichier de lancement…",
   "Set launch file…": "Définir le fichier de lancement…",
   "Open in Explorer": "Ouvrir dans l'Explorateur",
   "Forget launch file": "Oublier le fichier de lancement",
@@ -750,5 +748,18 @@
   "{{name}} now uses the selected banner.": "{{name}} utilise maintenant la bannière choisie.",
   "Banner update failed": "Échec de la mise à jour de la bannière",
   "Copy an image, then try Paste banner again.": "Copiez une image, puis réessayez « Coller la bannière ».",
-  "Paste banner failed": "Échec du collage de la bannière"
+  "Paste banner failed": "Échec du collage de la bannière",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "Exemple : rien n'a changé. « {{entry}} » agit sur vos propres jeux.",
+  "Sample renamed to {{name}}. Nothing was saved.": "Exemple renommé en {{name}}. Rien n'a été enregistré.",
+  "Match applied to the sample. Nothing was saved to your library.": "Association appliquée à l'exemple. Rien n'a été enregistré dans votre bibliothèque.",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "Chronomètre d'exemple démarré. Arrêtez-le depuis le même menu ; pour vos propres jeux, aussi dans En jeu.",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "Chronomètre d'exemple arrêté après {{time}}. Pour vos propres jeux, ce temps devient une session.",
+  "Sample counted as an app. On your own games its time moves to the Software page.": "Exemple compté comme application. Pour vos propres jeux, son temps passe dans la page Logiciels.",
+  "Sample ignored as an app. Nothing was reported or blocked.": "Exemple ignoré comme application. Rien n'a été signalé ni bloqué.",
+  "{{file}} no longer counts for the sample. Nothing was reported or saved.": "{{file}} ne compte plus pour l'exemple. Rien n'a été signalé ni enregistré.",
+  "Badge examples: recognition and origin": "Exemples de badges : reconnaissance et origine",
+  "Sample cover picked. Nothing was saved to your library.": "Jaquette d'exemple choisie. Rien n'a été enregistré dans votre bibliothèque.",
+  "Sample banner picked. Nothing was saved to your library.": "Bannière d'exemple choisie. Rien n'a été enregistré dans votre bibliothèque.",
+  "Sample cover restored. Nothing was saved to your library.": "Jaquette d'exemple restaurée. Rien n'a été enregistré dans votre bibliothèque.",
+  "Sample banner restored. Nothing was saved to your library.": "Bannière d'exemple restaurée. Rien n'a été enregistré dans votre bibliothèque."
 }

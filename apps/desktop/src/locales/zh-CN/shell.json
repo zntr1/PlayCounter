@@ -109,7 +109,6 @@
   "Clear all": "全部清除",
   "Reply to your feedback": "对你反馈的回复",
   "Can I keep a separate note for a speedrun?": "我可以为速通单独记一条笔记吗？",
-  "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.": "可以。右键点击游戏，选择“游玩周目”，然后创建一个名为“速通”的周目。每个周目都有自己的笔记和游玩记录列表。",
   "Sample reply · practice only": "示例回复 · 仅供练习",
   "Updates from PlayCounter": "来自 PlayCounter 的更新",
   "Close notifications": "关闭通知",
@@ -182,5 +181,6 @@
   "Windows hides games in exclusive fullscreen from other apps. Switch the game to borderless or windowed, then try again.": "Windows 会对其他应用隐藏独占全屏的游戏画面。请把游戏切换为无边框窗口或窗口模式，然后再试一次。",
   "Launcher groups": "启动器分组",
   "Hide empty sources": "隐藏空的来源",
-  "Sidebar": "侧边栏"
+  "Sidebar": "侧边栏",
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "可以。右键点击游戏，选择{{journal}}，然后点击{{addPlaythrough}}。把它命名为“速通”：每个周目都有自己的笔记和游玩记录列表。"
 }

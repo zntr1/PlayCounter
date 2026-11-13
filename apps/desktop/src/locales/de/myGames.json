@@ -1,5 +1,4 @@
 {
-  "Badge examples: origin and recognition": "Beispiele für Abzeichen: Herkunft und Erkennung",
   "Launcher origin": "Launcher-Herkunft",
   "Emulator": "Emulator",
   "File match": "Dateizuordnung",
@@ -34,7 +33,6 @@
   "Open Battle.net": "Battle.net öffnen",
   "Play in Epic Games": "In Epic Games spielen",
   "Open Epic Games": "Epic Games öffnen",
-  "Set or change launch file…": "Startdatei festlegen oder ändern…",
   "Set launch file…": "Startdatei festlegen…",
   "Open in Explorer": "Im Explorer öffnen",
   "Forget launch file": "Startdatei vergessen",
@@ -721,5 +719,18 @@
   "{{name}} now uses the selected banner.": "{{name}} nutzt jetzt das gewählte Banner.",
   "Banner update failed": "Banner konnte nicht aktualisiert werden",
   "Copy an image, then try Paste banner again.": "Kopiere ein Bild und versuch „Banner einfügen“ erneut.",
-  "Paste banner failed": "Banner einfügen fehlgeschlagen"
+  "Paste banner failed": "Banner einfügen fehlgeschlagen",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "Beispiel: Nichts wurde geändert. „{{entry}}“ funktioniert bei deinen eigenen Spielen.",
+  "Sample renamed to {{name}}. Nothing was saved.": "Beispiel in {{name}} umbenannt. Es wurde nichts gespeichert.",
+  "Match applied to the sample. Nothing was saved to your library.": "Zuordnung auf das Beispiel angewendet. In deiner Bibliothek wurde nichts gespeichert.",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "Beispiel-Timer gestartet. Stoppe ihn im selben Menü; bei deinen eigenen Spielen auch unter „Läuft gerade“.",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "Beispiel-Timer nach {{time}} gestoppt. Bei deinen eigenen Spielen wird daraus eine Sitzung.",
+  "Sample counted as an app. On your own games its time moves to the Software page.": "Beispiel als App gezählt. Bei deinen eigenen Spielen wandert die Zeit auf die Seite „Software“.",
+  "Sample ignored as an app. Nothing was reported or blocked.": "Beispiel als App ignoriert. Es wurde nichts gemeldet oder gesperrt.",
+  "{{file}} no longer counts for the sample. Nothing was reported or saved.": "{{file}} zählt nicht mehr für das Beispiel. Es wurde nichts gemeldet oder gespeichert.",
+  "Badge examples: recognition and origin": "Abzeichen-Beispiele: Erkennung und Herkunft",
+  "Sample cover picked. Nothing was saved to your library.": "Beispiel-Cover gewählt. In deiner Bibliothek wurde nichts gespeichert.",
+  "Sample banner picked. Nothing was saved to your library.": "Beispiel-Banner gewählt. In deiner Bibliothek wurde nichts gespeichert.",
+  "Sample cover restored. Nothing was saved to your library.": "Beispiel-Cover zurückgesetzt. In deiner Bibliothek wurde nichts gespeichert.",
+  "Sample banner restored. Nothing was saved to your library.": "Beispiel-Banner zurückgesetzt. In deiner Bibliothek wurde nichts gespeichert."
 }

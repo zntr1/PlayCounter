@@ -257,5 +257,7 @@
   "Add session note": "Ajouter une note de session",
   "Edit session note": "Modifier la note de session",
   "Added to {{shelf}}. It's hidden from All games now.": "Ajouté à {{shelf}}. Il est maintenant masqué dans Tous les jeux.",
-  "Undo": "Annuler"
+  "Undo": "Annuler",
+  "This is a sample: nothing was added to your library.": "Ceci est un exemple : rien n'a été ajouté à votre bibliothèque.",
+  "Sample pictures. Nothing is searched or saved.": "Images d'exemple. Rien n'est recherché ni enregistré."
 }

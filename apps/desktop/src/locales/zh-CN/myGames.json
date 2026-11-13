@@ -1,5 +1,4 @@
 {
-  "Badge examples: origin and recognition": "徽章示例：来源与识别",
   "Launcher origin": "启动器来源",
   "Emulator": "模拟器",
   "File match": "文件匹配",
@@ -34,7 +33,6 @@
   "Open Battle.net": "打开 Battle.net",
   "Play in Epic Games": "通过 Epic Games 启动",
   "Open Epic Games": "打开 Epic Games",
-  "Set or change launch file…": "设置或更改启动文件…",
   "Set launch file…": "设置启动文件…",
   "Open in Explorer": "在资源管理器中打开",
   "Forget launch file": "清除启动文件路径",
@@ -692,5 +690,18 @@
   "{{name}} now uses the selected banner.": "{{name}} 现在使用所选的横幅。",
   "Banner update failed": "横幅更新失败",
   "Copy an image, then try Paste banner again.": "复制一张图片，然后再试一次“粘贴横幅”。",
-  "Paste banner failed": "粘贴横幅失败"
+  "Paste banner failed": "粘贴横幅失败",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "示例：没有更改任何内容。“{{entry}}”适用于你自己的游戏。",
+  "Sample renamed to {{name}}. Nothing was saved.": "示例已重命名为 {{name}}。没有保存任何内容。",
+  "Match applied to the sample. Nothing was saved to your library.": "匹配已应用到示例。没有向你的游戏库保存任何内容。",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "示例计时器已开始。可在同一菜单中停止；对你自己的游戏，也可以在“正在游玩”中停止。",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "示例计时器在 {{time}} 后停止。对你自己的游戏，这段时间会变成一条游玩记录。",
+  "Sample counted as an app. On your own games its time moves to the Software page.": "示例已作为应用统计。对你自己的游戏，它的时长会移到“软件”页面。",
+  "Sample ignored as an app. Nothing was reported or blocked.": "示例已作为应用忽略。没有上报或屏蔽任何内容。",
+  "{{file}} no longer counts for the sample. Nothing was reported or saved.": "{{file}} 不再计入示例。没有上报或保存任何内容。",
+  "Badge examples: recognition and origin": "徽章示例：识别与来源",
+  "Sample cover picked. Nothing was saved to your library.": "示例封面已选择。没有向你的游戏库保存任何内容。",
+  "Sample banner picked. Nothing was saved to your library.": "示例横幅已选择。没有向你的游戏库保存任何内容。",
+  "Sample cover restored. Nothing was saved to your library.": "示例封面已恢复。没有向你的游戏库保存任何内容。",
+  "Sample banner restored. Nothing was saved to your library.": "示例横幅已恢复。没有向你的游戏库保存任何内容。"
 }

@@ -1,5 +1,4 @@
 {
-  "Badge examples: origin and recognition": "Exemplos de selos: origem e reconhecimento",
   "Launcher origin": "Launcher de origem",
   "Emulator": "Emulador",
   "File match": "Associação de arquivo",
@@ -34,7 +33,6 @@
   "Open Battle.net": "Abrir Battle.net",
   "Play in Epic Games": "Jogar na Epic Games",
   "Open Epic Games": "Abrir Epic Games",
-  "Set or change launch file…": "Definir ou alterar o arquivo de inicialização…",
   "Set launch file…": "Definir arquivo de inicialização…",
   "Open in Explorer": "Abrir no Explorador",
   "Forget launch file": "Esquecer arquivo de inicialização",
@@ -750,5 +748,18 @@
   "{{name}} now uses the selected banner.": "{{name}} agora utiliza o banner selecionado.",
   "Banner update failed": "Falha ao atualizar o banner",
   "Copy an image, then try Paste banner again.": "Copie uma imagem e tente “Colar banner” de novo.",
-  "Paste banner failed": "Falha ao colar o banner"
+  "Paste banner failed": "Falha ao colar o banner",
+  "Sample: nothing was changed. “{{entry}}” works on your own games.": "Exemplo: nada foi alterado. “{{entry}}” funciona nos seus próprios jogos.",
+  "Sample renamed to {{name}}. Nothing was saved.": "Exemplo renomeado para {{name}}. Nada foi salvo.",
+  "Match applied to the sample. Nothing was saved to your library.": "Associação aplicada ao exemplo. Nada foi salvo na sua biblioteca.",
+  "Sample timer started. Stop it from the same menu; on your own games also in Now Playing.": "Cronômetro de exemplo iniciado. Pare-o pelo mesmo menu; nos seus jogos, também em Jogando agora.",
+  "Sample timer stopped after {{time}}. On your own games that time becomes a session.": "Cronômetro de exemplo parado após {{time}}. Nos seus jogos, esse tempo vira uma sessão.",
+  "Sample counted as an app. On your own games its time moves to the Software page.": "Exemplo contado como app. Nos seus jogos, o tempo vai para a página Software.",
+  "Sample ignored as an app. Nothing was reported or blocked.": "Exemplo ignorado como app. Nada foi informado nem bloqueado.",
+  "{{file}} no longer counts for the sample. Nothing was reported or saved.": "{{file}} não conta mais para o exemplo. Nada foi informado nem salvo.",
+  "Badge examples: recognition and origin": "Exemplos de selos: reconhecimento e origem",
+  "Sample cover picked. Nothing was saved to your library.": "Capa de exemplo escolhida. Nada foi salvo na sua biblioteca.",
+  "Sample banner picked. Nothing was saved to your library.": "Banner de exemplo escolhido. Nada foi salvo na sua biblioteca.",
+  "Sample cover restored. Nothing was saved to your library.": "Capa de exemplo restaurada. Nada foi salvo na sua biblioteca.",
+  "Sample banner restored. Nothing was saved to your library.": "Banner de exemplo restaurado. Nada foi salvo na sua biblioteca."
 }
