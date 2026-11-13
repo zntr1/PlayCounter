@@ -472,7 +472,7 @@
   "Click one of the pictures.": "Нажмите на один из снимков.",
   "Look closer and add a caption": "Рассмотрите ближе и добавьте подпись",
   "The viewer shows one picture at a time; the arrow keys page through the session's pictures. A caption is one line under the picture.": "Просмотр показывает по одному снимку; стрелки листают снимки сессии. Подпись — это одна строка под снимком.",
-  "Click <b>Add a caption</b>, type a line and press <kbd>Enter</kbd>.": "Нажмите <b>Добавить подпись</b>, введите строку и нажмите <kbd>Enter</kbd>.",
+  "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "Нажмите <b>Добавить подпись</b> или на уже имеющуюся подпись, введите строку и нажмите <kbd>Enter</kbd>.",
   "Where the files are": "Где лежат файлы",
   "The pictures are normal files in your Pictures folder, one folder per game. <b>Open folder</b> takes you there.": "Снимки — обычные файлы в папке «Изображения», по одной папке на игру. <b>Открыть папку</b> приведёт вас туда.",
   "In the app, start a game and press your screenshot key. The picture shows up under that session in My History.": "В приложении запустите игру и нажмите свою клавишу скриншота. Снимок появится под этой сессией в «Моя история».",

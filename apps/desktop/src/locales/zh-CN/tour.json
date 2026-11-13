@@ -466,7 +466,7 @@
   "Click one of the pictures.": "点击其中一张图片。",
   "Look closer and add a caption": "仔细看，并添加说明",
   "The viewer shows one picture at a time; the arrow keys page through the session's pictures. A caption is one line under the picture.": "查看器一次显示一张图片；用方向键可以在这次游玩的图片间翻页。说明是图片下方的一行文字。",
-  "Click <b>Add a caption</b>, type a line and press <kbd>Enter</kbd>.": "点击<b>添加说明</b>，输入一行内容，然后按 <kbd>Enter</kbd>。",
+  "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "点击<b>添加说明</b>或已有的说明，输入一行内容，然后按 <kbd>Enter</kbd>。",
   "Where the files are": "文件在哪里",
   "The pictures are normal files in your Pictures folder, one folder per game. <b>Open folder</b> takes you there.": "图片是“图片”文件夹里的普通文件，每个游戏一个文件夹。<b>打开文件夹</b>会带你过去。",
   "In the app, start a game and press your screenshot key. The picture shows up under that session in My History.": "在应用中，启动一个游戏并按下截图键。图片会出现在“我的历史”中对应的游玩记录下。",

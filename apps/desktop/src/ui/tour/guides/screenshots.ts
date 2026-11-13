@@ -75,7 +75,7 @@ export function screenshotsGuide(): TourDefinition {
           "The viewer shows one picture at a time; the arrow keys page through the session's pictures. A caption is one line under the picture.",
         ),
         task: t(
-          "Click <b>Add a caption</b>, type a line and press <kbd>Enter</kbd>.",
+          "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.",
         ),
       },
       {

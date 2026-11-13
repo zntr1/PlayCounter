@@ -82,6 +82,26 @@ describe("Screenshots: the sample history", () => {
     expect(target().textContent).toContain("Add a caption");
   });
 
+  it("keeps the picture the player opened, also the one with a caption", async () => {
+    await startGuide("screenshots", "pictures");
+    await click(picture(2));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    expect(stepId()).toBe("viewer");
+    // Not swapped for the first picture: its caption is still in view.
+    expect(target().textContent).toContain("Finally down on the third try");
+    expect(target().textContent).not.toContain("Add a caption");
+  });
+
+  it("finishes when the opened picture's caption is changed", async () => {
+    await startGuide("screenshots", "pictures");
+    await click(picture(2));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    await click(target());
+    await type(q<HTMLInputElement>('input[aria-label="Caption"]'), "Third try");
+    await press(q('input[aria-label="Caption"]'), "Enter");
+    expect(stepId()).toBe("folder");
+  });
+
   it("the viewer step opens the viewer itself, from anywhere", async () => {
     await startGuide("screenshots", "viewer");
     expect(target().textContent).toContain("Add a caption");
