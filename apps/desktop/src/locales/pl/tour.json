@@ -497,7 +497,7 @@
   "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.": "Gdy gra działa, klawisz zlicza ten licznik, nawet gdy PlayCounter jest w tle. Klawisz wybierasz sam.",
   "Click <b>Set a key</b>, then press a key of your own choice.": "Kliknij <b>Ustaw klawisz</b>, potem naciśnij dowolny wybrany klawisz.",
   "Show it while you play": "Pokaż go podczas gry",
-  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.": "<b>Pokazuj w liczniku na ekranie i w Teraz grasz</b> umieszcza licznik tam, gdzie go widać. <b>Licz przez View + krzyżak w górę</b> pozwala kontrolerowi zliczać jeden licznik na grę.",
+  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.": "<b>Pokazuj w liczniku na ekranie i w Teraz grasz</b> umieszcza licznik tam, gdzie go widać. <b>Licz przez View/Create/Share + krzyżak w górę</b> pozwala kontrolerowi zliczać jeden licznik na grę.",
   "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.": "<b>Pokazuj w liczniku na ekranie i w Teraz grasz</b> umieszcza licznik tam, gdzie widać go podczas gry.",
   "Count while you play": "Licz podczas gry",
   "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.": "W Teraz grasz każdy pokazany licznik to kafelek. Liczba dotyczy tej sesji, linia pod nią sumuje całe przejście.",

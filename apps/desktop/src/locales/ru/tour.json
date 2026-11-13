@@ -497,7 +497,7 @@
   "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.": "Пока игра идёт, клавиша увеличивает этот счётчик, даже когда PlayCounter работает в фоне. Клавишу выбираете вы.",
   "Click <b>Set a key</b>, then press a key of your own choice.": "Нажмите <b>Назначить клавишу</b>, затем нажмите клавишу по своему выбору.",
   "Show it while you play": "Показывайте его во время игры",
-  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.": "<b>Показывать в таймере на экране и в «Сейчас в игре»</b> помещает счётчик туда, где вы его видите. <b>Считать через View + крестовину вверх</b> позволяет геймпаду увеличивать один счётчик на игру.",
+  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.": "<b>Показывать в таймере на экране и в «Сейчас в игре»</b> помещает счётчик туда, где вы его видите. <b>Считать через View/Create/Share + крестовину вверх</b> позволяет геймпаду увеличивать один счётчик на игру.",
   "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.": "<b>Показывать в таймере на экране и в «Сейчас в игре»</b> помещает счётчик туда, где вы видите его во время игры.",
   "Count while you play": "Считайте во время игры",
   "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.": "В «Сейчас в игре» каждый показанный счётчик — плитка. Число относится к этой сессии, а строка ниже суммирует всё прохождение.",

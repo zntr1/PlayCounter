@@ -119,8 +119,8 @@ export function CounterControllerButton({
     (s) => s.setControllerCounter,
   );
   const label = active
-    ? t("View + D-pad up counts this one. Click to stop.")
-    : t("Count this one with View + D-pad up.");
+    ? t("View/Create/Share + D-pad up counts this one. Click to stop.")
+    : t("Count this one with View/Create/Share + D-pad up.");
   return (
     <button
       type="button"

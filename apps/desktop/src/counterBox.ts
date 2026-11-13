@@ -74,8 +74,8 @@ export type CounterBoxLabel =
   | "Hidden while you play. Click to show."
   | "Set a key that counts this counter while the game runs."
   | "Click to change the key."
-  | "View + D-pad up counts this one. Click to stop."
-  | "Count this one with View + D-pad up."
+  | "View/Create/Share + D-pad up counts this one. Click to stop."
+  | "Count this one with View/Create/Share + D-pad up."
   | "Add one"
   | "Take one back"
   | "Press a key combination…"
@@ -115,11 +115,11 @@ function counterBoxLabels(): Record<CounterBoxLabel, string> {
       "Set a key that counts this counter while the game runs.",
     ),
     "Click to change the key.": t("Click to change the key."),
-    "View + D-pad up counts this one. Click to stop.": t(
-      "View + D-pad up counts this one. Click to stop.",
+    "View/Create/Share + D-pad up counts this one. Click to stop.": t(
+      "View/Create/Share + D-pad up counts this one. Click to stop.",
     ),
-    "Count this one with View + D-pad up.": t(
-      "Count this one with View + D-pad up.",
+    "Count this one with View/Create/Share + D-pad up.": t(
+      "Count this one with View/Create/Share + D-pad up.",
     ),
     "Add one": t("Add one"),
     "Take one back": t("Take one back"),

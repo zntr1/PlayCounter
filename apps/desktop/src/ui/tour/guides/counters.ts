@@ -109,7 +109,7 @@ export function countersGuide(): TourDefinition {
         title: t("Show it while you play"),
         body: controller
           ? t(
-              "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.",
+              "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.",
             )
           : t(
               "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.",

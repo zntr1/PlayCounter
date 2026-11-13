@@ -495,7 +495,7 @@
   "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.": "Solange das Spiel läuft, zählt die Taste diesen Zähler, auch wenn PlayCounter im Hintergrund ist. Die Taste wählst du selbst.",
   "Click <b>Set a key</b>, then press a key of your own choice.": "Klick auf <b>Taste festlegen</b> und drück dann eine Taste deiner Wahl.",
   "Show it while you play": "Beim Spielen anzeigen",
-  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.": "<b>Im Live-Timer und unter „Läuft gerade“ anzeigen</b> legt den Zähler dorthin, wo du ihn siehst. <b>Mit View + Steuerkreuz hoch zählen</b> lässt einen Controller einen Zähler pro Spiel zählen.",
+  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.": "<b>Im Live-Timer und unter „Läuft gerade“ anzeigen</b> legt den Zähler dorthin, wo du ihn siehst. <b>Mit View/Create/Share + Steuerkreuz hoch zählen</b> lässt einen Controller einen Zähler pro Spiel zählen.",
   "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.": "<b>Im Live-Timer und unter „Läuft gerade“ anzeigen</b> legt den Zähler dorthin, wo du ihn beim Spielen siehst.",
   "Count while you play": "Beim Spielen zählen",
   "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.": "Unter „Läuft gerade“ ist jeder angezeigte Zähler eine Kachel. Die Zahl gilt für diese Sitzung, die Zeile darunter zählt den ganzen Durchgang zusammen.",

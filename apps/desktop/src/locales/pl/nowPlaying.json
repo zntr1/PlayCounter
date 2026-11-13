@@ -136,6 +136,6 @@
   "Remove the key from {{counter}}": "Usuń klawisz z „{{counter}}”",
   "Count {{counter}} here, or give it a key of its own.": "Licznik „{{counter}}”: licz tutaj albo przypisz mu własny klawisz.",
   "{{key}} takes the last one back.": "{{key}} cofa ostatnie liczenie.",
-  "View + D-pad up counts this one. Click to stop.": "View + krzyżak w górę liczy ten licznik. Kliknij, aby przestać.",
-  "Count this one with View + D-pad up.": "Licz ten licznik przez View + krzyżak w górę."
+  "View/Create/Share + D-pad up counts this one. Click to stop.": "View/Create/Share + krzyżak w górę liczy ten licznik. Kliknij, aby przestać.",
+  "Count this one with View/Create/Share + D-pad up.": "Licz ten licznik przez View/Create/Share + krzyżak w górę."
 }

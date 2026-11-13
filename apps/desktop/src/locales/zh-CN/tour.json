@@ -494,7 +494,7 @@
   "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.": "游戏运行时，这个按键会给该计数器计数，即使 PlayCounter 在后台。按键由你选择。",
   "Click <b>Set a key</b>, then press a key of your own choice.": "点击<b>设置按键</b>，然后按下你自己选的按键。",
   "Show it while you play": "游玩时显示它",
-  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.": "<b>在实时计时器和“正在游玩”中显示</b>会把计数器放在你看得到的地方。<b>用 View + 方向键上计数</b>让手柄为每个游戏给一个计数器计数。",
+  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.": "<b>在实时计时器和“正在游玩”中显示</b>会把计数器放在你看得到的地方。<b>用 View/Create/Share + 方向键上计数</b>让手柄为每个游戏给一个计数器计数。",
   "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.": "<b>在实时计时器和“正在游玩”中显示</b>会把计数器放在你游玩时看得到的地方。",
   "Count while you play": "游玩时计数",
   "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.": "在“正在游玩”中，每个显示的计数器都是一个磁贴。数字是本次游玩的，下面一行是整个周目的累计。",

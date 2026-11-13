@@ -216,7 +216,7 @@ describe("Game Details → Counters (list + detail)", () => {
 
   it("shows the controller row only with “Count with controller” on, one counter per game", async () => {
     await render();
-    expect(detail().textContent).not.toContain("View + D-pad up");
+    expect(detail().textContent).not.toContain("D-pad up");
     await act(async () => {
       useAppStore.setState({
         settings: { ...store().settings, controllerCountingEnabled: true },
@@ -224,7 +224,7 @@ describe("Game Details → Counters (list + detail)", () => {
     });
     const toggle = () =>
       detail().querySelector(
-        'input[aria-label="Count with View + D-pad up"]',
+        'input[aria-label="Count with View/Create/Share + D-pad up"]',
       ) as HTMLInputElement;
     expect(detail().textContent).toContain("One counter per game.");
     // Deaths has it until it is moved.

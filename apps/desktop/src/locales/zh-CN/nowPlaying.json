@@ -130,6 +130,6 @@
   "Remove the key from {{counter}}": "移除“{{counter}}”的按键",
   "Count {{counter}} here, or give it a key of its own.": "在这里为“{{counter}}”计数，或给它设置专属按键。",
   "{{key}} takes the last one back.": "{{key}} 撤销上一次计数。",
-  "View + D-pad up counts this one. Click to stop.": "View + 方向键上为这个计数器计数。点击取消。",
-  "Count this one with View + D-pad up.": "用 View + 方向键上为这个计数器计数。"
+  "View/Create/Share + D-pad up counts this one. Click to stop.": "View/Create/Share + 方向键上为这个计数器计数。点击取消。",
+  "Count this one with View/Create/Share + D-pad up.": "用 View/Create/Share + 方向键上为这个计数器计数。"
 }

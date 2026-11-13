@@ -256,7 +256,7 @@
   "Change": "Modifier",
   "Set a key": "Choisir une touche",
   "Delete": "Supprimer",
-  "Count with View + D-pad up": "Compter avec View + croix vers le haut",
+  "Count with View/Create/Share + D-pad up": "Compter avec View/Create/Share + croix vers le haut",
   "One counter per game.": "Un compteur par jeu.",
   "This is a sample. A real list is read again from the launcher.": "Ceci est un exemple. Une vraie liste est relue depuis le launcher."
 }

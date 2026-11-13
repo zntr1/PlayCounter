@@ -248,7 +248,7 @@
   "Change": "更改",
   "Set a key": "设置按键",
   "Delete": "删除",
-  "Count with View + D-pad up": "用 View + 方向键上计数",
+  "Count with View/Create/Share + D-pad up": "用 View/Create/Share + 方向键上计数",
   "One counter per game.": "每个游戏一个计数器。",
   "This is a sample. A real list is read again from the launcher.": "这是示例。真实的列表会重新从启动器读取。"
 }

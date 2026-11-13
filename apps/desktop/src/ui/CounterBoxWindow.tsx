@@ -252,13 +252,13 @@ export function CounterBoxWindow({
                   type="button"
                   title={
                     row.controller
-                      ? label("View + D-pad up counts this one. Click to stop.")
-                      : label("Count this one with View + D-pad up.")
+                      ? label("View/Create/Share + D-pad up counts this one. Click to stop.")
+                      : label("Count this one with View/Create/Share + D-pad up.")
                   }
                   aria-label={
                     row.controller
-                      ? label("View + D-pad up counts this one. Click to stop.")
-                      : label("Count this one with View + D-pad up.")
+                      ? label("View/Create/Share + D-pad up counts this one. Click to stop.")
+                      : label("Count this one with View/Create/Share + D-pad up.")
                   }
                   aria-pressed={row.controller}
                   onClick={() =>

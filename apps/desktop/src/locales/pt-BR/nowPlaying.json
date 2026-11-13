@@ -134,6 +134,6 @@
   "Remove the key from {{counter}}": "Remover a tecla de {{counter}}",
   "Count {{counter}} here, or give it a key of its own.": "Conte {{counter}} aqui ou dê a ele uma tecla própria.",
   "{{key}} takes the last one back.": "{{key}} tira o último.",
-  "View + D-pad up counts this one. Click to stop.": "View + direcional para cima conta este. Clique para parar.",
-  "Count this one with View + D-pad up.": "Contar este com View + direcional para cima."
+  "View/Create/Share + D-pad up counts this one. Click to stop.": "View/Create/Share + direcional para cima conta este. Clique para parar.",
+  "Count this one with View/Create/Share + D-pad up.": "Contar este com View/Create/Share + direcional para cima."
 }

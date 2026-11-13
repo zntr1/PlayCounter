@@ -260,7 +260,7 @@
   "Change": "Изменить",
   "Set a key": "Назначить клавишу",
   "Delete": "Удалить",
-  "Count with View + D-pad up": "Считать через View + крестовину вверх",
+  "Count with View/Create/Share + D-pad up": "Считать через View/Create/Share + крестовину вверх",
   "One counter per game.": "Один счётчик на игру.",
   "This is a sample. A real list is read again from the launcher.": "Это пример. Настоящий список снова читается из лаунчера."
 }

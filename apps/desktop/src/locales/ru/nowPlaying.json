@@ -136,6 +136,6 @@
   "Remove the key from {{counter}}": "Убрать клавишу у «{{counter}}»",
   "Count {{counter}} here, or give it a key of its own.": "Считайте «{{counter}}» здесь или назначьте ему свою клавишу.",
   "{{key}} takes the last one back.": "{{key}} убирает последний.",
-  "View + D-pad up counts this one. Click to stop.": "View + крестовина вверх считает этот счётчик. Нажмите, чтобы отключить.",
-  "Count this one with View + D-pad up.": "Считать этот счётчик через View + крестовину вверх."
+  "View/Create/Share + D-pad up counts this one. Click to stop.": "View/Create/Share + крестовина вверх считает этот счётчик. Нажмите, чтобы отключить.",
+  "Count this one with View/Create/Share + D-pad up.": "Считать этот счётчик через View/Create/Share + крестовину вверх."
 }

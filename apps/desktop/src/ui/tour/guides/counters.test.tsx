@@ -308,7 +308,7 @@ describe("Count deaths and bosses: the steps", () => {
   });
 
   it("mentions the controller only where it can count (Windows)", () => {
-    expect(bold(step("shown").body)).toContain("Count with View + D-pad up");
+    expect(bold(step("shown").body)).toContain("Count with View/Create/Share + D-pad up");
     expect(step("shown").additionalAnchors).toEqual([
       '[data-tour="demo-counter-controller"]',
     ]);
@@ -397,7 +397,7 @@ describe("the sample's Counters tab during the guide", () => {
     );
     expect(
       findTourElement(step("shown").additionalAnchors![0])?.textContent,
-    ).toContain("Count with View + D-pad up");
+    ).toContain("Count with View/Create/Share + D-pad up");
   });
 
   it("closes Details for the last step", async () => {

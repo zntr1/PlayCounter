@@ -496,7 +496,7 @@
   "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.": "Enquanto o jogo roda, a tecla conta este contador, mesmo com o PlayCounter em segundo plano. A tecla é você quem escolhe.",
   "Click <b>Set a key</b>, then press a key of your own choice.": "Clique em <b>Definir uma tecla</b> e pressione uma tecla de sua escolha.",
   "Show it while you play": "Mostre enquanto você joga",
-  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.": "<b>Mostrar no cronômetro na tela e em Jogando agora</b> coloca o contador onde você pode vê-lo. <b>Contar com View + direcional para cima</b> permite que um controle conte um contador por jogo.",
+  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.": "<b>Mostrar no cronômetro na tela e em Jogando agora</b> coloca o contador onde você pode vê-lo. <b>Contar com View/Create/Share + direcional para cima</b> permite que um controle conte um contador por jogo.",
   "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.": "<b>Mostrar no cronômetro na tela e em Jogando agora</b> coloca o contador onde você pode vê-lo enquanto joga.",
   "Count while you play": "Conte enquanto você joga",
   "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.": "Em Jogando agora, cada contador exibido é um bloco. O número é desta sessão, e a linha abaixo soma a campanha toda.",

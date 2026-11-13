@@ -486,12 +486,12 @@ function CounterDetail({
       <OwnKeyRow game={game} gameName={gameName} counter={counter} />
       {controllerCounting ? (
         <SettingRow
-          title={t("Count with View + D-pad up")}
+          title={t("Count with View/Create/Share + D-pad up")}
           description={t("One counter per game.")}
           dataTour="demo-counter-controller"
         >
           <Switch
-            aria-label={t("Count with View + D-pad up")}
+            aria-label={t("Count with View/Create/Share + D-pad up")}
             checked={controller}
             onChange={(event) =>
               setControllerCounter(

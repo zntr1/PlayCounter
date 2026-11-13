@@ -132,6 +132,6 @@
   "Remove the key from {{counter}}": "Remove the key from {{counter}}",
   "Count {{counter}} here, or give it a key of its own.": "Count {{counter}} here, or give it a key of its own.",
   "{{key}} takes the last one back.": "{{key}} takes the last one back.",
-  "View + D-pad up counts this one. Click to stop.": "View + D-pad up counts this one. Click to stop.",
-  "Count this one with View + D-pad up.": "Count this one with View + D-pad up."
+  "View/Create/Share + D-pad up counts this one. Click to stop.": "View/Create/Share + D-pad up counts this one. Click to stop.",
+  "Count this one with View/Create/Share + D-pad up.": "Count this one with View/Create/Share + D-pad up."
 }

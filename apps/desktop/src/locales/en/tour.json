@@ -494,7 +494,7 @@
   "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.": "While the game runs, the key counts this counter, even when PlayCounter is in the background. The key is yours to choose.",
   "Click <b>Set a key</b>, then press a key of your own choice.": "Click <b>Set a key</b>, then press a key of your own choice.",
   "Show it while you play": "Show it while you play",
-  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.": "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View + D-pad up</b> lets a controller count one counter per game.",
+  "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.": "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it. <b>Count with View/Create/Share + D-pad up</b> lets a controller count one counter per game.",
   "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.": "<b>Show in the live timer and on Now Playing</b> puts the counter where you can see it while you play.",
   "Count while you play": "Count while you play",
   "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.": "On Now Playing every shown counter is a tile. The number is for this session, the line below adds up the whole playthrough.",
