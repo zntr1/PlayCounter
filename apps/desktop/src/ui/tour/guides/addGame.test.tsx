@@ -22,8 +22,11 @@ vi.mock("../../../library/gameLookup");
 const pickFile = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: pickFile }));
 
-/* "Add a game yourself" (docs/tours-plan.md, WP6): Add game, the title search,
-   Change Game…, Suggest to Community and the Quick add key, on a sample. */
+/* "Add a game yourself" (docs/tours-plan.md, WP6): most PC games add
+   themselves; Add game, the title search, removing a wrong pick and the Quick
+   add key, on a sample. Change Game… and Suggest to Community are left out:
+   they belong to a game with a file of the player's own, which Add game
+   without a file never makes. */
 
 const guide = () => findTour("add-game")!;
 const step = (id: string) => guide().steps.find((entry) => entry.id === id)!;
@@ -38,12 +41,11 @@ describe("the guide's steps", () => {
       "open",
       "search",
       "result",
-      "change-game",
-      "suggest",
+      "wrong-game",
       "quick-add",
       "finish",
     ]);
-    expect(guide().version).toBe(2);
+    expect(guide().version).toBe(3);
     expect(guide().release).toBe(NEXT_RELEASE);
     expect(guide().demoGame).toBe(true);
   });
@@ -74,26 +76,28 @@ describe("the guide's steps", () => {
     expect(body).toMatch(/first time you run it/);
   });
 
-  it("use the card's Matching menu for Change Game… and Suggest to Community", () => {
-    expect(bold(step("change-game").task!)).toEqual([
-      "Matching",
-      "Change Game…",
-    ]);
-    expect(step("change-game").anchorTargets).toContain(
-      a("demo-menu-change-game"),
-    );
-    expect(bold(step("suggest").task!)).toEqual([
-      "Matching",
-      "Suggest to Community",
-    ]);
-    expect(step("suggest").anchorTargets).toContain(
-      a("demo-menu-suggest-community"),
-    );
-    for (const id of ["change-game", "suggest"])
-      expect(step(id).advanceOn).toEqual({
-        type: "event",
-        name: "demo.step-completed",
-      });
+  it("say first that most PC games join by themselves", () => {
+    expect(step("intro").body).toMatch(/by themselves/);
+    expect(bold(step("intro").body)).toEqual(["Add game"]);
+  });
+
+  it("fix a wrong pick by removing it and adding the right one", () => {
+    const entry = step("wrong-game");
+    expect(bold(entry.task!)).toEqual(["Remove from Library"]);
+    expect(entry.body).toMatch(/add the right one/i);
+    expect(entry.anchorTargets).toContain(a("demo-menu-remove"));
+    expect(entry.advanceOn).toEqual({
+      type: "event",
+      name: "demo.step-completed",
+    });
+  });
+
+  it("name nothing that only a game with the player's own file has", () => {
+    for (const entry of guide().steps)
+      expect(
+        `${entry.title} ${entry.body} ${entry.task ?? ""}`,
+        entry.id,
+      ).not.toMatch(/Change Game|Suggest to Community|Matching/);
   });
 
   it("send the player to Quick add game in the keyboard shortcuts and suggest no key", () => {
@@ -232,7 +236,7 @@ describe("the walk through the guide", () => {
     await click(a("demo-add-game-done"));
     await wait(200);
     expect(find(a("demo-add-game-dialog"))).toBeNull();
-    expect(stepNow()).toBe("change-game");
+    expect(stepNow()).toBe("wrong-game");
     expectNothingLeftThisPc();
   });
 
@@ -253,36 +257,33 @@ describe("the walk through the guide", () => {
     await start("result");
     expect(find(a("demo-add-game-dialog"))).not.toBeNull();
     await act(async () =>
-      useAppStore.getState().goToTourStep(index("change-game")),
+      useAppStore.getState().goToTourStep(index("wrong-game")),
     );
     await wait();
     expect(find(a("demo-add-game-dialog"))).toBeNull();
   });
 
-  it("offers Change Game… on the sample, which is a custom game", async () => {
-    await start("change-game");
-    expect(find(a("demo-menu-change-game"))).not.toBeNull();
-    await click(a("demo-menu-change-game"));
-    expect(find(a("demo-sample-search"))).not.toBeNull();
+  it("shows the sample as a game Add game makes: no Change Game…, no Suggest to Community", async () => {
+    await start("wrong-game");
+    // The step opened the card's menu.
+    expect(find(a("demo-menu-remove"))).not.toBeNull();
+    expect(find(a("demo-menu-change-game"))).toBeNull();
+    expect(find(a("demo-menu-suggest-community"))).toBeNull();
   });
 
-  it("finishes Suggest to Community when the sample suggestion is confirmed, and sends nothing", async () => {
-    await start("suggest");
-    expect(find(a("demo-menu-suggest-community"))).not.toBeNull();
-    await click(a("demo-menu-suggest-community"));
-    const search = find(a("demo-sample-search"))!;
+  it("removes the sample on Remove from Library and moves on, removing nothing for real", async () => {
+    await start("wrong-game");
+    await click(a("demo-menu-remove"));
+    const dialog = find(a("demo-remove-dialog"));
+    expect(dialog, "missing the remove dialog").not.toBeNull();
     await act(async () =>
-      [...search.querySelectorAll<HTMLButtonElement>("button")]
-        .find((button) => button.textContent?.includes("World of Warcraft"))!
-        .click(),
-    );
-    await act(async () =>
-      [...search.querySelectorAll<HTMLButtonElement>("button")]
-        .find((button) => button.textContent?.includes("Confirm sample match"))!
+      [...dialog!.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.trim() === "Remove")!
         .click(),
     );
     await wait(200);
     expect(stepNow()).toBe("quick-add");
+    expect(tracker.untrackGame).not.toHaveBeenCalled();
     expectNothingLeftThisPc();
   });
 });

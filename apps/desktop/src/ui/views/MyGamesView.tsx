@@ -522,9 +522,6 @@ function makeTourDemoGame(
   addedSessions: number,
   showSourceBadges: boolean,
   adjustmentSeconds = 0,
-  /** The "Add a game yourself" guide: a game the player added, so its menu has
-   *  Change Game… and Suggest to Community. */
-  custom = false,
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
   return {
@@ -532,12 +529,8 @@ function makeTourDemoGame(
     gameId: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    source: custom ? "custom" : "community",
-    sources: custom
-      ? ["custom"]
-      : showSourceBadges
-        ? ["community", "igdb", "custom"]
-        : ["community"],
+    source: "community",
+    sources: showSourceBadges ? ["community", "igdb", "custom"] : ["community"],
     aliases: [],
     totalSeconds: totalSeconds + adjustmentSeconds,
     sessionSeconds: totalSeconds,
@@ -1916,7 +1909,6 @@ export function MyGamesView({
         demoPlaytime.addedSessions,
         tourDemo.tourId === "source-badges",
         demoPlaytime.adjustmentSeconds,
-        tourDemo.tourId === "add-game",
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
