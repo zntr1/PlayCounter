@@ -137,11 +137,22 @@ export function NowPlayingView() {
     null,
   );
   const isOffline = useIsOffline();
-  const activeTourStep = activeTour
-    ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
+  const activeTourDefinition = activeTour
+    ? findTour(activeTour.tourId)
     : undefined;
-  const { shown: showTourSession, timer: tourSessionIsTimer } =
-    sampleSessionForStep(activeTourStep);
+  const activeTourStep = activeTour
+    ? activeTourDefinition?.steps[activeTour.stepIndex]
+    : undefined;
+  const stepSession = sampleSessionForStep(activeTourStep);
+  // A guide that works with the sample session shows it on every one of its
+  // steps here, also on the first one, which rings nothing yet.
+  const showTourSession =
+    stepSession.shown ||
+    (activeTourDefinition?.steps.some(
+      (step) => sampleSessionForStep(step).shown,
+    ) ??
+      false);
+  const tourSessionIsTimer = stepSession.timer;
   const tourSession = useMemo<ActiveSession>(
     () => ({
       id: TOUR_NOW_PLAYING_SESSION_ID,

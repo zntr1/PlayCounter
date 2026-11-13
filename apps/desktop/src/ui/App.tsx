@@ -942,7 +942,6 @@ export function App() {
           {sidebarCollapsed ? (
             <button
               type="button"
-              data-tour="brand"
               aria-label={t("Expand sidebar")}
               aria-expanded={false}
               title={t("Expand sidebar (Ctrl+B)")}
@@ -962,28 +961,21 @@ export function App() {
             </button>
           ) : (
             <>
-              {/* Logo and name: the Quick tour starts here. */}
-              <span
-                data-tour="brand"
+              <img
                 data-tauri-drag-region={dragRegion}
-                className="flex min-w-0 flex-1 items-center gap-2"
+                src="/brand/playcounter-mark.svg"
+                alt=""
+                draggable={false}
+                className="h-11 w-11 shrink-0 object-contain"
+              />
+              <span
+                data-tauri-drag-region={dragRegion}
+                className="min-w-0 flex-1 animate-label-in leading-none motion-reduce:animate-none"
               >
-                <img
-                  data-tauri-drag-region={dragRegion}
-                  src="/brand/playcounter-mark.svg"
-                  alt=""
-                  draggable={false}
-                  className="h-11 w-11 shrink-0 object-contain"
+                <PlayCounterWordmark
+                  size={23}
+                  className="pointer-events-none"
                 />
-                <span
-                  data-tauri-drag-region={dragRegion}
-                  className="min-w-0 flex-1 animate-label-in leading-none motion-reduce:animate-none"
-                >
-                  <PlayCounterWordmark
-                    size={23}
-                    className="pointer-events-none"
-                  />
-                </span>
               </span>
               <SidebarToggle
                 collapsed={false}

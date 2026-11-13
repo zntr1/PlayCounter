@@ -101,7 +101,7 @@ describe("every step of Watch folders for new games", () => {
       expect(useAppStore.getState().settingsGroup, id).toBe("library");
       for (const selector of [
         ...(step.anchorTargets ?? []),
-        step.anchor!,
+        ...(step.anchor ? [step.anchor] : []),
         ...(step.additionalAnchors ?? []),
       ])
         if (!inSidebar(selector) && !container.querySelector(selector))
@@ -145,7 +145,9 @@ describe("every step of Watch folders for new games", () => {
   it("never rings the whole page", async () => {
     for (const { id } of guide().steps) {
       const step = await showStep(id);
-      const ring = container.querySelector(step.anchor!)!;
+      // The first step is for reading and rings nothing.
+      if (!step.anchor) continue;
+      const ring = container.querySelector(step.anchor)!;
       expect(ring.matches("[data-settings-page]"), id).toBe(false);
       expect(ring.querySelectorAll("[data-row]").length, id).toBe(0);
     }

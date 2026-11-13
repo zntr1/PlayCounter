@@ -265,8 +265,11 @@ export function guideProblems(
       if (!step.allow?.length) say(step.id, "task without allow");
       if (!step.advanceOn) say(step.id, "task that never finishes by itself");
     }
-    // Something specific is ringed on every step, the first one included.
-    if (!step.anchor) say(step.id, "no ring");
+    // The first step is for reading and rings nothing, unless it asks for
+    // something; every other step rings something specific.
+    const reading = first && !step.task;
+    if (reading && step.anchor) say(step.id, "rings on the first step");
+    if (!reading && !step.anchor) say(step.id, "no ring");
     for (const selector of [step.anchor, ...(step.additionalAnchors ?? [])])
       if (WHOLE_AREAS.some((name) => selector === `[data-tour="${name}"]`))
         say(step.id, `rings the whole ${selector}`);

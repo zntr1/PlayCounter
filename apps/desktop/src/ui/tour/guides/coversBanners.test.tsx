@@ -251,7 +251,9 @@ describe("the walk through the guide", () => {
     await click(a("demo-menu-choose-cover"));
     await wait(200);
     expect(find(a("demo-art-picker"))).not.toBeNull();
-    await act(async () => useAppStore.getState().goToTourStep(index("other-ways")));
+    await act(async () =>
+      useAppStore.getState().goToTourStep(index("other-ways")),
+    );
     await wait(200);
     expect(find(a("demo-art-picker"))).toBeNull();
   });

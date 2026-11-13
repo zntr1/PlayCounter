@@ -35,7 +35,6 @@ export function countersGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-game-card"),
         title: t("Count what matters to you"),
         body: t(
           "Deaths, bosses, runs: every game can count what you like. This World of Warcraft card is a sample, nothing is saved.",

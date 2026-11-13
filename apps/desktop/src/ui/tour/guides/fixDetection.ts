@@ -36,7 +36,6 @@ export function fixDetectionGuide(): TourDefinition {
       {
         id: "intro",
         view: "discovered",
-        anchor: discoveredAction("filters"),
         title: t("Unknown apps wait in Discovered"),
         body: t(
           "Apps PlayCounter can't match land in <b>Needs review</b>. <b>Tracked</b> and <b>Ignored</b> show what was decided. These are sample apps: nothing is saved or sent.",

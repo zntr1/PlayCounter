@@ -228,7 +228,8 @@ describe("Favorites & shelves", () => {
     async (id) => {
       await startGuide("organize-library", id);
       expect(currentStep().id).toBe(id);
-      target();
+      // The first step is for reading and rings nothing.
+      if (currentStep().anchor) target();
       await finishStep(2000);
       expect(stepId()).toBe(id);
     },

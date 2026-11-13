@@ -35,7 +35,6 @@ export function gameActionsGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-game-card"),
         title: t("A menu for every game"),
         body: t(
           "Every card in <b>My Games</b> has a right-click menu with all its actions. This World of Warcraft card is a sample: nothing is saved.",

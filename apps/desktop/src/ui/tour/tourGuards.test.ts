@@ -127,6 +127,24 @@ describe("guide steps", () => {
       tour.steps.map((step) => ({ id: `${tour.id}/${step.id}`, step })),
     );
 
+  it("start with reading: the first step rings nothing unless it asks for something", () => {
+    // Phil, 2026-11-13: a ring on the first step looks like step two's
+    // target before the guide said what it is about.
+    expect(
+      tours()
+        .filter((tour) => {
+          const first = tour.steps[0];
+          const rings = [
+            first.anchor,
+            ...(first.anchorTargets ?? []),
+            ...(first.additionalAnchors ?? []),
+          ].filter(Boolean);
+          return !first.task && rings.length > 0;
+        })
+        .map((tour) => tour.id),
+    ).toEqual([]);
+  });
+
   it("that are optional can tell before their view opens whether they show", () => {
     // The engine decides on the step before; the step's own view is not
     // open yet, so its anchor cannot answer.

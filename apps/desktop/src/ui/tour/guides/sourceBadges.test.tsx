@@ -121,7 +121,7 @@ async function start(at: string) {
 describe("the sample panel", () => {
   it("has every badge a step rings", async () => {
     await start("intro");
-    for (const entry of guide().steps)
+    for (const entry of guide().steps.slice(1))
       expect(
         find(entry.anchor!),
         `${entry.id}: ${entry.anchor}`,

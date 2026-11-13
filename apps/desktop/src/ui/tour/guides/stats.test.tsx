@@ -104,23 +104,26 @@ describe("Read your stats: the guide", () => {
 });
 
 describe("Read your stats: the practice", () => {
-  it("rings something in every step, entered in any order", async () => {
+  it("rings something in every step after the first, entered in any order", async () => {
     await startGuide("stats");
-    for (const id of [...ids].reverse()) {
+    // The first step is for reading and rings nothing.
+    const ringed = ids.slice(1);
+    for (const id of [...ringed].reverse()) {
       await goTo(id);
       expect(target(), id).toBeTruthy();
     }
     // Back and a jump from the checklist reset the sample.
-    for (const id of ids) {
+    for (const id of ringed) {
       await goTo(id, true);
       expect(target(), id).toBeTruthy();
     }
   });
 
-  it("starts on the big number, not on the whole page", async () => {
+  it("starts with the big number in view, before any ring", async () => {
     await startGuide("stats");
-    expect(target().tagName).toBe("H1");
-    expect(target().textContent).toContain("played in total");
+    const total = document.querySelector('[data-tour="demo-history-total"]');
+    expect(total?.tagName).toBe("H1");
+    expect(total?.textContent).toContain("played in total");
   });
 
   it("finishes the range step when the player changes the range", async () => {

@@ -151,11 +151,8 @@ describe("the sample game in Now Playing", () => {
     expect(useAppStore.getState().activeView).toBe("now");
     expect(sample()?.textContent).toContain(TOUR_DEMO_GAME.name);
     expect(sample()?.textContent).toContain("Now playing");
-    // The first ring sits on its clock, not on the whole card.
-    const ring = container.querySelector(guide().steps[0].anchor!)!;
-    expect(ring.textContent).toContain("This session");
-    expect(ring).not.toBe(sample());
-    expect(sample()!.contains(ring)).toBe(true);
+    // The first step is for reading: the sample runs, with no ring yet.
+    expect(guide().steps[0].anchor).toBeUndefined();
   });
 
   it("has Pause like every detected game, and no Stop", async () => {

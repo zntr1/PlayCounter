@@ -28,7 +28,6 @@ export function watchFoldersGuide(): TourDefinition {
         id: "intro",
         view: "settings",
         settingsGroup: "library",
-        anchor: a("settings-page-head"),
         title: t("Games outside any launcher"),
         body: t(
           "DRM-free downloads, itch.io games and old disc installs often sit together in one folder. PlayCounter can watch it. The folders in this guide are samples: nothing is added or changed.",

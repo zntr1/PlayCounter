@@ -47,8 +47,8 @@ describe("the guide's steps", () => {
     expectStepRules(guide());
   });
 
-  it("ring the sample card on the first step", () => {
-    expect(guide().steps[0].anchor).toBe(a("demo-game-card"));
+  it("ring nothing on the first step, which is for reading", () => {
+    expect(guide().steps[0].anchor).toBeUndefined();
   });
 
   it("say that the More button opens the same menu", () => {

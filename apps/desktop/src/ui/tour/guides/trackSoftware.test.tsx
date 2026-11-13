@@ -123,7 +123,7 @@ describe("the guide", () => {
   it("starts with what software tracking is, on the page it fills", () => {
     const intro = guide.steps[0];
     expect(intro.view).toBe("software");
-    expect(intro.anchor).toBe(a("nav-software"));
+    expect(intro.anchor).toBeUndefined();
     expect(boldNames(intro.body)).toContain("Software");
     expect(intro.body).toContain("Now Playing");
     expect(intro.body).toContain("game stats");
@@ -183,8 +183,8 @@ describe.each([
 
   it("finds what every step on Discovered and Software rings", async () => {
     for (const step of guide.steps) {
-      if (step.view === "settings" || step.anchor === a("nav-software"))
-        continue;
+      // Settings steps are checked elsewhere; the first step rings nothing.
+      if (step.view === "settings" || !step.anchor) continue;
       await start(step.id);
       expect(findTourTarget(step), step.id).not.toBeNull();
     }

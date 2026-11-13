@@ -84,10 +84,13 @@ describe("the guides around Settings follow the rules", () => {
     expect(long).toEqual([]);
   });
 
-  it("ring something on every step, the first one included", () => {
+  it("ring something on every step after the first, which is for reading", () => {
+    const firsts = new Set(
+      mine().map((tour) => `${tour.id}/${tour.steps[0].id}`),
+    );
     expect(
       steps()
-        .filter(({ step }) => !step.anchor)
+        .filter(({ id, step }) => !step.anchor && !firsts.has(id))
         .map(({ id }) => id),
     ).toEqual([]);
   });
@@ -158,12 +161,8 @@ describe("Personalize PlayCounter", () => {
     expect(rest.filter((entry) => /\breal\b/.test(entry.body))).toEqual([]);
   });
 
-  it("has a step for the search and one for While you play", () => {
-    expect(
-      guide("settings").steps.some((entry) =>
-        entry.anchor?.includes("settings-search"),
-      ),
-    ).toBe(true);
+  it("names the search first, and has a step for While you play", () => {
+    expect(bold(guide("settings").steps[0].body)).toContain("Search settings");
     expect(step("play").settingsGroup).toBe("play");
     expect(step("play").body).toContain("“While you play”");
   });

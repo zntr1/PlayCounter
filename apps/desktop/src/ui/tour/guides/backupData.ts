@@ -24,7 +24,6 @@ export function backupDataGuide(): TourDefinition {
         id: "intro",
         view: "settings",
         settingsGroup: "backup",
-        anchor: a("settings-page-head"),
         title: t("What a backup holds"),
         body: t(
           "A backup is one JSON file with your play history, games, notes, playthroughs, shelves and settings. This guide only points at <b>Backup & transfer</b>: nothing is saved, imported or reset.",

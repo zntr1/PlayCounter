@@ -28,7 +28,6 @@ export function screenshotsGuide(): TourDefinition {
       {
         id: "intro",
         view: "history",
-        anchor: historySampleRow(HISTORY_SAMPLE.withPictures),
         title: t("Pictures of your sessions"),
         body: t(
           "A key takes a picture of the game you play, and it lands on its session. This is a sample history: nothing is saved, and your own history stays as it is.",

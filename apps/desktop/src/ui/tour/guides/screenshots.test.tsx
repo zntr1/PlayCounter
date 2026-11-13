@@ -65,7 +65,8 @@ describe("Screenshots: the guide", () => {
 describe("Screenshots: the sample history", () => {
   it("shows two pictures on the sample session, the second with a caption", async () => {
     await startGuide("screenshots");
-    expect(target()).toBe(row(HISTORY_SAMPLE.withPictures));
+    // The first step rings nothing, but the sample history is behind it.
+    expect(row(HISTORY_SAMPLE.withPictures)).not.toBeNull();
     await goTo("pictures");
     expect(all('[data-tour="demo-history-screenshots"] li')).toHaveLength(2);
     expect(picture(2).querySelector("[data-caption-mark]")).not.toBeNull();

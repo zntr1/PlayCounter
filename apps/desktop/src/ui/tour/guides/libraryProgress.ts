@@ -28,8 +28,6 @@ export function libraryProgressGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: libraryTourCard,
-        additionalAnchors: [gtaTourCard],
         title: t("Track what you want to play next"),
         body: t(
           "A progress status is your own label for a game: In progress, On hold, Finished, Want to play and more. These are sample games and sample settings: nothing is saved.",

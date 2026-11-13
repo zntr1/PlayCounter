@@ -27,7 +27,6 @@ export function launchGamesGuide(): TourDefinition {
         id: "intro",
         view: "settings",
         settingsGroup: "launching",
-        anchor: row("rememberLaunchPaths"),
         title: t("PlayCounter can start games too"),
         body: t(
           "Play needs <b>Remember launch paths</b>: the game files PlayCounter has seen, kept on this PC. The card in this guide is a sample: nothing is saved.",

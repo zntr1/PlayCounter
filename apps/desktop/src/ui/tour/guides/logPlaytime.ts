@@ -23,7 +23,6 @@ export function logPlaytimeGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-game-card"),
         title: t("Log playtime by hand"),
         body: t(
           "PlayCounter missed a session, or you played somewhere else? Add the time yourself. This World of Warcraft card is a sample: nothing is saved.",

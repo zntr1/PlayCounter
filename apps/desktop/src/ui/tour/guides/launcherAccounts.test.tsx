@@ -166,7 +166,9 @@ describe("the guide", () => {
       const at = step.id;
       expect(step.title.length, at).toBeLessThanOrEqual(40);
       expect(step.body.length, at).toBeLessThanOrEqual(220);
-      expect(step.anchor, `${at} rings something`).toBeTruthy();
+      // The first step is for reading and rings nothing.
+      if (step !== guide.steps[0])
+        expect(step.anchor, `${at} rings something`).toBeTruthy();
       expect(`${step.title} ${step.body}`, at).not.toMatch(
         /\b(providers?|wizard|executables?)\b/i,
       );
@@ -184,9 +186,9 @@ describe("the guide", () => {
     expect(stepOf(guide, "nav").body).toMatch(/nothing is clicked or changed/);
   });
 
-  it("starts at the sidebar entry and its warning mark", () => {
+  it("starts by naming the sidebar entry and its warning mark", () => {
     const step = stepOf(guide, "nav");
-    expect(step.anchor).toBe(a("nav-accounts"));
+    expect(step.anchor).toBeUndefined();
     expect(boldNames(step.body)).toContain("Launcher accounts");
     expect(step.body).toMatch(/number/);
     expect(step.body).toMatch(/sign-in/);

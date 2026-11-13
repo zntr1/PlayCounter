@@ -74,7 +74,10 @@ describe("every step of Back up or move your data", () => {
     for (const { id } of guide().steps) {
       const step = await showStep(id);
       expect(useAppStore.getState().settingsGroup, id).toBe("backup");
-      for (const selector of [step.anchor!, ...(step.additionalAnchors ?? [])])
+      for (const selector of [
+        ...(step.anchor ? [step.anchor] : []),
+        ...(step.additionalAnchors ?? []),
+      ])
         if (!container.querySelector(selector))
           missing.push(`${id} → ${selector}`);
     }
@@ -85,7 +88,8 @@ describe("every step of Back up or move your data", () => {
     const wide: string[] = [];
     for (const { id } of guide().steps) {
       const step = await showStep(id);
-      const ring = container.querySelector(step.anchor!)!;
+      if (!step.anchor) continue;
+      const ring = container.querySelector(step.anchor)!;
       if (
         ring.matches("[data-settings-page]") ||
         ring.querySelectorAll("[data-row]").length > 2
@@ -110,10 +114,12 @@ describe("every step of Back up or move your data", () => {
     for (const { id } of guide().steps) {
       const step = await showStep(id);
       const [first] = bold(step.body);
-      if (!first) continue;
-      const rings = [step.anchor!, ...(step.additionalAnchors ?? [])].map(
-        (selector) => container.querySelector(selector)!,
-      );
+      // The first step is for reading and rings nothing.
+      if (!first || !step.anchor) continue;
+      const rings = [
+        ...(step.anchor ? [step.anchor] : []),
+        ...(step.additionalAnchors ?? []),
+      ].map((selector) => container.querySelector(selector)!);
       // The name stands in the ring, or the ring is the control in its row.
       expect(
         rings.some((ring) =>

@@ -24,7 +24,6 @@ export function sourceBadgesGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-match-examples"),
         title: t("How was this game recognized?"),
         body: t(
           "A badge tells you how PlayCounter connected a game's file to a game: Community, IGDB and Custom. This is a sample: nothing is saved.",

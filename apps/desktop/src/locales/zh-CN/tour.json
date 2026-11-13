@@ -408,7 +408,7 @@
   "In My Games, right-click a game and open <b>Tier</b>. Game details shows your tier next to the IGDB rating. <b>Tiers on cards</b> under <b>Customize</b> hides the letters.": "在“我的游戏”中，右键点击一个游戏并打开<b>评级</b>。游戏详情会在 IGDB 评分旁边显示你的评级。<b>自定义</b>下的<b>在卡片上显示评级</b>可以隐藏字母。",
   "New games join by themselves": "新游戏会自动加入",
   "After a first import, new installs from Steam, Battle.net, Epic Games and GOG join your library on their own, and so do new PlayStation games you play. Xbox needs another import. Sign-ins are in <b>Launcher accounts</b>.": "首次导入后，Steam、Battle.net、Epic Games 和 GOG 的新安装会自动加入你的游戏库，你玩的新 PlayStation 游戏也一样。Xbox 需要再导入一次。登录信息在<b>启动器账户</b>中。",
-  "This session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.": "这次游玩持续了 14 小时：游戏整晚都开着。这是示例，不会保存任何内容，你自己的历史保持不变。",
+  "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.": "有一次游玩持续了 14 小时：游戏整晚都开着。这是示例，不会保存任何内容，你自己的历史保持不变。",
   "Change a session's times": "修改游玩记录的时间",
   "A session has a start, an end and a length. Set any two and the third fills in. The pencil on the row opens the same dialog.": "一条游玩记录有开始时间、结束时间和时长。设置其中任意两项，第三项会自动填好。行上的铅笔会打开同一个对话框。",
   "Right-click the 14 hour session, open <b>Playtime</b>, choose <b>Edit session</b>, set <b>Length</b> to 2 hours and click <b>Save</b>.": "右键点击这条 14 小时的游玩记录，打开<b>游戏时长</b>，选择<b>编辑游玩记录</b>，把<b>时长</b>设为 2 小时，然后点击<b>保存</b>。",

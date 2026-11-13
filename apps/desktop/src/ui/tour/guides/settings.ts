@@ -27,7 +27,6 @@ export function settingsGuide(): TourDefinition {
         id: "intro",
         view: "settings",
         settingsGroup: "general",
-        anchor: a("settings-search"),
         title: t("Real settings, saved at once"),
         body: t(
           "This guide walks through your real settings: what you change here is saved at once. <b>Search settings</b> finds a setting on any page by a word, like popup or backup.",

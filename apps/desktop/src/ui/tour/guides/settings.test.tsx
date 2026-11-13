@@ -88,7 +88,7 @@ function shownTexts() {
 }
 
 const selectors = (step: TourStep) => [
-  step.anchor!,
+  ...(step.anchor ? [step.anchor] : []),
   ...(step.additionalAnchors ?? []),
   ...(step.allow ?? []),
 ];
@@ -122,7 +122,7 @@ describe("every step of Personalize PlayCounter", () => {
     for (const { id } of guide().steps) {
       const step = await showStep(id);
       for (const selector of [
-        step.anchor!,
+        ...(step.anchor ? [step.anchor] : []),
         ...(step.additionalAnchors ?? []),
       ]) {
         const ring = container.querySelector(selector);

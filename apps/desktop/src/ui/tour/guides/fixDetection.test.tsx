@@ -20,7 +20,7 @@ import {
   indexOf,
   stepOf,
 } from "./guideRules.test.kit";
-import { a } from "./shared";
+import { a, discoveredAction } from "./shared";
 
 vi.mock("../../../tracker");
 vi.mock("../../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -210,9 +210,10 @@ describe("the practice page", () => {
       "Tracked",
       "Ignored",
     ]);
-    const ring = findTourTarget(step)!;
+    // The first step rings nothing; the lists are on the page behind it.
+    const lists = one(discoveredAction("filters"));
     expect(
-      [...ring.querySelectorAll("button")].map((button) =>
+      [...lists.querySelectorAll("button")].map((button) =>
         button.textContent?.replace(/\d+$/, ""),
       ),
     ).toEqual(["Needs review", "Tracked", "Ignored"]);
@@ -242,7 +243,7 @@ describe("the practice page", () => {
   });
 
   it("can be entered at any step: each one finds what it rings", async () => {
-    for (const step of guide.steps) {
+    for (const step of guide.steps.slice(1)) {
       await start(step.id);
       expect(findTourTarget(step), step.id).not.toBeNull();
     }

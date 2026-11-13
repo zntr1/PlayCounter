@@ -432,6 +432,8 @@ it.each(
   });
   for (let index = 0; index < tour.steps.length; index++) {
     await act(() => useAppStore.getState().goToTourStep(index));
+    // The first step is for reading and rings nothing.
+    if (!tour.steps[index].anchor) continue;
     expect(findTourTarget(tour.steps[index])).not.toBeNull();
   }
 });

@@ -170,10 +170,11 @@ describe("Count deaths and bosses: the rules for every step", () => {
     }
   });
 
-  it("rings something on every step, the first one included", () => {
+  it("rings something on every step after the first, which is for reading", () => {
     expect(
       guide()
-        .steps.filter((entry) => !entry.anchor)
+        .steps.slice(1)
+        .filter((entry) => !entry.anchor)
         .map((entry) => entry.id),
     ).toEqual([]);
   });

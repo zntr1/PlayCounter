@@ -32,7 +32,6 @@ export function coversBannersGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-game-card"),
         title: t("Artwork you pick"),
         body: t(
           "Every game can get a cover and a banner you choose. This card is a sample: nothing is saved.",

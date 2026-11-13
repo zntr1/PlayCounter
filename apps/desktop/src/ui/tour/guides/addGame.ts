@@ -25,7 +25,6 @@ export function addGameGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-add-game-button"),
         title: t("Most games add themselves"),
         body: t(
           "Most PC games join My Games by themselves the first time you play them. <b>Add game</b> is for the rest, like a game you haven't started yet or one you play on a console. This is a sample library: nothing is saved.",

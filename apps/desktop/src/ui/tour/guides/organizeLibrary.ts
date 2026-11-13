@@ -28,8 +28,6 @@ export function organizeLibraryGuide(): TourDefinition {
       {
         id: "intro",
         view: "games",
-        anchor: a("demo-favorites"),
-        additionalAnchors: [a("demo-new-shelf")],
         title: t("Make a library that fits you"),
         body: t(
           "<b>Favorites</b> keep the games you play most within reach. Shelves group games any way you like. These are sample games: nothing is saved.",

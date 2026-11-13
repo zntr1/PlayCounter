@@ -37,7 +37,6 @@ export function emulatorsGuide(): TourDefinition {
         id: "intro",
         view: "settings",
         settingsGroup: "emulators",
-        anchor: a("settings-emulators"),
         title: t("Games inside emulators"),
         body: t(
           "PlayCounter recognizes games inside {{count}} emulators, such as {{examples}}. This guide uses a sample Dolphin setup: nothing is saved or sent.",

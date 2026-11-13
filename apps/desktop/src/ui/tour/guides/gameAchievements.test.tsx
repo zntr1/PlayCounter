@@ -118,10 +118,11 @@ describe("Achievements & trophies: the rules for every step", () => {
     }
   });
 
-  it("rings something on every step, the first one included", () => {
+  it("rings something on every step after the first, which is for reading", () => {
     expect(
       guide()
-        .steps.filter((entry) => !entry.anchor)
+        .steps.slice(1)
+        .filter((entry) => !entry.anchor)
         .map((entry) => entry.id),
     ).toEqual([]);
   });
@@ -302,7 +303,7 @@ describe("the Achievements page while the guide runs", () => {
   const ladders = () =>
     container.querySelectorAll("#achievements-panel-games article");
 
-  it("shows sample milestones and ladders to a newcomer, so every step rings something", async () => {
+  it("shows sample milestones and ladders to a newcomer, from the first step on", async () => {
     await act(async () => store().startTour("game-achievements"));
     await showPage();
     // An empty library: 0 of 29 without the sample.
@@ -310,7 +311,9 @@ describe("the Achievements page while the guide runs", () => {
     expect(tabNamed("Game ladders").textContent).not.toMatch(/ladders0\//);
     for (const id of ["page", "tabs", "ladders"]) {
       await act(async () => store().goToTourStep(indexOf(id), true));
-      expect(findTourElement(step(id).anchor!), id).toBeTruthy();
+      // The first step rings nothing; the sample hero is behind it.
+      const shown = step(id).anchor ?? '[data-tour="achievements-hero"]';
+      expect(findTourElement(shown), id).toBeTruthy();
     }
     // Nothing of it is the player's.
     expect(store().awardedMilestones).toEqual([]);

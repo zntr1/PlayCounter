@@ -143,21 +143,22 @@ describe("Correct your history: the sample", () => {
 });
 
 describe("Correct your history: the practice", () => {
-  it("rings something in every step, entered in any order", async () => {
+  it("rings something in every step after the first, entered in any order", async () => {
     await startGuide("correct-history");
-    for (const id of [...ids].reverse()) {
+    // The first step is for reading and rings nothing.
+    const ringed = ids.slice(1);
+    for (const id of [...ringed].reverse()) {
       await goTo(id);
       expect(target(), id).toBeTruthy();
     }
-    for (const id of ids) {
+    for (const id of ringed) {
       await goTo(id, true);
       expect(target(), id).toBeTruthy();
     }
   });
 
-  it("starts on the session that is wrong", async () => {
+  it("starts with the wrong session in view, before any ring", async () => {
     await startGuide("correct-history");
-    expect(target()).toBe(row(overnight));
     expect(row(overnight).textContent).toContain("14h 0m");
   });
 

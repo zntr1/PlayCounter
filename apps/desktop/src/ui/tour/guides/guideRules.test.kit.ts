@@ -35,8 +35,10 @@ export function expectStepRules(guide: TourDefinition) {
     expect(step.title.length, `${at} title`).toBeLessThanOrEqual(40);
     expect(step.body.length, `${at} body`).toBeLessThanOrEqual(220);
     expect(step.task?.length ?? 0, `${at} task`).toBeLessThanOrEqual(160);
-    // No step on a dark empty screen.
-    expect(step.anchor, `${at} rings something`).toBeTruthy();
+    // Only the first step is for reading, on a dimmed screen with no ring
+    // (unless it asks for something); every other step rings something.
+    if (step !== guide.steps[0] || step.task)
+      expect(step.anchor, `${at} rings something`).toBeTruthy();
     expect(`${step.title} ${step.body} ${step.task ?? ""}`, at).not.toMatch(
       /\b(providers?|wizard|executables?)\b/i,
     );

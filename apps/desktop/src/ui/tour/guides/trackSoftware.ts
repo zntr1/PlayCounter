@@ -21,7 +21,6 @@ export function trackSoftwareGuide(): TourDefinition {
       {
         id: "intro",
         view: "software",
-        anchor: a("nav-software"),
         title: t("Count apps, apart from games"),
         body: t(
           "<b>Software</b> counts how long apps like Discord or Spotify run. It never shows in Now Playing or your game stats. These are sample apps: nothing is saved.",

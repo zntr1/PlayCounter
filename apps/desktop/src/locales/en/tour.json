@@ -409,7 +409,6 @@
   "In My Games, right-click a game and open <b>Tier</b>. Game details shows your tier next to the IGDB rating. <b>Tiers on cards</b> under <b>Customize</b> hides the letters.": "In My Games, right-click a game and open <b>Tier</b>. Game details shows your tier next to the IGDB rating. <b>Tiers on cards</b> under <b>Customize</b> hides the letters.",
   "New games join by themselves": "New games join by themselves",
   "After a first import, new installs from Steam, Battle.net, Epic Games and GOG join your library on their own, and so do new PlayStation games you play. Xbox needs another import. Sign-ins are in <b>Launcher accounts</b>.": "After a first import, new installs from Steam, Battle.net, Epic Games and GOG join your library on their own, and so do new PlayStation games you play. Xbox needs another import. Sign-ins are in <b>Launcher accounts</b>.",
-  "This session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.": "This session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.",
   "Change a session's times": "Change a session's times",
   "A session has a start, an end and a length. Set any two and the third fills in. The pencil on the row opens the same dialog.": "A session has a start, an end and a length. Set any two and the third fills in. The pencil on the row opens the same dialog.",
   "Right-click the 14 hour session, open <b>Playtime</b>, choose <b>Edit session</b>, set <b>Length</b> to 2 hours and click <b>Save</b>.": "Right-click the 14 hour session, open <b>Playtime</b>, choose <b>Edit session</b>, set <b>Length</b> to 2 hours and click <b>Save</b>.",
@@ -617,5 +616,6 @@
   "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.": "A game-start popup can show the playthrough's note. A saved-session popup can offer a box for the session note. The real switches are in Settings under Desktop popups, off until you turn them on.",
   "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.": "Click <b>Add playthrough</b>, type a name such as “PvP” and press <kbd>Enter</kbd>.",
   "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.": "Turn on <b>Session notes in popups</b>, click <b>Add session note</b> in the saved-session popup, write a line and click <b>Save</b>.",
-  "PvP": "PvP"
+  "PvP": "PvP",
+  "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is.": "A session ran 14 hours: the game stayed open overnight. It is a sample, nothing is saved, and your own history stays as it is."
 }
