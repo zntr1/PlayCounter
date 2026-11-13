@@ -50,6 +50,7 @@
   "GOG ID": "ID GOG",
   "AppID": "AppID",
   "Playtime unknown": "Время в игре неизвестно",
+  "{{launcher}} doesn't share playtime": "{{launcher}} не передаёт время в игре",
   "Installed": "Установлено",
   "Installation not checked": "Установка не проверена",
   "Not installed": "Не установлено",

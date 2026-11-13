@@ -97,7 +97,7 @@ export function ImportGameDetail({
               <Fact label={t("Playtime")}>
                 {row.group === "imported" && playtimeGrowth(row)
                   ? playtimeGrowth(row)
-                  : playtimeText(game)}
+                  : playtimeText(game, session.providerId)}
               </Fact>
               {lastPlayed ? (
                 <Fact label={t("Last played")}>{lastPlayed}</Fact>

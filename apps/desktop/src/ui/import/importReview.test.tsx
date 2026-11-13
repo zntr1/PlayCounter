@@ -424,6 +424,48 @@ it.each([
   },
 );
 
+it("battlenet: says Battle.net doesn't share playtime, never Never played", async () => {
+  // Battle.net reports no playtime at all; a game without a last-played date
+  // may still have been played.
+  await scan("battlenet", {
+    games: [
+      game("s1", "StarCraft: Remastered", {
+        playtimeSeconds: null,
+        hasPlayedEvidence: false,
+        inAccountLibrary: true,
+      }),
+      game("wowf", "World of Warcraft: Forever", {
+        playtimeSeconds: null,
+        hasPlayedEvidence: false,
+        installed: true,
+        installPath: String.raw`C:\Program Files (x86)\World of Warcraft\_forever_`,
+        executables: [exe("Wow.exe")],
+      }),
+    ],
+    resolvedGames: [
+      matched("battlenet:s1", metadata(1, "StarCraft: Remastered")),
+      matched("battlenet:wowf", metadata(2, "World of Warcraft: Forever")),
+    ],
+  });
+  const says = async (name: string) => {
+    await act(() => row(name).click());
+    expect(detailTitle()).toBe(name);
+    expect(container.textContent).toContain(
+      "Battle.net doesn't share playtime",
+    );
+    expect(container.textContent).not.toContain("Never played");
+    expect(container.textContent).not.toContain("Playtime unknown");
+  };
+  // In the account, not installed: the row says it too.
+  expect(row("StarCraft: Remastered").textContent).toContain(
+    "Battle.net doesn't share playtime",
+  );
+  await says("StarCraft: Remastered");
+  // Installed, its file still to pick: Needs you.
+  await act(() => shelf("attention").tab.click());
+  await says("World of Warcraft: Forever");
+});
+
 it("playstation: a game Sony names no console for starts unchecked, and its details say why", async () => {
   // Phil's account: Bloodborne he played himself; GTA V someone else played
   // on it, in Sony's "unknown" category.
