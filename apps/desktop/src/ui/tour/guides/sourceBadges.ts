@@ -15,6 +15,7 @@ export function sourceBadgesGuide(): TourDefinition {
     kind: "guide",
     category: "detection",
     icon: Tag,
+    nextTourId: "custom-games",
     title: t("Understand game badges"),
     description: t("Learn how PlayCounter recognized each of your games."),
     duration: t("1 min"),

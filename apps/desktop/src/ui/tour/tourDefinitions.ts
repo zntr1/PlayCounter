@@ -4,6 +4,7 @@ import { coreGuide } from "./guides/core";
 import { correctHistoryGuide } from "./guides/correctHistory";
 import { countersGuide } from "./guides/counters";
 import { coversBannersGuide } from "./guides/coversBanners";
+import { customGamesGuide } from "./guides/customGames";
 import { emulatorsGuide } from "./guides/emulators";
 import { feedbackRepliesGuide } from "./guides/feedbackReplies";
 import { fixDetectionGuide } from "./guides/fixDetection";
@@ -63,6 +64,7 @@ export function tours(): TourDefinition[] {
     trackSoftwareGuide(),
     emulatorsGuide(),
     sourceBadgesGuide(),
+    customGamesGuide(),
     settingsGuide(),
     backupDataGuide(),
     feedbackRepliesGuide(),
