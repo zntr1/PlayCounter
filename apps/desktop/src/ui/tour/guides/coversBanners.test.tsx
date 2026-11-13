@@ -187,8 +187,11 @@ const pickers = () => [
 describe("the walk through the guide", () => {
   it("opens the Appearance flyout on a click and moves on", async () => {
     await start("appearance");
-    // The step opened the card's menu itself.
+    // The step opened the card's menu itself, but not the flyout: that is
+    // the player's task, so the step waits for it.
     expect(find(a("demo-menu-appearance"))).not.toBeNull();
+    expect(find(a("demo-appearance-menu"))).toBeNull();
+    expect(stepNow()).toBe("appearance");
     await click(a("demo-menu-appearance"));
     await wait(200);
     expect(stepNow()).toBe("choose-cover");
@@ -241,6 +244,16 @@ describe("the walk through the guide", () => {
     await wait(200);
     expect(stepNow()).toBe("pin");
     expectNothingSaved();
+  });
+
+  it("closes a picker left open when the player skips the step", async () => {
+    await start("choose-cover");
+    await click(a("demo-menu-choose-cover"));
+    await wait(200);
+    expect(find(a("demo-art-picker"))).not.toBeNull();
+    await act(async () => useAppStore.getState().goToTourStep(index("other-ways")));
+    await wait(200);
+    expect(find(a("demo-art-picker"))).toBeNull();
   });
 
   it("finishes Pin to banner with the sample's answer", async () => {

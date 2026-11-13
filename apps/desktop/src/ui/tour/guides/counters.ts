@@ -121,9 +121,9 @@ export function countersGuide(): TourDefinition {
       {
         id: "count",
         view: "now",
-        anchor: a("demo-counter-plus"),
+        anchor: a("demo-session-counter-plus"),
         interactive: true,
-        allow: [a("demo-counter-plus")],
+        allow: [a("demo-session-counter-plus")],
         advanceOn: { type: "event", name: "demo.step-completed" },
         skipTo: "box",
         title: t("Count while you play"),

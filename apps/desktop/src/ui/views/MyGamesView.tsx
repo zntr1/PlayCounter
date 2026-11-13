@@ -3739,6 +3739,7 @@ export function GameLibraryCard({
     setShowAdjustPlaytime(false);
     if (!keep.logSession) setShowAddPlaytime(false);
     setShowMatchCheck(false);
+    setShowArtPicker(false);
     setDemoRemoved(false);
     setSampleResult(null);
     setSampleTimerStartedAt(null);

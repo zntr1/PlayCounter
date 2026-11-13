@@ -20,7 +20,7 @@ function stepAvailable(
   if (!step.optional || !step.anchor) return true;
   if (step.settingsGroup)
     return settingsTourAnchorAvailable(step.settingsGroup, step.anchor);
-  return anchorPresent(step.anchor);
+  return anchorPresent(step.shownWhen ?? step.anchor);
 }
 
 export function nextStepIndex(

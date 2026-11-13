@@ -2,7 +2,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { sampleSessionForStep } from "../views/NowPlayingView";
 import { tours, type TourStep } from "./tourDefinitions";
+import { sampleStageForStep } from "./tourDemoGame";
 
 /* Guards that keep the guides in step with the app (docs/tours-plan.md).
    - A ring target a guide names must still be rendered somewhere.
@@ -111,6 +113,67 @@ describe("guide ring targets", () => {
         ).map((name) => `${tour.id}/${step.id}: ${name}`),
       ),
     );
+    expect(problems).toEqual([]);
+  });
+});
+
+/* What a step finds when it starts ────────────────────────────────────────
+   Found in the browser run of 2026-11-13: a step that never showed, one that
+   finished before the player did anything, one whose target never appeared. */
+
+describe("guide steps", () => {
+  const all = () =>
+    tours().flatMap((tour) =>
+      tour.steps.map((step) => ({ id: `${tour.id}/${step.id}`, step })),
+    );
+
+  it("that are optional can tell before their view opens whether they show", () => {
+    // The engine decides on the step before; the step's own view is not
+    // open yet, so its anchor cannot answer.
+    expect(
+      all()
+        .filter(
+          ({ step }) =>
+            step.optional && !step.settingsGroup && !step.shownWhen,
+        )
+        .map(({ id }) => id),
+    ).toEqual([]);
+  });
+
+  it("that wait for something to appear don't open it themselves", () => {
+    const problems = all().flatMap(({ id, step }) => {
+      if (step.advanceOn?.type !== "anchor-present") return [];
+      const stage = sampleStageForStep(step);
+      const opened = [
+        ...(stage.menu ? ["demo-context-menu", "demo-library-menu"] : []),
+        ...(stage.flyout ? [stage.flyout] : []),
+        ...(stage.logSession ? ["demo-log-session-dialog"] : []),
+        ...(stage.details
+          ? ["demo-game-details", `demo-details-panel-${stage.details}`]
+          : []),
+        ...(sampleSessionForStep(step).shown
+          ? ["now-playing-demo"]
+          : []),
+      ];
+      return tourNames(step.advanceOn.selector)
+        .filter((name) => opened.includes(name))
+        .map((name) => `${id}: ${name}`);
+    });
+    expect(problems).toEqual([]);
+  });
+
+  it("on Now Playing that ring a sample control get the sample session", () => {
+    // The Discovered practice brings its own sample (demo-ambiguous).
+    const problems = all()
+      .filter(
+        ({ step }) =>
+          step.view === "now" &&
+          tourNames(step.anchor).some(
+            (name) => name.startsWith("demo-") && name !== "demo-ambiguous",
+          ) &&
+          !sampleSessionForStep(step).shown,
+      )
+      .map(({ id }) => id);
     expect(problems).toEqual([]);
   });
 });

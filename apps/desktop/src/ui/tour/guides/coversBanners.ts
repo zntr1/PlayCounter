@@ -45,7 +45,8 @@ export function coversBannersGuide(): TourDefinition {
           type: "anchor-present",
           selector: a("demo-appearance-menu"),
         },
-        anchorTargets: [a("demo-appearance-menu"), a("demo-menu-appearance")],
+        // Not the flyout: opening it is the task.
+        anchorTargets: [a("demo-menu-appearance")],
         title: t("Open Appearance"),
         body: t(
           "The card's right-click menu has <b>Appearance</b>: cover, banner and name in one place.",

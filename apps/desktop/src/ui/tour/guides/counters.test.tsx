@@ -22,6 +22,7 @@ import {
 } from "../../../store";
 import { NowPlayingCounters } from "../../counters/CounterParts";
 import { GameCountersTab } from "../../views/games/GameCountersTab";
+import { sampleSessionForStep } from "../../views/NowPlayingView";
 import {
   GameDetailsDialog,
   type DetailsTab,
@@ -435,6 +436,10 @@ describe("counting on Now Playing during the guide", () => {
     Number(
       container.querySelector(".tabular-nums.text-\\[32px\\]")?.textContent,
     );
+
+  it("has Now Playing show the sample session on “Count while you play”, with or without a game running", () => {
+    expect(sampleSessionForStep(step("count")).shown).toBe(true);
+  });
 
   it("shows the sample's counters as tiles and finishes “Count while you play” on Add one", async () => {
     await act(async () => store().startTour("counters"));

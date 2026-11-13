@@ -493,7 +493,7 @@ function SessionCounters({
               <CountButtons
                 counter={first}
                 onCount={(delta) => count(first.id, delta)}
-                plusTour={tourPlus ? "demo-counter-plus" : undefined}
+                plusTour={tourPlus ? "demo-session-counter-plus" : undefined}
               />
             ) : null}
           </>
@@ -545,7 +545,7 @@ function SessionCounters({
                   counter={counter}
                   onCount={(delta) => count(counter.id, delta)}
                   plusTour={
-                    tourPlus && index === 0 ? "demo-counter-plus" : undefined
+                    tourPlus && index === 0 ? "demo-session-counter-plus" : undefined
                   }
                 />
               </span>

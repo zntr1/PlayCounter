@@ -8,6 +8,7 @@ import { DiscoveredView } from "../../views/DiscoveredView";
 import { SoftwareView } from "../../views/SoftwareView";
 import { LibraryTestShell } from "../../views/libraryTestShell";
 import { findTour } from "../tourDefinitions";
+import { nextStepIndex } from "../tourNavigation";
 import { TourOverlay } from "../TourUI";
 import { boldNames as bold, expectStepRules } from "./guideRules.test.kit";
 
@@ -131,6 +132,17 @@ describe("the guide's steps", () => {
     expect(step("software").optional).toBe(true);
     expect(rings("software")).toContain(a("nav-software"));
     expect(bold(step("software").body)).toEqual(["Software"]);
+  });
+
+  it("show Software after Launcher accounts while the sidebar has it, not before it opens", () => {
+    // On Launcher accounts the Software page is not open yet: the sidebar
+    // entry tells whether the step shows.
+    const onAccounts = (sidebarHasSoftware: boolean) =>
+      nextStepIndex(guide().steps, index("accounts"), 1, (selector) =>
+        sidebarHasSoftware ? selector === a("nav-software") : false,
+      );
+    expect(onAccounts(true)).toBe(index("software"));
+    expect(onAccounts(false)).toBe(index("help"));
   });
 
   it("end on the Help button and say where the guides are", () => {

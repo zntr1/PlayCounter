@@ -96,6 +96,7 @@ export function coreGuide(): TourDefinition {
         anchor: a("software-intro"),
         additionalAnchors: [a("nav-software")],
         optional: true,
+        shownWhen: a("nav-software"),
         title: t("Apps that are not games"),
         body: t(
           "<b>Software</b> counts how long apps like Discord run, apart from your game stats. It shows once you turn on Track software.",

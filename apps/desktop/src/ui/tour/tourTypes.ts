@@ -49,6 +49,9 @@ export type TourStep = {
   /** Place instructions outside this container while highlighting its detail. */
   positionAnchor?: string;
   optional?: boolean;
+  /** An optional step on another view shows while this is on screen; its
+   *  own anchor can't tell before its view opens. */
+  shownWhen?: string;
   interactive?: boolean;
   manualAdvance?: boolean;
   /** The highlighted controls are real settings: a change is saved. */
