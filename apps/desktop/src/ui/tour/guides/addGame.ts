@@ -84,7 +84,7 @@ export function addGameGuide(): TourDefinition {
         manualAdvance: true,
         allow: addGameDialog,
         advanceOn: { type: "event", name: "demo.step-completed" },
-        title: t("What you get"),
+        title: t("Add the game"),
         body: t(
           "A card in My Games. With a game file, Play starts it right away; without one, the game is matched the first time you run it.",
         ),

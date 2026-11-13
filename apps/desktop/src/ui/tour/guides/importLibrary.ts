@@ -71,7 +71,7 @@ export function importLibraryGuide(): TourDefinition {
         body: t(
           "<b>Needs you</b> holds games PlayCounter isn't sure about. Here the launcher's name fits more than one game. The search finds others.",
         ),
-        task: t("Click the cover of the right game, then <b>Import</b>."),
+        task: t("Click the Grand Theft Auto V cover, then <b>Import</b>."),
       },
       {
         id: "pick-file",

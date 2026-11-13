@@ -125,7 +125,7 @@ export function launchGamesGuide(): TourDefinition {
         allow: [row("controllerNavigation")],
         title: t("Optional controller navigation"),
         body: t(
-          "<b>Controller navigation</b> lets a pad move around PlayCounter. Hold View + RB for two seconds to bring PlayCounter to the front; it fires while held. PlayStation pads: Create + R1.",
+          "<b>Controller navigation</b> lets a pad move around PlayCounter. Hold View + RB for two seconds to bring PlayCounter to the front. PlayStation pads: Create + R1.",
         ),
       },
       {
