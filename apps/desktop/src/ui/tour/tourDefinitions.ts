@@ -42,8 +42,8 @@ export type {
 export function tours(): TourDefinition[] {
   return [
     coreGuide(),
-    importLibraryGuide(),
     launcherAccountsGuide(),
+    importLibraryGuide(),
     watchFoldersGuide(),
     addGameGuide(),
     notesPlaythroughsGuide(),

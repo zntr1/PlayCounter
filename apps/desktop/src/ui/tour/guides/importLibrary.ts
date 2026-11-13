@@ -42,7 +42,7 @@ export function importLibraryGuide(): TourDefinition {
     duration: t("3 min"),
     simulation: "import",
     finishView: "games",
-    nextTourId: "launcher-accounts",
+    nextTourId: "watch-folders",
     steps: [
       {
         id: "start",

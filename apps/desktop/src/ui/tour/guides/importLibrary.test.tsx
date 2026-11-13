@@ -36,7 +36,7 @@ vi.mock("../../../platform", () => ({ currentPlatform: () => "windows" }));
 import { applyLanguage } from "../../../i18n";
 import { useImportSession } from "../../../library/importSession";
 import { useAppStore } from "../../../store";
-import { findTour } from "../tourDefinitions";
+import { findTour, tours } from "../tourDefinitions";
 import { TourPracticeSurface } from "../TourPracticeSurface";
 import { findTourTarget } from "../tourTargetRect";
 import { TourOverlay } from "../TourUI";
@@ -263,9 +263,14 @@ describe("the guide", () => {
     expect(texts).not.toMatch(/provider|executable|wizard/i);
   });
 
-  it("leads into the guide about launcher accounts", () => {
-    expect(guide.nextTourId).toBe("launcher-accounts");
-    expect(findTour("launcher-accounts")).toBeDefined();
+  it("comes after Launcher accounts, which offers it next, and leads to watched folders", () => {
+    // The page where sign-ins live comes first (Phil, 2026-11-13).
+    const ids = tours().map((tour) => tour.id);
+    expect(ids.indexOf("launcher-accounts")).toBeLessThan(
+      ids.indexOf("import-library"),
+    );
+    expect(findTour("launcher-accounts")!.nextTourId).toBe("import-library");
+    expect(guide.nextTourId).toBe("watch-folders");
   });
 });
 

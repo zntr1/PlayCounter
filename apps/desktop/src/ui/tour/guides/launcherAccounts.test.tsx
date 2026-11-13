@@ -143,10 +143,10 @@ const card = (provider: string) =>
   )!;
 
 describe("the guide", () => {
-  it("is new for the next release and leads to watched folders", () => {
+  it("is new for the next release and leads to the import", () => {
     expect(guide.version).toBe(1);
     expect(guide.release).toBe(NEXT_RELEASE);
-    expect(guide.nextTourId).toBe("watch-folders");
+    expect(guide.nextTourId).toBe("import-library");
   });
 
   it("walks the page from the sidebar to forgetting imported data", () => {

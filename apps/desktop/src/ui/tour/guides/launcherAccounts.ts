@@ -32,7 +32,7 @@ export function launcherAccountsGuide(): TourDefinition {
       "Sign-ins, several accounts and what to do when one runs out.",
     ),
     duration: t("1 min"),
-    nextTourId: "watch-folders",
+    nextTourId: "import-library",
     steps: [
       {
         id: "nav",
