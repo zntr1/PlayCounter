@@ -4,7 +4,7 @@ import { getT } from "./i18n";
 
 /* Counters (docs/counters-plan.md) ───────────────────────────────────────────
    A game has its own counters: Deaths to start with, then whatever the player
-   adds ("Malenia", "Fish caught"). A count lives on the session it happened
+   adds ("Wins", "Fish caught"). A count lives on the session it happened
    in, so History shows it and every total adds up from sessions. Sessions that
    age out of History leave their counts in an archive, so totals never
    shrink. */

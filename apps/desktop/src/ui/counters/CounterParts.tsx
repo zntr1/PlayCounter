@@ -330,8 +330,8 @@ export function AddCounterField({
           autoFocus
           value={name}
           maxLength={COUNTER_NAME_LIMIT}
-          aria-label={t("New counter, for example Malenia")}
-          placeholder={t("New counter, for example Malenia")}
+          aria-label={t("New counter, for example Wins")}
+          placeholder={t("New counter, for example Wins")}
           onChange={(event) => {
             setName(event.target.value);
             setTaken(false);

@@ -119,7 +119,7 @@ async function open(game: GameSummary, initialTab: DetailsTab = "general") {
 async function addCounter(name: string) {
   await click(button("Add counter"));
   const input = panel().querySelector(
-    'input[aria-label="New counter, for example Malenia"]',
+    'input[aria-label="New counter, for example Wins"]',
   ) as HTMLInputElement;
   await type(input, name);
   await click(button("Add", panel()));

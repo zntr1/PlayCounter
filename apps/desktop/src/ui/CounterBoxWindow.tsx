@@ -374,8 +374,8 @@ export function CounterBoxWindow({
           <input
             value={name}
             maxLength={60}
-            aria-label={label("New counter, for example Malenia")}
-            placeholder={label("New counter, for example Malenia")}
+            aria-label={label("New counter, for example Wins")}
+            placeholder={label("New counter, for example Wins")}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {

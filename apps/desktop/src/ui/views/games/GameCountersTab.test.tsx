@@ -277,7 +277,7 @@ describe("Game Details → Counters (list + detail)", () => {
     await render();
     await click(button("Add counter"));
     const input = container.querySelector(
-      'input[aria-label="New counter, for example Malenia"]',
+      'input[aria-label="New counter, for example Wins"]',
     ) as HTMLInputElement;
     await act(async () => {
       const setValue = Object.getOwnPropertyDescriptor(

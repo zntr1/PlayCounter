@@ -80,7 +80,7 @@ export type CounterBoxLabel =
   | "Take one back"
   | "Press a key combination…"
   | "Remove the key"
-  | "New counter, for example Malenia"
+  | "New counter, for example Wins"
   | "Add"
   | "↑↓ picks · + and − count · Esc closes";
 
@@ -125,7 +125,7 @@ function counterBoxLabels(): Record<CounterBoxLabel, string> {
     "Take one back": t("Take one back"),
     "Press a key combination…": t("Press a key combination…"),
     "Remove the key": t("Remove the key"),
-    "New counter, for example Malenia": t("New counter, for example Malenia"),
+    "New counter, for example Wins": t("New counter, for example Wins"),
     Add: t("Add"),
     "↑↓ picks · + and − count · Esc closes": t(
       "↑↓ picks · + and − count · Esc closes",
