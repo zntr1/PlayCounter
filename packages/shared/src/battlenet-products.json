@@ -21,6 +21,13 @@
     "executables": ["WowClassic.exe"]
   },
   {
+    "id": "wowf",
+    "name": "World of Warcraft: Forever",
+    "slug": "world-of-warcraft-forever",
+    "folder": "_forever_",
+    "executables": ["Wow.exe"]
+  },
+  {
     "id": "w3",
     "name": "Warcraft III: Reforged",
     "slug": "warcraft-iii-reforged",
