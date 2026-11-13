@@ -139,7 +139,6 @@
   "Delete “{{name}}” and its note? Its sessions move back to Default playthrough. No playtime is lost.": "删除“{{name}}”及其笔记？它的游玩记录会移回“默认周目”。不会丢失任何游戏时长。",
   "Delete playthrough": "删除周目",
   "Game notes": "游戏笔记",
-  "Keep track of where you are, your goals, and anything else about your journey.": "记录你玩到哪里、你的目标，以及这段旅程中的其他事情。",
   "Save note": "保存笔记",
   "Recorded sessions · {{count}}": "已记录的游玩 · {{count}}",
   "Date": "日期",
@@ -172,7 +171,6 @@
   "Mark finished": "标记为已完成",
   "Playthrough completion date": "周目完成日期",
   "Note": "笔记",
-  "Where did you stop? What do you want to do next?": "你停在哪里？接下来你想做什么？",
   "Saved": "已保存",
   "Unsaved changes": "未保存的更改",
   "Double-click to make active": "双击设为当前周目",
@@ -257,5 +255,7 @@
   "Added to {{shelf}}. It's hidden from All games now.": "已添加到 {{shelf}}。它现在已从所有游戏中隐藏。",
   "Undo": "撤销",
   "This is a sample: nothing was added to your library.": "这是示例：没有向你的游戏库添加任何内容。",
-  "Sample pictures. Nothing is searched or saved.": "示例图片。不会搜索或保存任何内容。"
+  "Sample pictures. Nothing is searched or saved.": "示例图片。不会搜索或保存任何内容。",
+  "Goals, plans and anything else for this playthrough. Where you stopped goes on the session.": "这个周目的目标、计划和其他内容。玩到哪里写在游玩记录上。",
+  "Goals, your build, things to remember": "目标、你的配装、需要记住的事"
 }

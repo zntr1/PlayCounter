@@ -139,7 +139,6 @@
   "Delete “{{name}}” and its note? Its sessions move back to Default playthrough. No playtime is lost.": "Delete “{{name}}” and its note? Its sessions move back to Default playthrough. No playtime is lost.",
   "Delete playthrough": "Delete playthrough",
   "Game notes": "Game notes",
-  "Keep track of where you are, your goals, and anything else about your journey.": "Keep track of where you are, your goals, and anything else about your journey.",
   "Save note": "Save note",
   "Recorded sessions · {{count}}": "Recorded sessions · {{count}}",
   "Date": "Date",
@@ -172,7 +171,6 @@
   "Mark finished": "Mark finished",
   "Playthrough completion date": "Playthrough completion date",
   "Note": "Note",
-  "Where did you stop? What do you want to do next?": "Where did you stop? What do you want to do next?",
   "Saved": "Saved",
   "Unsaved changes": "Unsaved changes",
   "Double-click to make active": "Double-click to make active",
@@ -258,5 +256,7 @@
   "Added to {{shelf}}. It's hidden from All games now.": "Added to {{shelf}}. It's hidden from All games now.",
   "Undo": "Undo",
   "This is a sample: nothing was added to your library.": "This is a sample: nothing was added to your library.",
-  "Sample pictures. Nothing is searched or saved.": "Sample pictures. Nothing is searched or saved."
+  "Sample pictures. Nothing is searched or saved.": "Sample pictures. Nothing is searched or saved.",
+  "Goals, plans and anything else for this playthrough. Where you stopped goes on the session.": "Goals, plans and anything else for this playthrough. Where you stopped goes on the session.",
+  "Goals, your build, things to remember": "Goals, your build, things to remember"
 }

@@ -501,7 +501,11 @@ it("shows the picked tier's letter as the Tier group's icon in the card menu, in
   await act(() => menuRow("Add to Favorites").focus());
   await act(() =>
     document.activeElement!.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "t", bubbles: true, cancelable: true }),
+      new KeyboardEvent("keydown", {
+        key: "t",
+        bubbles: true,
+        cancelable: true,
+      }),
     ),
   );
   expect(document.activeElement).toBe(menuRow("Tier"));
@@ -607,8 +611,9 @@ it("colours the cover's favourite star amber and each tier letter in its tier co
     ).toEqual([TIER_TONES[tier]]);
   }
   // Every other badge has at most one colour of its own as well.
-  const row = document.querySelector('[aria-label="Status: On hold"]')!
-    .parentElement!;
+  const row = document.querySelector(
+    '[aria-label="Status: On hold"]',
+  )!.parentElement!;
   for (const badge of row.children)
     expect(
       textColours(badge).length,
@@ -984,4 +989,16 @@ it("opens My History filtered to the game, as a chip rather than search text", a
   expect(state.historyGameKey).not.toBeNull();
   expect(state.historyGameName).toBe("Campaign");
   expect(state.historyQuery).toBe("");
+});
+
+it("asks the playthrough's note for what lasts and sends where you stopped to the session", async () => {
+  useAppStore.getState().openGameJournal({ game, tab: "note" });
+  await act(() => root.render(<GameJournalHost />));
+  const note = document.querySelector<HTMLTextAreaElement>("#journal-note")!;
+  expect(note.placeholder).toMatch(/goals/i);
+  expect(note.placeholder).not.toMatch(/where did you stop/i);
+  const heading = document.querySelector("#journal-note-heading")!;
+  expect(heading.nextElementSibling?.textContent).toMatch(
+    /where you stopped goes on the session/i,
+  );
 });

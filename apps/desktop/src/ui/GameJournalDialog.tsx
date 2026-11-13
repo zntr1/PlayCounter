@@ -702,7 +702,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </h4>
             <p className="mt-0.5 text-[13px] text-text-muted">
               {t(
-                "Keep track of where you are, your goals, and anything else about your journey.",
+                "Goals, plans and anything else for this playthrough. Where you stopped goes on the session.",
               )}
             </p>
             <textarea
@@ -715,9 +715,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onBlur={saveNote}
-              placeholder={t(
-                "Where did you stop? What do you want to do next?",
-              )}
+              placeholder={t("Goals, your build, things to remember")}
               className="mt-3 w-full resize-y rounded-xl border border-border bg-bg p-4 text-sm leading-relaxed text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
             />
             <div className="mt-2 flex items-center gap-3">

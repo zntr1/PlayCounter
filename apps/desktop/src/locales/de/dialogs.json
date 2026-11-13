@@ -139,7 +139,6 @@
   "Delete “{{name}}” and its note? Its sessions move back to Default playthrough. No playtime is lost.": "„{{name}}“ und seine Notiz löschen? Seine Sitzungen wandern zurück zum Standarddurchgang. Keine Spielzeit geht verloren.",
   "Delete playthrough": "Durchgang löschen",
   "Game notes": "Spielnotizen",
-  "Keep track of where you are, your goals, and anything else about your journey.": "Halte fest, wo du stehst, was deine Ziele sind und alles andere zu deiner Reise.",
   "Save note": "Notiz speichern",
   "Recorded sessions · {{count}}": "Erfasste Sitzungen · {{count}}",
   "Date": "Datum",
@@ -172,7 +171,6 @@
   "Mark finished": "Als abgeschlossen markieren",
   "Playthrough completion date": "Abschlussdatum des Durchgangs",
   "Note": "Notiz",
-  "Where did you stop? What do you want to do next?": "Wo hast du aufgehört? Was willst du als Nächstes tun?",
   "Saved": "Gespeichert",
   "Unsaved changes": "Ungespeicherte Änderungen",
   "Double-click to make active": "Doppelklick zum Aktivieren",
@@ -258,5 +256,7 @@
   "Added to {{shelf}}. It's hidden from All games now.": "Zu {{shelf}} hinzugefügt. Es ist jetzt in „Alle Spiele“ ausgeblendet.",
   "Undo": "Rückgängig",
   "This is a sample: nothing was added to your library.": "Das ist ein Beispiel: Deiner Bibliothek wurde nichts hinzugefügt.",
-  "Sample pictures. Nothing is searched or saved.": "Beispielbilder. Es wird nichts gesucht oder gespeichert."
+  "Sample pictures. Nothing is searched or saved.": "Beispielbilder. Es wird nichts gesucht oder gespeichert.",
+  "Goals, plans and anything else for this playthrough. Where you stopped goes on the session.": "Ziele, Pläne und alles andere für diesen Durchgang. Wo du aufgehört hast, kommt an die Sitzung.",
+  "Goals, your build, things to remember": "Ziele, dein Build, Dinge zum Merken"
 }
