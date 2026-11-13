@@ -300,7 +300,7 @@ export const productGuides = [
       {
         id: "sessions",
         title: "What a session measures",
-        html: "<p>A session records the time a matched game process is running. Menus, background windows and idle time can count. PlayCounter does not inspect your inputs to decide whether you are actively playing.</p><p>Leave the app running, including in the tray, to record sessions. Previously recognized games can use local matches when the matching service is unavailable; new lookups need a connection.</p>",
+        html: "<p>A session records the time a matched game process is running. Menus, background windows and idle time can count. PlayCounter does not inspect your inputs to decide whether you are actively playing. Stepping away? Pause the session on Now Playing or with a hotkey, and the time you are away doesn’t count.</p><p>Leave the app running, including in the tray, to record sessions. Previously recognized games can use local matches when the matching service is unavailable; new lookups need a connection.</p>",
         screenshot: "now",
       },
       {
