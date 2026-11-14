@@ -321,6 +321,8 @@ const STOREFRONTS: Record<LibraryProviderId, string | undefined> = {
   gog: "GOG",
   battlenet: "Battle.net",
   playstation: "PlayStation Store",
+  // Nintendo eShop or a cartridge: Nintendo doesn't say which.
+  nintendo: undefined,
   // Xbox Store, Microsoft Store or Xbox Game Pass.
   xbox: undefined,
 };

@@ -74,6 +74,7 @@ export type LibraryFilters = {
     | "epic"
     | "gog"
     | "playstation"
+    | "nintendo"
     | "unimported";
   status?: GameStatus | "none";
   tier?: GameTier | "none";

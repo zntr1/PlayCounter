@@ -8,6 +8,7 @@ import type { LibraryImportEntry } from "./types";
  */
 export const CONSOLE_PROVIDERS: ReadonlySet<LibraryProviderId> = new Set([
   "playstation",
+  "nintendo",
 ]);
 
 export type LauncherSide = {
@@ -29,7 +30,8 @@ export type ProviderFloor = {
   recordedSecondsAtRead?: number;
   /** When the latest read of this PC's launchers was taken. */
   readAtMs?: number;
-  /** PlayStation's total: console play, with its own snapshot. */
+  /** PlayStation's and Nintendo's total: console play, with its own
+   *  snapshot. */
   console?: LauncherSide;
   name: string;
   coverUrl: string;

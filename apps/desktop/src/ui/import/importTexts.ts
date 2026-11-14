@@ -30,6 +30,8 @@ export function launcherIdLabel(id: BuiltinImportProviderId) {
       return t("GOG ID");
     case "playstation":
       return t("Concept ID");
+    case "nintendo":
+      return t("Title ID");
   }
 }
 
@@ -54,6 +56,7 @@ export function launcherNote(id: BuiltinImportProviderId) {
     case "epic":
     case "gog":
     case "playstation":
+    case "nintendo":
       return t(
         "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.",
         { providerName },
@@ -67,9 +70,11 @@ export function launcherDetectingText(id: BuiltinImportProviderId) {
     ? t("Preparing the Xbox import…")
     : id === "playstation"
       ? t("Preparing the PlayStation import…")
-      : t("Looking for {{providerName}} on this PC…", {
-          providerName: launcherName(id),
-        });
+      : id === "nintendo"
+        ? t("Preparing the Nintendo import…")
+        : t("Looking for {{providerName}} on this PC…", {
+            providerName: launcherName(id),
+          });
 }
 
 /** Why the launcher can't be imported here. */
@@ -87,6 +92,7 @@ export function launcherMissingText(id: BuiltinImportProviderId) {
     case "epic":
     case "gog":
     case "playstation":
+    case "nintendo":
       return t("{{providerName}} import is available on Windows.", {
         providerName: launcherName(id),
       });

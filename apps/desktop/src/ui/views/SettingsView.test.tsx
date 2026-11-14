@@ -566,6 +566,7 @@ describe("one list for imported launcher data", () => {
       "Epic Games",
       "GOG",
       "PlayStation",
+      "Nintendo",
     ]);
     expect(rows[0].textContent).toContain("2 games");
     expect(rows[1].textContent).toContain("1 game");

@@ -73,7 +73,7 @@ export function sourceBadgesGuide(): TourDefinition {
         anchor: a("demo-launcher-examples"),
         title: t("Launcher and emulator badges"),
         body: t(
-          "In the app, a launcher badge sits beside a game's name: Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. An emulator badge like Dolphin shows how it ran. Neither means the game is installed.",
+          "In the app, a launcher badge sits beside a game's name: Steam, Xbox, Battle.net, Epic Games, GOG, PlayStation or Nintendo. An emulator badge like Dolphin shows how it ran. Neither means the game is installed.",
         ),
       },
     ],

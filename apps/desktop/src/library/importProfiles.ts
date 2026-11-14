@@ -53,11 +53,17 @@ export type ImportProfile = {
   /** Its missing playtime is explained once before the first scan. */
   playtimeNotice: boolean;
   /**
-   * Its games run on a console (PlayStation): the import links no PC file
-   * and installs nothing on this PC. A PC version's file is linked when it
-   * runs here, like any game's.
+   * Its games run on a console (PlayStation, Nintendo): the import links no
+   * PC file and installs nothing on this PC. A PC version's file is linked
+   * when it runs here, like any game's.
    */
   consoleOnly: boolean;
+  /**
+   * The server can look its IDs up. Nintendo's title ids are in no IGDB
+   * source, so its games are only searched by name
+   * (docs/nintendo-import-plan.md, D2).
+   */
+  serverLookup: boolean;
 };
 
 const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
@@ -74,6 +80,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: false,
     consoleOnly: false,
+    serverLookup: true,
   },
   xbox: {
     id: "xbox",
@@ -88,6 +95,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: true,
     playtimeNotice: false,
     consoleOnly: false,
+    serverLookup: true,
   },
   battlenet: {
     id: "battlenet",
@@ -102,6 +110,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: true,
     consoleOnly: false,
+    serverLookup: true,
   },
   epic: {
     id: "epic",
@@ -116,6 +125,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: false,
     consoleOnly: false,
+    serverLookup: true,
   },
   // GOG ids name the game, like Steam AppIDs, but GOG also gives the title,
   // so an id the server doesn't know can still be found by name.
@@ -132,6 +142,7 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: false,
     consoleOnly: false,
+    serverLookup: true,
   },
   // Sony's concept ids name the game; Sony also gives the title, so an id the
   // server doesn't know can still be found by name. Nothing is installed on
@@ -149,6 +160,24 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: false,
     consoleOnly: true,
+    serverLookup: true,
+  },
+  // Nintendo gives title ids IGDB doesn't know and the title: games are
+  // found by name only. Nothing is installed on this PC.
+  nintendo: {
+    id: "nintendo",
+    login: "nintendo",
+    choice: "account",
+    matchedBy: "name",
+    searchesTitles: true,
+    hasPlaytime: true,
+    accountAndInstalls: false,
+    linksFilesPerInstall: false,
+    copySignInLink: false,
+    mainGamesOnlySearch: false,
+    playtimeNotice: false,
+    consoleOnly: true,
+    serverLookup: false,
   },
 };
 

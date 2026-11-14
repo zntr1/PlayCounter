@@ -11,7 +11,8 @@ export type BuiltinImportProviderId =
   | "battlenet"
   | "epic"
   | "gog"
-  | "playstation";
+  | "playstation"
+  | "nintendo";
 
 export const DEFAULT_IMPORT_PROVIDER: BuiltinImportProviderId = "steam";
 
@@ -24,6 +25,7 @@ export function isBuiltinImportProvider(
     provider === "battlenet" ||
     provider === "epic" ||
     provider === "gog" ||
-    provider === "playstation"
+    provider === "playstation" ||
+    provider === "nintendo"
   );
 }

@@ -257,6 +257,7 @@ const BRANDS = new Set([
   "PS5",
   "PS4",
   "Sony",
+  "Nintendo",
   "IGDB",
   "Discord",
   "Spotify",
@@ -683,6 +684,9 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "PlayStation games are read from PlayCounter.",
   "PlayStation status is read from PlayCounter.",
   "PlayStation trophies are read from PlayCounter.",
+  "Nintendo sign-in must be cancelled from PlayCounter.",
+  "Nintendo games are read from PlayCounter.",
+  "Invalid Nintendo sign-in request.",
   // The PlayStation App's public client id, as psn-api sends it.
   "Basic MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A=",
   "Icon extraction failed: {error:?}",

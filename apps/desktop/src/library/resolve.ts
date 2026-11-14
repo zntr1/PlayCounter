@@ -7,6 +7,8 @@ import type {
 } from "@playcounter/shared";
 import type { ResolvedLibraryGame, ScannedLibraryGame } from "./types";
 import { getT } from "../i18n";
+import { importProfile } from "./importProfiles";
+import { isBuiltinImportProvider } from "./importProviders";
 
 const t = getT("import");
 
@@ -23,6 +25,12 @@ export async function resolveLibraryGames(
   signal?: AbortSignal,
   onRateLimitWait?: RateLimitWaitListener,
 ): Promise<LibraryResolveOutcome> {
+  // The server can't know these IDs: every game is found by its name.
+  if (
+    isBuiltinImportProvider(provider) &&
+    !importProfile(provider).serverLookup
+  )
+    return { capability: "supported", games: [] };
   const resolved: ResolvedLibraryGame[] = [];
   const offsets =
     games.length === 0

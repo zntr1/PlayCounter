@@ -102,7 +102,7 @@ export function importLibraryGuide(): TourDefinition {
         ...on("import-done-playtime"),
         title: t("Playtime totals come along"),
         body: t(
-          "Steam's totals are read on this PC. Xbox, Epic Games, GOG and PlayStation give theirs when you sign in. Battle.net has none. A total never turns into made-up sessions.",
+          "Steam's totals are read on this PC. Xbox, Epic Games, GOG, PlayStation and Nintendo give theirs when you sign in. Battle.net has none. A total never turns into made-up sessions.",
         ),
       },
       {

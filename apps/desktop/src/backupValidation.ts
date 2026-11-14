@@ -113,6 +113,7 @@ const provider = oneOf(
   "epic",
   "gog",
   "playstation",
+  "nintendo",
 );
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
@@ -523,6 +524,7 @@ const validateBackupShape: Validator = object(
                 "epic",
                 "gog",
                 "playstation",
+                "nintendo",
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),

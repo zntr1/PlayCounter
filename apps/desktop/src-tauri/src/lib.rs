@@ -555,6 +555,7 @@ pub fn run() {
         .manage(library::epic_account::EpicAccountState::default())
         .manage(library::gog_account::GogAccountState::default())
         .manage(library::playstation_account::PlayStationAccountState::default())
+        .manage(library::nintendo_account::NintendoAccountState::default())
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
@@ -572,6 +573,7 @@ pub fn run() {
                         && !label.starts_with("epic-sign-in-")
                         && !label.starts_with("gog-sign-in-")
                         && !label.starts_with("playstation-sign-in-")
+                        && !label.starts_with("nintendo-sign-in-")
                         && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
                         && label != quick_note::LABEL
                         && !label.starts_with(live_timer::LABEL_PREFIX)
@@ -677,6 +679,12 @@ pub fn run() {
             library::playstation_account::library_cancel_playstation_account,
             library::playstation_account::library_playstation_saved_games,
             library::playstation_account::library_playstation_presence,
+            library::nintendo_account::library_nintendo_account_games,
+            library::nintendo_account::library_nintendo_sign_in,
+            library::nintendo_account::library_nintendo_open_sign_in_link,
+            library::nintendo_account::library_nintendo_sign_in_with_link,
+            library::nintendo_account::library_nintendo_saved_games,
+            library::nintendo_account::library_cancel_nintendo_account,
             library::playstation_trophies::playstation_read_trophies,
             library::kept_logins::logins_list,
             library::kept_logins::logins_check,

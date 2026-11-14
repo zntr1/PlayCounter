@@ -59,5 +59,13 @@
   "Open the code page": "打开代码页面",
   "Copy everything on that page and paste it here.": "复制该页面上的全部内容并粘贴到这里。",
   "Sign-in code": "登录代码",
-  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "此代码的作用等同于你的密码。PlayCounter 会将其加密保存在这台电脑上，并且只发送给 Sony。"
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "此代码的作用等同于你的密码。PlayCounter 会将其加密保存在这台电脑上，并且只发送给 Sony。",
+  "Your Switch games and the playtime Nintendo recorded.": "你的 Switch 游戏以及 Nintendo 记录的游戏时长。",
+  "Sign in with a link": "使用链接登录",
+  "Sign in at Nintendo in your browser.": "在浏览器中登录 Nintendo。",
+  "Open Nintendo sign-in": "打开 Nintendo 登录",
+  "When Nintendo shows your account, right-click Select this person and copy the link.": "Nintendo 显示你的账户后，右键点击“选择此人”并复制链接。",
+  "Paste the link here.": "在此粘贴链接。",
+  "Sign-in link": "登录链接",
+  "The link signs you in like your password for ten minutes. PlayCounter only sends it to Nintendo.": "此链接在十分钟内的作用等同于你的密码。PlayCounter 只会将其发送给 Nintendo。"
 }

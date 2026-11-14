@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   scan: vi.fn(),
   connect: vi.fn(),
   connectWithCode: vi.fn(),
+  connectWithLink: vi.fn(),
+  openNintendoLink: vi.fn(),
   openImport: vi.fn(),
   logins: [] as { service: string; name: string | null; savedAt: number }[],
   steamAvailable: true,
@@ -32,6 +34,12 @@ vi.mock("../../library/playstationAccount", () => ({
   signInPlayStationAccount: (signal: AbortSignal) =>
     mocks.connect("playstation", { signal }),
   signInPlayStationWithCode: (code: string) => mocks.connectWithCode(code),
+}));
+vi.mock("../../library/nintendoAccount", () => ({
+  signInNintendoAccount: (signal: AbortSignal) =>
+    mocks.connect("nintendo", { signal }),
+  openNintendoSignInLink: () => mocks.openNintendoLink(),
+  signInNintendoWithLink: (link: string) => mocks.connectWithLink(link),
 }));
 vi.mock("../../library/providers/xbox", () => ({
   signInXboxAccount: (options: LibraryScanOptions) =>
@@ -174,10 +182,12 @@ it("shows all launchers with saved connection status and a local Steam account",
     { service: "battlenet", name: null, savedAt: 2 },
     { service: "gog", name: "zesarex", savedAt: 3 },
     { service: "playstation", name: "zesarex_ps", savedAt: 4 },
+    { service: "nintendo", name: "Phil", savedAt: 5 },
   ];
   await render();
-  expect(container.querySelectorAll("section")).toHaveLength(6);
+  expect(container.querySelectorAll("section")).toHaveLength(7);
   expect(card("playstation").textContent).toContain("Signed in as zesarex_ps");
+  expect(card("nintendo").textContent).toContain("Signed in as Phil");
   expect(card("epic").textContent).toContain("Signed in as Epic Player");
   expect(card("battlenet").textContent).toContain("Signed in");
   expect(card("gog").textContent).toContain("Signed in as zesarex");
@@ -254,6 +264,63 @@ it("offers the code sign-in as a visible choice and sends the pasted code", asyn
   await act(async () => submit.click());
   expect(mocks.connectWithCode).toHaveBeenCalledWith('{"npsso":"abc"}');
   expect(mocks.connect).not.toHaveBeenCalled();
+});
+
+// docs/nintendo-import-plan.md, D1 A: Nintendo's page in the sign-in window,
+// and "Sign in with a link" as a visible choice.
+it("signs in to Nintendo with Nintendo's own sign-in, never another launcher's", async () => {
+  mocks.connect.mockImplementation(async (service: string) => {
+    mocks.logins = [{ service, name: "Phil", savedAt: 1 }];
+  });
+  await render();
+  expect(card("nintendo").textContent).toContain("Not signed in");
+  expect(card("nintendo").textContent).toContain("Sign in with a link");
+  await act(() => button(card("nintendo"), "Sign in").click());
+  expect(mocks.connect).toHaveBeenCalledTimes(1);
+  expect(mocks.connect).toHaveBeenCalledWith(
+    "nintendo",
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
+  expect(card("nintendo").textContent).toContain("Signed in as Phil");
+  // Signed in: no link sign-in, no live switch, nothing to find on this PC.
+  expect(card("nintendo").textContent).not.toContain("Sign in with a link");
+  expect(card("nintendo").textContent).not.toContain("Live from");
+  await openMore("nintendo");
+  expect(menuItems().map((item) => item.textContent)).not.toContain(
+    "Find installed games",
+  );
+});
+
+it("offers the link sign-in: PlayCounter opens Nintendo's sign-in and sends the pasted link", async () => {
+  mocks.connectWithLink.mockImplementation(async () => {
+    mocks.logins = [{ service: "nintendo", name: "Phil", savedAt: 1 }];
+  });
+  mocks.openNintendoLink.mockResolvedValue(undefined);
+  await render();
+  await act(() => button(card("nintendo"), "Sign in with a link").click());
+  await act(() => button(card("nintendo"), "Open Nintendo sign-in").click());
+  expect(mocks.openNintendoLink).toHaveBeenCalledTimes(1);
+  const input = card("nintendo").querySelector<HTMLInputElement>(
+    'input[aria-label="Sign-in link"]',
+  )!;
+  expect(input.type).toBe("password");
+  const link =
+    "npf5c38e31cd085304b://auth#session_token_code=eyJ.abc.def&state=Xy_1&session_state=z";
+  await act(async () => {
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!;
+    setValue.call(input, link);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  const submit = [...card("nintendo").querySelectorAll("button")].find(
+    (item) => item.getAttribute("type") === "submit",
+  )!;
+  await act(async () => submit.click());
+  expect(mocks.connectWithLink).toHaveBeenCalledWith(link);
+  expect(mocks.connect).not.toHaveBeenCalled();
+  expect(mocks.connectWithCode).not.toHaveBeenCalled();
 });
 
 it("shows one button per card, amber only where something needs you", async () => {

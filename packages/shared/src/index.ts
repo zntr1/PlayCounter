@@ -70,7 +70,8 @@ export type LibraryProviderId =
   | "battlenet"
   | "epic"
   | "gog"
-  | "playstation";
+  | "playstation"
+  | "nintendo";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,

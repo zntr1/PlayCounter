@@ -710,7 +710,7 @@ const GROUPS: SettingsGroupDef[] = [
     title: () => t("Library import"),
     description: () =>
       t(
-        "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. Install paths and the game files linked to them always stay on this PC.",
+        "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG, PlayStation or Nintendo. Install paths and the game files linked to them always stay on this PC.",
       ),
     dataTour: "settings-library-import",
     guide: "watch-folders",
@@ -723,7 +723,7 @@ const GROUPS: SettingsGroupDef[] = [
             title: () => t("Add new games automatically"),
             description: () =>
               t(
-                "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
+                "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation or Nintendo Switch. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
               ),
             available: onWindows,
             Row: AutoAddGamesRow,

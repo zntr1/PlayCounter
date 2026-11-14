@@ -2463,6 +2463,7 @@ export function MyGamesView({
             <ProviderBadge provider="epic" />
             <ProviderBadge provider="gog" />
             <ProviderBadge provider="playstation" />
+            <ProviderBadge provider="nintendo" />
             <span className="text-text-muted">{t("Emulator")}</span>
             <EmulatorBadge emulatorId="dolphin" label="Dolphin" />
           </div>
