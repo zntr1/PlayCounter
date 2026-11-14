@@ -762,5 +762,22 @@
   "Sample cover picked. Nothing was saved to your library.": "Capa de exemplo escolhida. Nada foi salvo na sua biblioteca.",
   "Sample banner picked. Nothing was saved to your library.": "Banner de exemplo escolhido. Nada foi salvo na sua biblioteca.",
   "Sample cover restored. Nothing was saved to your library.": "Capa de exemplo restaurada. Nada foi salvo na sua biblioteca.",
-  "Sample banner restored. Nothing was saved to your library.": "Banner de exemplo restaurado. Nada foi salvo na sua biblioteca."
+  "Sample banner restored. Nothing was saved to your library.": "Banner de exemplo restaurado. Nada foi salvo na sua biblioteca.",
+  "Set tier": "Definir tier",
+  "Clear tier": "Remover tier",
+  "Add to shelf": "Adicionar à prateleira",
+  "Set tier for {{count}} selected games_one": "Definir o tier de {{count}} jogo selecionado",
+  "Set tier for {{count}} selected games_many": "Definir o tier de {{count}} jogos selecionados",
+  "Set tier for {{count}} selected games_other": "Definir o tier de {{count}} jogos selecionados",
+  "Add {{count}} selected games to a shelf_one": "Adicionar {{count}} jogo selecionado a uma prateleira",
+  "Add {{count}} selected games to a shelf_many": "Adicionar {{count}} jogos selecionados a uma prateleira",
+  "Add {{count}} selected games to a shelf_other": "Adicionar {{count}} jogos selecionados a uma prateleira",
+  "Tier {{tier}} set for {{count}} games_one": "Tier {{tier}} definido para {{count}} jogo",
+  "Tier {{tier}} set for {{count}} games_many": "Tier {{tier}} definido para {{count}} jogos",
+  "Tier {{tier}} set for {{count}} games_other": "Tier {{tier}} definido para {{count}} jogos",
+  "Tier cleared for {{count}} games_one": "Tier removido de {{count}} jogo",
+  "Tier cleared for {{count}} games_many": "Tier removido de {{count}} jogos",
+  "Tier cleared for {{count}} games_other": "Tier removido de {{count}} jogos",
+  "Selected games already have tier {{tier}}": "Os jogos selecionados já têm o tier {{tier}}",
+  "Selected games already have no tier": "Os jogos selecionados já não têm tier"
 }

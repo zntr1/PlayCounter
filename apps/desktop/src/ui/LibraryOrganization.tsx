@@ -61,6 +61,7 @@ import { GameStatusIcon } from "./GameStatusIcon";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
 import { putGameOnShelf } from "./putGameOnShelf";
+import { assignShelf } from "./libraryGameDrag";
 import { emitTourEvent } from "./tour/TourUI";
 import { appLocale, getT } from "../i18n";
 import { cn } from "./cn";
@@ -506,17 +507,17 @@ export function LibraryOrganizationToolbar({
       typeof value === "object" && value ? (value.hiddenIn ?? []) : [],
     );
   }
-  // New shelf in a game's card menu: this dialog, and Save shelf puts the
-  // game on the shelf.
+  // New shelf in a game's card menu or the selection bar: this dialog, and
+  // Save shelf puts the games on the shelf.
   const libraryApi = usePersonalLibraryApi();
-  const shelfGame = usePersonalLibraryState((s) => s.newShelfGame);
+  const shelfRequest = usePersonalLibraryState((s) => s.newShelfRequest);
   const openNewShelf = usePersonalLibraryState((s) => s.openNewShelf);
   useEffect(() => {
-    if (shelfGame) edit("new");
-  }, [shelfGame]);
+    if (shelfRequest) edit("new");
+  }, [shelfRequest]);
   function closeEditor() {
     setEditor(null);
-    if (shelfGame) openNewShelf(null);
+    if (shelfRequest) openNewShelf(null);
   }
   function setFilter(key: keyof LibraryFilters, value: unknown) {
     const next = { ...filters, [key]: value };
@@ -1190,9 +1191,18 @@ export function LibraryOrganizationToolbar({
               });
               if (id) {
                 if (typeof editor !== "object") {
-                  if (shelfGame) {
+                  if (shelfRequest?.onSaved) {
+                    // The selection bar: the same toast as a shelf pick there.
+                    assignShelf(
+                      shelfRequest.games,
+                      id,
+                      libraryApi.getState(),
+                      libraryApi.getState,
+                    );
+                    shelfRequest.onSaved();
+                  } else if (shelfRequest) {
                     // The open list stays: the player was sorting a game.
-                    putGameOnShelf(libraryApi, shelfGame, id);
+                    putGameOnShelf(libraryApi, shelfRequest.games[0], id);
                   } else {
                     onExpandedChange(false);
                     onSelect(id);

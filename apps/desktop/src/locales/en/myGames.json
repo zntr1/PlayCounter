@@ -733,5 +733,18 @@
   "Sample cover picked. Nothing was saved to your library.": "Sample cover picked. Nothing was saved to your library.",
   "Sample banner picked. Nothing was saved to your library.": "Sample banner picked. Nothing was saved to your library.",
   "Sample cover restored. Nothing was saved to your library.": "Sample cover restored. Nothing was saved to your library.",
-  "Sample banner restored. Nothing was saved to your library.": "Sample banner restored. Nothing was saved to your library."
+  "Sample banner restored. Nothing was saved to your library.": "Sample banner restored. Nothing was saved to your library.",
+  "Set tier": "Set tier",
+  "Clear tier": "Clear tier",
+  "Add to shelf": "Add to shelf",
+  "Set tier for {{count}} selected games_one": "Set tier for {{count}} selected game",
+  "Set tier for {{count}} selected games_other": "Set tier for {{count}} selected games",
+  "Add {{count}} selected games to a shelf_one": "Add {{count}} selected game to a shelf",
+  "Add {{count}} selected games to a shelf_other": "Add {{count}} selected games to a shelf",
+  "Tier {{tier}} set for {{count}} games_one": "Tier {{tier}} set for {{count}} game",
+  "Tier {{tier}} set for {{count}} games_other": "Tier {{tier}} set for {{count}} games",
+  "Tier cleared for {{count}} games_one": "Tier cleared for {{count}} game",
+  "Tier cleared for {{count}} games_other": "Tier cleared for {{count}} games",
+  "Selected games already have tier {{tier}}": "Selected games already have tier {{tier}}",
+  "Selected games already have no tier": "Selected games already have no tier"
 }

@@ -2971,6 +2971,9 @@ export function MyGamesView({
                 onClear={bulkSelection.clear}
                 onDone={bulkSelection.finish}
                 onStatus={bulkSelection.applyStatus}
+                onTier={bulkSelection.applyTier}
+                onShelf={bulkSelection.applyShelf}
+                onNewShelf={bulkSelection.newShelf}
                 moveToPlayCounterCount={selectedLauncherGames.length}
                 onMoveToPlayCounter={() =>
                   setPendingBulkMove({
@@ -3847,7 +3850,7 @@ export function GameLibraryCard({
   useEffect(
     () =>
       sampleLibrary?.subscribe((state) => {
-        if (!state.newShelfGame) return;
+        if (!state.newShelfRequest) return;
         state.openNewShelf(null);
         answerNewShelf.current();
       }),

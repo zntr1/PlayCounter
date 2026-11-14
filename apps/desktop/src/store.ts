@@ -466,6 +466,11 @@ export type AppState = {
   ) => void;
   /** Null clears the tier. */
   setGameTier: (game: GameIdentityRef, tier: GameTier | null) => void;
+  /** Null clears the tier. Returns how many games changed. */
+  setGameTiers: (
+    games: readonly GameIdentityRef[],
+    tier: GameTier | null,
+  ) => number;
   addGamesToShelf: (
     games: readonly GameIdentityRef[],
     shelfId: string,
@@ -514,10 +519,11 @@ export type AppState = {
     shelf: Omit<PersonalShelf, "id"> & { id?: string },
   ) => string | null;
   deletePersonalShelf: (id: string) => void;
-  /** The game whose card menu asked for a new shelf: the New shelf dialog
-   *  opens, and Save shelf puts this game on the shelf. Not persisted. */
-  newShelfGame: GameIdentityRef | null;
-  openNewShelf: (game: GameIdentityRef | null) => void;
+  /** The games a card menu or the selection bar asked a new shelf for: the
+   *  New shelf dialog opens, and Save shelf puts them on the shelf, then
+   *  calls onSaved. Not persisted. */
+  newShelfRequest: NewShelfRequest | null;
+  openNewShelf: (request: NewShelfRequest | null) => void;
   activeView: ViewId;
   libraryTab: LibraryTabId;
   libraryImportProvider: BuiltinImportProviderId;
@@ -1015,7 +1021,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedPlaythroughSeconds: {},
   archivedCounts: {},
   journalTarget: null,
-  newShelfGame: null,
+  newShelfRequest: null,
   ...createPersonalLibraryActions(set, get, persistSoon),
   activeView: "now",
   libraryTab: "all",
@@ -2490,6 +2496,13 @@ export type GameIdentityRef = {
   igdbId?: number;
   gameName?: string;
   coverUrl?: string;
+};
+
+/** One game from its card menu, or the selected games from the selection
+ *  bar, which ends the selection in onSaved. */
+export type NewShelfRequest = {
+  games: readonly GameIdentityRef[];
+  onSaved?: () => void;
 };
 
 export type GameIdentityResolver = (

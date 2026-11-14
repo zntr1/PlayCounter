@@ -31,7 +31,7 @@ export function createLibraryTourStore(
     archivedConsoleSeconds: {},
     playtimeAdjustments: {},
     journalTarget: null,
-    newShelfGame: null,
+    newShelfRequest: null,
     gameMetadata: new Map(),
     exeCache: new Map(),
     libraryImports: new Map(),

@@ -762,5 +762,22 @@
   "Sample cover picked. Nothing was saved to your library.": "Jaquette d'exemple choisie. Rien n'a été enregistré dans votre bibliothèque.",
   "Sample banner picked. Nothing was saved to your library.": "Bannière d'exemple choisie. Rien n'a été enregistré dans votre bibliothèque.",
   "Sample cover restored. Nothing was saved to your library.": "Jaquette d'exemple restaurée. Rien n'a été enregistré dans votre bibliothèque.",
-  "Sample banner restored. Nothing was saved to your library.": "Bannière d'exemple restaurée. Rien n'a été enregistré dans votre bibliothèque."
+  "Sample banner restored. Nothing was saved to your library.": "Bannière d'exemple restaurée. Rien n'a été enregistré dans votre bibliothèque.",
+  "Set tier": "Attribuer un tier",
+  "Clear tier": "Retirer le tier",
+  "Add to shelf": "Ajouter à une étagère",
+  "Set tier for {{count}} selected games_one": "Attribuer un tier à {{count}} jeu sélectionné",
+  "Set tier for {{count}} selected games_many": "Attribuer un tier aux {{count}} jeux sélectionnés",
+  "Set tier for {{count}} selected games_other": "Attribuer un tier aux {{count}} jeux sélectionnés",
+  "Add {{count}} selected games to a shelf_one": "Ajouter {{count}} jeu sélectionné à une étagère",
+  "Add {{count}} selected games to a shelf_many": "Ajouter {{count}} jeux sélectionnés à une étagère",
+  "Add {{count}} selected games to a shelf_other": "Ajouter {{count}} jeux sélectionnés à une étagère",
+  "Tier {{tier}} set for {{count}} games_one": "Tier {{tier}} attribué à {{count}} jeu",
+  "Tier {{tier}} set for {{count}} games_many": "Tier {{tier}} attribué à {{count}} jeux",
+  "Tier {{tier}} set for {{count}} games_other": "Tier {{tier}} attribué à {{count}} jeux",
+  "Tier cleared for {{count}} games_one": "Tier retiré pour {{count}} jeu",
+  "Tier cleared for {{count}} games_many": "Tier retiré pour {{count}} jeux",
+  "Tier cleared for {{count}} games_other": "Tier retiré pour {{count}} jeux",
+  "Selected games already have tier {{tier}}": "Les jeux sélectionnés ont déjà le tier {{tier}}",
+  "Selected games already have no tier": "Les jeux sélectionnés n'ont déjà aucun tier"
 }

@@ -28,6 +28,7 @@ import {
   normalizeHiddenIn,
   normalizeLibraryFilters,
   updateJournalStatuses,
+  updateJournalTiers,
   writeJournal,
 } from "./personalLibrary";
 
@@ -36,6 +37,7 @@ export type PersonalLibraryActions = Pick<
   | "openGameJournal"
   | "updateGameJournal"
   | "setGameTier"
+  | "setGameTiers"
   | "addGamesToShelf"
   | "setGameStatuses"
   | "undoGameStatuses"
@@ -63,7 +65,7 @@ export type PersonalLibraryState = PersonalLibraryActions &
     | "archivedPlaythroughSeconds"
     | "archivedCounts"
     | "journalTarget"
-    | "newShelfGame"
+    | "newShelfRequest"
     | "recentSessions"
     | "activeSessions"
     | "gameMetadata"
@@ -134,6 +136,20 @@ export function createPersonalLibraryActions(
         ),
       });
       persistSoon();
+    },
+    setGameTiers: (games, tier) => {
+      const state = get();
+      const result = updateJournalTiers(
+        state.gameJournals,
+        games,
+        tier,
+        personalGameIdentity(state),
+      );
+      if (result.journals !== state.gameJournals) {
+        set({ gameJournals: result.journals });
+        persistSoon();
+      }
+      return result.changed;
     },
     addGamesToShelf: (games, shelfId) => {
       const state = get();
@@ -557,6 +573,6 @@ export function createPersonalLibraryActions(
       });
       persistSoon();
     },
-    openNewShelf: (newShelfGame) => set({ newShelfGame }),
+    openNewShelf: (newShelfRequest) => set({ newShelfRequest }),
   };
 }

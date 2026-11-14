@@ -733,5 +733,18 @@
   "Sample cover picked. Nothing was saved to your library.": "Beispiel-Cover gewählt. In deiner Bibliothek wurde nichts gespeichert.",
   "Sample banner picked. Nothing was saved to your library.": "Beispiel-Banner gewählt. In deiner Bibliothek wurde nichts gespeichert.",
   "Sample cover restored. Nothing was saved to your library.": "Beispiel-Cover zurückgesetzt. In deiner Bibliothek wurde nichts gespeichert.",
-  "Sample banner restored. Nothing was saved to your library.": "Beispiel-Banner zurückgesetzt. In deiner Bibliothek wurde nichts gespeichert."
+  "Sample banner restored. Nothing was saved to your library.": "Beispiel-Banner zurückgesetzt. In deiner Bibliothek wurde nichts gespeichert.",
+  "Set tier": "Tier vergeben",
+  "Clear tier": "Tier entfernen",
+  "Add to shelf": "Zu Regal hinzufügen",
+  "Set tier for {{count}} selected games_one": "Tier für {{count}} ausgewähltes Spiel vergeben",
+  "Set tier for {{count}} selected games_other": "Tier für {{count}} ausgewählte Spiele vergeben",
+  "Add {{count}} selected games to a shelf_one": "{{count}} ausgewähltes Spiel zu einem Regal hinzufügen",
+  "Add {{count}} selected games to a shelf_other": "{{count}} ausgewählte Spiele zu einem Regal hinzufügen",
+  "Tier {{tier}} set for {{count}} games_one": "Tier {{tier}} für {{count}} Spiel vergeben",
+  "Tier {{tier}} set for {{count}} games_other": "Tier {{tier}} für {{count}} Spiele vergeben",
+  "Tier cleared for {{count}} games_one": "Tier für {{count}} Spiel entfernt",
+  "Tier cleared for {{count}} games_other": "Tier für {{count}} Spiele entfernt",
+  "Selected games already have tier {{tier}}": "Die ausgewählten Spiele haben schon Tier {{tier}}",
+  "Selected games already have no tier": "Die ausgewählten Spiele haben schon kein Tier"
 }

@@ -704,5 +704,14 @@
   "Sample cover picked. Nothing was saved to your library.": "示例封面已选择。没有向你的游戏库保存任何内容。",
   "Sample banner picked. Nothing was saved to your library.": "示例横幅已选择。没有向你的游戏库保存任何内容。",
   "Sample cover restored. Nothing was saved to your library.": "示例封面已恢复。没有向你的游戏库保存任何内容。",
-  "Sample banner restored. Nothing was saved to your library.": "示例横幅已恢复。没有向你的游戏库保存任何内容。"
+  "Sample banner restored. Nothing was saved to your library.": "示例横幅已恢复。没有向你的游戏库保存任何内容。",
+  "Set tier": "设置评级",
+  "Clear tier": "清除评级",
+  "Add to shelf": "添加到分类架",
+  "Set tier for {{count}} selected games_other": "设置 {{count}} 个所选游戏的评级",
+  "Add {{count}} selected games to a shelf_other": "将 {{count}} 个所选游戏添加到分类架",
+  "Tier {{tier}} set for {{count}} games_other": "已将 {{count}} 个游戏的评级设为 {{tier}}",
+  "Tier cleared for {{count}} games_other": "已清除 {{count}} 个游戏的评级",
+  "Selected games already have tier {{tier}}": "所选游戏的评级已是 {{tier}}",
+  "Selected games already have no tier": "所选游戏已经没有评级"
 }
