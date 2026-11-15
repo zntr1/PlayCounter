@@ -1,5 +1,80 @@
 [
   {
+    "version": "1.7.1",
+    "headline": "Games that run Sherlock.exe now count as separate games.",
+    "highlights": [
+      {
+        "title": "Fixes",
+        "text": "Each game that runs Sherlock.exe gets its own playtime, told apart by its folder."
+      }
+    ],
+    "translations": {
+      "de": {
+        "headline": "Spiele mit Sherlock.exe zählen jetzt als eigene Spiele.",
+        "highlights": [
+          {
+            "title": "Behoben",
+            "text": "Jedes Spiel mit Sherlock.exe bekommt anhand seines Ordners eine eigene Spielzeit."
+          }
+        ]
+      },
+      "es": {
+        "headline": "Los juegos con Sherlock.exe ahora cuentan como juegos distintos.",
+        "highlights": [
+          {
+            "title": "Correcciones",
+            "text": "Cada juego con Sherlock.exe tiene su propio tiempo de juego, según su carpeta."
+          }
+        ]
+      },
+      "fr": {
+        "headline": "Les jeux avec Sherlock.exe comptent désormais comme des jeux distincts.",
+        "highlights": [
+          {
+            "title": "Corrections",
+            "text": "Chaque jeu avec Sherlock.exe a son propre temps de jeu, selon son dossier."
+          }
+        ]
+      },
+      "pl": {
+        "headline": "Gry z plikiem Sherlock.exe liczą się teraz jako osobne gry.",
+        "highlights": [
+          {
+            "title": "Poprawki",
+            "text": "Każda gra z plikiem Sherlock.exe ma własny czas gry według swojego folderu."
+          }
+        ]
+      },
+      "pt-BR": {
+        "headline": "Jogos com Sherlock.exe agora contam como jogos separados.",
+        "highlights": [
+          {
+            "title": "Correções",
+            "text": "Cada jogo com Sherlock.exe tem seu próprio tempo de jogo, pela pasta."
+          }
+        ]
+      },
+      "ru": {
+        "headline": "Игры с Sherlock.exe теперь считаются разными играми.",
+        "highlights": [
+          {
+            "title": "Исправления",
+            "text": "Каждая игра с Sherlock.exe получает своё время в игре по своей папке."
+          }
+        ]
+      },
+      "zh-CN": {
+        "headline": "使用 Sherlock.exe 的游戏现在算作不同的游戏。",
+        "highlights": [
+          {
+            "title": "修复",
+            "text": "每个使用 Sherlock.exe 的游戏按文件夹拥有各自的游戏时长。"
+          }
+        ]
+      }
+    }
+  },
+  {
     "version": "1.7.0",
     "headline": "Take screenshots of your games, count deaths and bosses, pause a session, and learn every feature with new guides.",
     "highlights": [
