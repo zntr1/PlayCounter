@@ -263,6 +263,7 @@ export function ActiveGameHero({
             alt=""
             loading="eager"
             highRes
+            large
             className="aspect-[3/4] w-full rounded-xl bg-surface-hover object-cover shadow-card-hover ring-1 ring-white/10"
           />
         ) : (

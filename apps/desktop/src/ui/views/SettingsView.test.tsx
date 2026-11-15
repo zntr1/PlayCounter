@@ -472,12 +472,32 @@ describe("visible choices", () => {
     expect(buttonByText("Light").getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("has Sharper covers under Appearance, because it changes covers everywhere", async () => {
+  it("picks the cover quality from four buttons; Standard is the default", async () => {
     await renderSettings("appearance");
-    const sharper = byLabel<HTMLInputElement>("Sharper covers");
-    expect(sharper.checked).toBe(false);
-    await click(sharper);
-    expect(useAppStore.getState().settings.libraryHighResCovers).toBe(true);
+    const quality = byLabel("Cover quality");
+    expect(
+      [...quality.querySelectorAll("button")].map((item) => item.textContent),
+    ).toEqual(["Standard", "Sharp", "Sharpest", "Original"]);
+    expect(
+      buttonByText("Standard", quality).getAttribute("aria-pressed"),
+    ).toBe("true");
+    await click(buttonByText("Sharpest", quality));
+    expect(useAppStore.getState().settings.coverQuality).toBe("sharpest");
+    expect(
+      buttonByText("Sharpest", quality).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("shows Sharp to someone who had Sharper covers on", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, libraryHighResCovers: true },
+    }));
+    await renderSettings("appearance");
+    expect(
+      buttonByText("Sharp", byLabel("Cover quality")).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
   });
 
   it("offers eight ready accent colors; amber is the default", async () => {

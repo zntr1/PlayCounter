@@ -1,9 +1,9 @@
 import { useEffect, useState, type ImgHTMLAttributes } from "react";
-import { upgradeCoverUrl } from "../coverArt";
+import { coverQualityOf, upgradeCoverUrl } from "../coverArt";
 import { markCoverUnavailable } from "../pickedCovers";
 import { useAppStore } from "../store";
 
-/* A cover <img> that honours the "sharper covers" setting.
+/* A cover <img> that honours the "Cover quality" setting.
 
    The upgraded size is a different file on IGDB's CDN, and nothing guarantees
    every cover has one. A URL that fails once is remembered here for the app's
@@ -14,17 +14,24 @@ const failedUpgrades = new Set<string>();
 
 export function GameCover({
   src,
+  large,
   highRes,
   ...rest
 }: {
   src: string;
-  /** Force the larger size regardless of the setting (details view). */
+  /** Shown big (library cards, heroes, details): may load Sharpest and
+   *  Original. Every other cover stops at Sharp, which is already twice what
+   *  a small cover shows, so a new small spot stays cheap on its own. */
+  large?: boolean;
+  /** At least Sharp, whatever the setting says (details view). */
   highRes?: boolean;
 } & Omit<ImgHTMLAttributes<HTMLImageElement>, "src">) {
-  const setting = useAppStore(
-    (state) => state.settings.libraryHighResCovers === true,
-  );
-  const wanted = highRes ?? setting;
+  const setting = useAppStore((state) => coverQualityOf(state.settings));
+  const capped =
+    !large && (setting === "sharpest" || setting === "original")
+      ? "sharp"
+      : setting;
+  const wanted = highRes && capped === "standard" ? "sharp" : capped;
   const upgraded = upgradeCoverUrl(src, wanted);
   const [fallback, setFallback] = useState(() => failedUpgrades.has(upgraded));
 

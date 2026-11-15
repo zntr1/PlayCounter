@@ -358,6 +358,7 @@ function ImportCard({
           <GameCover
             src={left}
             alt=""
+            large
             draggable={false}
             className="new-row-fan new-row-fan-left"
           />
@@ -366,6 +367,7 @@ function ImportCard({
           <GameCover
             src={right}
             alt=""
+            large
             draggable={false}
             className="new-row-fan new-row-fan-right"
           />
@@ -374,6 +376,7 @@ function ImportCard({
           <GameCover
             src={front}
             alt=""
+            large
             draggable={false}
             className="new-row-fan new-row-fan-front"
           />

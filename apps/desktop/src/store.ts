@@ -2,6 +2,7 @@ import { createPersonalLibraryActions } from "./personalLibraryStore";
 import type {
   ContributionCounts,
   ContributionStatus,
+  CoverQuality,
   DesktopViewId,
   EmulatorLaunchContext,
   FeedbackReply,
@@ -754,7 +755,7 @@ export type AppState = {
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
   setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
-  setMyGamesHighResCovers: (enabled: boolean) => void;
+  setCoverQuality: (quality: CoverQuality) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
   setMyGamesShowProviderTabs: (enabled: boolean) => void;
@@ -2053,9 +2054,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     persistSoon();
   },
-  setMyGamesHighResCovers: (libraryHighResCovers) => {
+  setCoverQuality: (coverQuality) => {
     set((state) => ({
-      settings: { ...state.settings, libraryHighResCovers },
+      settings: { ...state.settings, coverQuality },
     }));
     persistSoon();
   },

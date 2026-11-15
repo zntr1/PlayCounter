@@ -370,6 +370,7 @@ const settings = object({}, {
   libraryShowTierBadges: boolean,
   libraryShowTrackingWarnings: boolean,
   libraryHighResCovers: boolean,
+  coverQuality: oneOf("standard", "sharp", "sharpest", "original"),
   libraryShowStatCards: boolean,
   libraryShowShelves: boolean,
   libraryShowProviderTabs: boolean,

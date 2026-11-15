@@ -40,11 +40,11 @@ import {
   AdultArtRow,
   ClockFormatRow,
   ContentSizeRow,
+  CoverQualityRow,
   FormatRegionRow,
   LanguageRow,
   LaunchOnStartupRow,
   MenuSizeRow,
-  SharperCoversRow,
   ShowDaysRow,
   StartPageRow,
   ThemeRow,
@@ -326,11 +326,19 @@ const GROUPS: SettingsGroupDef[] = [
             Row: MenuSizeRow,
           },
           {
-            id: "libraryHighResCovers",
-            title: () => t("Sharper covers"),
+            id: "coverQuality",
+            title: () => t("Cover quality"),
             description: () =>
-              t("Larger cover art. Looks better on big cards, uses more data."),
-            Row: SharperCoversRow,
+              t(
+                "Sharper covers look better on big cards, but use more data and memory. Original loads each cover as it was uploaded, up to several MB.",
+              ),
+            keywords: () => [
+              t("Standard"),
+              t("Sharp"),
+              t("Sharpest"),
+              t("Original"),
+            ],
+            Row: CoverQualityRow,
           },
           {
             id: "showAdultArt",

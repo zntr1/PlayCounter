@@ -613,6 +613,7 @@ export function GameDetailsDialog({
             <GameCover
               src={coverUrl}
               highRes
+              large
               alt=""
               className="aspect-[3/4] w-full rounded-lg object-cover shadow-card-hover ring-1 ring-white/10"
             />

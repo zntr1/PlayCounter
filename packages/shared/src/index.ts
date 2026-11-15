@@ -644,6 +644,10 @@ export interface InstallPresencePayload {
 
 export type Theme = "dark" | "light";
 
+/** IGDB cover size: Standard 264 wide, Sharp 528, Sharpest 1080 tall,
+ *  Original as uploaded. */
+export type CoverQuality = "standard" | "sharp" | "sharpest" | "original";
+
 /** Summary cards a My Games tab can show above the grid. */
 export type LibraryStatCardId =
   | "games"
@@ -759,8 +763,11 @@ export interface Settings {
   libraryShowTierBadges?: boolean;
   /** Warn on covers of games with no known .exe yet. Absent = enabled. */
   libraryShowTrackingWarnings?: boolean;
-  /** Request IGDB cover art one size up. Absent = off, the smaller default. */
+  /** Request IGDB cover art one size up. Absent = off, the smaller default.
+   *  Replaced by coverQuality; still read while coverQuality is absent. */
   libraryHighResCovers?: boolean;
+  /** How large IGDB covers load. Absent = from libraryHighResCovers. */
+  coverQuality?: CoverQuality;
   /** My Games summary cards. Absent = the default set. Empty = all off. */
   libraryStatCards?: LibraryStatCardId[];
   /** Master switch for the My Games summary row. */

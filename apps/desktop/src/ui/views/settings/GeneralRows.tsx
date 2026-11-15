@@ -1,5 +1,6 @@
 import { AlertTriangle, Moon, Sun } from "lucide-react";
 import { disable, enable } from "@tauri-apps/plugin-autostart";
+import { coverQualityOf } from "../../../coverArt";
 import {
   APP_LANGUAGES,
   LANGUAGE_NAMES,
@@ -503,28 +504,30 @@ export function MenuSizeRow({ level, disabled }: SettingsRowProps) {
   );
 }
 
-export function SharperCoversRow({ level, disabled }: SettingsRowProps) {
-  const checked = useAppStore(
-    (state) => state.settings.libraryHighResCovers === true,
-  );
-  const setMyGamesHighResCovers = useAppStore(
-    (state) => state.setMyGamesHighResCovers,
-  );
+export function CoverQualityRow({ level, disabled }: SettingsRowProps) {
+  const quality = useAppStore((state) => coverQualityOf(state.settings));
+  const setCoverQuality = useAppStore((state) => state.setCoverQuality);
   return (
     <SettingsRow
-      id="libraryHighResCovers"
+      id="coverQuality"
       level={level}
       disabled={disabled}
-      title={t("Sharper covers")}
+      title={t("Cover quality")}
       description={t(
-        "Larger cover art. Looks better on big cards, uses more data.",
+        "Sharper covers look better on big cards, but use more data and memory. Original loads each cover as it was uploaded, up to several MB.",
       )}
       control={
-        <Switch
-          aria-label={t("Sharper covers")}
-          checked={checked}
+        <Segmented
+          label={t("Cover quality")}
+          value={quality}
           disabled={disabled}
-          onChange={(event) => setMyGamesHighResCovers(event.target.checked)}
+          options={[
+            { value: "standard", label: t("Standard"), isDefault: true },
+            { value: "sharp", label: t("Sharp") },
+            { value: "sharpest", label: t("Sharpest") },
+            { value: "original", label: t("Original") },
+          ]}
+          onChange={setCoverQuality}
         />
       }
     />
