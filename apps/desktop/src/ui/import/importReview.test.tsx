@@ -1133,6 +1133,69 @@ describe("updates of games already in My Games", () => {
   });
 });
 
+// docs/remove-account-hours-plan.md, "The next import": a game counts as
+// Already in My Games only for an account its entry holds. Age of Empires IV
+// after Kid was removed in Details holds Phil's hours only.
+describe("a game in My Games that doesn't have the scan's account", () => {
+  const H = 3_600;
+  const PHIL = { key: "a".repeat(32), name: "Dreamfire" };
+  const KID = { key: "b".repeat(32), name: "Kid" };
+  const aoe4 = metadata(119_284, "Age of Empires IV");
+  const philsOnly = inMyGames("xbox", "1848392557", aoe4, {
+    providerSeconds: 200 * H,
+    linkedExeNames: ["RelicCardinal.exe"],
+    accounts: [
+      { ...PHIL, seconds: 200 * H, readAt: "2026-10-01T12:00:00.000Z" },
+    ],
+  });
+  /** Installed, with no file the server knows: a new game would need you
+   *  for its file. */
+  const aoe4Read = (hours: number) =>
+    game("1848392557", "Age of Empires IV", {
+      playtimeSeconds: hours * H,
+      installed: true,
+      installPath: "C:\\XboxGames\\Age of Empires IV\\Content",
+      executables: [exe("Launcher.exe"), exe("Other.exe")],
+    });
+  const library = (hours: number, account?: typeof KID) => ({
+    games: [aoe4Read(hours)],
+    resolvedGames: [matched("xbox:1848392557", aoe4)],
+    ...(account ? { account } : {}),
+  });
+
+  it("is ready to import and checked, never Needs you for its file, and imports as new", async () => {
+    await scan("xbox", library(35, KID), [philsOnly]);
+    expect(counts()).toMatchObject({ ready: 1, attention: 0, imported: 0 });
+    expect(shelf("ready").open).toBe(true);
+    expect(listed()).toEqual(["Age of Empires IV"]);
+    expect(checkbox("Age of Empires IV")?.checked).toBe(true);
+    expect(container.textContent).toContain("1 new");
+    expect(container.textContent).not.toContain("Wrong game?");
+
+    await click("Import 1 game");
+    expect(
+      mocks.run.mock.calls[0][0].map(
+        ({ entry }: { entry: LibraryImportEntry }) => entry.name,
+      ),
+    ).toEqual(["Age of Empires IV"]);
+    expect(container.querySelector("h2")?.textContent).toBe(
+      "1 game imported from Xbox",
+    );
+  });
+
+  it.each([
+    ["the account it has", PHIL, philsOnly],
+    ["a scan that names no account", undefined, philsOnly],
+    ["a game from before accounts", KID, { ...philsOnly, accounts: undefined }],
+  ])(
+    "stays under Already in My Games for %s",
+    async (_case, account, saved) => {
+      await scan("xbox", library(200, account), [saved]);
+      expect(counts()).toMatchObject({ ready: 0, attention: 0, imported: 1 });
+    },
+  );
+});
+
 it("counts what the import brought and what still needs you", async () => {
   const doom = metadata(7_351, "DOOM");
   await scan(
@@ -2149,12 +2212,33 @@ describe("launcher accounts", () => {
     });
   });
 
+  // docs/remove-account-hours-plan.md, Q3 (Phil, 2026-11-15): a game in My
+  // Games without the scan's account is ready to import for it.
+  it("another account's game already in My Games is ready to import, checked, and adds that account", async () => {
+    await scan(
+      "steam",
+      {
+        games: [steamEldenRing(20)],
+        resolvedGames: [matched("steam:1245620", eldenRing)],
+        account: KID,
+      },
+      [
+        inMyGames("steam", "1245620", eldenRing, {
+          providerSeconds: 100 * H,
+          accounts: [reading(PHIL, 100)],
+        }),
+      ],
+    );
+    expect(shelf("ready").open).toBe(true);
+    expect(checkbox("Elden Ring")?.checked).toBe(true);
+
+    await click("Import 1 game");
+    expect(firstCommit().entry.accounts).toMatchObject([
+      { ...KID, seconds: 20 * H },
+    ]);
+  });
+
   it.each([
-    {
-      when: "another account",
-      saved: { providerSeconds: 100 * H, accounts: [reading(PHIL, 100)] },
-      growth: "100h 0m → 120h 0m",
-    },
     {
       // D1: an account with fewer hours than the import from before is
       // another account.
@@ -2165,7 +2249,7 @@ describe("launcher accounts", () => {
   ])(
     "D3: a game in My Games starts checked when an account brings hours it doesn't hold yet ($when), and shows the total before → after",
     async ({ saved, growth }) => {
-      const hours = saved.accounts ? 20 : 100;
+      const hours = 100;
       await scan(
         "steam",
         {

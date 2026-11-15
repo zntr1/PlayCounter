@@ -3,7 +3,11 @@ import { getT } from "./i18n";
 import { currentPlatform } from "./platform";
 import { gameMetadataKey, useAppStore, type ActiveSession } from "./store";
 import { commitLibraryImports } from "./library/commit";
-import { mergeReading, readingOf } from "./library/accountReadings";
+import {
+  holdsAccount,
+  mergeReading,
+  readingOf,
+} from "./library/accountReadings";
 import { buildLibraryImportCommit } from "./library/importPlan";
 import { useKeptLogins } from "./library/keptLogins";
 import {
@@ -317,15 +321,18 @@ async function runRefresh(reason: string) {
   return added.length;
 }
 
-/** Only what Sony changed: a higher total, a new copy, a later play, or an
- *  account the game didn't know. The read updates only the account it read
- *  (docs/import-accounts-plan.md). */
+/** Only what Sony changed: a higher total, a new copy or a later play. The
+ *  read updates only the account it read (docs/import-accounts-plan.md),
+ *  and only one the game has: another account joins a game through the
+ *  importer, or one removed in Details would be back within the hour
+ *  (docs/remove-account-hours-plan.md). */
 function updatedCommit(
   existing: LibraryImportEntry,
   game: ScannedLibraryGame,
   scan: LibraryScanResult,
   now: string,
 ): LibraryImportCommit | null {
+  if (!holdsAccount(existing, scan.account)) return null;
   const seconds =
     game.playtimeSeconds === null
       ? null

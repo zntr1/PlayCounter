@@ -148,6 +148,55 @@ describe("Nintendo's totals refresh by themselves", () => {
     expect(imported("0100000000010000")?.lastReadAt).toBe(iso(100));
   });
 
+  // docs/remove-account-hours-plan.md, Q4: a background read never adds an
+  // account the game doesn't have (one removed in Details would be back
+  // within the hour); another account joins a game only through the
+  // importer.
+  it("updates only the accounts a game has, and adds no other", async () => {
+    const phil = { key: "a".repeat(32), name: "Phil" };
+    const kid = { key: "b".repeat(32), name: "Kid" };
+    useAppStore.setState({
+      libraryImports: new Map([
+        [
+          "nintendo:0100000000010000",
+          {
+            ...odyssey,
+            accounts: [{ ...phil, seconds: 300 * 60, readAt: iso(-86_400) }],
+          },
+        ],
+      ]),
+    });
+    const readAs = async (
+      account: typeof phil,
+      minutes: number,
+      second: number,
+    ) => {
+      mocks.saved = {
+        ...history(
+          nintendoGame("0100000000010000", "SUPER MARIO ODYSSEY", minutes),
+        ),
+      };
+      (mocks.saved as { value: Record<string, unknown> }).value.account =
+        account;
+      vi.setSystemTime(at(second));
+      await refresh.refreshNintendoGames("test");
+      const entry = imported("0100000000010000")!;
+      return {
+        minutes: entry.providerSeconds! / 60,
+        accounts: entry.accounts?.map((item) => item.key),
+      };
+    };
+
+    expect(await readAs(kid, 120, 100)).toEqual({
+      minutes: 300,
+      accounts: [phil.key],
+    });
+    expect(await readAs(phil, 397, 200)).toEqual({
+      minutes: 397,
+      accounts: [phil.key],
+    });
+  });
+
   it("adds a new game when the name search finds exactly one game of that name", async () => {
     mocks.saved = history(
       nintendoGame("0100000000010000", "SUPER MARIO ODYSSEY", 300),

@@ -263,6 +263,8 @@ import type {
 import { libraryEntryKey } from "./library/types";
 import { playsOnConsole } from "./library/importProfiles";
 import { forgetLauncherAutoAdd } from "./library/libraryAutoAddState";
+import { removeAccountReading } from "./library/accountReadings";
+import { deleteAchievementList } from "./achievements/achievementLists";
 import {
   syncLibraryInstalls,
   syncLibraryInstallsThrottled,
@@ -8404,6 +8406,66 @@ export function untrackGame(
   aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
   untrackGameInternal(gameId, source, removeHistory, aliases, "remove");
+}
+
+/**
+ * Remove in Details (docs/remove-account-hours-plan.md): everything one
+ * launcher account brought to one game goes, and nothing about it is kept.
+ * "account": other accounts stay on that launcher. "launcher": it was the
+ * last one, so the launcher leaves the game (entry, install, folder links,
+ * saved achievements). "game": that was the game's last launcher and
+ * PlayCounter never counted time for it, so it leaves My Games too.
+ * PlayCounter's sessions and "Set total" corrections are never touched.
+ */
+export function removeLauncherAccount(
+  game: {
+    gameId: number;
+    source: Game["source"] | null;
+    aliases: GameAliasRef[];
+    libraryImports: ReadonlyArray<{
+      provider: LibraryProviderId;
+      externalId: string;
+    }>;
+    recordedSeconds: number;
+    activeStartedAt?: string;
+  },
+  target: {
+    provider: LibraryProviderId;
+    externalId: string;
+    accountKey: string;
+  },
+): "account" | "launcher" | "game" {
+  const { provider, externalId, accountKey } = target;
+  const state = useAppStore.getState();
+  const entry = state.libraryImports.get(libraryEntryKey(provider, externalId));
+  if (!entry) return "launcher";
+  const rest = removeAccountReading(entry, accountKey);
+  logRuntime(
+    `launcher account removed provider=${provider} externalId=${externalId} last=${!rest}`,
+  );
+  if (rest) {
+    state.setLibraryImport(rest);
+    evaluateAndStoreMilestones({ suppressNotifications: true });
+    persist();
+    return "account";
+  }
+  state.removeLibraryImport(provider, externalId);
+  void deleteAchievementList(provider, externalId).catch(() => {});
+  const otherLaunchers = game.libraryImports.some(
+    (item) => item.provider !== provider || item.externalId !== externalId,
+  );
+  if (
+    !otherLaunchers &&
+    game.recordedSeconds <= 0 &&
+    game.activeStartedAt === undefined
+  ) {
+    // Nothing else holds the card: it leaves like Remove from library.
+    untrackGame(game.gameId, game.source, false, game.aliases);
+    return "game";
+  }
+  evaluateAndStoreMilestones({ suppressNotifications: true });
+  persist();
+  return "launcher";
 }
 
 export function forgetImportedLibraryData(provider: LibraryProviderId) {

@@ -1,7 +1,13 @@
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
 import type { BuiltinImportProviderId } from "./importProviders";
 import { importProfile } from "./importProfiles";
-import type { ResolvedLibraryGame, ScannedLibraryGame } from "./types";
+import { holdsAccount } from "./accountReadings";
+import type {
+  LibraryAccount,
+  LibraryImportEntry,
+  ResolvedLibraryGame,
+  ScannedLibraryGame,
+} from "./types";
 import { libraryEntryKey } from "./types";
 
 /* Which shelf a scanned game lands on. Pure rules, the same for every
@@ -138,19 +144,26 @@ export function canImportScannedGame(params: {
 
 /**
  * A game already in My Games belongs to "Already in My Games", even when it
- * can be imported again to refresh it.
+ * can be imported again to refresh it. One in My Games without the scan's
+ * account (`inMyGames`, not `alreadyImported`) is ready to import for that
+ * account: its game and files are known, so it never needs you
+ * (docs/remove-account-hours-plan.md).
  */
 export function importGroupForGame(params: {
   game: ScannedLibraryGame;
   provider: BuiltinImportProviderId;
   resolved?: ResolvedLibraryGame;
   alreadyImported: boolean;
+  /** The launcher's entry exists, holding another account. */
+  inMyGames?: boolean;
   completed?: boolean;
   ignoredProcesses?: ReadonlySet<string>;
 }): ImportGroupKey {
   const { game, provider, resolved, ignoredProcesses } = params;
   if (params.completed || params.alreadyImported) return "imported";
   if (!hasImportableContent(game)) return "unavailable";
+  if (params.inMyGames)
+    return isImportable(game, resolved) ? "ready" : "unavailable";
   if (needsGameChoice(provider, game, resolved)) return "attention";
   if (!isImportable(game, resolved)) return "unavailable";
   if (requiresExecutableChoice(game, resolved, ignoredProcesses)) {
@@ -164,17 +177,21 @@ export function initialImportGroup(
   provider: BuiltinImportProviderId,
   games: readonly ScannedLibraryGame[],
   resolved: ReadonlyMap<string, ResolvedLibraryGame>,
-  existingImports: ReadonlyMap<string, unknown>,
+  existingImports: ReadonlyMap<string, Pick<LibraryImportEntry, "accounts">>,
   ignoredProcesses: ReadonlySet<string>,
+  account?: LibraryAccount,
 ): ImportGroupKey {
   const present = new Set(
     games.map((game) => {
       const key = libraryEntryKey(provider, game.externalId);
+      const existing = existingImports.get(key);
       return importGroupForGame({
         game,
         provider,
         resolved: resolved.get(key),
-        alreadyImported: existingImports.has(key),
+        alreadyImported:
+          existing !== undefined && holdsAccount(existing, account),
+        inMyGames: existing !== undefined,
         ignoredProcesses,
       });
     }),

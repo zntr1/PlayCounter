@@ -259,5 +259,13 @@
   "Delete": "Supprimer",
   "Count with View/Create/Share + D-pad up": "Compter avec View/Create/Share + croix vers le haut",
   "One counter per game.": "Un compteur par jeu.",
-  "This is a sample. A real list is read again from the launcher.": "Ceci est un exemple. Une vraie liste est relue depuis le launcher."
+  "This is a sample. A real list is read again from the launcher.": "Ceci est un exemple. Une vraie liste est relue depuis le launcher.",
+  "Remove {{account}} from {{name}}": "Retirer {{account}} de {{name}}",
+  "Remove {{launcher}} from {{name}}": "Retirer {{launcher}} de {{name}}",
+  "Remove {{account}} from {{name}}?": "Retirer {{account}} de {{name}} ?",
+  "Remove {{launcher}} from {{name}}?": "Retirer {{launcher}} de {{name}} ?",
+  "Remove {{name}} from My Games?": "Retirer {{name}} de Mes jeux ?",
+  "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "Les {{duration}} de ce compte ne comptent plus pour {{name}}. Importe à nouveau le compte pour les récupérer.",
+  "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "Le temps de jeu, les succès et le lancement via {{launcher}} quittent {{name}}. Importe à nouveau le compte pour les récupérer.",
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "Le jeu {{name}} venait uniquement de ce compte {{launcher}}, et PlayCounter n'a compté aucun temps pour lui. Importe à nouveau le compte pour le récupérer."
 }

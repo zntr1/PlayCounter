@@ -97,6 +97,26 @@ export async function loadAchievementList(
  *  time are simply not in `lists`, so their older list stays.
  *  Memory only keeps lists something shows (an import can bring 500 of
  *  them); `show` keeps these too, even if storage fails. */
+/** Forgets one game's saved list, here and on disk: its launcher left the
+ *  game (docs/remove-account-hours-plan.md). Steam's lists are read live
+ *  and never saved. */
+export async function deleteAchievementList(
+  provider: string,
+  externalId: string,
+) {
+  if (!(STORES as readonly string[]).includes(provider)) return;
+  const store = provider as SavedAchievementProvider;
+  remember(achievementListKey(store, externalId), null);
+  const db = await database();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(store, "readwrite");
+    transaction.objectStore(store).delete(externalId);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
 export async function saveAchievementLists(
   lists: readonly AchievementList[],
   { show = false }: { show?: boolean } = {},

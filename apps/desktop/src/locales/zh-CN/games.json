@@ -251,5 +251,13 @@
   "Delete": "删除",
   "Count with View/Create/Share + D-pad up": "用 View/Create/Share + 方向键上计数",
   "One counter per game.": "每个游戏一个计数器。",
-  "This is a sample. A real list is read again from the launcher.": "这是示例。真实的列表会重新从启动器读取。"
+  "This is a sample. A real list is read again from the launcher.": "这是示例。真实的列表会重新从启动器读取。",
+  "Remove {{account}} from {{name}}": "从 {{name}} 中移除 {{account}}",
+  "Remove {{launcher}} from {{name}}": "从 {{name}} 中移除 {{launcher}}",
+  "Remove {{account}} from {{name}}?": "要从 {{name}} 中移除 {{account}} 吗？",
+  "Remove {{launcher}} from {{name}}?": "要从 {{name}} 中移除 {{launcher}} 吗？",
+  "Remove {{name}} from My Games?": "要从我的游戏中移除 {{name}} 吗？",
+  "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "此账户的 {{duration}} 不再计入 {{name}}。再次导入该账户即可恢复。",
+  "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "{{launcher}} 的游戏时长、成就和启动方式将从 {{name}} 中移除。再次导入该账户即可恢复。",
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} 只来自这个 {{launcher}} 账户，且 PlayCounter 没有为它记录时间。再次导入该账户即可恢复。"
 }
