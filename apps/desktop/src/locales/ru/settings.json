@@ -76,6 +76,8 @@
   "The sidebar and the title bar with the search field.": "Боковая панель и строка заголовка с полем поиска.",
   "Menu size": "Размер меню",
   "Include SteamGridDB artwork marked 18+ when you pick covers and banners. Art you share with the community always stays safe for work.": "Показывать изображения SteamGridDB с пометкой 18+ при выборе обложек и баннеров. Изображения, которыми вы делитесь с сообществом, всегда безопасны.",
+  "Sharper covers": "Чёткие обложки",
+  "Larger cover art. Looks better on big cards, uses more data.": "Крупные обложки. Лучше смотрятся на больших карточках, но расходуют больше трафика.",
   "Show 18+ art": "Показывать изображения 18+",
   "Keyboard shortcuts": "Сочетания клавиш",
   "Global hotkeys work while PlayCounter is running, including in the system tray.": "Глобальные сочетания клавиш работают, пока PlayCounter запущен, в том числе в трее.",

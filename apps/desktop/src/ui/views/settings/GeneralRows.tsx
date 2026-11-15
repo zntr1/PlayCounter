@@ -503,6 +503,34 @@ export function MenuSizeRow({ level, disabled }: SettingsRowProps) {
   );
 }
 
+export function SharperCoversRow({ level, disabled }: SettingsRowProps) {
+  const checked = useAppStore(
+    (state) => state.settings.libraryHighResCovers === true,
+  );
+  const setMyGamesHighResCovers = useAppStore(
+    (state) => state.setMyGamesHighResCovers,
+  );
+  return (
+    <SettingsRow
+      id="libraryHighResCovers"
+      level={level}
+      disabled={disabled}
+      title={t("Sharper covers")}
+      description={t(
+        "Larger cover art. Looks better on big cards, uses more data.",
+      )}
+      control={
+        <Switch
+          aria-label={t("Sharper covers")}
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => setMyGamesHighResCovers(event.target.checked)}
+        />
+      }
+    />
+  );
+}
+
 export function AdultArtRow({ level, disabled }: SettingsRowProps) {
   const checked = useAppStore((state) => state.settings.showAdultArt === true);
   const setShowAdultArt = useAppStore((state) => state.setShowAdultArt);

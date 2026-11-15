@@ -44,6 +44,7 @@ import {
   LanguageRow,
   LaunchOnStartupRow,
   MenuSizeRow,
+  SharperCoversRow,
   ShowDaysRow,
   StartPageRow,
   ThemeRow,
@@ -323,6 +324,13 @@ const GROUPS: SettingsGroupDef[] = [
             description: () =>
               t("The sidebar and the title bar with the search field."),
             Row: MenuSizeRow,
+          },
+          {
+            id: "libraryHighResCovers",
+            title: () => t("Sharper covers"),
+            description: () =>
+              t("Larger cover art. Looks better on big cards, uses more data."),
+            Row: SharperCoversRow,
           },
           {
             id: "showAdultArt",

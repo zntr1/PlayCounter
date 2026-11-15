@@ -472,6 +472,14 @@ describe("visible choices", () => {
     expect(buttonByText("Light").getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("has Sharper covers under Appearance, because it changes covers everywhere", async () => {
+    await renderSettings("appearance");
+    const sharper = byLabel<HTMLInputElement>("Sharper covers");
+    expect(sharper.checked).toBe(false);
+    await click(sharper);
+    expect(useAppStore.getState().settings.libraryHighResCovers).toBe(true);
+  });
+
   it("offers eight ready accent colors; amber is the default", async () => {
     await renderSettings("appearance");
     await click(byLabel("Blue"));

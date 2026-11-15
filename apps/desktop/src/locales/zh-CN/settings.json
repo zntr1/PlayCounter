@@ -76,6 +76,8 @@
   "The sidebar and the title bar with the search field.": "侧边栏以及带搜索框的标题栏。",
   "Menu size": "菜单大小",
   "Include SteamGridDB artwork marked 18+ when you pick covers and banners. Art you share with the community always stays safe for work.": "选择封面和横幅时，包含 SteamGridDB 中标记为 18+ 的图片。你分享给社区的图片始终是适合所有人的内容。",
+  "Sharper covers": "更清晰的封面",
+  "Larger cover art. Looks better on big cards, uses more data.": "加载更大的封面图片。在大卡片上效果更好，但会使用更多流量。",
   "Show 18+ art": "显示 18+ 图片",
   "Keyboard shortcuts": "键盘快捷键",
   "Global hotkeys work while PlayCounter is running, including in the system tray.": "只要 PlayCounter 在运行（包括在系统托盘中），全局快捷键就能使用。",

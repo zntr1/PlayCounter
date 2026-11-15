@@ -976,12 +976,6 @@ export function MyGamesView({
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
   );
-  const highResCovers = useAppStore(
-    (state) => state.settings.libraryHighResCovers === true,
-  );
-  const setMyGamesHighResCovers = useAppStore(
-    (state) => state.setMyGamesHighResCovers,
-  );
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
   );
@@ -2841,15 +2835,6 @@ export function MyGamesView({
                         showShelves={showShelves}
                         setMyGamesGridColumns={setMyGamesGridColumns}
                         setMyGamesShowShelves={setMyGamesShowShelves}
-                      />
-                      <OptionRow
-                        id="library-high-res-covers"
-                        label={t("Sharper covers")}
-                        help={t(
-                          "Larger cover art. Looks better on big cards, uses more data.",
-                        )}
-                        checked={highResCovers}
-                        onChange={setMyGamesHighResCovers}
                       />
                       <OptionRow
                         id="library-show-stats"
