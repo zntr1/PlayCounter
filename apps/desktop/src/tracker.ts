@@ -26,6 +26,10 @@ import {
   disposePlayStationLive,
 } from "./playstationLive";
 import {
+  initializeNintendoRefresh,
+  disposeNintendoRefresh,
+} from "./nintendoRefresh";
+import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
 } from "./automaticBackups";
@@ -565,6 +569,7 @@ export async function initializeTracker() {
     see: seeConsoleSession,
     end: endConsoleSession,
   });
+  initializeNintendoRefresh();
   initializePlaytimeReminder();
   initializeControllerBridge();
   syncTrayNowPlaying();
@@ -619,6 +624,7 @@ export async function stopTrackerForReset() {
   disposeLiveTimer();
   disposeScreenshots();
   disposePlayStationLive();
+  disposeNintendoRefresh();
   disposePlaytimeReminder();
   disposeControllerBridge();
   await scanInFlight;
@@ -702,6 +708,7 @@ async function finishTrackerStartup() {
     disposeLiveTimer();
     disposeScreenshots();
     disposePlayStationLive();
+    disposeNintendoRefresh();
     disposePlaytimeReminder();
     disposeAutomaticBackups();
     disposeControllerBridge();

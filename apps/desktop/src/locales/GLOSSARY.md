@@ -3,8 +3,10 @@
 Every translation uses these words for PlayCounter's own terms, in every
 area file. English is the source (`src/locales/en`). Brand and product names
 stay as they are: PlayCounter, Steam, Xbox, Battle.net, Epic Games, GOG,
-GOG GALAXY, PlayStation, PS5, PS4, Sony, IGDB, Discord, Windows, Dolphin,
-DOSBox, PCSX2, mGBA.
+GOG GALAXY, PlayStation, PS5, PS4, Sony, Nintendo, Nintendo Switch, Switch,
+IGDB, Discord, Windows, Dolphin, DOSBox, PCSX2, mGBA. "Nintendo Account" is
+written the way Nintendo writes it in that language (German:
+Nintendo-Account).
 
 ## Deutsch (de) — approved 2026-10-10
 

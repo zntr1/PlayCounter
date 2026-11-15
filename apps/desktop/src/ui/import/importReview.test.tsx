@@ -1802,6 +1802,61 @@ describe("a game matched by name", () => {
     expect(mocks.run.mock.calls[0][0][0].exeCacheEntries).toEqual([]);
   });
 
+  // docs/nintendo-import-plan.md, D2 A: IGDB has no Nintendo ids, so the
+  // server's lookup is never asked and every title is searched by name.
+  // Titles as Nintendo wrote them for Phil's account (2026-11-14).
+  it("Nintendo: an all-caps title with one same-name result is Ready, two same-name results is Needs you, and the server's lookup is never asked", async () => {
+    const fetchSpy = vi.fn(
+      async (_url: RequestInfo | URL) => new Response("{}", { status: 400 }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const odyssey = metadata(26_758, "Super Mario Odyssey");
+    mocks.search.mockImplementation(async (_endpoint: string, query: string) =>
+      query === "SUPER MARIO ODYSSEY"
+        ? [odyssey, metadata(119_388, "Super Mario Odyssey: Luigi's Balloon")]
+        : [
+            metadata(14_593, "Hollow Knight"),
+            metadata(99_999, "Hollow Knight"),
+          ],
+    );
+    await scan("nintendo", {
+      games: [
+        game("0100000000010000", "SUPER MARIO ODYSSEY", {
+          playtimeSeconds: 23_820,
+          hasPlayedEvidence: true,
+          inAccountLibrary: true,
+        }),
+        game("0100633007d48000", "Hollow Knight", {
+          hasPlayedEvidence: true,
+          inAccountLibrary: true,
+        }),
+      ],
+    });
+    expect(
+      fetchSpy.mock.calls.some(([url]) =>
+        String(url).includes("/api/library/resolve"),
+      ),
+    ).toBe(false);
+    expect(mocks.search).toHaveBeenCalledTimes(2);
+    expect(counts()).toMatchObject({ ready: 1, attention: 1 });
+    expect(listed()).toEqual(["Super Mario Odyssey"]);
+
+    // A console game links no PC file, even one the database knows.
+    mocks.reverse.mockResolvedValue({
+      game: odyssey,
+      executables: [knownFile("SuperMarioOdyssey.exe")],
+    });
+    await click("Import 1 game");
+    const commit = mocks.run.mock.calls[0][0][0];
+    expect(commit.entry).toMatchObject({
+      provider: "nintendo",
+      externalId: "0100000000010000",
+      providerSeconds: 23_820,
+      linkedExeNames: [],
+    });
+    expect(commit.exeCacheEntries).toEqual([]);
+  });
+
   it("stays in Needs you when two suggestions have the title's name", async () => {
     const doom1993 = metadata(673, "DOOM", { releaseYear: 1993 });
     const doom2016 = metadata(7_351, "DOOM", { releaseYear: 2016 });

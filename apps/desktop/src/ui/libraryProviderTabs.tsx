@@ -3,6 +3,7 @@ import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import epicIconUrl from "../../../../assets/epic/epic.svg";
 import gogIconUrl from "../../../../assets/gog/gog.svg";
 import playStationIconUrl from "../../../../assets/playstation/playstation.svg";
+import nintendoIconUrl from "../../../../assets/nintendo/nintendo.svg";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
@@ -127,6 +128,20 @@ export function providerTabConfigs(): readonly ProviderTabConfig[] {
         "Sign in to bring in your PS5 and PS4 games with the playtime Sony recorded. PlayCounter keeps it up to date and shows what you play on the console.",
       ),
       firstImportCtaLabel: t("Import from PlayStation"),
+      import: { kind: "builtin", platforms: ["windows"] },
+    },
+    {
+      id: "nintendo",
+      label: "Nintendo",
+      iconUrl: nintendoIconUrl,
+      headline: t("Nintendo library"),
+      subtitle: t("Games imported from your Nintendo Account."),
+      importCtaLabel: t("Import more from Nintendo"),
+      emptyTitle: t("No Nintendo games imported yet"),
+      emptyBody: t(
+        "Sign in to bring in your Switch games with the playtime Nintendo recorded. PlayCounter keeps it up to date.",
+      ),
+      firstImportCtaLabel: t("Import from Nintendo"),
       import: { kind: "builtin", platforms: ["windows"] },
     },
   ];

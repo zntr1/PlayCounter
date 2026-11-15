@@ -43,6 +43,11 @@ import {
   signInPlayStationAccount,
   signInPlayStationWithCode,
 } from "../../library/playstationAccount";
+import {
+  openNintendoSignInLink,
+  signInNintendoAccount,
+  signInNintendoWithLink,
+} from "../../library/nintendoAccount";
 import { importProfile } from "../../library/importProfiles";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import { signInXboxAccount } from "../../library/providers/xbox";
@@ -183,6 +188,8 @@ export function LauncherAccountsView() {
         await signInGogAccount(controller.signal);
       } else if (service === "playstation") {
         await signInPlayStationAccount(controller.signal);
+      } else if (service === "nintendo") {
+        await signInNintendoAccount(controller.signal);
       } else {
         await signInXboxAccount({
           apiEndpoint,
@@ -576,9 +583,13 @@ export function LauncherAccountsView() {
                           ? t(
                               "Your PS5 and PS4 games, the playtime Sony recorded and what you play right now.",
                             )
-                          : t(
-                              "Your Battle.net library. PlayCounter tracks new sessions.",
-                            )}
+                          : id === "nintendo"
+                            ? t(
+                                "Your Switch games and the playtime Nintendo recorded.",
+                              )
+                            : t(
+                                "Your Battle.net library. PlayCounter tracks new sessions.",
+                              )}
               </p>
               {error ? (
                 <p
@@ -658,6 +669,27 @@ export function LauncherAccountsView() {
                   platform === "windows" &&
                   (!login || needsSignIn) ? (
                     <PlayStationCodeSignIn
+                      disabled={Boolean(activity)}
+                      onSignedIn={() => {
+                        setErrors((previous) => ({
+                          ...previous,
+                          [service!]: undefined,
+                        }));
+                        setNotice(service);
+                      }}
+                      onError={(message) =>
+                        setErrors((previous) => ({
+                          ...previous,
+                          [service!]: message,
+                        }))
+                      }
+                    />
+                  ) : null}
+                  {id === "nintendo" &&
+                  supported &&
+                  platform === "windows" &&
+                  (!login || needsSignIn) ? (
+                    <NintendoLinkSignIn
                       disabled={Boolean(activity)}
                       onSignedIn={() => {
                         setErrors((previous) => ({
@@ -813,6 +845,122 @@ function PlayStationCodeSignIn({
           onClick={() => {
             setOpen(false);
             setCode("");
+          }}
+        >
+          {t("Cancel")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** The visible fallback when Nintendo's page doesn't finish in the sign-in
+ *  window: the player signs in at Nintendo in the browser and copies the
+ *  link of "Select this person". PlayCounter opens that sign-in itself, so
+ *  only its own link is taken (docs/nintendo-import-plan.md, D1). */
+function NintendoLinkSignIn({
+  disabled,
+  onSignedIn,
+  onError,
+}: {
+  disabled: boolean;
+  onSignedIn: () => void;
+  onError: (message: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!open)
+    return (
+      <button
+        type="button"
+        data-controller-item="library-option"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-md text-sm text-text-muted underline-offset-2 transition hover:text-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50"
+      >
+        <KeyRound size={14} aria-hidden="true" />
+        {t("Sign in with a link")}
+      </button>
+    );
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!link.trim() || busy) return;
+    setBusy(true);
+    beginLoginAccountChange("nintendo");
+    try {
+      await signInNintendoWithLink(link);
+      setLink("");
+      setOpen(false);
+      onSignedIn();
+    } catch (error) {
+      onError(formatError(error) || t("Could not connect. Please try again."));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form
+      onSubmit={(event) => void submit(event)}
+      className="mt-3 space-y-3 rounded-lg border border-border bg-surface-hover/40 p-3 text-sm"
+    >
+      <ol className="list-decimal space-y-2 pl-5 text-text-muted">
+        <li>
+          {t("Sign in at Nintendo in your browser.")}{" "}
+          <button
+            type="button"
+            data-controller-item="library-option"
+            className="inline-flex items-center gap-1 rounded text-accent-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            onClick={() =>
+              void openNintendoSignInLink().catch((error: unknown) =>
+                onError(formatError(error)),
+              )
+            }
+          >
+            {t("Open Nintendo sign-in")}
+            <ExternalLink size={12} aria-hidden="true" />
+          </button>
+        </li>
+        <li>
+          {t(
+            "When Nintendo shows your account, right-click Select this person and copy the link.",
+          )}
+        </li>
+        <li>{t("Paste the link here.")}</li>
+      </ol>
+      <input
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        data-controller-item="library-option"
+        aria-label={t("Sign-in link")}
+        placeholder={t("Sign-in link")}
+        value={link}
+        onChange={(event) => setLink(event.target.value)}
+        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-text placeholder:text-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      />
+      <p className="text-xs text-text-faint">
+        {t(
+          "The link signs you in like your password for ten minutes. PlayCounter only sends it to Nintendo.",
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="submit"
+          variant="primary"
+          icon={LogIn}
+          loading={busy}
+          disabled={disabled || !link.trim()}
+        >
+          {t("Sign in")}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => {
+            setOpen(false);
+            setLink("");
           }}
         >
           {t("Cancel")}

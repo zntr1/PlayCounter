@@ -11,12 +11,13 @@ export type KeptLoginService =
   | "epic"
   | "battlenet"
   | "gog"
-  | "playstation";
+  | "playstation"
+  | "nintendo";
 
 export type KeptLogin = {
   service: KeptLoginService;
-  /** Xbox gamertag, Epic display name, GOG user name or PSN online id.
-   *  Battle.net has none. */
+  /** Xbox gamertag, Epic display name, GOG user name, PSN online id or
+   *  Nintendo nickname. Battle.net has none. */
   name: string | null;
   savedAt: number;
 };
@@ -27,6 +28,7 @@ const SERVICES: readonly string[] = [
   "battlenet",
   "gog",
   "playstation",
+  "nintendo",
 ];
 
 export const useKeptLogins = create<{ logins: readonly KeptLogin[] }>(() => ({

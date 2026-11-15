@@ -863,7 +863,7 @@ const ROCKET_LEAGUE = {
 };
 
 function importFrom(
-  provider: "playstation" | "epic",
+  provider: "playstation" | "epic" | "nintendo",
   externalId: string,
   game: typeof ELDEN_RING,
   consoleTitleIds?: string[],
@@ -927,6 +927,38 @@ it("plays a PlayStation-only game on the console: no warning sign, and the card 
   expect(trackingWarning()).toBeNull();
   expect(cardButton("Set launch file")).toBeUndefined();
   expect(card().textContent).toContain("Not launchable");
+});
+
+// docs/nintendo-import-plan.md, "What gets built" 4: a game only from
+// Nintendo plays on the console like a PlayStation-only game.
+it("plays a Nintendo-only game on the console: no warning sign, no launch file, and the card says Not launchable", async () => {
+  importFrom(
+    "nintendo",
+    "0100000000010000",
+    {
+      id: 9,
+      igdbId: 26758,
+      name: "Super Mario Odyssey",
+      coverUrl: "",
+      source: "igdb",
+    },
+    undefined,
+    [
+      {
+        value: "SuperMarioOdyssey.exe",
+        kind: "exe",
+        platform: "windows",
+        provenance: "igdb",
+        verified: true,
+      },
+    ],
+  );
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(trackingWarning()).toBeNull();
+  expect(cardButton("Set launch file")).toBeUndefined();
+  expect(card().textContent).toContain("Not launchable");
+  expect(useAppStore.getState().exeCache.size).toBe(0);
 });
 
 it("says Not launchable also when the database knows the PC version's .exe", async () => {

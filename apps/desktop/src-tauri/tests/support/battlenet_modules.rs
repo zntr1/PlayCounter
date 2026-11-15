@@ -59,3 +59,14 @@ mod playstation_account {
         panic!("Battle.net fixtures must never cancel PlayStation sessions");
     }
 }
+
+#[allow(dead_code)]
+mod nintendo_account {
+    pub async fn check_saved_login(_: &tauri::AppHandle) -> super::login_status::LoginStatus {
+        panic!("Battle.net fixtures must never check Nintendo sessions");
+    }
+
+    pub fn cancel_active(_: &tauri::AppHandle) {
+        panic!("Battle.net fixtures must never cancel Nintendo sessions");
+    }
+}

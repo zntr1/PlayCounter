@@ -68,6 +68,7 @@
   "Other": "其他",
   "sessions_other": "次游玩",
   "Imported from your PlayStation account.": "从你的 PlayStation 账户导入。",
+  "Imported from your Nintendo Account.": "从你的 Nintendo 账户导入。",
   "Click to see this day": "点击查看这一天",
   "{{count}} more games_other": "还有 {{count}} 个游戏",
   "Running total: {{current}}, the period before: {{previous}}": "累计时长：{{current}}，上一时间段：{{previous}}"

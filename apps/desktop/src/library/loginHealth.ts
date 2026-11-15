@@ -19,6 +19,7 @@ const services: KeptLoginService[] = [
   "battlenet",
   "gog",
   "playstation",
+  "nintendo",
 ];
 const labels = {
   xbox: "Xbox",
@@ -26,6 +27,7 @@ const labels = {
   battlenet: "Battle.net",
   gog: "GOG",
   playstation: "PlayStation",
+  nintendo: "Nintendo",
 };
 
 export type LoginHealth = {
@@ -43,6 +45,7 @@ const versions: Record<KeptLoginService, number> = {
   battlenet: 0,
   gog: 0,
   playstation: 0,
+  nintendo: 0,
 };
 const operationRevisions: Record<KeptLoginService, number> = {
   xbox: 0,
@@ -50,6 +53,7 @@ const operationRevisions: Record<KeptLoginService, number> = {
   battlenet: 0,
   gog: 0,
   playstation: 0,
+  nintendo: 0,
 };
 const inFlight = new Map<KeptLoginService, Promise<void>>();
 const previousChecks = new Map<KeptLoginService, LoginHealth | undefined>();

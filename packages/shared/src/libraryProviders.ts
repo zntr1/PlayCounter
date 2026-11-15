@@ -11,6 +11,7 @@ export const LIBRARY_PROVIDER_LABELS: Record<LibraryProviderId, string> = {
   epic: "Epic Games",
   gog: "GOG",
   playstation: "PlayStation",
+  nintendo: "Nintendo",
 };
 
 export function isLibraryProvider(value: unknown): value is LibraryProviderId {
@@ -20,7 +21,8 @@ export function isLibraryProvider(value: unknown): value is LibraryProviderId {
     value === "battlenet" ||
     value === "epic" ||
     value === "gog" ||
-    value === "playstation"
+    value === "playstation" ||
+    value === "nintendo"
   );
 }
 
@@ -32,6 +34,8 @@ export function validLibraryExternalId(
   // Epic app names, e.g. "Fortnite" or a 32-character hex id.
   if (provider === "epic")
     return /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
+  // Nintendo title ids, lowercase: "0100000000010000".
+  if (provider === "nintendo") return /^[0-9a-f]{16}$/.test(value);
   return provider === "battlenet"
     ? /^[a-z][a-z0-9_]{0,63}$/.test(value)
     : (provider === "steam" ||

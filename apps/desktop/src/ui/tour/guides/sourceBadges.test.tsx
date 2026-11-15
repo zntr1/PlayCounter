@@ -66,8 +66,9 @@ describe("the guide's steps", () => {
     expect(where.anchor).toBe(a("library-customize"));
   });
 
-  it("name PlayStation among the launchers, in the real app", () => {
+  it("name PlayStation and Nintendo among the launchers, in the real app", () => {
     expect(step("origins").body).toMatch(/PlayStation/);
+    expect(step("origins").body).toMatch(/Nintendo/);
     expect(step("origins").anchor).toBe(a("demo-launcher-examples"));
   });
 
@@ -150,6 +151,7 @@ describe("the sample panel", () => {
       "Epic Games",
       "GOG",
       "PlayStation",
+      "Nintendo",
       "Dolphin",
     ])
       expect(text, name).toContain(name);

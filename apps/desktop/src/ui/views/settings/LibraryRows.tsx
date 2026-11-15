@@ -27,7 +27,7 @@ export function AutoAddGamesRow({ level, disabled }: SettingsRowProps) {
       disabled={disabled}
       title={t("Add new games automatically")}
       description={t(
-        "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
+        "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation or Nintendo Switch. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
       )}
       control={
         <Switch
@@ -69,6 +69,7 @@ const PROVIDERS: readonly LibraryProviderId[] = [
   "epic",
   "gog",
   "playstation",
+  "nintendo",
 ];
 
 /** One list for every launcher import, with a Forget each. */
