@@ -51,6 +51,7 @@ const SHARED_FILES = [
   { exeName: "Game.exe", subfolder: "" },
   { exeName: "javaw.exe", subfolder: String.raw`jre\bin` },
   { exeName: "Wow.exe", subfolder: "_retail_" },
+  { exeName: "Sherlock.exe", subfolder: "" },
 ];
 
 /** The games' own folders. Utility is an app, not a game. */
