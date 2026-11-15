@@ -8443,6 +8443,10 @@ export function removeLauncherAccount(
   logRuntime(
     `launcher account removed provider=${provider} externalId=${externalId} last=${!rest}`,
   );
+  // The saved list is whoever was signed in at the last read, not one
+  // account's: it goes either way (Q2 A) and is read again from the
+  // account signed in now.
+  void deleteAchievementList(provider, externalId).catch(() => {});
   if (rest) {
     state.setLibraryImport(rest);
     evaluateAndStoreMilestones({ suppressNotifications: true });
@@ -8450,7 +8454,6 @@ export function removeLauncherAccount(
     return "account";
   }
   state.removeLibraryImport(provider, externalId);
-  void deleteAchievementList(provider, externalId).catch(() => {});
   const otherLaunchers = game.libraryImports.some(
     (item) => item.provider !== provider || item.externalId !== externalId,
   );

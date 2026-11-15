@@ -227,6 +227,32 @@ describe("an account that leaves a game with other accounts", () => {
     expect(entry("steam", "1466860")?.providerSeconds).toBe(120 * H);
   });
 
+  // Q2 A: the saved list is the game's, not an account's: whoever was
+  // signed in at the last read. It goes, and is read again from the account
+  // signed in now.
+  it("deletes the game's saved achievement list too", () => {
+    const key = achievementListKey("xbox", "1848392557");
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          key,
+          {
+            provider: "xbox",
+            externalId: "1848392557",
+            fetchedAt: "2026-11-10T18:00:00.000Z",
+            achievements: [],
+          } as never,
+        ],
+      ]),
+    });
+    removeLauncherAccount(card(AOE4), {
+      provider: "xbox",
+      externalId: "1848392557",
+      accountKey: KID.key,
+    });
+    expect(useAchievementLists.getState().lists.get(key)).toBeNull();
+  });
+
   it("keeps nothing: the next read of that account counts again", () => {
     removeLauncherAccount(card(AOE4), {
       provider: "xbox",
