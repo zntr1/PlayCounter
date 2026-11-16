@@ -8162,6 +8162,9 @@ export async function submitLocalLinkToCommunity(
     link?.source !== "custom" ||
     link.communitySuggestionId !== undefined ||
     !link.gameName ||
+    // The server takes a game only with its IGDB id: a Custom game without
+    // one finds its database game in the search first.
+    link.igdbId === undefined ||
     // Game.exe names no game for anyone else: it is never shared.
     isGenericExeName(link.exeName)
   ) {

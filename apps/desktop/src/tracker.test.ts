@@ -4283,6 +4283,31 @@ describe("imported local link sharing", () => {
     },
   );
 
+  it("sends nothing for a Custom game that names no database game", async () => {
+    // The server takes a game suggestion only with its IGDB id.
+    const unnamed = {
+      exeName: "dots.exe",
+      state: "matched" as const,
+      gameId: -42,
+      gameName: "Game",
+      coverUrl: "",
+      source: "custom" as const,
+      identifierSource: "custom" as const,
+      lastCheckedAt: "2026-08-23T00:00:00.000Z",
+      shareState: "failed" as const,
+    };
+    useAppStore.setState({ exeCache: new Map([["dots.exe", unnamed]]) });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      submitLocalLinkToCommunity({ kind: "exe", key: "dots.exe" }),
+    ).resolves.toEqual({ kind: "not-applicable" });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useAppStore.getState().exeCache.get("dots.exe")).toBe(unnamed);
+  });
+
   it("keeps the local link and exposes retry state when submission fails", async () => {
     useAppStore.setState({ scopedExeLinks: new Map([[key, link]]) });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));

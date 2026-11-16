@@ -4848,16 +4848,14 @@ export function GameLibraryCard({
     );
   }
 
-  // A Custom game that already names its game is sent as it is, after one
-  // confirmation. The search is only for one without a database game, or one
-  // the community turned down before.
+  // A Custom game that already names its database game is sent as it is,
+  // after one confirmation. The search is only for one without a database
+  // game, or one the community turned down before.
   const canShareDirectly =
     primaryLocalLink !== undefined &&
     primaryLocalLink.communitySuggestionId === undefined &&
     Boolean(primaryLocalLink.gameName) &&
-    (primaryLocalLink.igdbId !== undefined ||
-      primaryLocalLink.shareState === "unshared" ||
-      primaryLocalLink.shareState === "failed");
+    primaryLocalLink.igdbId !== undefined;
 
   function handleShareAction() {
     setMatchFile(null);

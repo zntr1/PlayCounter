@@ -282,6 +282,26 @@ it("still searches for a Custom game that names no database game", async () => {
   expect(menuText()).not.toContain("Suggest to community?");
 });
 
+it.each(["unshared", "failed"] as const)(
+  "searches for a Custom game without a database game also when it is marked %s",
+  async (shareState) => {
+    // The server takes a game suggestion only with its IGDB id, so there is
+    // nothing to send as it is: the search finds the database game first.
+    useAppStore.getState().setExeCacheEntry({
+      ...OWN_FILE,
+      igdbId: undefined,
+      gameName: "My Mod",
+      shareState,
+    });
+    await act(() => root.render(<LibraryTestShell />));
+    await suggestFromCard();
+
+    expect(menuText()).toContain("Suggest community game");
+    expect(menuText()).not.toContain("Suggest to community?");
+    expect(submitLocalLinkToCommunity).not.toHaveBeenCalled();
+  },
+);
+
 it("offers Change Game for the user's own file, as a search on this PC only", async () => {
   useAppStore.getState().setExeCacheEntry(OWN_FILE);
   await act(() => root.render(<LibraryTestShell />));
