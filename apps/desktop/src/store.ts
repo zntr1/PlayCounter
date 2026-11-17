@@ -67,6 +67,7 @@ import {
   DEFAULT_SETTINGS_GROUP,
   type SettingsGroupId,
 } from "./ui/views/settings/settingsGroups";
+import type { InstallSource } from "./installSource";
 import type { UpdateCheckResult } from "./updater";
 import type {
   LibraryImportEntry,
@@ -630,6 +631,9 @@ export type AppState = {
   settingsGroup: SettingsGroupId;
   /** A newer version the update check found, for the About page. */
   availableUpdate: Extract<UpdateCheckResult, { status: "available" }> | null;
+  /** Where this copy came from; the Steam copy gets its updates from Steam.
+   *  Read at start, not saved. */
+  installSource: InstallSource;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
@@ -637,6 +641,7 @@ export type AppState = {
   setAvailableUpdate: (
     update: Extract<UpdateCheckResult, { status: "available" }> | null,
   ) => void;
+  setInstallSource: (source: InstallSource) => void;
   setLibraryTab: (tab: LibraryTabId) => void;
   setLibraryImportProvider: (provider: BuiltinImportProviderId) => void;
   startTour: (tourId: string) => void;
@@ -1109,11 +1114,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   helpMenuOpen: false,
   settingsGroup: DEFAULT_SETTINGS_GROUP,
   availableUpdate: null,
+  installSource: "direct",
   cleanup: null,
   settings: createDefaultSettings(),
   setActiveView: (activeView) => set({ activeView }),
   setSettingsGroup: (settingsGroup) => set({ settingsGroup }),
   setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
+  setInstallSource: (installSource) => set({ installSource }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setLibraryImportProvider: (libraryImportProvider) =>
     set({ libraryImportProvider }),

@@ -675,6 +675,30 @@ describe("About, Reset and the menu dots", () => {
     expect(writeText).toHaveBeenCalledWith("3f6d2c8e-uuid");
   });
 
+  it("says Steam keeps the Steam copy up to date, with no Check button", async () => {
+    useAppStore.setState({ installSource: "steam" });
+    await renderSettings("about");
+    expect(text()).toContain("Steam keeps PlayCounter up to date.");
+    const check = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Check",
+    );
+    expect(check).toBeUndefined();
+    expect(buttonByText("Release notes")).toBeDefined();
+    expect(
+      container.querySelector('[data-tour="settings-updates"]'),
+    ).not.toBeNull();
+  });
+
+  it("tells the Steam copy in the settings guide that Steam brings updates", () => {
+    useAppStore.setState({ installSource: "steam" });
+    const step = tours()
+      .find((tour) => tour.id === "settings")!
+      .steps.find((candidate) => candidate.id === "updates")!;
+    expect(step.body).toBe(
+      "Steam keeps PlayCounter up to date. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.",
+    );
+  });
+
   it("puts Reset in a red box at the end of Backup & transfer", async () => {
     await renderSettings("backup");
     const sections = [

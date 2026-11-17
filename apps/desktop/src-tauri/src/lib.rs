@@ -25,6 +25,7 @@ mod exe_details;
 mod fullscreen;
 mod hotkeys;
 mod ignored_processes;
+mod install_source;
 mod launch;
 mod library;
 mod live_timer;
@@ -649,6 +650,7 @@ pub fn run() {
             set_tray_labels,
             set_tray_update,
             show_main_window_for_update,
+            install_source::install_source,
             scan_processes,
             privacy_context,
             get_exe_icon,

@@ -194,6 +194,7 @@
   "Preparing update...": "Preparando la actualización…",
   "Version {{version}} is available.": "La versión {{version}} está disponible.",
   "PlayCounter is up to date.": "PlayCounter está actualizado.",
+  "Steam keeps PlayCounter up to date.": "Steam mantiene PlayCounter actualizado.",
   "Update check failed.": "No se pudo buscar actualizaciones.",
   "No update check has run in this session.": "Aún no se ha buscado ninguna actualización en esta sesión.",
   "Automatic backups": "Copias de seguridad automáticas",

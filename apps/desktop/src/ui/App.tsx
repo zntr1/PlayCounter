@@ -123,6 +123,7 @@ import {
   type Toast,
   type ViewId,
 } from "../store";
+import { readInstallSource } from "../installSource";
 import {
   checkForUpdate,
   installAvailableUpdate,
@@ -776,10 +777,16 @@ export function App() {
       );
     }
 
-    updateCheckTimer = window.setTimeout(
-      () => void runUpdateCheck(),
-      UPDATE_FIRST_CHECK_DELAY_MS,
-    );
+    void readInstallSource().then((source) => {
+      if (cancelled) return;
+      useAppStore.getState().setInstallSource(source);
+      // Steam delivers the Steam copy's updates.
+      if (source === "steam") return;
+      updateCheckTimer = window.setTimeout(
+        () => void runUpdateCheck(),
+        UPDATE_FIRST_CHECK_DELAY_MS,
+      );
+    });
 
     return () => {
       cancelled = true;

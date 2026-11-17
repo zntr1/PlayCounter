@@ -194,6 +194,7 @@
   "Preparing update...": "Подготовка обновления...",
   "Version {{version}} is available.": "Доступна версия {{version}}.",
   "PlayCounter is up to date.": "PlayCounter обновлён.",
+  "Steam keeps PlayCounter up to date.": "Steam сам обновляет PlayCounter.",
   "Update check failed.": "Не удалось проверить обновления.",
   "No update check has run in this session.": "В этом сеансе обновления ещё не проверялись.",
   "Automatic backups": "Автоматическое резервное копирование",

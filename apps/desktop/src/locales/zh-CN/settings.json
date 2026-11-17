@@ -194,6 +194,7 @@
   "Preparing update...": "正在准备更新…",
   "Version {{version}} is available.": "版本 {{version}} 可用。",
   "PlayCounter is up to date.": "PlayCounter 已是最新版本。",
+  "Steam keeps PlayCounter up to date.": "Steam 会让 PlayCounter 保持最新版本。",
   "Update check failed.": "更新检查失败。",
   "No update check has run in this session.": "本次运行中尚未检查更新。",
   "Automatic backups": "自动备份",

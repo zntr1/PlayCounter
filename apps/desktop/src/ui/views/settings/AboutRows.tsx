@@ -35,6 +35,7 @@ type CheckState = "idle" | "checking" | "current" | "installing" | "error";
 /** The version you run, the update check and the release notes. */
 export function AppUpdatesRow({ disabled }: SettingsRowProps) {
   const available = useAppStore((state) => state.availableUpdate);
+  const fromSteam = useAppStore((state) => state.installSource === "steam");
   const setAvailableUpdate = useAppStore((state) => state.setAvailableUpdate);
   const openCurrentReleaseNotes = useAppStore(
     (state) => state.openCurrentReleaseNotes,
@@ -90,8 +91,9 @@ export function AppUpdatesRow({ disabled }: SettingsRowProps) {
   const availableNotes = available
     ? updateDisplayNotes(available)
     : parseManifestNotes(null);
-  const status =
-    state === "installing"
+  const status = fromSteam
+    ? t("Steam keeps PlayCounter up to date.")
+    : state === "installing"
       ? progress
         ? t("Downloading and installing {{progressLabel}}", {
             progressLabel: formatBytesProgress(progress),
@@ -196,17 +198,19 @@ export function AppUpdatesRow({ disabled }: SettingsRowProps) {
             >
               {t("Release notes")}
             </Button>
-            <Button
-              icon={state === "checking" ? undefined : RotateCcw}
-              aria-busy={state === "checking"}
-              disabled={disabled || busy || isOffline}
-              title={
-                isOffline ? t("Update checks unavailable offline") : undefined
-              }
-              onClick={() => void check()}
-            >
-              {state === "checking" ? t("Checking…") : t("Check")}
-            </Button>
+            {fromSteam ? null : (
+              <Button
+                icon={state === "checking" ? undefined : RotateCcw}
+                aria-busy={state === "checking"}
+                disabled={disabled || busy || isOffline}
+                title={
+                  isOffline ? t("Update checks unavailable offline") : undefined
+                }
+                onClick={() => void check()}
+              >
+                {state === "checking" ? t("Checking…") : t("Check")}
+              </Button>
+            )}
           </>
         )}
       </div>

@@ -249,6 +249,7 @@
   "<b>Track software</b> counts apps like Discord on their own page, apart from your games. <b>Share apps you ignore</b> sends an ignored app's file name, your platform and an anonymous ID, never your playtime.": "<b>记录软件使用时长</b>会在单独的页面统计 Discord 等应用，与游戏分开。<b>分享你忽略的应用</b>会发送被忽略应用的文件名、你的平台和一个匿名 ID，绝不包含你的游戏时长。",
   "Updates and more guides": "更新与更多指南",
   "<b>Check</b> looks for a new version right away. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.": "<b>检查</b>会立即查找新版本。备份、游戏库导入和模拟器都有各自的指南：<b>帮助与教程</b>会告诉你在哪里找到它们。",
+  "Steam keeps PlayCounter up to date. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.": "Steam 会让 PlayCounter 保持最新版本。备份、游戏库导入和模拟器都有各自的指南：<b>帮助与教程</b>会告诉你在哪里找到它们。",
   "DRM-free downloads, itch.io games and old disc installs often sit together in one folder. PlayCounter can watch it.": "无 DRM 的下载、itch.io 游戏和旧的光盘安装版，常常放在同一个文件夹里。PlayCounter 可以监控它。",
   "One folder, many games": "一个文件夹，多个游戏",
   "You watch the folder your games sit in, like D:\\Games. Every folder inside it counts as one game: D:\\Games\\Celeste and D:\\Games\\Hollow Knight are two.": "你监控的是存放游戏的文件夹，比如 D:\\Games。它里面的每个文件夹算一个游戏：D:\\Games\\Celeste 和 D:\\Games\\Hollow Knight 是两个游戏。",
