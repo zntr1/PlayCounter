@@ -196,10 +196,12 @@ export function listDesktopOverlayMonitors() {
 }
 
 function showDesktopOverlay(message: DesktopOverlayMessage) {
+  const { settings } = useAppStore.getState();
   void safeInvoke("notification_overlay_show", {
     payload: {
       ...message,
-      monitor: useAppStore.getState().settings.overlayMonitor ?? "primary",
+      monitor: settings.overlayMonitor ?? "primary",
+      corner: settings.overlayCorner ?? "top-right",
     },
   });
 }

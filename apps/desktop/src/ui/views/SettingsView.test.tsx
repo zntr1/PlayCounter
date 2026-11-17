@@ -532,6 +532,24 @@ describe("visible choices", () => {
     );
   });
 
+  it("picks the popups' corner on a small screen, top right until then", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, overlayCorner: undefined },
+    }));
+    await renderSettings("popups");
+    const picker = container.querySelector('[aria-label="Popup position"]')!;
+    const pressed = () =>
+      [...picker.querySelectorAll('[aria-pressed="true"]')].map((button) =>
+        button.getAttribute("aria-label"),
+      );
+    expect(pressed()).toEqual(["Top right"]);
+    await click(
+      picker.querySelector<HTMLElement>('[aria-label="Bottom left"]')!,
+    );
+    expect(useAppStore.getState().settings.overlayCorner).toBe("bottom-left");
+    expect(pressed()).toEqual(["Bottom left"]);
+  });
+
   it("shows the controller buttons that count", async () => {
     await renderSettings("play");
     const row = container.querySelector('[data-row="controllerCounting"]')!;

@@ -75,6 +75,7 @@ import {
   MilestonesRow,
   PlaythroughNamesRow,
   PlaytimeReminderRow,
+  PopupCornerRow,
   PopupMonitorRow,
   ScreenshotFolderRow,
   SessionClockRow,
@@ -525,9 +526,15 @@ const GROUPS: SettingsGroupDef[] = [
             title: () => t("Popup monitor"),
             description: () =>
               t(
-                "Popups appear at the top right of this display. Hotkey popups, boxes and timers you start by hand use it too. If it is disconnected, PlayCounter uses your primary monitor.",
+                "Popups appear on this display. Hotkey popups, boxes and timers you start by hand use it too. If it is disconnected, PlayCounter uses your primary monitor.",
               ),
             Row: PopupMonitorRow,
+          },
+          {
+            id: "overlayCorner",
+            title: () => t("Popup position"),
+            description: () => t("Pick a corner your game's HUD leaves free."),
+            Row: PopupCornerRow,
           },
         ],
       },
