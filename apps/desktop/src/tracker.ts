@@ -8218,9 +8218,7 @@ export async function submitLocalLinkToCommunity(
     !link.gameName ||
     // The server takes a game only with its IGDB id: a Custom game without
     // one finds its database game in the search first.
-    link.igdbId === undefined ||
-    // Game.exe names no game for anyone else: it is never shared.
-    isGenericExeName(link.exeName)
+    link.igdbId === undefined
   ) {
     return { kind: "not-applicable" };
   }
@@ -8239,7 +8237,10 @@ export async function submitLocalLinkToCommunity(
           coverUrl: link.coverUrl,
           igdbId: link.igdbId,
           installUuid: state.installUuid ?? undefined,
-        }),
+          // Game.exe and co.: review sees that the file is one several games
+          // ship, and approving it adds a choice instead of a match.
+          ...(isGenericExeName(link.exeName) ? { sharedFile: true } : {}),
+        } satisfies CommunityGameSuggestionPayload),
       },
     );
     if (!response.ok) {
@@ -8286,6 +8287,44 @@ export async function submitLocalLinkToCommunity(
     persist();
     return { kind: "failed", error: formatError(error) };
   }
+}
+
+/**
+ * A database game a player linked to a folder of a shared file (Game.exe,
+ * Wow.exe, a "Per folder" name) goes to review from each folder link of the
+ * name that holds it (docs/shared-file-suggestions-plan.md). The links stay
+ * folder links, and the server's answer only changes them. Once approved,
+ * other players can pick the game for that file. Offline nothing is sent.
+ * True when the pair went to review.
+ */
+export async function sendSharedFileGame(
+  exeName: string,
+  game: Pick<Game, "id" | "source">,
+): Promise<boolean> {
+  const state = useAppStore.getState();
+  if (
+    !isGenericExeName(exeName) ||
+    game.source !== "custom" ||
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    return false;
+  }
+  const key = exeName.toLowerCase();
+  const refs = [...state.scopedExeLinks]
+    .filter(
+      ([, link]) =>
+        link.exeName.toLowerCase() === key &&
+        link.source === "custom" &&
+        link.gameId === game.id,
+    )
+    .map(([linkKey]): LocalLinkRef => ({ kind: "scoped", key: linkKey }));
+  let sent = false;
+  for (const ref of refs) {
+    const outcome = await submitLocalLinkToCommunity(ref);
+    if (outcome.kind === "submitted") sent = true;
+  }
+  return sent;
 }
 
 // Resolves an ambiguity picker with a locally created custom game - the

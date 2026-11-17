@@ -4257,9 +4257,12 @@ describe("imported local link sharing", () => {
   });
 
   // A Steam import links War of Dots' Game.exe to its folder as a Custom
-  // game; 1.4.0 then sent Game.exe for review (pending suggestion #1335).
+  // game. 1.4.0 sent Game.exe for review like any file (pending suggestion
+  // #1335), and approving it would have matched every Game.exe to War of
+  // Dots. It now goes with the shared-file mark, and approving it only adds
+  // a choice (docs/shared-file-suggestions-plan.md).
   it.each(["Game.exe", "javaw.exe"])(
-    "never sends an imported %s, a name many games share, for review",
+    "sends an imported %s with the shared-file mark and keeps its folder link",
     async (exeName) => {
       const genericKey = `${exeName.toLowerCase()}|c:\\steam\\war of dots`;
       const generic = {
@@ -4268,18 +4271,32 @@ describe("imported local link sharing", () => {
         pathPrefix: "C:\\Steam\\War of Dots",
         gameName: "War of Dots",
       };
-      useAppStore.setState({ scopedExeLinks: new Map([[genericKey, generic]]) });
-      const fetchMock = vi.fn();
+      useAppStore.setState({
+        scopedExeLinks: new Map([[genericKey, generic]]),
+        settings: {
+          ...useAppStore.getState().settings,
+          apiEndpoint: "https://api.playcounter.test",
+        },
+      });
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL, _init?: RequestInit) =>
+          Response.json({ id: 42, verified: false }),
+      );
       vi.stubGlobal("fetch", fetchMock);
 
       await expect(
         submitLocalLinkToCommunity({ kind: "scoped", key: genericKey }),
-      ).resolves.toEqual({ kind: "not-applicable" });
+      ).resolves.toEqual({ kind: "submitted" });
 
-      expect(fetchMock).not.toHaveBeenCalled();
-      expect(useAppStore.getState().scopedExeLinks.get(genericKey)).toBe(
-        generic,
-      );
+      expect(
+        JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)),
+      ).toMatchObject({ exeName, name: "War of Dots", sharedFile: true });
+      const state = useAppStore.getState();
+      expect(state.scopedExeLinks.get(genericKey)).toMatchObject({
+        pathPrefix: generic.pathPrefix,
+        communitySuggestionId: 42,
+      });
+      expect(state.exeCache.has(exeName.toLowerCase())).toBe(false);
     },
   );
 

@@ -107,6 +107,7 @@ import {
   revealGameExecutable,
   reportNegativeMatch,
   scanProcessesNow,
+  sendSharedFileGame,
   chooseLaunchTarget,
   chooseEmulatorLaunchFile,
   linkKnownGameFiles,
@@ -125,6 +126,7 @@ import {
   type GameAliasRef,
   rejectFileForGame,
 } from "../../tracker";
+import { sentForReviewDetail } from "../sharedFileReview";
 import {
   canSuggestCustomGameToCommunity,
   fileMatchSource,
@@ -4805,12 +4807,12 @@ export function GameLibraryCard({
     });
   }
 
-  // Game.exe names no game for anyone else: its database search stays on
-  // this PC and moves only this game's folders.
-  const localSearchOnly = isGenericExeName(flowExeName ?? "");
+  // Game.exe and co.: the database search moves only this game's folders,
+  // and the pick goes to review from them.
+  const sharedFileSearch = isGenericExeName(flowExeName ?? "");
 
   function openSearch() {
-    if (!localSearchOnly) {
+    if (!sharedFileSearch) {
       setShareOpen(true);
       return;
     }
@@ -4818,34 +4820,37 @@ export function GameLibraryCard({
     setShareOpen(true);
   }
 
-  function applySearchedGameLocally() {
+  async function applySearchedGameToFolders() {
     const selection = correction.selection;
     if (!selection?.coverUrl || !flowExeName) return;
     const applied = applyDatabaseGameToFolderLinks(flowExeName, game.aliases, {
       ...selection,
       coverUrl: selection.coverUrl,
     });
-    if (applied) void linkServerKnownFiles(applied);
     closeShare();
-    addToast(
-      applied
-        ? {
-            tone: "success",
-            title: t("Match applied"),
-            detail: t("{{name}} is now tracked as {{name2}} on this PC.", {
-              name: game.name,
-              name2: applied.name,
-            }),
-          }
-        : {
-            tone: "info",
-            title: t("Nothing to change"),
-            detail: t(
-              "{{flowExeName}} is not linked to a folder for {{name}} yet. Start the game once, then pick the right one.",
-              { flowExeName, name: game.name },
-            ),
-          },
-    );
+    if (!applied) {
+      addToast({
+        tone: "info",
+        title: t("Nothing to change"),
+        detail: t(
+          "{{flowExeName}} is not linked to a folder for {{name}} yet. Start the game once, then pick the right one.",
+          { flowExeName, name: game.name },
+        ),
+      });
+      return;
+    }
+    void linkServerKnownFiles(applied);
+    const sent = await sendSharedFileGame(flowExeName, applied);
+    addToast({
+      tone: "success",
+      title: t("Match applied"),
+      detail: sent
+        ? sentForReviewDetail(flowExeName, applied.name)
+        : t("{{name}} is now tracked as {{name2}} on this PC.", {
+            name: game.name,
+            name2: applied.name,
+          }),
+    });
   }
 
   // A Custom game that already names its database game is sent as it is,
@@ -6760,7 +6765,7 @@ export function GameLibraryCard({
                     setShowMatchCheck(false);
                     setDemoAction("matching");
                   }
-                : canSuggestToCommunity || localSearchOnly
+                : canSuggestToCommunity || sharedFileSearch
                   ? () => {
                       setShowMatchCheck(false);
                       openSearch();
@@ -6782,7 +6787,7 @@ export function GameLibraryCard({
           onDifferentGame={() => {
             setReportOpen(false);
             if (demo) setDemoAction("matching");
-            else if (localSearchOnly) openSearch();
+            else if (sharedFileSearch) openSearch();
             else setShareOpen(true);
           }}
           onNotAGame={(exeName) => {
@@ -6873,11 +6878,15 @@ export function GameLibraryCard({
           onSearch={correction.searchFirstPage}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          localOnly={localSearchOnly || searchMode === "change"}
-          localAction={searchMode === "change" ? t("Change game") : undefined}
+          localOnly={!sharedFileSearch && searchMode === "change"}
+          localAction={
+            !sharedFileSearch && searchMode === "change"
+              ? t("Change game")
+              : undefined
+          }
           onSubmit={() =>
-            localSearchOnly
-              ? applySearchedGameLocally()
+            sharedFileSearch
+              ? void applySearchedGameToFolders()
               : searchMode === "change"
                 ? changeGameNow()
                 : void correction.submit()

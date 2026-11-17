@@ -57,7 +57,7 @@
   "Did you launch one of these?": "Você iniciou algum destes?",
   "Offline - track it under a name you type...": "Offline: registre com um nome que você digitar…",
   "Track it under a name you type...": "Registrar com um nome que você digitar…",
-  "Search the database. The pick stays on this PC.": "Pesquise no banco de dados. A escolha fica neste PC.",
+  "Search the database. The pick counts for this folder and is sent for review.": "Pesquise no banco de dados. A escolha vale para esta pasta e é enviada para análise.",
   "Search the database and send the match in for review.": "Pesquise no banco de dados e envie a associação para análise.",
   "Track it under a name you type yourself. Stays on this PC only.": "Registre com um nome que você mesmo digitar. Fica só neste PC.",
   "{{exeName}} is an app, part of a game, or you're not sure: choose what it is.": "{{exeName}} é um app, parte de um jogo, ou você não tem certeza: escolha o que é.",

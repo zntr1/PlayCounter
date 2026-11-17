@@ -21,11 +21,13 @@ import {
   runningExePath,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
+  sendSharedFileGame,
   suggestTrackedGameToCommunity,
   rejectFileForGame,
   stopGameTimer,
   togglePauseSession,
 } from "../../tracker";
+import { sentForReviewDetail } from "../sharedFileReview";
 import { pausedForSeconds, playedSeconds } from "../../sessionTime";
 import { Panel } from "../components";
 import { Button } from "../primitives";
@@ -466,11 +468,12 @@ function TrackedGameCorrectionDialog({
 }) {
   const { exeName } = session;
   const addToast = useAppStore((state) => state.addToast);
-  // Game.exe and co.: only the folder it runs from changes game, on this PC.
-  const localOnly = isGenericExeName(exeName);
+  // Game.exe and co.: only the folder it runs from changes game. The pick
+  // then goes to review from that folder.
+  const sharedFile = isGenericExeName(exeName);
   const correction = useCommunityGameCorrection({
     exeName,
-    resultInstruction: localOnly
+    resultInstruction: sharedFile
       ? t("Pick the game in this folder.")
       : undefined,
     onKnownGame: (game) => {
@@ -523,31 +526,34 @@ function TrackedGameCorrectionDialog({
     },
   });
 
-  function correctLocally() {
+  async function correctSharedFile() {
     const selection = correction.selection;
     if (!selection?.coverUrl) return;
     const game = correctRunningGenericExe(session, {
       ...selection,
       coverUrl: selection.coverUrl,
     });
-    if (game) void linkServerKnownFiles(game);
     onClose();
-    addToast(
-      game
-        ? {
-            tone: "success",
-            title: t("Correct match applied"),
-            detail: t(
-              "{{exeName}} in this folder is now tracked as {{name}}.",
-              { exeName, name: game.name },
-            ),
-          }
-        : {
-            tone: "info",
-            title: t("{{exeName}} is not running", { exeName }),
-            detail: t("Start the game again, then correct it while it runs."),
-          },
-    );
+    if (!game) {
+      addToast({
+        tone: "info",
+        title: t("{{exeName}} is not running", { exeName }),
+        detail: t("Start the game again, then correct it while it runs."),
+      });
+      return;
+    }
+    void linkServerKnownFiles(game);
+    const sent = await sendSharedFileGame(exeName, game);
+    addToast({
+      tone: "success",
+      title: t("Correct match applied"),
+      detail: sent
+        ? sentForReviewDetail(exeName, game.name)
+        : t("{{exeName}} in this folder is now tracked as {{name}}.", {
+            exeName,
+            name: game.name,
+          }),
+    });
   }
 
   return (
@@ -561,14 +567,15 @@ function TrackedGameCorrectionDialog({
       state={correction.state}
       title={t("Choose the correct game")}
       isOffline={correction.isOffline}
-      localOnly={localOnly}
       onApplyCandidate={correction.applyCandidate}
       onCancel={onClose}
       onLoadMore={(options) => void correction.loadMore(options)}
       onSearch={(options) => void correction.searchFirstPage(options)}
       onSearchChange={correction.setSearch}
       onSearchOptionsChange={correction.resetResults}
-      onSubmit={() => (localOnly ? correctLocally() : void correction.submit())}
+      onSubmit={() =>
+        void (sharedFile ? correctSharedFile() : correction.submit())
+      }
     />
   );
 }

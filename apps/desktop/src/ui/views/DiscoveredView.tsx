@@ -36,9 +36,11 @@ import {
   recheckExecutable,
   restoreIgnoredExeFolder,
   scanProcessesNow,
+  sendSharedFileGame,
   setUserIgnoredProcess,
   type IgnoredProcessSuggestionOutcome,
 } from "../../tracker";
+import { sentForReviewDetail } from "../sharedFileReview";
 import {
   useAppStore,
   useIsOffline,
@@ -115,7 +117,7 @@ const t = getT("discovered");
 
 function genericSearchTitle() {
   return t(
-    "Find the game in the database. Many games ship a file with this name, so it is linked to this folder and not shared.",
+    "Find the game in the database. Many games ship a file with this name, so it is linked to this folder and sent for review.",
   );
 }
 
@@ -318,8 +320,9 @@ export function DiscoveredView() {
     key: string;
     exeName: string;
     exePath: string | null;
-    /** Game.exe and co.: the pick stays on this PC, nothing is shared. */
-    localOnly: boolean;
+    /** Game.exe and co.: the pick is linked to this folder and goes to
+     *  review from it. */
+    sharedFile: boolean;
   } | null>(null);
   const [filter, setFilter] = useState<FilterId>("review");
   const [ignoredSort, setIgnoredSort] =
@@ -523,7 +526,7 @@ export function DiscoveredView() {
 
   const correction = useCommunityGameCorrection({
     exeName: suggestionTarget?.exeName ?? "",
-    resultInstruction: suggestionTarget?.localOnly
+    resultInstruction: suggestionTarget?.sharedFile
       ? t("Pick the game in this folder.")
       : t("Pick the exact game to unlock sharing."),
     onKnownGame: (game) => {
@@ -602,12 +605,12 @@ export function DiscoveredView() {
     }
     correction.reset();
     const exePath = exePathFor(exeName);
-    const localOnly = isGenericExeName(exeName);
+    const sharedFile = isGenericExeName(exeName);
     // A file found in a watched folder is best searched by its folder name;
     // so is Game.exe, whose own name says nothing.
     const folderName =
       pendingFolderFind(exeName)?.folderName ??
-      (localOnly && exePath
+      (sharedFile && exePath
         ? gameFolderName(exePath.replace(/[\\/][^\\/]*$/, ""))
         : undefined);
     if (folderName) correction.setSearch(folderName);
@@ -615,11 +618,11 @@ export function DiscoveredView() {
       key: exeName.toLowerCase(),
       exeName,
       exePath,
-      localOnly,
+      sharedFile,
     });
   }
 
-  function addSearchedGameLocally() {
+  async function addSearchedGameToFolder() {
     const selection = correction.selection;
     if (!suggestionTarget || !selection?.coverUrl) return;
     const { exeName, exePath } = suggestionTarget;
@@ -629,13 +632,13 @@ export function DiscoveredView() {
     });
     void linkServerKnownFiles(game);
     closeCommunitySuggestion();
+    const sent = await sendSharedFileGame(exeName, game);
     addToast({
       tone: "success",
       title: t("Added to My Games"),
-      detail: t(
-        "{{name}} is tracked from this folder. {{exeName}} is not shared: many games use that name.",
-        { name: game.name, exeName },
-      ),
+      detail: sent
+        ? sentForReviewDetail(exeName, game.name)
+        : t("{{name}} is tracked from this folder.", { name: game.name }),
     });
   }
 
@@ -1202,11 +1205,10 @@ export function DiscoveredView() {
           onSearch={correction.searchFirstPage}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          localOnly={suggestionTarget.localOnly}
           onSubmit={() =>
-            suggestionTarget.localOnly
-              ? addSearchedGameLocally()
-              : void correction.submit()
+            void (suggestionTarget.sharedFile
+              ? addSearchedGameToFolder()
+              : correction.submit())
           }
         />
       ) : null}
@@ -2128,7 +2130,8 @@ export function CommunitySuggestionForm({
   /** A guide's sample search. "share" stands in for Add & Share and keeps
    *  that dialog's own button. */
   practice?: boolean | "share";
-  /** Generic exe names: the pick is added on this PC and never shared. */
+  /** A pick that stays on this PC and is never sent (My Games' Change
+   *  game). */
   localOnly?: boolean;
   /** Title and button of a local search, e.g. "Change game". */
   localAction?: string;

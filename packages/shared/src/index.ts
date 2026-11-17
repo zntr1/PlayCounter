@@ -358,6 +358,10 @@ export interface CommunityGameSuggestionPayload {
   installUuid?: string;
   /** Absent = "game". A tool has no igdbId and may carry a SteamGridDB cover. */
   kind?: GameKind;
+  /** The file is one several games ship, each in its own folder (Game.exe,
+   *  Wow.exe, a "Per folder" name). Only shown in review: approving it adds
+   *  one more choice for the file, never a match on its own. */
+  sharedFile?: boolean;
 }
 
 export interface CommunityGameSuggestionResponse {

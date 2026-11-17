@@ -232,8 +232,10 @@ describe("Battle.net library", () => {
   });
 
   // Every WoW Classic flavour runs WowClassic.exe from its own folder: the file
-  // names no game, so a pick for it stays on this PC and in its folder.
-  it("keeps both WoW Classic installations apart and never shares WowClassic.exe", async () => {
+  // names no game, so a pick for it stays in its folder. It goes to review
+  // with the shared-file mark, where approving it only adds a choice
+  // (docs/shared-file-suggestions-plan.md).
+  it("keeps both WoW Classic installations apart and sends WowClassic.exe as a shared file", async () => {
     const other = commit(
       {
         ...scanned,
@@ -251,7 +253,10 @@ describe("Battle.net library", () => {
       },
     );
     commitLibraryImports([other]);
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json({ id: 900, verified: false }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const plan = buildLibraryImportCommit({
       provider: "battlenet",
@@ -264,9 +269,12 @@ describe("Battle.net library", () => {
     const result = await runLibraryImport([plan]);
 
     expect(result.shareOutcomes.map(({ outcome }) => outcome.kind)).toEqual([
-      "not-applicable",
+      "submitted",
     ]);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)),
+    ).toMatchObject({ exeName: "WowClassic.exe", sharedFile: true });
     const state = useAppStore.getState();
     expect(state.exeCache.size).toBe(0);
     expect([...state.scopedExeLinks.values()]).toContainEqual(
@@ -284,8 +292,8 @@ describe("Battle.net library", () => {
       provider: "battlenet",
       externalId: "wow_classic_era",
       source: "custom",
+      communitySuggestionId: 900,
     });
-    expect(local?.communitySuggestionId).toBeUndefined();
   });
 
   it("reuses known Battle.net executable evidence without a community submission", async () => {

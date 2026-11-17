@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
-import type { Game } from "@playcounter/shared";
+import type {
+  CommunityGameSuggestionResponse,
+  Game,
+} from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
@@ -14,6 +17,7 @@ import {
   addCustomGame,
   addDatabaseGameLocally,
   adoptFolderGame,
+  applyContributionMarkers,
   applyDatabaseGameToFolderLinks,
   applyKnownGameMatch,
   correctRunningGenericExe,
@@ -23,6 +27,7 @@ import {
   hydrate,
   ignoreDiscoveredProcess,
   ignoreTrackedProcessLocally,
+  localDatabaseGame,
   markExecutableAsSoftware,
   refreshPerFolderFiles,
   reportNegativeMatch,
@@ -32,6 +37,7 @@ import {
   scanProcessesNow,
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
+  sendSharedFileGame,
   setUserIgnoredProcess,
   submitLocalLinkToCommunity,
   untrackGame,
@@ -73,6 +79,8 @@ let serverGame: Game | null = null;
 let serverAmbiguous: Game[] | undefined;
 /** What GET /api/identifiers/per-folder answers: the names, or a failure. */
 let serverPerFolder: string[] | "fails" = [];
+/** What POST /api/community/suggestions answers. */
+let serverSuggestion: CommunityGameSuggestionResponse = {};
 
 function exeNameOf(exePath: string) {
   return exePath.replace(/^.*\\/, "");
@@ -159,6 +167,7 @@ beforeEach(() => {
   serverGame = null;
   serverAmbiguous = undefined;
   serverPerFolder = [];
+  serverSuggestion = {};
   localStorage.clear();
   invokeMock.mockReset();
   invokeMock.mockImplementation(async (command: string) =>
@@ -183,6 +192,9 @@ beforeEach(() => {
         return serverPerFolder === "fails"
           ? new Response("", { status: 500 })
           : Response.json({ files: serverPerFolder });
+      }
+      if (String(url).endsWith("/api/community/suggestions")) {
+        return Response.json(serverSuggestion);
       }
       return Response.json({});
     }),
@@ -854,6 +866,221 @@ describe.each(SHARED_FILES)(
         });
       });
     });
+
+    /* docs/shared-file-suggestions-plan.md: a database game a player picks
+       for a shared file goes to review, from the folder it was picked for.
+       Once approved, it is one more choice for the file. */
+    describe(`a database game picked for a ${EXE} goes to review`, () => {
+      const INSTALL = "550e8400-e29b-41d4-a716-446655440000";
+      const REAL_TUPAC = { igdbId: 77, name: "Real Tupac", coverUrl: "real" };
+
+      beforeEach(() => {
+        useAppStore.setState({ installUuid: INSTALL });
+        serverSuggestion = { id: 900, verified: false };
+      });
+
+      function suggestionsSent() {
+        return vi
+          .mocked(fetch)
+          .mock.calls.filter(([url]) =>
+            String(url).endsWith("/api/community/suggestions"),
+          )
+          .map(([, init]) => JSON.parse(String(init?.body)) as unknown);
+      }
+
+      const SENT = {
+        exeName: EXE,
+        name: "Real Tupac",
+        coverUrl: "real",
+        igdbId: 77,
+        installUuid: INSTALL,
+        sharedFile: true,
+      };
+
+      function expectNoNameLink() {
+        expect(useAppStore.getState().exeCache.get(KEY)?.state).not.toBe(
+          "matched",
+        );
+      }
+
+      it("from the picker's search: its folder as today, and the pair", async () => {
+        ambiguous(TUPAC);
+        const game = localDatabaseGame(EXE, TUPAC, REAL_TUPAC);
+        selectAmbiguousMatch(EXE, game);
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(true);
+
+        expect(suggestionsSent()).toEqual([SENT]);
+        expect(linkFor(TUPAC)).toMatchObject({
+          gameName: "Real Tupac",
+          communitySuggestionId: 900,
+        });
+        expectNoNameLink();
+      });
+
+      it('from "Wrong game?": only the running folder changes, and the pair', async () => {
+        serverGame = igdbGame(42, "Tupac");
+        running = [process(TUPAC, 10)];
+        await scanProcessesNow();
+        addCustomGame(EXE, "Solitaire", SOLITAIRE);
+        const [session] = useAppStore.getState().activeSessions;
+        const game = correctRunningGenericExe(session, REAL_TUPAC)!;
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(true);
+
+        expect(suggestionsSent()).toEqual([SENT]);
+        expect(linkFor(TUPAC)).toMatchObject({ communitySuggestionId: 900 });
+        expect(linkFor(SOLITAIRE)).toMatchObject({ gameName: "Solitaire" });
+        expect(linkFor(SOLITAIRE)?.communitySuggestionId).toBeUndefined();
+        expectNoNameLink();
+      });
+
+      it("from Discovered's search & add", async () => {
+        const game = addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(true);
+
+        expect(suggestionsSent()).toEqual([SENT]);
+        expect(linkFor(TUPAC)).toMatchObject({ communitySuggestionId: 900 });
+        expectNoNameLink();
+      });
+
+      it("from My Games' Change game", async () => {
+        addCustomGame(EXE, "Tupac", TUPAC);
+        addCustomGame(EXE, "Solitaire", SOLITAIRE);
+        const tupac = linkFor(TUPAC)!;
+        const game = applyDatabaseGameToFolderLinks(
+          EXE,
+          [{ gameId: tupac.gameId, source: "custom" }],
+          REAL_TUPAC,
+        )!;
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(true);
+
+        expect(suggestionsSent()).toEqual([SENT]);
+        expect(linkFor(TUPAC)).toMatchObject({ communitySuggestionId: 900 });
+        expect(linkFor(SOLITAIRE)?.communitySuggestionId).toBeUndefined();
+        expectNoNameLink();
+      });
+
+      it("from the launcher import, with the shared-file mark", async () => {
+        addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+        const [key] = [...useAppStore.getState().scopedExeLinks].find(
+          ([, link]) => link.exePath === TUPAC,
+        )!;
+
+        expect(
+          await submitLocalLinkToCommunity({ kind: "scoped", key }),
+        ).toEqual({ kind: "submitted" });
+
+        expect(suggestionsSent()).toEqual([SENT]);
+      });
+
+      it("keeps a folder link when the server already knows the pair", async () => {
+        serverSuggestion = { igdbGame: igdbGame(77, "Real Tupac") };
+        addCustomGame(EXE, "Solitaire", SOLITAIRE);
+        const game = addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(false);
+
+        expect(linkFor(TUPAC)).toMatchObject({
+          gameId: 77,
+          gameName: "Real Tupac",
+          source: "igdb",
+        });
+        expect(linkFor(SOLITAIRE)).toMatchObject({ gameName: "Solitaire" });
+        expectNoNameLink();
+      });
+
+      it("marks only that folder when the pair was turned down before", async () => {
+        serverSuggestion = {
+          id: 900,
+          verified: false,
+          rejected: true,
+          reviewNote: "Not this game",
+        };
+        addCustomGame(EXE, "Solitaire", SOLITAIRE);
+        const game = addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(false);
+
+        expect(linkFor(TUPAC)).toMatchObject({
+          gameName: "Real Tupac",
+          communitySuggestionStatus: "rejected",
+          communitySuggestionNote: "Not this game",
+        });
+        expect(linkFor(SOLITAIRE)?.communitySuggestionStatus).toBeUndefined();
+      });
+
+      it("shows the approval on that folder only", async () => {
+        addCustomGame(EXE, "Solitaire", SOLITAIRE);
+        const game = addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+        await sendSharedFileGame(EXE, game);
+
+        useAppStore.setState((state) =>
+          applyContributionMarkers(
+            {
+              exeCache: state.exeCache,
+              scopedExeLinks: state.scopedExeLinks,
+            },
+            [
+              {
+                platform: "windows",
+                kind: "exe",
+                value: EXE,
+                gameId: 900,
+                gameName: "Real Tupac",
+                coverUrl: "real",
+                status: "verified",
+                createdAt: "2026-11-17T00:00:00.000Z",
+              },
+            ],
+          ),
+        );
+
+        expect(linkFor(TUPAC)).toMatchObject({
+          communitySuggestionStatus: "verified",
+          communitySuggestionVerified: true,
+        });
+        expect(linkFor(SOLITAIRE)?.communitySuggestionStatus).toBeUndefined();
+        expectNoNameLink();
+      });
+
+      it("sends nothing for a game the player only named", async () => {
+        addCustomGame(EXE, "Tupac", TUPAC);
+        const tupac = linkFor(TUPAC)!;
+
+        expect(
+          await sendSharedFileGame(EXE, { id: tupac.gameId, source: "custom" }),
+        ).toBe(false);
+
+        expect(suggestionsSent()).toEqual([]);
+      });
+
+      it(`keeps "It's software" for a ${EXE} on this PC`, async () => {
+        expect(
+          await markExecutableAsSoftware(EXE, {
+            name: "Script Extender",
+            share: true,
+          }),
+        ).toEqual({ kind: "local" });
+
+        expect(suggestionsSent()).toEqual([]);
+      });
+
+      it("sends nothing offline; the folder link stays", async () => {
+        useAppStore.setState({
+          backendHealth: { status: "offline", checkedAt: null, detail: null },
+        });
+        const game = addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+
+        expect(await sendSharedFileGame(EXE, game)).toBe(false);
+
+        expect(suggestionsSent()).toEqual([]);
+        expect(linkFor(TUPAC)).toMatchObject({ gameName: "Real Tupac" });
+        expect(linkFor(TUPAC)?.shareState).toBeUndefined();
+      });
+    });
   },
 );
 
@@ -1233,23 +1460,12 @@ describe("SkyrimSE.exe once the admin panel marks it per folder", () => {
     });
   });
 
-  it("never sends SkyrimSE.exe to the community", async () => {
+  it("keeps SkyrimSE.exe as software on this PC", async () => {
     setPerFolderFiles(["skyrimse.exe"]);
     useAppStore.setState({
       installUuid: "550e8400-e29b-41d4-a716-446655440000",
     });
-    addDatabaseGameLocally("SkyrimSE.exe", ENDERAL, {
-      igdbId: 2,
-      name: ENDERAL_GAME.name,
-      coverUrl: "cover",
-    });
-    const [key] = [...useAppStore.getState().scopedExeLinks].find(
-      ([, link]) => link.exePath === ENDERAL,
-    )!;
 
-    expect(await submitLocalLinkToCommunity({ kind: "scoped", key })).toEqual({
-      kind: "not-applicable",
-    });
     expect(
       await markExecutableAsSoftware("SkyrimSE.exe", {
         name: "Skyrim Script Extender",
