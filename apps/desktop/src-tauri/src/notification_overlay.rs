@@ -27,6 +27,9 @@ pub struct OverlayPayload {
     target_pids: Vec<u32>,
     #[serde(default)]
     monitor: Option<String>,
+    /// Corner of the monitor the card appears in. Older callers omit it.
+    #[serde(default)]
+    corner: String,
     priority: i32,
     kicker: String,
     title: String,
@@ -101,26 +104,34 @@ pub struct PhysRect {
     pub height: u32,
 }
 
-pub fn overlay_rect(work_area: PhysRect, scale_factor: f64) -> PhysRect {
+pub fn overlay_rect(work_area: PhysRect, scale_factor: f64, corner: &str) -> PhysRect {
     let scale = if scale_factor.is_finite() && scale_factor > 0.0 {
         scale_factor
     } else {
         1.0
     };
-    let margin = (MARGIN_LOGICAL * scale).round().max(0.0) as i32;
+    let margin = i64::from((MARGIN_LOGICAL * scale).round().max(0.0) as i32);
     let width = ((CARD_LOGICAL_WIDTH * scale).round() as u32).min(work_area.width);
     let height = ((CARD_LOGICAL_HEIGHT * scale).round() as u32).min(work_area.height);
-    let right = i64::from(work_area.x) + i64::from(work_area.width);
-    let desired_x = right - i64::from(width) - i64::from(margin);
-    let max_x = right - i64::from(width);
+    let left = i64::from(work_area.x);
+    let top = i64::from(work_area.y);
+    let max_x = left + i64::from(work_area.width) - i64::from(width);
+    let max_y = top + i64::from(work_area.height) - i64::from(height);
+    let desired_x = if corner.ends_with("left") {
+        left + margin
+    } else {
+        max_x - margin
+    };
+    let desired_y = if corner.starts_with("bottom") {
+        max_y - margin
+    } else {
+        top + margin
+    };
     let x = desired_x
-        .clamp(i64::from(work_area.x), max_x)
+        .clamp(left, max_x)
         .clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32;
-    let bottom = i64::from(work_area.y) + i64::from(work_area.height);
-    let desired_y = i64::from(work_area.y) + i64::from(margin);
-    let max_y = bottom - i64::from(height);
     let y = desired_y
-        .clamp(i64::from(work_area.y), max_y)
+        .clamp(top, max_y)
         .clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32;
     PhysRect {
         x,
@@ -141,6 +152,12 @@ fn truncate_optional(value: Option<String>, max_chars: usize) -> Option<String> 
 fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
     payload.id = truncate(payload.id, 200);
     payload.kind = truncate(payload.kind, 64);
+    if !matches!(
+        payload.corner.as_str(),
+        "top-left" | "top-right" | "bottom-left" | "bottom-right"
+    ) {
+        payload.corner = "top-right".to_string();
+    }
     payload.kicker = truncate(payload.kicker, 200);
     payload.title = truncate(payload.title, 200);
     payload.body = truncate_optional(payload.body, 200);
@@ -280,6 +297,7 @@ mod imp {
                 height: area.size.height,
             },
             monitor.scale_factor(),
+            &payload.corner,
         );
         window
             .set_size(tauri::PhysicalSize::new(rect.width, rect.height))
@@ -717,6 +735,7 @@ mod tests {
             kind: "action-required".to_string(),
             target_pids: vec![],
             monitor: None,
+            corner: String::new(),
             priority: 1,
             kicker: "Choice required".to_string(),
             title: "Choose a game".to_string(),
@@ -783,24 +802,40 @@ mod tests {
     }
 
     #[test]
-    fn places_the_card_at_the_top_right() {
-        assert_eq!(
-            overlay_rect(
-                PhysRect {
-                    x: 0,
-                    y: 0,
-                    width: 1920,
-                    height: 1040,
-                },
-                1.0,
-            ),
-            PhysRect {
-                x: 1456,
-                y: 24,
-                width: 440,
-                height: 160,
-            }
-        );
+    fn places_the_card_in_the_picked_corner_of_the_display() {
+        // 1920x1040: a 1080p display above a 40 px taskbar.
+        let area = PhysRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        let at = |corner| {
+            let rect = overlay_rect(area, 1.0, corner);
+            (rect.x, rect.y)
+        };
+        assert_eq!(at("top-right"), (1456, 24));
+        assert_eq!(at("top-left"), (24, 24));
+        assert_eq!(at("bottom-right"), (1456, 856));
+        assert_eq!(at("bottom-left"), (24, 856));
+    }
+
+    #[test]
+    fn keeps_popups_at_the_top_right_unless_another_corner_is_picked() {
+        let mut payload = payload_with_action(None);
+        assert_eq!(sanitize(payload.clone()).corner, "top-right");
+        payload.corner = "bottom-left".to_string();
+        assert_eq!(sanitize(payload.clone()).corner, "bottom-left");
+        payload.corner = "middle".to_string();
+        assert_eq!(sanitize(payload).corner, "top-right");
+    }
+
+    #[test]
+    fn an_older_main_window_without_a_corner_still_shows_its_popup() {
+        let mut json = serde_json::to_value(payload_with_action(None)).expect("payload json");
+        json.as_object_mut().expect("object").remove("corner");
+        let payload: OverlayPayload = serde_json::from_value(json).expect("payload without corner");
+        assert_eq!(sanitize(payload).corner, "top-right");
     }
 
     #[test]
@@ -814,6 +849,7 @@ mod tests {
                     height: 1080,
                 },
                 1.5,
+                "top-right",
             ),
             PhysRect {
                 x: -696,
@@ -835,6 +871,7 @@ mod tests {
                     height: 100,
                 },
                 2.0,
+                "bottom-left",
             ),
             PhysRect {
                 x: 100,

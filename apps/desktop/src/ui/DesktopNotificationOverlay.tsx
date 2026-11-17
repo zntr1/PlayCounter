@@ -61,10 +61,12 @@ export function DesktopNotificationOverlay({
       : phase === "exit"
         ? "overlay-card-exit"
         : "overlay-card-hold";
+  const corner = message.corner ?? "top-right";
 
   return (
     <div
-      className={`${message.action ? "pointer-events-auto" : "pointer-events-none"} flex h-full w-full items-start justify-end p-1`}
+      data-corner={corner}
+      className={`${message.action ? "pointer-events-auto" : "pointer-events-none"} flex h-full w-full ${corner.startsWith("bottom") ? "items-end" : "items-start"} justify-end p-1`}
     >
       <article
         className={`desktop-overlay-card ${phaseClass} ${celebration ? "desktop-overlay-card-celebration" : ""} ${compact ? "desktop-overlay-card-compact" : ""} ${message.action ? "desktop-overlay-card-actionable" : ""}`}

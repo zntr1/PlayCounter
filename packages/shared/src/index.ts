@@ -840,6 +840,8 @@ export interface Settings {
   desktopOverlaysEnabled?: boolean;
   /** OS display identifier, or "primary" (also the default when absent). */
   overlayMonitor?: string;
+  /** Corner of the popup monitor the popups appear in. Absent = top right. */
+  overlayCorner?: LiveTimerCorner;
   overlayFirstDetections?: boolean;
   overlaySessionStarts?: boolean;
   /** Show playthrough names in session popups. Absent = disabled. */

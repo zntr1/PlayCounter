@@ -748,6 +748,21 @@ html[data-window="live-timer"] #live-timer-root {
   will-change: transform, opacity;
 }
 
+/* In a left corner the card comes in from the left edge. */
+[data-corner$="left"] .overlay-card-enter {
+  transform: translate3d(-24px, 0, 0) scale(0.985);
+}
+
+[data-corner$="left"] .overlay-card-exit {
+  transform: translate3d(-12px, 0, 0) scale(0.99);
+}
+
+/* In a bottom corner the short card keeps its gap below, not above. */
+[data-corner^="bottom"] .desktop-overlay-card-compact {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
 .desktop-overlay-cover {
   width: 78px;
   height: 112px;

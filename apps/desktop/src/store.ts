@@ -784,6 +784,7 @@ export type AppState = {
     enabled: boolean,
   ) => void;
   setOverlayMonitor: (monitor: string) => void;
+  setOverlayCorner: (corner: LiveTimerCorner) => void;
   setLiveTimerCorner: (corner: LiveTimerCorner) => void;
   setPlaytimeReminderMinutes: (minutes: number | null) => void;
   setHotkey: (
@@ -887,6 +888,7 @@ const defaultSettings: Settings = {
   ignoredEmulatorIds: [],
   desktopOverlaysEnabled: true,
   overlayMonitor: "primary",
+  overlayCorner: "top-right",
   overlayFirstDetections: true,
   overlaySessionStarts: true,
   overlayPlaythroughNames: false,
@@ -2224,6 +2226,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setOverlayMonitor: (overlayMonitor) => {
     set((state) => ({ settings: { ...state.settings, overlayMonitor } }));
+    persistSoon();
+  },
+  setOverlayCorner: (overlayCorner) => {
+    set((state) => ({ settings: { ...state.settings, overlayCorner } }));
     persistSoon();
   },
   setLiveTimerCorner: (liveTimerCorner) => {

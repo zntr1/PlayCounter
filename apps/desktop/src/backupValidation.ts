@@ -416,6 +416,7 @@ const settings = object({}, {
   ignoredEmulatorIds: array(nonempty),
   desktopOverlaysEnabled: boolean,
   overlayMonitor: string,
+  overlayCorner: oneOf("top-left", "top-right", "bottom-left", "bottom-right"),
   overlayFirstDetections: boolean,
   overlaySessionStarts: boolean,
   overlayPlaythroughNames: boolean,
