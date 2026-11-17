@@ -316,7 +316,7 @@
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Gardez un œil sur votre temps sans quitter le jeu. Les deux fonctionnent même quand les fenêtres contextuelles sont désactivées.",
   "Live timer": "Chrono à l'écran",
   "Pause when you're away": "Mettre en pause quand vous êtes absent",
-  "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.": "Le chronomètre se met en pause après 10 minutes sans clavier, souris ni manette, ou quand une autre application est au premier plan. Le temps d'absence ne compte pas, et il reprend dès que vous rejouez.",
+  "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.": "Le chronomètre se met en pause après une minute quand une autre application est au premier plan ou que le jeu est réduit, ou après 5 minutes sans clavier, souris ni manette. Le temps d'absence ne compte pas, et il reprend dès que vous rejouez.",
   "Timer position": "Position du chrono",
   "Pick a corner your game's HUD leaves free.": "Choisissez un coin que l'interface de votre jeu laisse libre.",
   "Top left": "En haut à gauche",

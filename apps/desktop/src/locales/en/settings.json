@@ -311,7 +311,7 @@
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.",
   "Live timer": "Live timer",
   "Pause when you're away": "Pause when you're away",
-  "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.": "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.",
+  "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.": "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.",
   "Timer position": "Timer position",
   "Pick a corner your game's HUD leaves free.": "Pick a corner your game's HUD leaves free.",
   "Top left": "Top left",

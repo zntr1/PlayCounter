@@ -1,13 +1,16 @@
-/* Auto pause (docs/auto-pause-plan.md): a game left alone, or left behind
-   another app, stops counting. The pause starts at the moment you left, and
-   input at the game counts on from there. Only a pause made here resumes by
-   itself; one the player made waits for the player. */
+/* Auto pause (docs/auto-pause-plan.md): a game behind another app or
+   minimized stops counting after a minute; a game in front stops after 5
+   minutes without input. The pause starts at the moment you left, and input
+   at the game counts on from there. Only a pause made here resumes by itself;
+   one the player made waits for the player. */
 import { invoke } from "@tauri-apps/api/core";
 import { currentPlatform } from "./platform";
 import { useAppStore, type ActiveSession } from "./store";
 
-/** Away this long, and the time since you left stops counting. */
-export const AWAY_AFTER_MS = 10 * 60_000;
+/** Behind another app or minimized this long: not played. */
+export const BEHIND_AFTER_MS = 60_000;
+/** In front without any input this long: not played (AFK). */
+export const IDLE_AFTER_MS = 5 * 60_000;
 const CHECK_INTERVAL_MS = 5_000;
 /** The last input's time is worked out from a tick count at every check, so
  *  it moves by a few milliseconds without anyone touching anything. */
@@ -50,11 +53,20 @@ export function awayStep(
       ? { resume: Math.min(activity.lastInputAtMs, nowMs) }
       : null;
   }
-  const awaySinceMs =
-    behind && activity.leftFrontAtMs !== null
-      ? Math.min(activity.lastInputAtMs, activity.leftFrontAtMs)
-      : activity.lastInputAtMs;
-  if (nowMs - awaySinceMs < AWAY_AFTER_MS) return null;
+  // Each rule that applies names when you left; the earliest one wins.
+  const leftAt: number[] = [];
+  if (nowMs - activity.lastInputAtMs >= IDLE_AFTER_MS) {
+    leftAt.push(activity.lastInputAtMs);
+  }
+  if (
+    behind &&
+    activity.leftFrontAtMs !== null &&
+    nowMs - activity.leftFrontAtMs >= BEHIND_AFTER_MS
+  ) {
+    leftAt.push(activity.leftFrontAtMs);
+  }
+  if (leftAt.length === 0) return null;
+  const awaySinceMs = Math.min(...leftAt);
   const startedAtMs = Date.parse(session.startedAt);
   return {
     pause: Number.isFinite(startedAtMs)

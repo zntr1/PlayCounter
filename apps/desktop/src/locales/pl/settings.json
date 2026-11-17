@@ -321,7 +321,7 @@
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Miej oko na swój czas bez wychodzenia z gry. Obie funkcje działają nawet przy wyłączonych wyskakujących okienkach.",
   "Live timer": "Licznik na ekranie",
   "Pause when you're away": "Wstrzymuj, gdy cię nie ma",
-  "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.": "Stoper wstrzymuje się po 10 minutach bez użycia klawiatury, myszy lub kontrolera albo gdy na pierwszym planie jest inna aplikacja. Czas nieobecności się nie liczy, a odliczanie wraca, gdy znów zaczniesz grać.",
+  "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.": "Stoper wstrzymuje się po minucie, gdy na pierwszym planie jest inna aplikacja lub gra jest zminimalizowana, albo po 5 minutach bez użycia klawiatury, myszy lub kontrolera. Czas nieobecności się nie liczy, a odliczanie wraca, gdy znów zaczniesz grać.",
   "Timer position": "Położenie licznika",
   "Pick a corner your game's HUD leaves free.": "Wybierz róg, którego nie zasłania interfejs gry.",
   "Top left": "Lewy górny róg",

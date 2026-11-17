@@ -469,7 +469,7 @@ const GROUPS: SettingsGroupDef[] = [
             title: () => t("Pause when you're away"),
             description: () =>
               t(
-                "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.",
+                "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.",
               ),
             available: onWindows,
             Row: AutoPauseRow,

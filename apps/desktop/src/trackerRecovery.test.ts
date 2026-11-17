@@ -685,12 +685,12 @@ describe("auto pause when you're away", () => {
     expect(active()).toMatchObject([{ id: original.id, startedAt }]);
   }
 
-  it("no input for 10 minutes: paused from the last input; the game closing then saves only the played time", async () => {
+  it("no input for 5 minutes: paused from the last input; the game closing then saves only the played time", async () => {
     await playingSince10("12:00");
-    await checkAt("12:09");
+    await checkAt("12:04");
     expect(active()[0].pausedAt).toBeUndefined();
 
-    await checkAt("12:10");
+    await checkAt("12:05");
     expect(active()).toMatchObject([
       { id: original.id, pausedAt: at("12:00"), pauseKind: "away" },
     ]);
@@ -702,13 +702,14 @@ describe("auto pause when you're away", () => {
     });
   });
 
-  it("another app in front for 10 minutes: paused from when the game left the front", async () => {
+  it("another app in front or the game minimized for a minute: paused from when the game left the front", async () => {
     await playingSince10("12:00");
     gameInFront = false;
     await checkAt("12:01");
+    expect(active()[0].pausedAt).toBeUndefined();
     // Typing in the other app all along.
-    lastInputAt = Date.parse(at("12:11"));
-    await checkAt("12:11");
+    lastInputAt = Date.parse(at("12:02"));
+    await checkAt("12:02");
     expect(active()[0].pauseKind).toBe("away");
     // The check that first saw the game behind, a few seconds after 12:01.
     const pausedAt = Date.parse(active()[0].pausedAt!);

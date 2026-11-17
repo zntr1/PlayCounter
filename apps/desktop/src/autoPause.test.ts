@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  AWAY_AFTER_MS,
+  BEHIND_AFTER_MS,
+  IDLE_AFTER_MS,
   awayStep,
   checkAway,
   disposeAutoPause,
@@ -48,36 +49,47 @@ function awayPaused(atMs: number) {
 
 // docs/auto-pause-plan.md, "What counts as away" and "Rules".
 describe("when a game counts as played", () => {
-  it("waits 10 minutes", () => {
-    expect(AWAY_AFTER_MS).toBe(10 * MIN);
+  it("waits a minute with the game behind, 5 minutes without input in front", () => {
+    expect(BEHIND_AFTER_MS).toBe(MIN);
+    expect(IDLE_AFTER_MS).toBe(5 * MIN);
   });
 
-  it("no input for 10 minutes with the game in front: pauses from the last input", () => {
-    expect(awayStep(game(), inFront(now - 10 * MIN), now)).toEqual({
-      pause: now - 10 * MIN,
+  it("no input for 5 minutes with the game in front: pauses from the last input", () => {
+    expect(awayStep(game(), inFront(now - 5 * MIN), now)).toEqual({
+      pause: now - 5 * MIN,
     });
   });
 
-  it("away for 9 minutes: nothing changes, it all counts", () => {
-    expect(awayStep(game(), inFront(now - 9 * MIN), now)).toBeNull();
+  it("no input for 4 minutes: nothing changes, it all counts", () => {
+    expect(awayStep(game(), inFront(now - 4 * MIN), now)).toBeNull();
   });
 
-  it("another app in front for 10 minutes while you type there: pauses from when the game left the front", () => {
+  it("another app in front or the game minimized for a minute, while you type elsewhere: pauses from when the game left the front", () => {
     const typingElsewhere = inFront(now - 2000, {
       inFront: false,
-      leftFrontAtMs: now - 10 * MIN,
+      leftFrontAtMs: now - MIN,
     });
     expect(awayStep(game(), typingElsewhere, now)).toEqual({
-      pause: now - 10 * MIN,
+      pause: now - MIN,
     });
   });
 
-  it("another app in front for 9 minutes: nothing changes", () => {
+  it("another app in front for 59 seconds: nothing changes", () => {
     const quickLook = inFront(now - 2000, {
       inFront: false,
-      leftFrontAtMs: now - 9 * MIN,
+      leftFrontAtMs: now - 59_000,
     });
     expect(awayStep(game(), quickLook, now)).toBeNull();
+  });
+
+  it("no input for 4 minutes, then the game goes behind for a minute: the 4 minutes in front still count", () => {
+    const leftAfterACutscene = inFront(now - 4 * MIN, {
+      inFront: false,
+      leftFrontAtMs: now - MIN,
+    });
+    expect(awayStep(game(), leftAfterACutscene, now)).toEqual({
+      pause: now - MIN,
+    });
   });
 
   it("no input and not in front: the pause starts at the earlier one", () => {
@@ -98,8 +110,8 @@ describe("when a game counts as played", () => {
       ),
     ).toBeNull();
     expect(
-      awayStep(game(), inFront(now - 10 * MIN, noWindow), now),
-    ).toEqual({ pause: now - 10 * MIN });
+      awayStep(game(), inFront(now - 5 * MIN, noWindow), now),
+    ).toEqual({ pause: now - 5 * MIN });
   });
 
   it("the pause never starts before the session did", () => {
@@ -210,7 +222,7 @@ describe("the check every few seconds", () => {
     await checkAway(deps);
     expect(pause).not.toHaveBeenCalled();
 
-    vi.setSystemTime(now + 10 * MIN);
+    vi.setSystemTime(now + MIN);
     await checkAway(deps);
     expect(pause).toHaveBeenCalledOnce();
     expect(pause).toHaveBeenCalledWith(2, now);
@@ -223,16 +235,16 @@ describe("the check every few seconds", () => {
     await checkAway(deps);
     expect(pause).not.toHaveBeenCalled();
 
-    activity.padIdleMs = 10 * MIN;
+    activity.padIdleMs = 5 * MIN;
     await checkAway(deps);
-    expect(pause).toHaveBeenCalledWith(1, now - 10 * MIN);
+    expect(pause).toHaveBeenCalledWith(1, now - 5 * MIN);
   });
 
-  it("resuming by hand while another app is in front starts the 10 minutes over", async () => {
+  it("resuming by hand while another app is in front starts the minute over", async () => {
     setSessions([game()]);
     activity.inFront = [false];
     await checkAway(deps);
-    vi.setSystemTime(now + 10 * MIN);
+    vi.setSystemTime(now + MIN);
     await checkAway(deps);
     expect(pause).toHaveBeenCalledWith(1, now);
 
@@ -240,15 +252,15 @@ describe("the check every few seconds", () => {
     setSessions([awayPaused(now)]);
     await checkAway(deps);
     setSessions([game()]);
-    vi.setSystemTime(now + 11 * MIN);
+    vi.setSystemTime(now + 2 * MIN);
     await checkAway(deps);
-    vi.setSystemTime(now + 20 * MIN);
+    vi.setSystemTime(now + 2 * MIN + 59_000);
     await checkAway(deps);
     expect(pause).toHaveBeenCalledOnce();
 
-    vi.setSystemTime(now + 21 * MIN);
+    vi.setSystemTime(now + 3 * MIN);
     await checkAway(deps);
-    expect(pause).toHaveBeenLastCalledWith(1, now + 11 * MIN);
+    expect(pause).toHaveBeenLastCalledWith(1, now + 2 * MIN);
   });
 
   it("no game on this PC: asks nothing", async () => {

@@ -556,9 +556,9 @@ describe("visible choices", () => {
     await renderSettings("play");
     const toggle = byLabel<HTMLInputElement>("Pause when you're away");
     expect(toggle.checked).toBe(false);
-    expect(
-      container.querySelector('[data-row="autoPause"]')?.textContent,
-    ).toContain("10 minutes");
+    const rule = container.querySelector('[data-row="autoPause"]')?.textContent;
+    expect(rule).toContain("after a minute with another app in front");
+    expect(rule).toContain("5 minutes without");
     await click(toggle);
     expect(useAppStore.getState().settings.autoPauseEnabled).toBe(true);
     await click(toggle);
