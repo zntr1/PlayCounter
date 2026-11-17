@@ -1046,6 +1046,29 @@ describe.each(SHARED_FILES)(
         expectNoNameLink();
       });
 
+      it("offers the player's own game once when the server offers it back", async () => {
+        addDatabaseGameLocally(EXE, TUPAC, REAL_TUPAC);
+        // Approved, the pair comes back as a community game for the file.
+        serverAmbiguous = [
+          {
+            id: 900,
+            igdbId: 77,
+            name: "Real Tupac",
+            coverUrl: "real",
+            source: "community",
+          },
+        ];
+
+        running = [process(SOLITAIRE, 21)];
+        await scanProcessesNow();
+
+        const [picker] = useAppStore.getState().ambiguousMatches;
+        expect(picker?.exePath).toBe(SOLITAIRE);
+        expect(picker?.candidates).toEqual([
+          expect.objectContaining({ name: "Real Tupac", source: "custom" }),
+        ]);
+      });
+
       it("sends nothing for a game the player only named", async () => {
         addCustomGame(EXE, "Tupac", TUPAC);
         const tupac = linkFor(TUPAC)!;

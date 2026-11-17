@@ -3547,10 +3547,17 @@ async function resolveProcesses(
     // A generic name in a new folder, with games already linked to it on
     // this PC: ask which one it is (or a new one) instead of guessing.
     if (asksForLinkedGames(process)) {
+      const known = gamesKnownForExe(process.exeName);
+      // A database game this PC already has comes back from the server once
+      // its pair is approved: it is offered once, as this PC's game, so its
+      // hours stay together.
+      const knownIgdbIds = new Set(known.map((game) => game.igdbId));
       const candidates = new Map<string, Game>();
       for (const game of [
-        ...gamesKnownForExe(process.exeName),
-        ...(result.ambiguousGames ?? (result.game ? [result.game] : [])),
+        ...known,
+        ...(result.ambiguousGames ?? (result.game ? [result.game] : [])).filter(
+          (game) => game.igdbId === undefined || !knownIgdbIds.has(game.igdbId),
+        ),
       ]) {
         const id = `${game.source}:${game.id}`;
         if (!candidates.has(id)) candidates.set(id, game);
