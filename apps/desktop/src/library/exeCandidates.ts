@@ -1,6 +1,7 @@
 import type { LibraryKnownExecutable } from "@playcounter/shared";
 import type { ScannedExecutable } from "./types";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
+import { exeBasename, isPerFolderBasename } from "./perFolderFiles";
 
 const BLOCKED_NAMES = new Set([
   "crashreportclient.exe",
@@ -101,7 +102,7 @@ export function importExeCandidates(
         (knownNames.has(item.fileName.toLowerCase()) ? 10_000 : 0) +
         (title && (base === title || title.includes(base)) ? 1_000 : 0) -
         item.depth * 20 -
-        (GENERIC_BASENAMES.has(base) || item.depth > 3 ? 500 : 0) +
+        (isGenericBasename(base) || item.depth > 3 ? 500 : 0) +
         Math.min(100, Math.floor(item.sizeBytes / 1_000_000));
       return { ...item, score };
     })
@@ -142,11 +143,12 @@ export function manualExecutableNeedsScope(executable: ScannedExecutable) {
 }
 
 /** A file name many games ship (Game.exe): it names no game on its own, so a
- *  link for it is kept to the folder it runs from. */
+ *  link for it is kept to the folder it runs from. Built in, or marked
+ *  "Per folder" in the admin panel (perFolderFiles.ts). */
 export function isGenericExeName(exeName: string) {
-  const basename = exeName
-    .replace(/\.exe$/i, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  return GENERIC_BASENAMES.has(basename);
+  return isGenericBasename(exeBasename(exeName));
+}
+
+function isGenericBasename(basename: string) {
+  return GENERIC_BASENAMES.has(basename) || isPerFolderBasename(basename);
 }

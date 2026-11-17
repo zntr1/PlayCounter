@@ -59,6 +59,7 @@ import type {
   LibraryProviderId,
   InstallPresencePayload,
   MatchProcessesResponse,
+  PerFolderFilesResponse,
   Platform,
   ProcessIdentifier,
   Session,
@@ -236,6 +237,7 @@ import {
 import { toPublicSnapshots } from "./emulators/publicProjection";
 import { customLocalGameId } from "./library/localGameIds";
 import { isGenericExeName } from "./library/exeCandidates";
+import { setPerFolderFiles } from "./library/perFolderFiles";
 import {
   reverseResolveLibraryGame,
   searchLibraryGames,
@@ -634,6 +636,9 @@ export async function stopTrackerForReset() {
 
 async function finishTrackerStartup() {
   logRuntime("tracker deferred startup started");
+  // Before the first scan, so a name new on the list rarely meets a game
+  // that already started on its old name link.
+  void refreshPerFolderFiles("startup");
   await loadEmulatorPrivacyContext();
   await loadIgnoredProcesses();
   scheduleProcessPolling(
@@ -7336,6 +7341,55 @@ async function recheckPendingCommunityApprovals(reason: string) {
     await checkCommunityUpgrades(pendingCustomProcesses);
   }
   persist();
+}
+
+/**
+ * The file names the admin panel marks "Per folder", asked once at every start
+ * (docs/per-folder-list-plan.md). The list saved at the last start counts
+ * until the answer comes, and a failed request keeps it. A name new on the
+ * list moves old name links to their folders, as hydrate() does on every
+ * start; a game running now keeps its name link until the next start.
+ */
+export async function refreshPerFolderFiles(reason: string) {
+  const state = useAppStore.getState();
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime(`per-folder list ${reason} skipped while offline`);
+    return;
+  }
+  try {
+    const response = await requestJsonResponse<PerFolderFilesResponse>(
+      `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/identifiers/per-folder`,
+      { timeoutMs: API_REQUEST_TIMEOUT_MS },
+    );
+    if (!response.ok) throw responseError(response);
+    if (!Array.isArray(response.data?.files)) {
+      logRuntime(`per-folder list ${reason} ignored: no file list`);
+      return;
+    }
+    const added = setPerFolderFiles(response.data.files);
+    if (added.length === 0) return;
+    logRuntime(`per-folder list ${reason}: new ${added.join(", ")}`);
+    const current = useAppStore.getState();
+    const exeCache = new Map(current.exeCache);
+    const scopedExeLinks = new Map(current.scopedExeLinks);
+    if (
+      moveGenericNameLinksToFolders(
+        exeCache,
+        scopedExeLinks,
+        current.launchTargets,
+        current.activeSessions,
+      )
+    ) {
+      useAppStore.setState({ exeCache, scopedExeLinks });
+      persist();
+    }
+    await requestProcessScan("per-folder list changed");
+  } catch (error) {
+    verboseRuntime(`per-folder list ${reason} failed: ${formatError(error)}`);
+  }
 }
 
 export async function pollContributions(

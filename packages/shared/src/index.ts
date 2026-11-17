@@ -469,6 +469,15 @@ export interface ContributionsResponse {
   };
 }
 
+/**
+ * GET /api/identifiers/per-folder: Windows file names the admin panel marked
+ * "Per folder", lower case with ".exe" (e.g. "skyrimse.exe"). The app links
+ * them per folder, never by name, like its built-in shared file names.
+ */
+export interface PerFolderFilesResponse {
+  files: string[];
+}
+
 export interface GameMetadataResponse {
   games: Game[];
 }
