@@ -1,74 +1,186 @@
 [
   {
-    "version": "1.7.1",
-    "headline": "Games that run Sherlock.exe now count as separate games.",
+    "version": "1.7.2",
+    "headline": "The timer can pause by itself when you step away, and popups appear in the corner you pick.",
     "highlights": [
       {
+        "title": "Pause when you're away",
+        "text": "Turn it on, and the timer pauses by itself once the game has been behind another app or minimized for a minute, or nothing was pressed for 5 minutes. Time away doesn't count, and it counts on when you play again.",
+        "hint": "Settings → While you play → Pause when you're away"
+      },
+      {
+        "title": "Popups where you want them",
+        "text": "Pick the corner of your screen your desktop popups appear in.",
+        "hint": "Settings → Desktop popups → Popup position"
+      },
+      {
+        "title": "Shared file names",
+        "text": "More files that many games use, like Game.exe, now count per folder, and PlayCounter learns new ones without an update. The game you pick for such a file goes to review and can help other players."
+      },
+      {
         "title": "Fixes",
-        "text": "Each game that runs Sherlock.exe gets its own playtime, told apart by its folder."
+        "text": "Suggest to Community on a Custom game without a database game opens the search, and the game picker no longer lists the same game twice."
       }
     ],
     "translations": {
       "de": {
-        "headline": "Spiele mit Sherlock.exe zählen jetzt als eigene Spiele.",
+        "headline": "Der Timer kann von selbst pausieren, wenn du weg bist, und Pop-ups erscheinen in der Ecke, die du wählst.",
         "highlights": [
           {
+            "title": "Pausieren, wenn du weg bist",
+            "text": "Schalte es ein, und der Timer pausiert von selbst, sobald das Spiel eine Minute hinter einer anderen App liegt oder minimiert ist oder 5 Minuten lang nichts gedrückt wurde. Die Zeit, in der du weg bist, zählt nicht, und es geht weiter, sobald du wieder spielst.",
+            "hint": "Einstellungen → „Während du spielst“ → „Pausieren, wenn du weg bist“"
+          },
+          {
+            "title": "Pop-ups, wo du sie willst",
+            "text": "Wähle die Bildschirmecke, in der deine Desktop-Pop-ups erscheinen.",
+            "hint": "Einstellungen → „Desktop-Pop-ups“ → „Position der Pop-ups“"
+          },
+          {
+            "title": "Geteilte Dateinamen",
+            "text": "Weitere Dateien, die viele Spiele nutzen, wie Game.exe, zählen jetzt pro Ordner, und PlayCounter lernt neue ohne Update dazu. Das Spiel, das du für so eine Datei wählst, geht zur Prüfung und kann anderen Spielern helfen."
+          },
+          {
             "title": "Behoben",
-            "text": "Jedes Spiel mit Sherlock.exe bekommt anhand seines Ordners eine eigene Spielzeit."
+            "text": "„Der Community vorschlagen“ öffnet bei einem eigenen Spiel ohne Datenbankspiel die Suche, und die Spielauswahl zeigt dasselbe Spiel nicht mehr doppelt."
           }
         ]
       },
       "es": {
-        "headline": "Los juegos con Sherlock.exe ahora cuentan como juegos distintos.",
+        "headline": "El cronómetro puede pausarse solo cuando no estás, y las ventanas emergentes aparecen en la esquina que elijas.",
         "highlights": [
           {
+            "title": "Pausar cuando no estás",
+            "text": "Actívalo y el cronómetro se pausa solo cuando el juego lleva un minuto detrás de otra aplicación o minimizado, o cuando no pulsas nada durante 5 minutos. El tiempo que no estás no cuenta, y sigue contando cuando vuelves a jugar.",
+            "hint": "Configuración → Mientras juegas → Pausar cuando no estás"
+          },
+          {
+            "title": "Ventanas emergentes donde quieras",
+            "text": "Elige la esquina de la pantalla donde aparecen las ventanas emergentes de escritorio.",
+            "hint": "Configuración → Ventanas emergentes de escritorio → Posición de las ventanas emergentes"
+          },
+          {
+            "title": "Nombres de archivo compartidos",
+            "text": "Más archivos que usan muchos juegos, como Game.exe, ahora cuentan por carpeta, y PlayCounter aprende otros nuevos sin actualizar. El juego que elijas para uno de estos archivos pasa a revisión y puede ayudar a otros jugadores."
+          },
+          {
             "title": "Correcciones",
-            "text": "Cada juego con Sherlock.exe tiene su propio tiempo de juego, según su carpeta."
+            "text": "Sugerir a la comunidad en un juego personalizado sin juego de la base de datos abre la búsqueda, y el selector de juegos ya no muestra el mismo juego dos veces."
           }
         ]
       },
       "fr": {
-        "headline": "Les jeux avec Sherlock.exe comptent désormais comme des jeux distincts.",
+        "headline": "Le chronomètre peut se mettre en pause tout seul quand vous êtes absent, et les fenêtres contextuelles s'affichent dans le coin de votre choix.",
         "highlights": [
           {
+            "title": "Mettre en pause quand vous êtes absent",
+            "text": "Activez-le et le chronomètre se met en pause tout seul quand le jeu reste une minute derrière une autre application ou réduit, ou quand rien n'est pressé pendant 5 minutes. Le temps d'absence ne compte pas, et il reprend dès que vous rejouez.",
+            "hint": "Paramètres → Pendant que vous jouez → Mettre en pause quand vous êtes absent"
+          },
+          {
+            "title": "Les fenêtres où vous voulez",
+            "text": "Choisissez le coin de l'écran où s'affichent les fenêtres contextuelles.",
+            "hint": "Paramètres → Fenêtres contextuelles → Position des fenêtres"
+          },
+          {
+            "title": "Noms de fichiers partagés",
+            "text": "D'autres fichiers utilisés par de nombreux jeux, comme Game.exe, comptent désormais par dossier, et PlayCounter en apprend de nouveaux sans mise à jour. Le jeu que vous choisissez pour un tel fichier part en vérification et peut aider d'autres joueurs."
+          },
+          {
             "title": "Corrections",
-            "text": "Chaque jeu avec Sherlock.exe a son propre temps de jeu, selon son dossier."
+            "text": "Suggérer à la communauté sur un jeu personnalisé sans jeu de la base ouvre la recherche, et le sélecteur de jeux n'affiche plus deux fois le même jeu."
           }
         ]
       },
       "pl": {
-        "headline": "Gry z plikiem Sherlock.exe liczą się teraz jako osobne gry.",
+        "headline": "Stoper może sam się wstrzymać, gdy cię nie ma, a wyskakujące okienka pojawiają się w wybranym rogu.",
         "highlights": [
           {
+            "title": "Wstrzymuj, gdy cię nie ma",
+            "text": "Po włączeniu stoper sam się wstrzymuje, gdy gra przez minutę jest za inną aplikacją lub zminimalizowana albo gdy przez 5 minut nic nie naciśniesz. Czas nieobecności się nie liczy, a odliczanie wraca, gdy znów zaczniesz grać.",
+            "hint": "Ustawienia → Podczas gry → Wstrzymuj, gdy cię nie ma"
+          },
+          {
+            "title": "Okienka tam, gdzie chcesz",
+            "text": "Wybierz róg ekranu, w którym pojawiają się wyskakujące okienka.",
+            "hint": "Ustawienia → Wyskakujące okienka → Położenie okienek"
+          },
+          {
+            "title": "Wspólne nazwy plików",
+            "text": "Kolejne pliki używane przez wiele gier, jak Game.exe, liczą się teraz osobno dla każdego folderu, a PlayCounter poznaje nowe bez aktualizacji. Gra wybrana dla takiego pliku trafia do weryfikacji i może pomóc innym graczom."
+          },
+          {
             "title": "Poprawki",
-            "text": "Każda gra z plikiem Sherlock.exe ma własny czas gry według swojego folderu."
+            "text": "„Zaproponuj społeczności” przy własnej grze bez gry z bazy otwiera wyszukiwanie, a wybór gry nie pokazuje już tej samej gry dwa razy."
           }
         ]
       },
       "pt-BR": {
-        "headline": "Jogos com Sherlock.exe agora contam como jogos separados.",
+        "headline": "O cronômetro pode pausar sozinho quando você está ausente, e os pop-ups aparecem no canto que você escolher.",
         "highlights": [
           {
+            "title": "Pausar quando você estiver ausente",
+            "text": "Ative e o cronômetro pausa sozinho quando o jogo fica um minuto atrás de outro app ou minimizado, ou quando nada é pressionado por 5 minutos. O tempo ausente não conta, e ele volta a contar quando você jogar de novo.",
+            "hint": "Configurações → Enquanto você joga → Pausar quando você estiver ausente"
+          },
+          {
+            "title": "Pop-ups onde você quiser",
+            "text": "Escolha o canto da tela onde os pop-ups na área de trabalho aparecem.",
+            "hint": "Configurações → Pop-ups na área de trabalho → Posição dos pop-ups"
+          },
+          {
+            "title": "Nomes de arquivo compartilhados",
+            "text": "Mais arquivos que muitos jogos usam, como Game.exe, agora contam por pasta, e o PlayCounter aprende novos sem atualização. O jogo que você escolhe para um desses arquivos vai para revisão e pode ajudar outros jogadores."
+          },
+          {
             "title": "Correções",
-            "text": "Cada jogo com Sherlock.exe tem seu próprio tempo de jogo, pela pasta."
+            "text": "Sugerir à comunidade em um jogo personalizado sem jogo do banco de dados abre a busca, e o seletor de jogos não mostra mais o mesmo jogo duas vezes."
           }
         ]
       },
       "ru": {
-        "headline": "Игры с Sherlock.exe теперь считаются разными играми.",
+        "headline": "Таймер может сам вставать на паузу, когда вы отошли, а всплывающие окна появляются в выбранном углу.",
         "highlights": [
           {
+            "title": "Пауза, когда вы отошли",
+            "text": "Включите — и таймер сам встанет на паузу, если игра минуту находится за другим приложением или свёрнута или если 5 минут ничего не нажато. Время, пока вас нет, не считается, и отсчёт продолжится, когда вы снова начнёте играть.",
+            "hint": "«Настройки» → «Во время игры» → «Пауза, когда вы отошли»"
+          },
+          {
+            "title": "Окна там, где удобно",
+            "text": "Выберите угол экрана, в котором появляются всплывающие окна.",
+            "hint": "«Настройки» → «Всплывающие окна» → «Положение всплывающих окон»"
+          },
+          {
+            "title": "Общие имена файлов",
+            "text": "Ещё больше файлов, общих для многих игр, например Game.exe, теперь считаются отдельно для каждой папки, а PlayCounter узнаёт новые такие файлы без обновления. Игра, которую вы выбрали для такого файла, отправляется на проверку и может помочь другим игрокам."
+          },
+          {
             "title": "Исправления",
-            "text": "Каждая игра с Sherlock.exe получает своё время в игре по своей папке."
+            "text": "«Предложить сообществу» для своей игры без игры из базы открывает поиск, а выбор игры больше не показывает одну и ту же игру дважды."
           }
         ]
       },
       "zh-CN": {
-        "headline": "使用 Sherlock.exe 的游戏现在算作不同的游戏。",
+        "headline": "离开时计时可以自动暂停，弹窗也会显示在你选的角落。",
         "highlights": [
           {
+            "title": "离开时自动暂停",
+            "text": "开启后，游戏在其他应用后面或最小化 1 分钟，或 5 分钟没有任何输入时，计时会自动暂停。离开的时间不计入，再次游玩时会继续计时。",
+            "hint": "“设置” → “游戏时” → “离开时自动暂停”"
+          },
+          {
+            "title": "弹窗想放哪就放哪",
+            "text": "选择桌面弹窗出现在屏幕的哪个角落。",
+            "hint": "“设置” → “桌面弹窗” → “弹窗位置”"
+          },
+          {
+            "title": "共用的文件名",
+            "text": "更多被许多游戏共用的文件（如 Game.exe）现在按文件夹分别计算，PlayCounter 无需更新就能认识新的此类文件。你为这类文件选择的游戏会提交审核，也能帮助其他玩家。"
+          },
+          {
             "title": "修复",
-            "text": "每个使用 Sherlock.exe 的游戏按文件夹拥有各自的游戏时长。"
+            "text": "对没有数据库游戏的自定义游戏使用“向社区建议”时会打开搜索，游戏选择列表也不再把同一个游戏显示两次。"
           }
         ]
       }
@@ -2752,7 +2864,9 @@
       },
       "zh-CN": {
         "headline": "v1.1.12 的热修复。",
-        "highlights": ["Xbox 历史现在改用另一种工具读取，以解决误报问题。"]
+        "highlights": [
+          "Xbox 历史现在改用另一种工具读取，以解决误报问题。"
+        ]
       }
     }
   },
