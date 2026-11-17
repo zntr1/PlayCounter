@@ -95,6 +95,21 @@ it("paused: the badge says Paused, shows how long, and the button resumes", asyn
   expect(onTogglePause).toHaveBeenCalledOnce();
 });
 
+// docs/auto-pause-plan.md, "What the player sees".
+it("paused because you were away: one line says so; a pause you made says nothing more", async () => {
+  await renderHero(
+    { ...running, pausedAt: "2026-11-08T11:12:40.000Z", pauseKind: "away" },
+    { onTogglePause: vi.fn(), pausedForSeconds: 10 * 60 },
+  );
+  expect(container.textContent).toContain("Paused: you were away");
+
+  await renderHero(
+    { ...running, pausedAt: "2026-11-08T11:12:40.000Z" },
+    { onTogglePause: vi.fn(), pausedForSeconds: 10 * 60 },
+  );
+  expect(container.textContent).not.toContain("you were away");
+});
+
 it("a manual timer keeps its Stop next to pause", async () => {
   const onStopTimer = vi.fn();
   await renderHero(

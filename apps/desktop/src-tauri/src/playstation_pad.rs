@@ -4,8 +4,8 @@
 // sends anything to the pad, so Steam, DS4Windows and games keep their control.
 
 use crate::controller::{
-    ControllerKind, BUTTON_A, BUTTON_B, BUTTON_DPAD_DOWN, BUTTON_DPAD_LEFT, BUTTON_DPAD_RIGHT,
-    BUTTON_DPAD_UP, BUTTON_MENU, BUTTON_RIGHT_SHOULDER, BUTTON_VIEW, BUTTON_X,
+    ControllerKind, PadInputs, BUTTON_A, BUTTON_B, BUTTON_DPAD_DOWN, BUTTON_DPAD_LEFT,
+    BUTTON_DPAD_RIGHT, BUTTON_DPAD_UP, BUTTON_MENU, BUTTON_RIGHT_SHOULDER, BUTTON_VIEW, BUTTON_X,
 };
 
 pub const SONY_VENDOR_ID: u16 = 0x054c;
@@ -56,11 +56,17 @@ const OPTIONS: u8 = 0x20;
 const ADAPTER_STATUS_BYTE: usize = 31;
 const ADAPTER_PAD_DISCONNECTED: u8 = 0x04;
 
+enum Layout {
+    /// An adapter with no pad paired: everything at rest.
+    Released,
+    At { sticks: usize, buttons: usize },
+}
+
 // Layouts follow the Linux hid-playstation driver and SDL's PS5 driver. Byte 0
 // is the report id. Windows pads Bluetooth reports to the longest report the
 // pad declares, which is why the DualSense simple report can arrive as 78 bytes.
-pub fn parse_report(model: PadModel, data: &[u8]) -> Option<PadState> {
-    let (sticks_at, buttons_at) = match (model, *data.first()?, data.len()) {
+fn layout(model: PadModel, data: &[u8]) -> Option<Layout> {
+    let (sticks, buttons) = match (model, *data.first()?, data.len()) {
         // Bluetooth simple report, sent until something switches the pad to
         // full reports.
         (PadModel::DualSense, 0x01, 10 | 78) => (1, 5),
@@ -69,11 +75,43 @@ pub fn parse_report(model: PadModel, data: &[u8]) -> Option<PadState> {
         (PadModel::DualShock4Adapter, 0x01, _)
             if data.get(ADAPTER_STATUS_BYTE)? & ADAPTER_PAD_DISCONNECTED != 0 =>
         {
-            return Some(PadState::default());
+            return Some(Layout::Released);
         }
         (PadModel::DualShock4 | PadModel::DualShock4Adapter, 0x01, _) => (1, 5),
         (PadModel::DualShock4 | PadModel::DualShock4Adapter, 0x11, _) => (3, 7),
         _ => return None,
+    };
+    Some(Layout::At { sticks, buttons })
+}
+
+/// Every button and both sticks, to tell a pad in use from one lying still
+/// (auto pause). L2 and R2 count by their button bits. The PS button and the
+/// touchpad share a byte with a DualShock 4's report counter, so they are
+/// left out.
+pub fn parse_inputs(model: PadModel, data: &[u8]) -> Option<PadInputs> {
+    let (sticks_at, buttons_at) = match layout(model, data)? {
+        Layout::Released => return Some(PadInputs::default()),
+        Layout::At { sticks, buttons } => (sticks, buttons),
+    };
+    let sticks = data.get(sticks_at..sticks_at + 4)?;
+    let buttons = data.get(buttons_at..buttons_at + 2)?;
+    Some(PadInputs {
+        buttons: u16::from_le_bytes([buttons[0], buttons[1]]),
+        axes: [
+            axis(sticks[0]),
+            axis_up(sticks[1]),
+            axis(sticks[2]),
+            axis_up(sticks[3]),
+            0,
+            0,
+        ],
+    })
+}
+
+pub fn parse_report(model: PadModel, data: &[u8]) -> Option<PadState> {
+    let (sticks_at, buttons_at) = match layout(model, data)? {
+        Layout::Released => return Some(PadState::default()),
+        Layout::At { sticks, buttons } => (sticks, buttons),
     };
     let sticks = data.get(sticks_at..sticks_at + 4)?;
     let buttons0 = *data.get(buttons_at)?;
@@ -134,8 +172,11 @@ pub use windows_pads::PlaystationPads;
 
 #[cfg(windows)]
 mod windows_pads {
-    use super::{parse_report, PadModel, PadState, SONY_VENDOR_ID};
-    use crate::controller::{ControllerAction, ControllerKind, ControllerMachine};
+    use super::{parse_inputs, parse_report, PadModel, PadState, SONY_VENDOR_ID};
+    use crate::controller::{
+        note_pad_input, ControllerAction, ControllerKind, ControllerMachine, PadActivity,
+        PadInputs,
+    };
     use hidapi::{HidApi, HidDevice, HidResult};
     use std::ffi::CString;
 
@@ -151,12 +192,13 @@ mod windows_pads {
         source: usize,
         state: PadState,
         machine: ControllerMachine,
+        activity: PadActivity,
     }
 
     impl OpenPad {
         // Drains everything queued since the last tick and keeps the newest
         // report, so input never lags behind the pad.
-        fn read_latest(&self) -> HidResult<Option<PadState>> {
+        fn read_latest(&self) -> HidResult<Option<(PadState, PadInputs)>> {
             let mut buf = [0_u8; 128];
             let mut latest = None;
             for _ in 0..MAX_REPORTS_PER_TICK {
@@ -164,8 +206,12 @@ mod windows_pads {
                 if len == 0 {
                     break;
                 }
-                if let Some(state) = parse_report(self.model, &buf[..len]) {
-                    latest = Some(state);
+                let report = &buf[..len];
+                if let (Some(state), Some(inputs)) = (
+                    parse_report(self.model, report),
+                    parse_inputs(self.model, report),
+                ) {
+                    latest = Some((state, inputs));
                 }
             }
             Ok(latest)
@@ -201,8 +247,11 @@ mod windows_pads {
                 let Ok(latest) = pad.read_latest() else {
                     return false;
                 };
-                if let Some(state) = latest {
+                if let Some((state, inputs)) = latest {
                     pad.state = state;
+                    if pad.activity.update(inputs) {
+                        note_pad_input();
+                    }
                 }
                 let actions = pad.machine.update(
                     pad.state.buttons,
@@ -252,6 +301,7 @@ mod windows_pads {
                     source: self.next_source,
                     state: PadState::default(),
                     machine: ControllerMachine::default(),
+                    activity: PadActivity::default(),
                 });
                 self.next_source += 1;
             }
@@ -447,6 +497,80 @@ mod tests {
         let state = parse_report(PadModel::DualSense, &data).unwrap();
         assert_eq!(state.stick, (i16::MIN, -32_512));
         assert_eq!(state.right_stick_y, i16::MAX);
+    }
+
+    // docs/auto-pause-plan.md, "Controller input": every button and stick
+    // counts as input, also the ones navigation doesn't use.
+    #[test]
+    fn every_button_and_stick_shows_in_the_inputs() {
+        let rest = parse_inputs(
+            PadModel::DualSense,
+            &report(0x01, 64, 1, 8, [HAT_RELEASED, 0]),
+        )
+        .unwrap();
+        const TRIANGLE: u8 = 0x80;
+        const L1: u8 = 0x01;
+        const L2: u8 = 0x04;
+        const R2: u8 = 0x08;
+        const R3: u8 = 0x80;
+        for buttons in [
+            [HAT_RELEASED | TRIANGLE, 0],
+            [HAT_RELEASED, L1],
+            [HAT_RELEASED, L2],
+            [HAT_RELEASED, R2],
+            [HAT_RELEASED, R3],
+            [0, 0],
+        ] {
+            let pressed = parse_inputs(
+                PadModel::DualSense,
+                &report(0x01, 64, 1, 8, buttons),
+            )
+            .unwrap();
+            assert_ne!(pressed.buttons, rest.buttons, "{buttons:?}");
+        }
+        // The right stick sideways: navigation reads only its Y.
+        let mut data = report(0x01, 64, 1, 8, [HAT_RELEASED, 0]);
+        data[3] = 255;
+        let aimed = parse_inputs(PadModel::DualSense, &data).unwrap();
+        assert_eq!(aimed.axes[2], 32_512);
+        assert_eq!(aimed.buttons, rest.buttons);
+    }
+
+    #[test]
+    fn a_dualshock4_report_counter_is_not_input() {
+        let first = report(0x01, 64, 1, 5, [HAT_RELEASED, 0]);
+        let mut next = first.clone();
+        // The byte after the buttons: PS button, touchpad, and a counter
+        // that goes up with every report.
+        next[7] = 0b1111_0100;
+        assert_eq!(
+            parse_inputs(PadModel::DualShock4, &first),
+            parse_inputs(PadModel::DualShock4, &next)
+        );
+    }
+
+    #[test]
+    fn reads_inputs_from_every_report_layout() {
+        for (model, data) in [
+            (PadModel::DualSense, report(0x31, 78, 2, 9, cross_and_r1())),
+            (PadModel::DualSense, report(0x01, 10, 1, 5, cross_and_r1())),
+            (PadModel::DualShock4, report(0x11, 78, 3, 7, cross_and_r1())),
+        ] {
+            assert_eq!(
+                parse_inputs(model, &data).map(|inputs| inputs.buttons),
+                Some(u16::from_le_bytes(cross_and_r1())),
+                "{model:?} report {:#04x}",
+                data[0]
+            );
+        }
+        let mut idle_adapter = vec![0_u8; 64];
+        idle_adapter[0] = 0x01;
+        idle_adapter[ADAPTER_STATUS_BYTE] = ADAPTER_PAD_DISCONNECTED;
+        assert_eq!(
+            parse_inputs(PadModel::DualShock4Adapter, &idle_adapter),
+            Some(PadInputs::default())
+        );
+        assert_eq!(parse_inputs(PadModel::DualSense, &[0x05, 0, 0]), None);
     }
 
     #[test]

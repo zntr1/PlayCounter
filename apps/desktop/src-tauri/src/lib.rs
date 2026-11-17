@@ -29,6 +29,7 @@ mod launch;
 mod library;
 mod live_timer;
 mod notification_overlay;
+mod play_activity;
 mod playstation_pad;
 mod process;
 mod quick_note;
@@ -732,6 +733,7 @@ pub fn run() {
             live_timer::live_timer_hide,
             live_timer::live_timer_ready,
             live_timer::live_timer_toggle_pause,
+            play_activity::play_activity,
             live_timer::live_timer_fit
         ])
         .setup(|app| {

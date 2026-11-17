@@ -434,6 +434,7 @@ const settings = object({}, {
     "bottom-left",
     "bottom-right",
   ),
+  autoPauseEnabled: boolean,
   playtimeReminderMinutes: nullable(positiveId),
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,

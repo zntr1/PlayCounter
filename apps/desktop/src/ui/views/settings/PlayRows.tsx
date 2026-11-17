@@ -50,6 +50,7 @@ function OverlaySwitchRow({
     setting === "overlayDiscoveries" ||
     setting === "overlayShowClock" ||
     setting === "liveTimerEnabled" ||
+    setting === "autoPauseEnabled" ||
     setting === "controllerCountingEnabled";
   const checked = startsOff
     ? settings[setting] === true
@@ -91,6 +92,20 @@ export function LiveTimerRow(props: SettingsRowProps) {
       title={t("Live timer")}
       description={t(
         "A small timer in a corner of your game's window that counts up while you play. It hides while another app is in front, and clicks pass through it.",
+      )}
+    />
+  );
+}
+
+export function AutoPauseRow(props: SettingsRowProps) {
+  return (
+    <OverlaySwitchRow
+      {...props}
+      setting="autoPauseEnabled"
+      id="autoPause"
+      title={t("Pause when you're away")}
+      description={t(
+        "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.",
       )}
     />
   );

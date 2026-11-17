@@ -66,6 +66,7 @@ import {
 } from "./LibraryRows";
 import {
   ActionRequiredRow,
+  AutoPauseRow,
   ControllerCountingRow,
   DesktopPopupsRow,
   DiscoveriesRow,
@@ -463,6 +464,16 @@ const GROUPS: SettingsGroupDef[] = [
           // Not under the switch: the key turns the timer on.
           liveTimerKey,
           pauseTimerKey,
+          {
+            id: "autoPause",
+            title: () => t("Pause when you're away"),
+            description: () =>
+              t(
+                "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.",
+              ),
+            available: onWindows,
+            Row: AutoPauseRow,
+          },
           {
             id: "playtimeReminder",
             title: () => t("Playtime reminder"),
