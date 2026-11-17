@@ -23,15 +23,17 @@ pub(crate) enum Service {
     BattleNet,
     Gog,
     PlayStation,
+    Nintendo,
 }
 
 impl Service {
-    pub(crate) const ALL: [Service; 5] = [
+    pub(crate) const ALL: [Service; 6] = [
         Service::Xbox,
         Service::Epic,
         Service::BattleNet,
         Service::Gog,
         Service::PlayStation,
+        Service::Nintendo,
     ];
 
     pub(crate) fn id(self) -> &'static str {
@@ -41,6 +43,7 @@ impl Service {
             Service::BattleNet => "battlenet",
             Service::Gog => "gog",
             Service::PlayStation => "playstation",
+            Service::Nintendo => "nintendo",
         }
     }
 
@@ -55,6 +58,7 @@ impl Service {
             Service::BattleNet => 2,
             Service::Gog => 3,
             Service::PlayStation => 4,
+            Service::Nintendo => 5,
         }
     }
 }
@@ -359,6 +363,9 @@ pub(crate) async fn sign_out(app: &AppHandle, service: Service) -> Result<(), St
         // Sony has no known call to end it from here. The session cookie
         // ends at Sony after about two months, or when signing out there.
         Service::PlayStation => super::playstation_account::cancel_active(app),
+        // Nintendo has no known call to end it from here. The session token
+        // ends at Nintendo after two years.
+        Service::Nintendo => super::nintendo_account::cancel_active(app),
         // Microsoft has no call to end it from here. Unused, it ends by itself.
         Service::Xbox => {}
     }
@@ -399,6 +406,7 @@ pub async fn logins_check(
         Some(Service::BattleNet) => super::battlenet_account::check_saved_login(&app).await,
         Some(Service::Gog) => super::gog_account::check_saved_login(&app).await,
         Some(Service::PlayStation) => super::playstation_account::check_saved_login(&app).await,
+        Some(Service::Nintendo) => super::nintendo_account::check_saved_login(&app).await,
         None => LoginStatus::Unavailable,
     }
 }

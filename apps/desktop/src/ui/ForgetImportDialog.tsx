@@ -34,6 +34,10 @@ function forgetText(provider: LibraryProviderId) {
       return t(
         "Removes the PlayStation mark and the imported PlayStation playtime. Sessions PlayCounter recorded itself, PS5 and PS4 sessions included, are kept.",
       );
+    case "nintendo":
+      return t(
+        "Removes the Nintendo mark and the imported Nintendo playtime. Sessions PlayCounter recorded itself are kept.",
+      );
   }
 }
 

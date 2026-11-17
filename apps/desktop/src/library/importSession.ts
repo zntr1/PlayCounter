@@ -9,7 +9,7 @@ import { nativeText } from "../nativeText";
 import { readPersistedText } from "../persistence";
 import { useAppStore, type GameMetadata } from "../store";
 import { importExeCandidates } from "./exeCandidates";
-import { readAgain } from "./accountReadings";
+import { holdsAccount, readAgain } from "./accountReadings";
 import {
   librarySearchQuery,
   reverseResolveLibraryGame,
@@ -607,9 +607,10 @@ export async function startImportScan(
     const group = initialImportGroup(
       providerId,
       result.games,
-      byKey,
+      new Map([...byKey, ...saved]),
       existingImports,
       ignoredProcesses,
+      result.account,
     );
     const selected = new Set(
       result.games
@@ -618,7 +619,7 @@ export async function startImportScan(
           const existing = existingImports.get(key);
           // D3 (docs/import-accounts-plan.md), widened 2026-11-02: a game in
           // My Games starts checked when the read brings new playtime.
-          if (existing)
+          if (existing && holdsAccount(existing, result.account))
             return (
               canImportScannedGame({
                 game,
@@ -627,12 +628,15 @@ export async function startImportScan(
                 ignoredProcesses,
               }) && readAgain(existing, game, result).newPlaytime
             );
+          // In My Games without this account: new for it
+          // (docs/remove-account-hours-plan.md).
           return (
             importGroupForGame({
               game,
               provider: providerId,
-              resolved: byKey.get(key),
+              resolved: existing ? saved.get(key) : byKey.get(key),
               alreadyImported: false,
+              inMyGames: existing !== undefined,
               ignoredProcesses,
             }) === "ready" && !startsUnchecked(game)
           );
@@ -833,7 +837,8 @@ export async function importSelectedGames(externalIds: readonly string[]) {
         partialRead: scan.totalsCutShort,
       });
       if (!commit) continue;
-      if (inLibrary) updated += 1;
+      const existing = app.libraryImports.get(key);
+      if (existing && holdsAccount(existing, scan.account)) updated += 1;
       else added.push(game.externalId);
       commits.push(commit);
       imported.set(key, match);

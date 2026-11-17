@@ -70,7 +70,8 @@ export type LibraryProviderId =
   | "battlenet"
   | "epic"
   | "gog"
-  | "playstation";
+  | "playstation"
+  | "nintendo";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,
@@ -357,6 +358,10 @@ export interface CommunityGameSuggestionPayload {
   installUuid?: string;
   /** Absent = "game". A tool has no igdbId and may carry a SteamGridDB cover. */
   kind?: GameKind;
+  /** The file is one several games ship, each in its own folder (Game.exe,
+   *  Wow.exe, a "Per folder" name). Only shown in review: approving it adds
+   *  one more choice for the file, never a match on its own. */
+  sharedFile?: boolean;
 }
 
 export interface CommunityGameSuggestionResponse {
@@ -466,6 +471,15 @@ export interface ContributionsResponse {
     items: EmulatorContribution[];
     counts: ContributionCounts;
   };
+}
+
+/**
+ * GET /api/identifiers/per-folder: Windows file names the admin panel marked
+ * "Per folder", lower case with ".exe" (e.g. "skyrimse.exe"). The app links
+ * them per folder, never by name, like its built-in shared file names.
+ */
+export interface PerFolderFilesResponse {
+  files: string[];
 }
 
 export interface GameMetadataResponse {
@@ -643,6 +657,10 @@ export interface InstallPresencePayload {
 
 export type Theme = "dark" | "light";
 
+/** IGDB cover size: Standard 264 wide, Sharp 528, Sharpest 1080 tall,
+ *  Original as uploaded. */
+export type CoverQuality = "standard" | "sharp" | "sharpest" | "original";
+
 /** Summary cards a My Games tab can show above the grid. */
 export type LibraryStatCardId =
   | "games"
@@ -758,8 +776,11 @@ export interface Settings {
   libraryShowTierBadges?: boolean;
   /** Warn on covers of games with no known .exe yet. Absent = enabled. */
   libraryShowTrackingWarnings?: boolean;
-  /** Request IGDB cover art one size up. Absent = off, the smaller default. */
+  /** Request IGDB cover art one size up. Absent = off, the smaller default.
+   *  Replaced by coverQuality; still read while coverQuality is absent. */
   libraryHighResCovers?: boolean;
+  /** How large IGDB covers load. Absent = from libraryHighResCovers. */
+  coverQuality?: CoverQuality;
   /** My Games summary cards. Absent = the default set. Empty = all off. */
   libraryStatCards?: LibraryStatCardId[];
   /** Master switch for the My Games summary row. */
@@ -819,6 +840,8 @@ export interface Settings {
   desktopOverlaysEnabled?: boolean;
   /** OS display identifier, or "primary" (also the default when absent). */
   overlayMonitor?: string;
+  /** Corner of the popup monitor the popups appear in. Absent = top right. */
+  overlayCorner?: LiveTimerCorner;
   overlayFirstDetections?: boolean;
   overlaySessionStarts?: boolean;
   /** Show playthrough names in session popups. Absent = disabled. */
@@ -836,6 +859,9 @@ export interface Settings {
   liveTimerEnabled?: boolean;
   /** Screen corner of the live timer. Absent = top left. */
   liveTimerCorner?: LiveTimerCorner;
+  /** Pause a running game after 10 minutes without input or with another app
+   *  in front (docs/auto-pause-plan.md). Absent = off. */
+  autoPauseEnabled?: boolean;
   /** Popup each time today's playtime passes another multiple of this many
    *  minutes. Null or absent = off. */
   playtimeReminderMinutes?: number | null;

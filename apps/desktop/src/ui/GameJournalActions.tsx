@@ -180,7 +180,7 @@ export function GameJournalMenu({
             icon={Plus}
             onClick={() => {
               onClose();
-              openNewShelf(game);
+              openNewShelf({ games: [game] });
             }}
           >
             {t("New shelf")}
@@ -204,8 +204,9 @@ function TierMark({ tier }: { tier: GameTier }) {
 }
 
 /** The ends say which way the scale runs; the letters between need no words.
- *  The letter wears its cover colour, the words keep the row's. */
-function tierMenuLabel(tier: GameTier) {
+ *  The letter wears its cover colour, the words keep the row's. Also the
+ *  selection bar's Set tier. */
+export function tierMenuLabel(tier: GameTier) {
   const letter = <span className={TIER_TONES[tier]} />;
   if (tier === "S")
     return (

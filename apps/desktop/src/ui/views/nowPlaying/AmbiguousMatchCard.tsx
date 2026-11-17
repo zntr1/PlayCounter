@@ -21,9 +21,11 @@ import {
   selectAmbiguousCommunitySuggestion,
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
+  sendSharedFileGame,
   type LocalProcessIgnoreOutcome,
   type NegativeReportOutcome,
 } from "../../../tracker";
+import { sentForReviewDetail } from "../../sharedFileReview";
 import { Panel, SourceBadge } from "../../components";
 import { GameCover } from "../../GameCover";
 import { Button, Input } from "../../primitives";
@@ -151,7 +153,8 @@ export function AmbiguousMatchCard({
   const reportedNotAGame = flagReason === "not_a_game";
   const showCandidates =
     orderedCandidates.length > 0 && (!reportedNotAGame || candidatesExpanded);
-  // Game.exe and co.: linked to this folder, never shared.
+  // Game.exe and co.: linked to this folder; a database pick goes to review
+  // from it.
   const genericName = isGenericExeName(exeName);
   const folder =
     genericName && exePath ? exePath.replace(/[\\/][^\\/]*$/, "") : null;
@@ -176,7 +179,7 @@ export function AmbiguousMatchCard({
     setSuggestionOpen(true);
   }
 
-  function addSearchedGameLocally() {
+  async function addSearchedGameToFolder() {
     const selection = correction.selection;
     if (!selection?.coverUrl) return;
     const game = localDatabaseGame(exeName, exePath, {
@@ -186,13 +189,16 @@ export function AmbiguousMatchCard({
     selectAmbiguousMatch(exeName, game);
     void linkServerKnownFiles(game);
     closeSuggestion();
+    const sent = await sendSharedFileGame(exeName, game);
     addToast({
       tone: "success",
       title: t("Match selected"),
-      detail: t("{{exeName}} in this folder will be tracked as {{name}}.", {
-        exeName,
-        name: game.name,
-      }),
+      detail: sent
+        ? sentForReviewDetail(exeName, game.name)
+        : t("{{exeName}} in this folder will be tracked as {{name}}.", {
+            exeName,
+            name: game.name,
+          }),
     });
   }
 
@@ -385,7 +391,9 @@ export function AmbiguousMatchCard({
               icon={Search}
               title={
                 genericName
-                  ? t("Search the database. The pick stays on this PC.")
+                  ? t(
+                      "Search the database. The pick counts for this folder and is sent for review.",
+                    )
                   : t("Search the database and send the match in for review.")
               }
               onClick={openSearch}
@@ -488,9 +496,8 @@ export function AmbiguousMatchCard({
           onSearch={(options) => void correction.searchFirstPage(options)}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          localOnly={genericName}
           onSubmit={() =>
-            genericName ? addSearchedGameLocally() : void correction.submit()
+            void (genericName ? addSearchedGameToFolder() : correction.submit())
           }
         />
       ) : null}

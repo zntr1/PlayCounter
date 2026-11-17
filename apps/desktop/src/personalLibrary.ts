@@ -74,6 +74,7 @@ export type LibraryFilters = {
     | "epic"
     | "gog"
     | "playstation"
+    | "nintendo"
     | "unimported";
   status?: GameStatus | "none";
   tier?: GameTier | "none";
@@ -349,6 +350,35 @@ export function addJournalGamesToShelf(
     added++;
   }
   return { journals: next ?? journals, added };
+}
+
+/** Index once and copy once, even when rating a whole imported library.
+ *  A game that has the tier already keeps its tierAt. Null clears it. */
+export function updateJournalTiers(
+  journals: Record<string, GameJournal>,
+  games: readonly GameIdentityRef[],
+  tier: GameTier | null,
+  identity: (game: GameIdentityRef) => string,
+) {
+  const groups = groupJournals(journals, identity);
+  const seen = new Set<string>();
+  const tierAt = new Date().toISOString();
+  let next: Record<string, GameJournal> | undefined;
+  let changed = 0;
+  for (const game of games) {
+    const canonical = identity(game);
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    const group = groups.get(canonical);
+    const journal = readJournal(group ?? {}, game, identity);
+    if ((journal.tier ?? null) === tier) continue;
+    const { tier: _tier, tierAt: _tierAt, ...rest } = journal;
+    next ??= { ...journals };
+    for (const key of Object.keys(group ?? {})) delete next[key];
+    next[journalKey(game)] = tier ? { ...rest, tier, tierAt } : rest;
+    changed++;
+  }
+  return { journals: next ?? journals, changed };
 }
 
 /** Index once and copy once, even when assigning a whole imported library. */

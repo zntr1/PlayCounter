@@ -59,5 +59,13 @@
   "Open the code page": "Abrir a página do código",
   "Copy everything on that page and paste it here.": "Copie tudo o que aparece nessa página e cole aqui.",
   "Sign-in code": "Código de login",
-  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "O código funciona como a sua senha. O PlayCounter o guarda criptografado neste PC e só o envia para a Sony."
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "O código funciona como a sua senha. O PlayCounter o guarda criptografado neste PC e só o envia para a Sony.",
+  "Your Switch games and the playtime Nintendo recorded.": "Seus jogos do Switch e o tempo de jogo registrado pela Nintendo.",
+  "Sign in with a link": "Fazer login com um link",
+  "Sign in at Nintendo in your browser.": "Faça login na Nintendo no seu navegador.",
+  "Open Nintendo sign-in": "Abrir o login do Nintendo",
+  "When Nintendo shows your account, right-click Select this person and copy the link.": "Quando a Nintendo mostrar sua conta, clique com o botão direito em “Selecionar esta pessoa” e copie o link.",
+  "Paste the link here.": "Cole o link aqui.",
+  "Sign-in link": "Link de login",
+  "The link signs you in like your password for ten minutes. PlayCounter only sends it to Nintendo.": "O link faz login como a sua senha por dez minutos. O PlayCounter só o envia para a Nintendo."
 }

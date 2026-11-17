@@ -113,6 +113,7 @@ const provider = oneOf(
   "epic",
   "gog",
   "playstation",
+  "nintendo",
 );
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
@@ -369,6 +370,7 @@ const settings = object({}, {
   libraryShowTierBadges: boolean,
   libraryShowTrackingWarnings: boolean,
   libraryHighResCovers: boolean,
+  coverQuality: oneOf("standard", "sharp", "sharpest", "original"),
   libraryShowStatCards: boolean,
   libraryShowShelves: boolean,
   libraryShowProviderTabs: boolean,
@@ -414,6 +416,7 @@ const settings = object({}, {
   ignoredEmulatorIds: array(nonempty),
   desktopOverlaysEnabled: boolean,
   overlayMonitor: string,
+  overlayCorner: oneOf("top-left", "top-right", "bottom-left", "bottom-right"),
   overlayFirstDetections: boolean,
   overlaySessionStarts: boolean,
   overlayPlaythroughNames: boolean,
@@ -431,6 +434,7 @@ const settings = object({}, {
     "bottom-left",
     "bottom-right",
   ),
+  autoPauseEnabled: boolean,
   playtimeReminderMinutes: nullable(positiveId),
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
@@ -523,6 +527,7 @@ const validateBackupShape: Validator = object(
                 "epic",
                 "gog",
                 "playstation",
+                "nintendo",
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),

@@ -257,6 +257,7 @@ const BRANDS = new Set([
   "PS5",
   "PS4",
   "Sony",
+  "Nintendo",
   "IGDB",
   "Discord",
   "Spotify",
@@ -646,6 +647,8 @@ describe("UI code", () => {
 // Messages that stay English: invariants, parse errors of launcher files,
 // paths, and the tray's defaults until the main window sends its texts.
 const RUST_ENGLISH_ON_PURPOSE = new Set([
+  // Auto pause: the check logs it and tries again in a few seconds.
+  "GetLastInputInfo failed",
   // Screenshots: logged only; the window shows its own texts for each case.
   "Screenshots are not supported on this platform.",
   "The screenshot thread stopped.",
@@ -683,6 +686,9 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "PlayStation games are read from PlayCounter.",
   "PlayStation status is read from PlayCounter.",
   "PlayStation trophies are read from PlayCounter.",
+  "Nintendo sign-in must be cancelled from PlayCounter.",
+  "Nintendo games are read from PlayCounter.",
+  "Invalid Nintendo sign-in request.",
   // The PlayStation App's public client id, as psn-api sends it.
   "Basic MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A=",
   "Icon extraction failed: {error:?}",

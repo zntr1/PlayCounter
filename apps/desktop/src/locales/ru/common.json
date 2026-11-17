@@ -83,10 +83,12 @@
   "sessions_many": "сессий",
   "sessions_other": "сессии",
   "Imported from your PlayStation account.": "Импортировано из вашего аккаунта PlayStation.",
+  "Imported from your Nintendo Account.": "Импортировано из вашего аккаунта Nintendo.",
   "Click to see this day": "Нажмите, чтобы открыть этот день",
   "{{count}} more games_one": "ещё {{count}} игра",
   "{{count}} more games_few": "ещё {{count}} игры",
   "{{count}} more games_many": "ещё {{count}} игр",
   "{{count}} more games_other": "ещё {{count}} игры",
-  "Running total: {{current}}, the period before: {{previous}}": "Нарастающий итог: {{current}}, предыдущий период: {{previous}}"
+  "Running total: {{current}}, the period before: {{previous}}": "Нарастающий итог: {{current}}, предыдущий период: {{previous}}",
+  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} учитывается из этой папки. {{exeName}} отправлен на проверку. После одобрения другие игроки тоже смогут выбрать {{name}} для этого файла."
 }

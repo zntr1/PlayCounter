@@ -2,6 +2,7 @@ import { createPersonalLibraryActions } from "./personalLibraryStore";
 import type {
   ContributionCounts,
   ContributionStatus,
+  CoverQuality,
   DesktopViewId,
   EmulatorLaunchContext,
   FeedbackReply,
@@ -66,6 +67,7 @@ import {
   DEFAULT_SETTINGS_GROUP,
   type SettingsGroupId,
 } from "./ui/views/settings/settingsGroups";
+import type { InstallSource } from "./installSource";
 import type { UpdateCheckResult } from "./updater";
 import type {
   LibraryImportEntry,
@@ -168,6 +170,9 @@ export type ActiveSession = {
   pausedAt?: string;
   /** Earlier pauses of this session, added up. */
   pausedMs?: number;
+  /** "away": the running pause came from auto pause (autoPause.ts), so input
+   *  at the game ends it. Absent for a pause the player made. */
+  pauseKind?: "away";
   /** Seen running on a PlayStation console through Sony's presence. No
    *  process starts or ends it; its checkpoint is the last sighting, and it is
    *  saved as a "playstation" session (playstationLive.ts). */
@@ -443,6 +448,7 @@ export type DesktopOverlaySettingKey =
   | "overlayDiscoveries"
   | "overlayShowClock"
   | "liveTimerEnabled"
+  | "autoPauseEnabled"
   | "controllerCountingEnabled";
 
 export type ActiveTour = {
@@ -466,6 +472,11 @@ export type AppState = {
   ) => void;
   /** Null clears the tier. */
   setGameTier: (game: GameIdentityRef, tier: GameTier | null) => void;
+  /** Null clears the tier. Returns how many games changed. */
+  setGameTiers: (
+    games: readonly GameIdentityRef[],
+    tier: GameTier | null,
+  ) => number;
   addGamesToShelf: (
     games: readonly GameIdentityRef[],
     shelfId: string,
@@ -514,10 +525,11 @@ export type AppState = {
     shelf: Omit<PersonalShelf, "id"> & { id?: string },
   ) => string | null;
   deletePersonalShelf: (id: string) => void;
-  /** The game whose card menu asked for a new shelf: the New shelf dialog
-   *  opens, and Save shelf puts this game on the shelf. Not persisted. */
-  newShelfGame: GameIdentityRef | null;
-  openNewShelf: (game: GameIdentityRef | null) => void;
+  /** The games a card menu or the selection bar asked a new shelf for: the
+   *  New shelf dialog opens, and Save shelf puts them on the shelf, then
+   *  calls onSaved. Not persisted. */
+  newShelfRequest: NewShelfRequest | null;
+  openNewShelf: (request: NewShelfRequest | null) => void;
   activeView: ViewId;
   libraryTab: LibraryTabId;
   libraryImportProvider: BuiltinImportProviderId;
@@ -619,6 +631,9 @@ export type AppState = {
   settingsGroup: SettingsGroupId;
   /** A newer version the update check found, for the About page. */
   availableUpdate: Extract<UpdateCheckResult, { status: "available" }> | null;
+  /** Where this copy came from; the Steam copy gets its updates from Steam.
+   *  Read at start, not saved. */
+  installSource: InstallSource;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
@@ -626,6 +641,7 @@ export type AppState = {
   setAvailableUpdate: (
     update: Extract<UpdateCheckResult, { status: "available" }> | null,
   ) => void;
+  setInstallSource: (source: InstallSource) => void;
   setLibraryTab: (tab: LibraryTabId) => void;
   setLibraryImportProvider: (provider: BuiltinImportProviderId) => void;
   startTour: (tourId: string) => void;
@@ -748,7 +764,7 @@ export type AppState = {
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
   setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
-  setMyGamesHighResCovers: (enabled: boolean) => void;
+  setCoverQuality: (quality: CoverQuality) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
   setMyGamesShowProviderTabs: (enabled: boolean) => void;
@@ -777,6 +793,7 @@ export type AppState = {
     enabled: boolean,
   ) => void;
   setOverlayMonitor: (monitor: string) => void;
+  setOverlayCorner: (corner: LiveTimerCorner) => void;
   setLiveTimerCorner: (corner: LiveTimerCorner) => void;
   setPlaytimeReminderMinutes: (minutes: number | null) => void;
   setHotkey: (
@@ -880,6 +897,7 @@ const defaultSettings: Settings = {
   ignoredEmulatorIds: [],
   desktopOverlaysEnabled: true,
   overlayMonitor: "primary",
+  overlayCorner: "top-right",
   overlayFirstDetections: true,
   overlaySessionStarts: true,
   overlayPlaythroughNames: false,
@@ -892,6 +910,7 @@ const defaultSettings: Settings = {
   overlayShowClock: false,
   liveTimerEnabled: false,
   liveTimerCorner: "top-left",
+  autoPauseEnabled: false,
   playtimeReminderMinutes: null,
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
@@ -1015,7 +1034,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedPlaythroughSeconds: {},
   archivedCounts: {},
   journalTarget: null,
-  newShelfGame: null,
+  newShelfRequest: null,
   ...createPersonalLibraryActions(set, get, persistSoon),
   activeView: "now",
   libraryTab: "all",
@@ -1095,11 +1114,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   helpMenuOpen: false,
   settingsGroup: DEFAULT_SETTINGS_GROUP,
   availableUpdate: null,
+  installSource: "direct",
   cleanup: null,
   settings: createDefaultSettings(),
   setActiveView: (activeView) => set({ activeView }),
   setSettingsGroup: (settingsGroup) => set({ settingsGroup }),
   setAvailableUpdate: (availableUpdate) => set({ availableUpdate }),
+  setInstallSource: (installSource) => set({ installSource }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setLibraryImportProvider: (libraryImportProvider) =>
     set({ libraryImportProvider }),
@@ -2047,9 +2068,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     persistSoon();
   },
-  setMyGamesHighResCovers: (libraryHighResCovers) => {
+  setCoverQuality: (coverQuality) => {
     set((state) => ({
-      settings: { ...state.settings, libraryHighResCovers },
+      settings: { ...state.settings, coverQuality },
     }));
     persistSoon();
   },
@@ -2217,6 +2238,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setOverlayMonitor: (overlayMonitor) => {
     set((state) => ({ settings: { ...state.settings, overlayMonitor } }));
+    persistSoon();
+  },
+  setOverlayCorner: (overlayCorner) => {
+    set((state) => ({ settings: { ...state.settings, overlayCorner } }));
     persistSoon();
   },
   setLiveTimerCorner: (liveTimerCorner) => {
@@ -2490,6 +2515,13 @@ export type GameIdentityRef = {
   igdbId?: number;
   gameName?: string;
   coverUrl?: string;
+};
+
+/** One game from its card menu, or the selected games from the selection
+ *  bar, which ends the selection in onSaved. */
+export type NewShelfRequest = {
+  games: readonly GameIdentityRef[];
+  onSaved?: () => void;
 };
 
 export type GameIdentityResolver = (

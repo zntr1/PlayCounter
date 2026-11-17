@@ -1,8 +1,9 @@
 use serde::Serialize;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
-    Arc,
+    Arc, OnceLock,
 };
+use std::time::Instant;
 use tauri::{Emitter, Manager};
 
 const REVEAL_HOLD_MS: u64 = 2_000;
@@ -23,6 +24,14 @@ const SCROLL_DEAD_ZONE: i16 = 12_000;
 // or DSX without HidHide show one PlayStation pad twice (itself and a virtual
 // Xbox pad), and both copies would otherwise move the selection.
 const INPUT_OWNER_QUIET_MS: u64 = 500;
+/// With neither navigation nor counting on, the watcher only notes when a
+/// pad moves (auto pause). Ten minutes of play can't hide between reads.
+#[cfg_attr(not(windows), allow(dead_code))]
+const PAD_ACTIVITY_TICK_MS: u64 = 250;
+/// How far a stick or trigger has to move from where it rested to count as
+/// input. Stick noise and drift stay well below it; a thumb doesn't.
+#[cfg_attr(not(windows), allow(dead_code))]
+const PAD_MOVE_STEP: i32 = 4_000;
 // XInput button bits. PlayStation pads are translated into the same layout.
 pub(crate) const BUTTON_DPAD_UP: u16 = 0x0001;
 pub(crate) const BUTTON_DPAD_DOWN: u16 = 0x0002;
@@ -286,6 +295,72 @@ impl ControllerMachine {
     }
 }
 
+/// Every input that shows someone holds the pad: all buttons, both sticks,
+/// both triggers. Triggers use the sticks' range; 0 where a pad has none.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PadInputs {
+    pub buttons: u16,
+    /// Left X, left Y, right X, right Y, left trigger, right trigger.
+    pub axes: [i16; 6],
+}
+
+/// An XInput trigger (0..=255) in the sticks' range.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn trigger_axis(raw: u8) -> i16 {
+    i16::from(raw) * 128
+}
+
+/// Tells a pad in use from one lying still: a button changed, or a stick or
+/// trigger moved a real step from where it rested. A drifting stick on the
+/// table never counts.
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) struct PadActivity {
+    rest: Option<PadInputs>,
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+impl PadActivity {
+    /// Whether these inputs show the pad in use. The first read only notes
+    /// where the pad rests.
+    pub(crate) fn update(&mut self, inputs: PadInputs) -> bool {
+        let Some(rest) = self.rest else {
+            self.rest = Some(inputs);
+            return false;
+        };
+        let moved = rest.buttons != inputs.buttons
+            || rest
+                .axes
+                .iter()
+                .zip(inputs.axes)
+                .any(|(from, to)| (i32::from(*from) - i32::from(to)).abs() >= PAD_MOVE_STEP);
+        if moved {
+            self.rest = Some(inputs);
+        }
+        moved
+    }
+}
+
+static PAD_CLOCK: OnceLock<Instant> = OnceLock::new();
+/// When a pad last moved: milliseconds on PAD_CLOCK plus one; 0 = never.
+static LAST_PAD_INPUT: AtomicU64 = AtomicU64::new(0);
+
+fn pad_clock_ms() -> u64 {
+    PAD_CLOCK.get_or_init(Instant::now).elapsed().as_millis() as u64
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn note_pad_input() {
+    LAST_PAD_INPUT.store(pad_clock_ms() + 1, Ordering::Relaxed);
+}
+
+/// Since a pad last moved, for auto pause (play_activity.rs). None until one
+/// did while the watcher ran.
+pub(crate) fn pad_idle_ms() -> Option<u64> {
+    let last = LAST_PAD_INPUT.load(Ordering::Relaxed);
+    (last != 0).then(|| pad_clock_ms().saturating_sub(last - 1))
+}
+
 #[derive(Default)]
 pub struct ControllerWatcher {
     generation: Arc<AtomicU64>,
@@ -326,6 +401,12 @@ async fn watch_controllers(
 
     let started = std::time::Instant::now();
     let mut machines = std::array::from_fn::<_, 4, _>(|_| ControllerMachine::default());
+    let mut activity = std::array::from_fn::<_, 4, _>(|_| PadActivity::default());
+    let tick_ms = if navigation || counting {
+        16
+    } else {
+        PAD_ACTIVITY_TICK_MS
+    };
     let mut next_probe_at = [0_u64; 4];
     let mut seen_connected = [false; 4];
     let mut playstation_pads = super::playstation_pad::PlaystationPads::new(4);
@@ -342,6 +423,7 @@ async fn watch_controllers(
             let result = unsafe { XInputGetState(slot as u32, &mut state) };
             if result != 0 {
                 machines[slot].reset();
+                activity[slot] = PadActivity::default();
                 next_probe_at[slot] = now_ms
                     + if seen_connected[slot] {
                         KNOWN_CONTROLLER_RETRY_MS
@@ -352,6 +434,20 @@ async fn watch_controllers(
             }
             seen_connected[slot] = true;
             next_probe_at[slot] = now_ms;
+            let pad = &state.Gamepad;
+            if activity[slot].update(PadInputs {
+                buttons: pad.wButtons,
+                axes: [
+                    pad.sThumbLX,
+                    pad.sThumbLY,
+                    pad.sThumbRX,
+                    pad.sThumbRY,
+                    trigger_axis(pad.bLeftTrigger),
+                    trigger_axis(pad.bRightTrigger),
+                ],
+            }) {
+                note_pad_input();
+            }
             let mut actions = machines[slot].update(
                 state.Gamepad.wButtons,
                 (state.Gamepad.sThumbLX, state.Gamepad.sThumbLY),
@@ -383,7 +479,7 @@ async fn watch_controllers(
                 focus_grace_until = 0;
             }
         }
-        tokio::time::sleep(std::time::Duration::from_millis(16)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(tick_ms)).await;
     }
 }
 
@@ -446,6 +542,67 @@ fn emit_action(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // docs/auto-pause-plan.md, "Controller input".
+    fn at_rest() -> PadInputs {
+        PadInputs::default()
+    }
+
+    fn left_stick(x: i16, y: i16) -> PadInputs {
+        PadInputs {
+            axes: [x, y, 0, 0, 0, 0],
+            ..PadInputs::default()
+        }
+    }
+
+    #[test]
+    fn a_pad_lying_still_is_not_input_even_with_noise_or_drift() {
+        let mut activity = PadActivity::default();
+        // The first read only notes where the pad rests: a drifted stick.
+        assert!(!activity.update(left_stick(9_000, -2_500)));
+        for (x, y) in [(9_400, -2_100), (8_700, -2_900), (9_000, -2_500)] {
+            assert!(!activity.update(left_stick(x, y)), "noise {x} {y}");
+        }
+    }
+
+    #[test]
+    fn a_button_press_and_its_release_are_input_holding_it_is_not() {
+        let mut activity = PadActivity::default();
+        activity.update(at_rest());
+        let pressed = PadInputs {
+            buttons: BUTTON_A,
+            ..at_rest()
+        };
+        assert!(activity.update(pressed));
+        assert!(!activity.update(pressed));
+        assert!(activity.update(at_rest()));
+    }
+
+    #[test]
+    fn a_stick_or_trigger_moved_a_real_step_is_input() {
+        let mut activity = PadActivity::default();
+        activity.update(at_rest());
+        // A slow push adds up from where the stick rested.
+        assert!(!activity.update(left_stick(2_000, 0)));
+        assert!(!activity.update(left_stick(3_500, 0)));
+        assert!(activity.update(left_stick(4_500, 0)));
+        // Held there: no more input until it moves on.
+        assert!(!activity.update(left_stick(4_600, 0)));
+
+        let throttle = PadInputs {
+            axes: [4_500, 0, 0, 0, 0, trigger_axis(255)],
+            ..at_rest()
+        };
+        assert!(activity.update(throttle));
+        assert_eq!(trigger_axis(255), 32_640);
+    }
+
+    #[test]
+    fn auto_pause_hears_when_a_pad_last_moved() {
+        note_pad_input();
+        let idle = pad_idle_ms().expect("a pad moved");
+        assert!(idle < 1_000, "{idle} ms");
+    }
 
     #[test]
     fn reveal_chord_requires_a_hold_and_fires_once() {

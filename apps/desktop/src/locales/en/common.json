@@ -73,8 +73,10 @@
   "sessions_one": "session",
   "sessions_other": "sessions",
   "Imported from your PlayStation account.": "Imported from your PlayStation account.",
+  "Imported from your Nintendo Account.": "Imported from your Nintendo Account.",
   "Click to see this day": "Click to see this day",
   "{{count}} more games_one": "{{count}} more game",
   "{{count}} more games_other": "{{count}} more games",
-  "Running total: {{current}}, the period before: {{previous}}": "Running total: {{current}}, the period before: {{previous}}"
+  "Running total: {{current}}, the period before: {{previous}}": "Running total: {{current}}, the period before: {{previous}}",
+  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too."
 }

@@ -190,6 +190,61 @@ export function readAgain(
   };
 }
 
+/**
+ * Whether the game's entry already holds what a scan of this account reads:
+ * then the game is "Already in My Games" for it, and a background refresh
+ * may update it. An account the entry doesn't have joins only through the
+ * importer (docs/remove-account-hours-plan.md). A scan without an account,
+ * and an entry from before accounts, can't tell: they hold it, as before.
+ */
+export function holdsAccount(
+  entry: Pick<LibraryImportEntry, "accounts">,
+  account: Pick<LibraryAccount, "key"> | undefined,
+) {
+  return (
+    !account ||
+    !entry.accounts ||
+    entry.accounts.some((reading) => reading.key === account.key)
+  );
+}
+
+/**
+ * The entry without one account's reading: its hours, last played date and
+ * play evidence no longer count. Undefined when it was the last reading,
+ * so the launcher leaves the game. An entry from before accounts has one
+ * reading, its hours as "Earlier import" (docs/remove-account-hours-plan.md).
+ */
+export function removeAccountReading(
+  entry: LibraryImportEntry,
+  key: string,
+): LibraryImportEntry | undefined {
+  const readings = accountReadings(entry);
+  const kept = readings.filter((item) => item.key !== key);
+  if (kept.length === readings.length) return entry;
+  if (kept.length === 0) return undefined;
+  const {
+    providerLastPlayedAt: _lastPlayed,
+    providerHasPlayedEvidence: _evidence,
+    ...rest
+  } = entry;
+  const lastPlayedAt = kept.reduce<string | undefined>(
+    (latest, item) => latestDate(latest, item.lastPlayedAt),
+    undefined,
+  );
+  const evidence = kept.some((item) => item.hasPlayedEvidence)
+    ? true
+    : kept.some((item) => item.hasPlayedEvidence === false)
+      ? false
+      : undefined;
+  return {
+    ...rest,
+    accounts: kept,
+    providerSeconds: totalSeconds(kept),
+    ...(lastPlayedAt ? { providerLastPlayedAt: lastPlayedAt } : {}),
+    ...(evidence !== undefined ? { providerHasPlayedEvidence: evidence } : {}),
+  };
+}
+
 /** Earlier hours are this account's when it reports at least as many. */
 function fits(earlier: AccountReading, reading: AccountReading) {
   return (

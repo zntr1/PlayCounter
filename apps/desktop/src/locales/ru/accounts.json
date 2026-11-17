@@ -59,5 +59,13 @@
   "Open the code page": "Открыть страницу с кодом",
   "Copy everything on that page and paste it here.": "Скопируйте всё содержимое этой страницы и вставьте сюда.",
   "Sign-in code": "Код входа",
-  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "Код работает как ваш пароль. PlayCounter хранит его в зашифрованном виде на этом ПК и отправляет только Sony."
+  "The code works like your password. PlayCounter keeps it encrypted on this PC and only sends it to Sony.": "Код работает как ваш пароль. PlayCounter хранит его в зашифрованном виде на этом ПК и отправляет только Sony.",
+  "Your Switch games and the playtime Nintendo recorded.": "Ваши игры Switch и время в игре, записанное Nintendo.",
+  "Sign in with a link": "Войти по ссылке",
+  "Sign in at Nintendo in your browser.": "Войдите в Nintendo в браузере.",
+  "Open Nintendo sign-in": "Открыть вход в Nintendo",
+  "When Nintendo shows your account, right-click Select this person and copy the link.": "Когда Nintendo покажет ваш аккаунт, щёлкните правой кнопкой мыши «Выбрать этого человека» и скопируйте ссылку.",
+  "Paste the link here.": "Вставьте ссылку сюда.",
+  "Sign-in link": "Ссылка для входа",
+  "The link signs you in like your password for ten minutes. PlayCounter only sends it to Nintendo.": "Ссылка действует как ваш пароль в течение десяти минут. PlayCounter отправляет её только Nintendo."
 }

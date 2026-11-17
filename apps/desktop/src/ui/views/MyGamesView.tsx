@@ -107,6 +107,7 @@ import {
   revealGameExecutable,
   reportNegativeMatch,
   scanProcessesNow,
+  sendSharedFileGame,
   chooseLaunchTarget,
   chooseEmulatorLaunchFile,
   linkKnownGameFiles,
@@ -125,6 +126,7 @@ import {
   type GameAliasRef,
   rejectFileForGame,
 } from "../../tracker";
+import { sentForReviewDetail } from "../sharedFileReview";
 import {
   canSuggestCustomGameToCommunity,
   fileMatchSource,
@@ -975,12 +977,6 @@ export function MyGamesView({
   );
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
-  );
-  const highResCovers = useAppStore(
-    (state) => state.settings.libraryHighResCovers === true,
-  );
-  const setMyGamesHighResCovers = useAppStore(
-    (state) => state.setMyGamesHighResCovers,
   );
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
@@ -2463,6 +2459,7 @@ export function MyGamesView({
             <ProviderBadge provider="epic" />
             <ProviderBadge provider="gog" />
             <ProviderBadge provider="playstation" />
+            <ProviderBadge provider="nintendo" />
             <span className="text-text-muted">{t("Emulator")}</span>
             <EmulatorBadge emulatorId="dolphin" label="Dolphin" />
           </div>
@@ -2842,15 +2839,6 @@ export function MyGamesView({
                         setMyGamesShowShelves={setMyGamesShowShelves}
                       />
                       <OptionRow
-                        id="library-high-res-covers"
-                        label={t("Sharper covers")}
-                        help={t(
-                          "Larger cover art. Looks better on big cards, uses more data.",
-                        )}
-                        checked={highResCovers}
-                        onChange={setMyGamesHighResCovers}
-                      />
-                      <OptionRow
                         id="library-show-stats"
                         label={t("Summary numbers")}
                         help={t(
@@ -2971,6 +2959,9 @@ export function MyGamesView({
                 onClear={bulkSelection.clear}
                 onDone={bulkSelection.finish}
                 onStatus={bulkSelection.applyStatus}
+                onTier={bulkSelection.applyTier}
+                onShelf={bulkSelection.applyShelf}
+                onNewShelf={bulkSelection.newShelf}
                 moveToPlayCounterCount={selectedLauncherGames.length}
                 onMoveToPlayCounter={() =>
                   setPendingBulkMove({
@@ -3847,7 +3838,7 @@ export function GameLibraryCard({
   useEffect(
     () =>
       sampleLibrary?.subscribe((state) => {
-        if (!state.newShelfGame) return;
+        if (!state.newShelfRequest) return;
         state.openNewShelf(null);
         answerNewShelf.current();
       }),
@@ -4816,12 +4807,12 @@ export function GameLibraryCard({
     });
   }
 
-  // Game.exe names no game for anyone else: its database search stays on
-  // this PC and moves only this game's folders.
-  const localSearchOnly = isGenericExeName(flowExeName ?? "");
+  // Game.exe and co.: the database search moves only this game's folders,
+  // and the pick goes to review from them.
+  const sharedFileSearch = isGenericExeName(flowExeName ?? "");
 
   function openSearch() {
-    if (!localSearchOnly) {
+    if (!sharedFileSearch) {
       setShareOpen(true);
       return;
     }
@@ -4829,46 +4820,47 @@ export function GameLibraryCard({
     setShareOpen(true);
   }
 
-  function applySearchedGameLocally() {
+  async function applySearchedGameToFolders() {
     const selection = correction.selection;
     if (!selection?.coverUrl || !flowExeName) return;
     const applied = applyDatabaseGameToFolderLinks(flowExeName, game.aliases, {
       ...selection,
       coverUrl: selection.coverUrl,
     });
-    if (applied) void linkServerKnownFiles(applied);
     closeShare();
-    addToast(
-      applied
-        ? {
-            tone: "success",
-            title: t("Match applied"),
-            detail: t("{{name}} is now tracked as {{name2}} on this PC.", {
-              name: game.name,
-              name2: applied.name,
-            }),
-          }
-        : {
-            tone: "info",
-            title: t("Nothing to change"),
-            detail: t(
-              "{{flowExeName}} is not linked to a folder for {{name}} yet. Start the game once, then pick the right one.",
-              { flowExeName, name: game.name },
-            ),
-          },
-    );
+    if (!applied) {
+      addToast({
+        tone: "info",
+        title: t("Nothing to change"),
+        detail: t(
+          "{{flowExeName}} is not linked to a folder for {{name}} yet. Start the game once, then pick the right one.",
+          { flowExeName, name: game.name },
+        ),
+      });
+      return;
+    }
+    void linkServerKnownFiles(applied);
+    const sent = await sendSharedFileGame(flowExeName, applied);
+    addToast({
+      tone: "success",
+      title: t("Match applied"),
+      detail: sent
+        ? sentForReviewDetail(flowExeName, applied.name)
+        : t("{{name}} is now tracked as {{name2}} on this PC.", {
+            name: game.name,
+            name2: applied.name,
+          }),
+    });
   }
 
-  // A Custom game that already names its game is sent as it is, after one
-  // confirmation. The search is only for one without a database game, or one
-  // the community turned down before.
+  // A Custom game that already names its database game is sent as it is,
+  // after one confirmation. The search is only for one without a database
+  // game, or one the community turned down before.
   const canShareDirectly =
     primaryLocalLink !== undefined &&
     primaryLocalLink.communitySuggestionId === undefined &&
     Boolean(primaryLocalLink.gameName) &&
-    (primaryLocalLink.igdbId !== undefined ||
-      primaryLocalLink.shareState === "unshared" ||
-      primaryLocalLink.shareState === "failed");
+    primaryLocalLink.igdbId !== undefined;
 
   function handleShareAction() {
     setMatchFile(null);
@@ -6773,7 +6765,7 @@ export function GameLibraryCard({
                     setShowMatchCheck(false);
                     setDemoAction("matching");
                   }
-                : canSuggestToCommunity || localSearchOnly
+                : canSuggestToCommunity || sharedFileSearch
                   ? () => {
                       setShowMatchCheck(false);
                       openSearch();
@@ -6795,7 +6787,7 @@ export function GameLibraryCard({
           onDifferentGame={() => {
             setReportOpen(false);
             if (demo) setDemoAction("matching");
-            else if (localSearchOnly) openSearch();
+            else if (sharedFileSearch) openSearch();
             else setShareOpen(true);
           }}
           onNotAGame={(exeName) => {
@@ -6886,11 +6878,15 @@ export function GameLibraryCard({
           onSearch={correction.searchFirstPage}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          localOnly={localSearchOnly || searchMode === "change"}
-          localAction={searchMode === "change" ? t("Change game") : undefined}
+          localOnly={!sharedFileSearch && searchMode === "change"}
+          localAction={
+            !sharedFileSearch && searchMode === "change"
+              ? t("Change game")
+              : undefined
+          }
           onSubmit={() =>
-            localSearchOnly
-              ? applySearchedGameLocally()
+            sharedFileSearch
+              ? void applySearchedGameToFolders()
               : searchMode === "change"
                 ? changeGameNow()
                 : void correction.submit()
@@ -7028,6 +7024,7 @@ export function GameLibraryCard({
             <GameCover
               src={shownCover}
               alt=""
+              large
               draggable={false}
               className="game-card-cover-image absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />

@@ -14,7 +14,15 @@ describe("library provider tab registry", () => {
     }
     expect(
       importableProviderTabs("windows").map((config) => config.id),
-    ).toEqual(["steam", "xbox", "battlenet", "epic", "gog", "playstation"]);
+    ).toEqual([
+      "steam",
+      "xbox",
+      "battlenet",
+      "epic",
+      "gog",
+      "playstation",
+      "nintendo",
+    ]);
     expect(importableProviderTabs("macos").map((config) => config.id)).toEqual([
       "xbox",
     ]);

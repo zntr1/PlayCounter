@@ -326,6 +326,7 @@ export function GameBanner({
               src={coverUrl}
               alt=""
               highRes
+              large
               loading="eager"
               className="aspect-[3/4] w-[170px] rounded-xl object-cover shadow-card-hover ring-1 ring-white/10"
             />

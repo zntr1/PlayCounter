@@ -8,8 +8,13 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { gameStatusLabel, type GameStatus } from "../personalLibrary";
+import {
+  gameStatusLabel,
+  type GameStatus,
+  type GameTier,
+} from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
+import { assignShelf } from "./libraryGameDrag";
 import { getT } from "../i18n";
 
 const t = getT("myGames");
@@ -201,6 +206,50 @@ export function useLibrarySelection(
     });
     finish();
   }
+  function applyTier(tier: GameTier | null) {
+    if (!selected.size) return;
+    rememberScroll();
+    const count = libraryApi.getState().setGameTiers(selectedGames, tier);
+    libraryApi.getState().addToast({
+      tone: count ? "success" : "info",
+      title: count
+        ? tier
+          ? t("Tier {{tier}} set for {{count}} games", { count, tier })
+          : t("Tier cleared for {{count}} games", { count })
+        : tier
+          ? t("Selected games already have tier {{tier}}", { tier })
+          : t("Selected games already have no tier"),
+    });
+    finish();
+  }
+  function applyShelf(shelfId: string) {
+    if (!selected.size) return;
+    rememberScroll();
+    const blocked = assignShelf(
+      selectedGames,
+      shelfId,
+      libraryApi.getState(),
+      libraryApi.getState,
+    );
+    if (blocked)
+      libraryApi.getState().addToast({
+        tone: "info",
+        title: blocked.title,
+        detail: blocked.detail,
+      });
+    finish();
+  }
+  /** The New shelf dialog; saving it ends the selection, closing it doesn't. */
+  function newShelf() {
+    if (!selected.size) return;
+    libraryApi.getState().openNewShelf({
+      games: selectedGames,
+      onSaved: () => {
+        rememberScroll();
+        finish();
+      },
+    });
+  }
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!active || !enabled || event.defaultPrevented) return;
     const target = event.target;
@@ -233,6 +282,9 @@ export function useLibrarySelection(
     clear,
     finish,
     applyStatus,
+    applyTier,
+    applyShelf,
+    newShelf,
     onKeyDown,
   };
 }

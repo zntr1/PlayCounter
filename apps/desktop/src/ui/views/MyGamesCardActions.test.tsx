@@ -282,6 +282,26 @@ it("still searches for a Custom game that names no database game", async () => {
   expect(menuText()).not.toContain("Suggest to community?");
 });
 
+it.each(["unshared", "failed"] as const)(
+  "searches for a Custom game without a database game also when it is marked %s",
+  async (shareState) => {
+    // The server takes a game suggestion only with its IGDB id, so there is
+    // nothing to send as it is: the search finds the database game first.
+    useAppStore.getState().setExeCacheEntry({
+      ...OWN_FILE,
+      igdbId: undefined,
+      gameName: "My Mod",
+      shareState,
+    });
+    await act(() => root.render(<LibraryTestShell />));
+    await suggestFromCard();
+
+    expect(menuText()).toContain("Suggest community game");
+    expect(menuText()).not.toContain("Suggest to community?");
+    expect(submitLocalLinkToCommunity).not.toHaveBeenCalled();
+  },
+);
+
 it("offers Change Game for the user's own file, as a search on this PC only", async () => {
   useAppStore.getState().setExeCacheEntry(OWN_FILE);
   await act(() => root.render(<LibraryTestShell />));
@@ -863,7 +883,7 @@ const ROCKET_LEAGUE = {
 };
 
 function importFrom(
-  provider: "playstation" | "epic",
+  provider: "playstation" | "epic" | "nintendo",
   externalId: string,
   game: typeof ELDEN_RING,
   consoleTitleIds?: string[],
@@ -927,6 +947,38 @@ it("plays a PlayStation-only game on the console: no warning sign, and the card 
   expect(trackingWarning()).toBeNull();
   expect(cardButton("Set launch file")).toBeUndefined();
   expect(card().textContent).toContain("Not launchable");
+});
+
+// docs/nintendo-import-plan.md, "What gets built" 4: a game only from
+// Nintendo plays on the console like a PlayStation-only game.
+it("plays a Nintendo-only game on the console: no warning sign, no launch file, and the card says Not launchable", async () => {
+  importFrom(
+    "nintendo",
+    "0100000000010000",
+    {
+      id: 9,
+      igdbId: 26758,
+      name: "Super Mario Odyssey",
+      coverUrl: "",
+      source: "igdb",
+    },
+    undefined,
+    [
+      {
+        value: "SuperMarioOdyssey.exe",
+        kind: "exe",
+        platform: "windows",
+        provenance: "igdb",
+        verified: true,
+      },
+    ],
+  );
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(trackingWarning()).toBeNull();
+  expect(cardButton("Set launch file")).toBeUndefined();
+  expect(card().textContent).toContain("Not launchable");
+  expect(useAppStore.getState().exeCache.size).toBe(0);
 });
 
 it("says Not launchable also when the database knows the PC version's .exe", async () => {

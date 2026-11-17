@@ -2,6 +2,7 @@ import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import epicIconUrl from "../../../../assets/epic/epic.svg";
 import gogIconUrl from "../../../../assets/gog/gog.svg";
 import playStationIconUrl from "../../../../assets/playstation/playstation.svg";
+import nintendoIconUrl from "../../../../assets/nintendo/nintendo.svg";
 import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -396,6 +397,15 @@ function providerMeta(): Record<
       tone: "text-[#5fb2ff]",
       coinTone: "shadow-raised",
       chipTone: "border-[#0070d1]/50 bg-[#06203d] text-[#8cc8ff]",
+      coinFill: true,
+    },
+    nintendo: {
+      label: "Nintendo",
+      tip: t("Imported from your Nintendo Account."),
+      iconUrl: nintendoIconUrl,
+      tone: "text-[#ff6b73]",
+      coinTone: "shadow-raised",
+      chipTone: "border-[#e60012]/50 bg-[#3a070c] text-[#ffb3b8]",
       coinFill: true,
     },
   };

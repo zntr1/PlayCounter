@@ -1,5 +1,5 @@
 import { formatNumericDate, getT } from "../../i18n";
-import { readAgain } from "../../library/accountReadings";
+import { holdsAccount, readAgain } from "../../library/accountReadings";
 import {
   hasImportableActivity,
   importGroupForGame,
@@ -76,11 +76,15 @@ export function importRows(
     const replacement = inLibrary
       ? undefined
       : session.replacements[game.externalId];
+    // In My Games without the scan's account: ready to import for it
+    // (docs/remove-account-hours-plan.md).
     const group = importGroupForGame({
       game,
       provider: providerId,
       resolved,
-      alreadyImported: inLibrary,
+      alreadyImported:
+        inLibrary && holdsAccount(existing, session.scan?.account),
+      inMyGames: inLibrary,
       completed,
       ignoredProcesses,
     });

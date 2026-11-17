@@ -53,6 +53,17 @@ mod playstation_account {
     }
 }
 
+#[allow(dead_code)]
+mod nintendo_account {
+    pub async fn check_saved_login(_: &tauri::AppHandle) -> super::login_status::LoginStatus {
+        panic!("Epic fixtures must never validate Nintendo accounts");
+    }
+
+    pub fn cancel_active(_: &tauri::AppHandle) {
+        panic!("Epic fixtures must never cancel Nintendo sessions");
+    }
+}
+
 // The account module's game-ID check is unrelated to this fixture. Include its
 // small dependency here without bringing in installation scanning or launching.
 mod epic {

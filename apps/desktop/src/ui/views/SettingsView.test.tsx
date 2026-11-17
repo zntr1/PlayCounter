@@ -351,6 +351,7 @@ describe("hotkeys save as soon as you press them", () => {
       "liveTimerCorner",
       "liveTimerHotkey",
       "pauseTimerHotkey",
+      "autoPause",
       "playtimeReminder",
       "controllerCounting",
       "counterBoxHotkey",
@@ -472,6 +473,34 @@ describe("visible choices", () => {
     expect(buttonByText("Light").getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("picks the cover quality from four buttons; Standard is the default", async () => {
+    await renderSettings("appearance");
+    const quality = byLabel("Cover quality");
+    expect(
+      [...quality.querySelectorAll("button")].map((item) => item.textContent),
+    ).toEqual(["Standard", "Sharp", "Sharpest", "Original"]);
+    expect(
+      buttonByText("Standard", quality).getAttribute("aria-pressed"),
+    ).toBe("true");
+    await click(buttonByText("Sharpest", quality));
+    expect(useAppStore.getState().settings.coverQuality).toBe("sharpest");
+    expect(
+      buttonByText("Sharpest", quality).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("shows Sharp to someone who had Sharper covers on", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, libraryHighResCovers: true },
+    }));
+    await renderSettings("appearance");
+    expect(
+      buttonByText("Sharp", byLabel("Cover quality")).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+  });
+
   it("offers eight ready accent colors; amber is the default", async () => {
     await renderSettings("appearance");
     await click(byLabel("Blue"));
@@ -502,6 +531,42 @@ describe("visible choices", () => {
     expect(useAppStore.getState().settings.liveTimerCorner).toBe(
       "bottom-right",
     );
+  });
+
+  it("picks the popups' corner on a small screen, top right until then", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, overlayCorner: undefined },
+    }));
+    await renderSettings("popups");
+    const picker = container.querySelector('[aria-label="Popup position"]')!;
+    const pressed = () =>
+      [...picker.querySelectorAll('[aria-pressed="true"]')].map((button) =>
+        button.getAttribute("aria-label"),
+      );
+    expect(pressed()).toEqual(["Top right"]);
+    await click(
+      picker.querySelector<HTMLElement>('[aria-label="Bottom left"]')!,
+    );
+    expect(useAppStore.getState().settings.overlayCorner).toBe("bottom-left");
+    expect(pressed()).toEqual(["Bottom left"]);
+  });
+
+  // docs/auto-pause-plan.md, "What the player sees".
+  it("Pause when you're away is one switch, off until you turn it on, on Windows only", async () => {
+    await renderSettings("play");
+    const toggle = byLabel<HTMLInputElement>("Pause when you're away");
+    expect(toggle.checked).toBe(false);
+    const rule = container.querySelector('[data-row="autoPause"]')?.textContent;
+    expect(rule).toContain("after a minute with another app in front");
+    expect(rule).toContain("5 minutes without");
+    await click(toggle);
+    expect(useAppStore.getState().settings.autoPauseEnabled).toBe(true);
+    await click(toggle);
+    expect(useAppStore.getState().settings.autoPauseEnabled).toBe(false);
+
+    mocks.platform.value = "linux";
+    await act(async () => root.render(createElement(SettingsView)));
+    expect(container.querySelector('[data-row="autoPause"]')).toBeNull();
   });
 
   it("shows the controller buttons that count", async () => {
@@ -566,6 +631,7 @@ describe("one list for imported launcher data", () => {
       "Epic Games",
       "GOG",
       "PlayStation",
+      "Nintendo",
     ]);
     expect(rows[0].textContent).toContain("2 games");
     expect(rows[1].textContent).toContain("1 game");
@@ -607,6 +673,30 @@ describe("About, Reset and the menu dots", () => {
     expect(text()).toContain("3f6d2c8e-uuid");
     await click(buttonByText("Copy"));
     expect(writeText).toHaveBeenCalledWith("3f6d2c8e-uuid");
+  });
+
+  it("says Steam keeps the Steam copy up to date, with no Check button", async () => {
+    useAppStore.setState({ installSource: "steam" });
+    await renderSettings("about");
+    expect(text()).toContain("Steam keeps PlayCounter up to date.");
+    const check = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Check",
+    );
+    expect(check).toBeUndefined();
+    expect(buttonByText("Release notes")).toBeDefined();
+    expect(
+      container.querySelector('[data-tour="settings-updates"]'),
+    ).not.toBeNull();
+  });
+
+  it("tells the Steam copy in the settings guide that Steam brings updates", () => {
+    useAppStore.setState({ installSource: "steam" });
+    const step = tours()
+      .find((tour) => tour.id === "settings")!
+      .steps.find((candidate) => candidate.id === "updates")!;
+    expect(step.body).toBe(
+      "Steam keeps PlayCounter up to date. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.",
+    );
   });
 
   it("puts Reset in a red box at the end of Backup & transfer", async () => {

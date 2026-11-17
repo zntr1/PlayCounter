@@ -40,6 +40,7 @@ import {
   AdultArtRow,
   ClockFormatRow,
   ContentSizeRow,
+  CoverQualityRow,
   FormatRegionRow,
   LanguageRow,
   LaunchOnStartupRow,
@@ -65,6 +66,7 @@ import {
 } from "./LibraryRows";
 import {
   ActionRequiredRow,
+  AutoPauseRow,
   ControllerCountingRow,
   DesktopPopupsRow,
   DiscoveriesRow,
@@ -74,6 +76,7 @@ import {
   MilestonesRow,
   PlaythroughNamesRow,
   PlaytimeReminderRow,
+  PopupCornerRow,
   PopupMonitorRow,
   ScreenshotFolderRow,
   SessionClockRow,
@@ -325,6 +328,21 @@ const GROUPS: SettingsGroupDef[] = [
             Row: MenuSizeRow,
           },
           {
+            id: "coverQuality",
+            title: () => t("Cover quality"),
+            description: () =>
+              t(
+                "Sharper covers look better on big cards, but use more data and memory. Original loads each cover as it was uploaded, up to several MB.",
+              ),
+            keywords: () => [
+              t("Standard"),
+              t("Sharp"),
+              t("Sharpest"),
+              t("Original"),
+            ],
+            Row: CoverQualityRow,
+          },
+          {
             id: "showAdultArt",
             title: () => t("Show 18+ art"),
             description: () =>
@@ -447,6 +465,16 @@ const GROUPS: SettingsGroupDef[] = [
           liveTimerKey,
           pauseTimerKey,
           {
+            id: "autoPause",
+            title: () => t("Pause when you're away"),
+            description: () =>
+              t(
+                "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.",
+              ),
+            available: onWindows,
+            Row: AutoPauseRow,
+          },
+          {
             id: "playtimeReminder",
             title: () => t("Playtime reminder"),
             description: () =>
@@ -509,9 +537,15 @@ const GROUPS: SettingsGroupDef[] = [
             title: () => t("Popup monitor"),
             description: () =>
               t(
-                "Popups appear at the top right of this display. Hotkey popups, boxes and timers you start by hand use it too. If it is disconnected, PlayCounter uses your primary monitor.",
+                "Popups appear on this display. Hotkey popups, boxes and timers you start by hand use it too. If it is disconnected, PlayCounter uses your primary monitor.",
               ),
             Row: PopupMonitorRow,
+          },
+          {
+            id: "overlayCorner",
+            title: () => t("Popup position"),
+            description: () => t("Pick a corner your game's HUD leaves free."),
+            Row: PopupCornerRow,
           },
         ],
       },
@@ -710,7 +744,7 @@ const GROUPS: SettingsGroupDef[] = [
     title: () => t("Library import"),
     description: () =>
       t(
-        "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG or PlayStation. Install paths and the game files linked to them always stay on this PC.",
+        "Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, Epic Games, GOG, PlayStation or Nintendo. Install paths and the game files linked to them always stay on this PC.",
       ),
     dataTour: "settings-library-import",
     guide: "watch-folders",
@@ -723,7 +757,7 @@ const GROUPS: SettingsGroupDef[] = [
             title: () => t("Add new games automatically"),
             description: () =>
               t(
-                "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
+                "After your first import from Steam, Battle.net, Epic Games or GOG, games you install there show up in My Games on their own, and so do new games you play on PlayStation or Nintendo Switch. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is.",
               ),
             available: onWindows,
             Row: AutoAddGamesRow,

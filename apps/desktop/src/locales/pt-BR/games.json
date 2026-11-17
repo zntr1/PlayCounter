@@ -183,6 +183,7 @@
   "{{earned}} of {{total}} XP": "{{earned}} de {{total}} XP",
   "{{xp}} XP": "{{xp}} XP",
   "PlayStation concept": "Conceito do PlayStation",
+  "Nintendo title ID": "ID de título do Nintendo",
   "How long to beat": "Duração",
   "Main story": "História principal",
   "Main + extras": "Principal + extras",
@@ -258,5 +259,13 @@
   "Delete": "Excluir",
   "Count with View/Create/Share + D-pad up": "Contar com View/Create/Share + direcional para cima",
   "One counter per game.": "Um contador por jogo.",
-  "This is a sample. A real list is read again from the launcher.": "Este é um exemplo. Uma lista real é lida de novo a partir do launcher."
+  "This is a sample. A real list is read again from the launcher.": "Este é um exemplo. Uma lista real é lida de novo a partir do launcher.",
+  "Remove {{account}} from {{name}}": "Remover {{account}} de {{name}}",
+  "Remove {{launcher}} from {{name}}": "Remover {{launcher}} de {{name}}",
+  "Remove {{account}} from {{name}}?": "Remover {{account}} de {{name}}?",
+  "Remove {{launcher}} from {{name}}?": "Remover {{launcher}} de {{name}}?",
+  "Remove {{name}} from My Games?": "Remover {{name}} de Meus jogos?",
+  "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "As {{duration}} desta conta deixam de contar para {{name}}. Importe a conta de novo para trazê-las de volta.",
+  "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "O tempo de jogo, as conquistas e a abertura pelo {{launcher}} saem de {{name}}. Importe a conta de novo para trazê-los de volta.",
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "O jogo {{name}} veio só desta conta {{launcher}}, e o PlayCounter não contou tempo para ele. Importe a conta de novo para trazê-lo de volta."
 }

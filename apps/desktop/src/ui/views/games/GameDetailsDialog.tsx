@@ -34,9 +34,12 @@ import {
   usePickedBanner,
 } from "../../../pickedCovers";
 import { playsOnConsole } from "../../../library/importProfiles";
-import { EARLIER_IMPORT } from "../../../library/accountReadings";
+import {
+  accountReadings,
+  EARLIER_IMPORT,
+} from "../../../library/accountReadings";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
-import type { ScopedExeLink } from "../../../library/types";
+import type { AccountReading, ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
 import {
   canCancelCommunitySuggestion,
@@ -46,7 +49,7 @@ import {
   type ExeCacheEntry,
   type GameIdentityRef,
 } from "../../../store";
-import { removeOwnGameFile } from "../../../tracker";
+import { removeLauncherAccount, removeOwnGameFile } from "../../../tracker";
 import { artSrcSet } from "../../artSrcSet";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -102,6 +105,7 @@ const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   epic: "Epic Games",
   gog: "GOG",
   playstation: "PlayStation",
+  nintendo: "Nintendo",
 };
 
 function providerIdLabels(): Record<LibraryProviderId, string> {
@@ -112,8 +116,22 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
     epic: t("Epic app name"),
     gog: t("GOG ID"),
     playstation: t("PlayStation concept"),
+    nintendo: t("Nintendo title ID"),
   };
 }
+
+/** Remove on an account line, waiting for the player's yes
+ *  (docs/remove-account-hours-plan.md). account: other accounts stay on the
+ *  launcher. launcher: it was the last one, so the launcher leaves the game.
+ *  game: nothing else keeps the game in My Games. */
+type AccountRemoval = {
+  provider: LibraryProviderId;
+  externalId: string;
+  accountKey: string;
+  account: string;
+  seconds: number;
+  kind: "account" | "launcher" | "game";
+};
 
 export type DetailsTab =
   | "general"
@@ -374,6 +392,57 @@ export function GameDetailsDialog({
         alias.gameId === link.gameId && alias.source === (link.source ?? null),
     );
 
+  // Remove on an account line: everything that account brought to the game
+  // goes, after the player's yes (docs/remove-account-hours-plan.md, Q1 A).
+  const [removal, setRemoval] = useState<AccountRemoval | null>(null);
+  const accountLabel = (reading: AccountReading) =>
+    reading.name ??
+    (reading.key === EARLIER_IMPORT
+      ? t("Earlier import")
+      : t("Unnamed account"));
+
+  function askRemoval(
+    imported: GameSummary["libraryImports"][number],
+    reading: AccountReading,
+  ) {
+    const lastAccount = accountReadings(imported.entry).length === 1;
+    const lastSource =
+      game.libraryImports.length === 1 &&
+      game.recordedSeconds <= 0 &&
+      game.activeStartedAt === undefined;
+    setRemoval({
+      provider: imported.provider,
+      externalId: imported.externalId,
+      accountKey: reading.key,
+      account: accountLabel(reading),
+      seconds: reading.seconds ?? 0,
+      kind: !lastAccount ? "account" : lastSource ? "game" : "launcher",
+    });
+  }
+
+  function confirmRemoval(chosen: AccountRemoval) {
+    const result = removeLauncherAccount(game, {
+      provider: chosen.provider,
+      externalId: chosen.externalId,
+      accountKey: chosen.accountKey,
+    });
+    setRemoval(null);
+    if (result === "game") onClose();
+  }
+
+  const removeAccountButton = (title: string, onClick: () => void) =>
+    demo ? null : (
+      <Button
+        variant="ghost"
+        icon={Trash2}
+        title={title}
+        onClick={onClick}
+        className="shrink-0 px-2 py-1 text-xs"
+      >
+        {t("Remove")}
+      </Button>
+    );
+
   // "Remove" on the user's own file: it stops counting for this game here.
   // A file the database matched would only come back the next time it runs.
   function removeFile(ref: LocalLinkRef, exeName: string) {
@@ -544,6 +613,7 @@ export function GameDetailsDialog({
             <GameCover
               src={coverUrl}
               highRes
+              large
               alt=""
               className="aspect-[3/4] w-full rounded-lg object-cover shadow-card-hover ring-1 ring-white/10"
             />
@@ -1085,11 +1155,33 @@ export function GameDetailsDialog({
                       provider: PROVIDER_LABEL[entry.provider],
                     })}
                     value={
-                      entry.entry.providerSeconds === null
-                        ? entry.provider === "battlenet"
-                          ? t("Not available")
-                          : t("Not reported")
-                        : duration(entry.entry.providerSeconds)
+                      entry.entry.providerSeconds === null ? (
+                        entry.provider === "battlenet" ? (
+                          t("Not available")
+                        ) : (
+                          t("Not reported")
+                        )
+                      ) : (
+                        <span className="flex items-center justify-end gap-2">
+                          {duration(entry.entry.providerSeconds)}
+                          {/* No account line before accounts were known:
+                              Remove sits here (D4). */}
+                          {!entry.entry.accounts &&
+                          entry.entry.providerSeconds > 0
+                            ? removeAccountButton(
+                                t("Remove {{launcher}} from {{name}}", {
+                                  launcher: PROVIDER_LABEL[entry.provider],
+                                  name: game.name,
+                                }),
+                                () =>
+                                  askRemoval(
+                                    entry,
+                                    accountReadings(entry.entry)[0],
+                                  ),
+                              )
+                            : null}
+                        </span>
+                      )
                     }
                   />
                   {/* The total above is the sum of its accounts' hours. */}
@@ -1097,16 +1189,24 @@ export function GameDetailsDialog({
                     <Row
                       key={reading.key}
                       nested
-                      label={
-                        reading.name ??
-                        (reading.key === EARLIER_IMPORT
-                          ? t("Earlier import")
-                          : t("Unnamed account"))
-                      }
+                      label={accountLabel(reading)}
                       value={
-                        reading.seconds === null
-                          ? t("Not reported")
-                          : duration(reading.seconds)
+                        reading.seconds === null ? (
+                          t("Not reported")
+                        ) : (
+                          <span className="flex items-center justify-end gap-2">
+                            {duration(reading.seconds)}
+                            {reading.seconds > 0
+                              ? removeAccountButton(
+                                  t("Remove {{account}} from {{name}}", {
+                                    account: accountLabel(reading),
+                                    name: game.name,
+                                  }),
+                                  () => askRemoval(entry, reading),
+                                )
+                              : null}
+                          </span>
+                        )
                       }
                     />
                   ))}
@@ -1139,6 +1239,59 @@ export function GameDetailsDialog({
       ) : null}
     </div>
   );
+
+  const removalDialog = removal ? (
+    <Modal
+      size="sm"
+      labelId="remove-launcher-account-title"
+      title={
+        removal.kind === "account"
+          ? t("Remove {{account}} from {{name}}?", {
+              account: removal.account,
+              name: game.name,
+            })
+          : removal.kind === "launcher"
+            ? t("Remove {{launcher}} from {{name}}?", {
+                launcher: PROVIDER_LABEL[removal.provider],
+                name: game.name,
+              })
+            : t("Remove {{name}} from My Games?", { name: game.name })
+      }
+      icon={Trash2}
+      onClose={() => setRemoval(null)}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button onClick={() => setRemoval(null)}>{t("Cancel")}</Button>
+          <Button variant="danger" onClick={() => confirmRemoval(removal)}>
+            {t("Remove")}
+          </Button>
+        </div>
+      }
+    >
+      <p className="text-sm text-text-muted">
+        {removal.kind === "account"
+          ? t(
+              "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.",
+              { duration: duration(removal.seconds), name: game.name },
+            )
+          : removal.kind === "launcher"
+            ? t(
+                "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.",
+                {
+                  launcher: PROVIDER_LABEL[removal.provider],
+                  name: game.name,
+                },
+              )
+            : t(
+                "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.",
+                {
+                  name: game.name,
+                  launcher: PROVIDER_LABEL[removal.provider],
+                },
+              )}
+      </p>
+    </Modal>
+  ) : null;
 
   return (
     <Modal
@@ -1185,6 +1338,7 @@ export function GameDetailsDialog({
           <GameAchievementsTab sources={gameAchievementSources} />
         )}
       </div>
+      {removalDialog}
     </Modal>
   );
 }

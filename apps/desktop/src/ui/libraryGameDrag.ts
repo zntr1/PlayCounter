@@ -99,7 +99,9 @@ function commonShelfMemberships(
   );
 }
 
-function assignShelf(
+/** Puts the games on the shelf with a toast; also the selection bar's Add to
+ *  shelf. Returns why not, when every game is on the shelf already. */
+export function assignShelf(
   games: readonly GameIdentityRef[],
   shelfId: string,
   state: PersonalLibraryState,

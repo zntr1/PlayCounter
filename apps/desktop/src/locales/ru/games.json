@@ -184,6 +184,7 @@
   "{{earned}} of {{total}} XP": "{{earned}} из {{total}} XP",
   "{{xp}} XP": "{{xp}} XP",
   "PlayStation concept": "Концепт PlayStation",
+  "Nintendo title ID": "ID игры Nintendo",
   "How long to beat": "Время прохождения",
   "Main story": "Основной сюжет",
   "Main + extras": "Сюжет + доп. задания",
@@ -262,5 +263,13 @@
   "Delete": "Удалить",
   "Count with View/Create/Share + D-pad up": "Считать через View/Create/Share + крестовину вверх",
   "One counter per game.": "Один счётчик на игру.",
-  "This is a sample. A real list is read again from the launcher.": "Это пример. Настоящий список снова читается из лаунчера."
+  "This is a sample. A real list is read again from the launcher.": "Это пример. Настоящий список снова читается из лаунчера.",
+  "Remove {{account}} from {{name}}": "Убрать {{account}} из {{name}}",
+  "Remove {{launcher}} from {{name}}": "Убрать {{launcher}} из {{name}}",
+  "Remove {{account}} from {{name}}?": "Убрать {{account}} из {{name}}?",
+  "Remove {{launcher}} from {{name}}?": "Убрать {{launcher}} из {{name}}?",
+  "Remove {{name}} from My Games?": "Убрать {{name}} из «Моих игр»?",
+  "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "{{duration}} с этой учётной записи больше не учитываются для {{name}}. Импортируйте учётную запись снова, чтобы вернуть их.",
+  "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "Время в игре, достижения и запуск через {{launcher}} уходят из {{name}}. Импортируйте учётную запись снова, чтобы вернуть их.",
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "Игра {{name}} была только с этой учётной записи {{launcher}}, и PlayCounter не учитывал для неё время. Импортируйте учётную запись снова, чтобы вернуть её."
 }

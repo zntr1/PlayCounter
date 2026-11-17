@@ -21,10 +21,15 @@ import {
   initializePlaytimeReminder,
   disposePlaytimeReminder,
 } from "./playtimeReminder";
+import { initializeAutoPause, disposeAutoPause } from "./autoPause";
 import {
   initializePlayStationLive,
   disposePlayStationLive,
 } from "./playstationLive";
+import {
+  initializeNintendoRefresh,
+  disposeNintendoRefresh,
+} from "./nintendoRefresh";
 import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
@@ -55,6 +60,7 @@ import type {
   LibraryProviderId,
   InstallPresencePayload,
   MatchProcessesResponse,
+  PerFolderFilesResponse,
   Platform,
   ProcessIdentifier,
   Session,
@@ -232,6 +238,7 @@ import {
 import { toPublicSnapshots } from "./emulators/publicProjection";
 import { customLocalGameId } from "./library/localGameIds";
 import { isGenericExeName } from "./library/exeCandidates";
+import { setPerFolderFiles } from "./library/perFolderFiles";
 import {
   reverseResolveLibraryGame,
   searchLibraryGames,
@@ -259,6 +266,8 @@ import type {
 import { libraryEntryKey } from "./library/types";
 import { playsOnConsole } from "./library/importProfiles";
 import { forgetLauncherAutoAdd } from "./library/libraryAutoAddState";
+import { removeAccountReading } from "./library/accountReadings";
+import { deleteAchievementList } from "./achievements/achievementLists";
 import {
   syncLibraryInstalls,
   syncLibraryInstallsThrottled,
@@ -560,11 +569,17 @@ export async function initializeTracker() {
     togglePauseSession(sessionId);
   });
   initializeScreenshots(runningGamePids);
+  initializeAutoPause({
+    gamePids: runningGamePids,
+    pause: (sessionId, at) => pauseSession(sessionId, { at, kind: "away" }),
+    resume: (sessionId, at) => resumeSession(sessionId, { at }),
+  });
   initializePlayStationLive({
     start: startConsoleSession,
     see: seeConsoleSession,
     end: endConsoleSession,
   });
+  initializeNintendoRefresh();
   initializePlaytimeReminder();
   initializeControllerBridge();
   syncTrayNowPlaying();
@@ -618,7 +633,9 @@ export async function stopTrackerForReset() {
   disposeCounterBox();
   disposeLiveTimer();
   disposeScreenshots();
+  disposeAutoPause();
   disposePlayStationLive();
+  disposeNintendoRefresh();
   disposePlaytimeReminder();
   disposeControllerBridge();
   await scanInFlight;
@@ -626,6 +643,9 @@ export async function stopTrackerForReset() {
 
 async function finishTrackerStartup() {
   logRuntime("tracker deferred startup started");
+  // Before the first scan, so a name new on the list rarely meets a game
+  // that already started on its old name link.
+  void refreshPerFolderFiles("startup");
   await loadEmulatorPrivacyContext();
   await loadIgnoredProcesses();
   scheduleProcessPolling(
@@ -701,7 +721,9 @@ async function finishTrackerStartup() {
     disposeCounterBox();
     disposeLiveTimer();
     disposeScreenshots();
+    disposeAutoPause();
     disposePlayStationLive();
+    disposeNintendoRefresh();
     disposePlaytimeReminder();
     disposeAutomaticBackups();
     disposeControllerBridge();
@@ -3533,10 +3555,17 @@ async function resolveProcesses(
     // A generic name in a new folder, with games already linked to it on
     // this PC: ask which one it is (or a new one) instead of guessing.
     if (asksForLinkedGames(process)) {
+      const known = gamesKnownForExe(process.exeName);
+      // A database game this PC already has comes back from the server once
+      // its pair is approved: it is offered once, as this PC's game, so its
+      // hours stay together.
+      const knownIgdbIds = new Set(known.map((game) => game.igdbId));
       const candidates = new Map<string, Game>();
       for (const game of [
-        ...gamesKnownForExe(process.exeName),
-        ...(result.ambiguousGames ?? (result.game ? [result.game] : [])),
+        ...known,
+        ...(result.ambiguousGames ?? (result.game ? [result.game] : [])).filter(
+          (game) => game.igdbId === undefined || !knownIgdbIds.has(game.igdbId),
+        ),
       ]) {
         const id = `${game.source}:${game.id}`;
         if (!candidates.has(id)) candidates.set(id, game);
@@ -7329,6 +7358,55 @@ async function recheckPendingCommunityApprovals(reason: string) {
   persist();
 }
 
+/**
+ * The file names the admin panel marks "Per folder", asked once at every start
+ * (docs/per-folder-list-plan.md). The list saved at the last start counts
+ * until the answer comes, and a failed request keeps it. A name new on the
+ * list moves old name links to their folders, as hydrate() does on every
+ * start; a game running now keeps its name link until the next start.
+ */
+export async function refreshPerFolderFiles(reason: string) {
+  const state = useAppStore.getState();
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime(`per-folder list ${reason} skipped while offline`);
+    return;
+  }
+  try {
+    const response = await requestJsonResponse<PerFolderFilesResponse>(
+      `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/identifiers/per-folder`,
+      { timeoutMs: API_REQUEST_TIMEOUT_MS },
+    );
+    if (!response.ok) throw responseError(response);
+    if (!Array.isArray(response.data?.files)) {
+      logRuntime(`per-folder list ${reason} ignored: no file list`);
+      return;
+    }
+    const added = setPerFolderFiles(response.data.files);
+    if (added.length === 0) return;
+    logRuntime(`per-folder list ${reason}: new ${added.join(", ")}`);
+    const current = useAppStore.getState();
+    const exeCache = new Map(current.exeCache);
+    const scopedExeLinks = new Map(current.scopedExeLinks);
+    if (
+      moveGenericNameLinksToFolders(
+        exeCache,
+        scopedExeLinks,
+        current.launchTargets,
+        current.activeSessions,
+      )
+    ) {
+      useAppStore.setState({ exeCache, scopedExeLinks });
+      persist();
+    }
+    await requestProcessScan("per-folder list changed");
+  } catch (error) {
+    verboseRuntime(`per-folder list ${reason} failed: ${formatError(error)}`);
+  }
+}
+
 export async function pollContributions(
   reason: string,
   options: { suppressNotifications?: boolean } = {},
@@ -8153,8 +8231,9 @@ export async function submitLocalLinkToCommunity(
     link?.source !== "custom" ||
     link.communitySuggestionId !== undefined ||
     !link.gameName ||
-    // Game.exe names no game for anyone else: it is never shared.
-    isGenericExeName(link.exeName)
+    // The server takes a game only with its IGDB id: a Custom game without
+    // one finds its database game in the search first.
+    link.igdbId === undefined
   ) {
     return { kind: "not-applicable" };
   }
@@ -8173,7 +8252,10 @@ export async function submitLocalLinkToCommunity(
           coverUrl: link.coverUrl,
           igdbId: link.igdbId,
           installUuid: state.installUuid ?? undefined,
-        }),
+          // Game.exe and co.: review sees that the file is one several games
+          // ship, and approving it adds a choice instead of a match.
+          ...(isGenericExeName(link.exeName) ? { sharedFile: true } : {}),
+        } satisfies CommunityGameSuggestionPayload),
       },
     );
     if (!response.ok) {
@@ -8220,6 +8302,44 @@ export async function submitLocalLinkToCommunity(
     persist();
     return { kind: "failed", error: formatError(error) };
   }
+}
+
+/**
+ * A database game a player linked to a folder of a shared file (Game.exe,
+ * Wow.exe, a "Per folder" name) goes to review from each folder link of the
+ * name that holds it (docs/shared-file-suggestions-plan.md). The links stay
+ * folder links, and the server's answer only changes them. Once approved,
+ * other players can pick the game for that file. Offline nothing is sent.
+ * True when the pair went to review.
+ */
+export async function sendSharedFileGame(
+  exeName: string,
+  game: Pick<Game, "id" | "source">,
+): Promise<boolean> {
+  const state = useAppStore.getState();
+  if (
+    !isGenericExeName(exeName) ||
+    game.source !== "custom" ||
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    return false;
+  }
+  const key = exeName.toLowerCase();
+  const refs = [...state.scopedExeLinks]
+    .filter(
+      ([, link]) =>
+        link.exeName.toLowerCase() === key &&
+        link.source === "custom" &&
+        link.gameId === game.id,
+    )
+    .map(([linkKey]): LocalLinkRef => ({ kind: "scoped", key: linkKey }));
+  let sent = false;
+  for (const ref of refs) {
+    const outcome = await submitLocalLinkToCommunity(ref);
+    if (outcome.kind === "submitted") sent = true;
+  }
+  return sent;
 }
 
 // Resolves an ambiguity picker with a locally created custom game - the
@@ -8397,6 +8517,69 @@ export function untrackGame(
   aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
   untrackGameInternal(gameId, source, removeHistory, aliases, "remove");
+}
+
+/**
+ * Remove in Details (docs/remove-account-hours-plan.md): everything one
+ * launcher account brought to one game goes, and nothing about it is kept.
+ * "account": other accounts stay on that launcher. "launcher": it was the
+ * last one, so the launcher leaves the game (entry, install, folder links,
+ * saved achievements). "game": that was the game's last launcher and
+ * PlayCounter never counted time for it, so it leaves My Games too.
+ * PlayCounter's sessions and "Set total" corrections are never touched.
+ */
+export function removeLauncherAccount(
+  game: {
+    gameId: number;
+    source: Game["source"] | null;
+    aliases: GameAliasRef[];
+    libraryImports: ReadonlyArray<{
+      provider: LibraryProviderId;
+      externalId: string;
+    }>;
+    recordedSeconds: number;
+    activeStartedAt?: string;
+  },
+  target: {
+    provider: LibraryProviderId;
+    externalId: string;
+    accountKey: string;
+  },
+): "account" | "launcher" | "game" {
+  const { provider, externalId, accountKey } = target;
+  const state = useAppStore.getState();
+  const entry = state.libraryImports.get(libraryEntryKey(provider, externalId));
+  if (!entry) return "launcher";
+  const rest = removeAccountReading(entry, accountKey);
+  logRuntime(
+    `launcher account removed provider=${provider} externalId=${externalId} last=${!rest}`,
+  );
+  // The saved list is whoever was signed in at the last read, not one
+  // account's: it goes either way (Q2 A) and is read again from the
+  // account signed in now.
+  void deleteAchievementList(provider, externalId).catch(() => {});
+  if (rest) {
+    state.setLibraryImport(rest);
+    evaluateAndStoreMilestones({ suppressNotifications: true });
+    persist();
+    return "account";
+  }
+  state.removeLibraryImport(provider, externalId);
+  const otherLaunchers = game.libraryImports.some(
+    (item) => item.provider !== provider || item.externalId !== externalId,
+  );
+  if (
+    !otherLaunchers &&
+    game.recordedSeconds <= 0 &&
+    game.activeStartedAt === undefined
+  ) {
+    // Nothing else holds the card: it leaves like Remove from library.
+    untrackGame(game.gameId, game.source, false, game.aliases);
+    return "game";
+  }
+  evaluateAndStoreMilestones({ suppressNotifications: true });
+  persist();
+  return "launcher";
 }
 
 export function forgetImportedLibraryData(provider: LibraryProviderId) {
@@ -8691,28 +8874,53 @@ function changeActiveSession(
   syncTrayNowPlaying();
 }
 
-export function pauseSession(sessionId: number) {
+/** Pauses a counting session. Auto pause passes `at`, the moment you left
+ *  (never before the start, never later than now), and `kind: "away"`. */
+export function pauseSession(
+  sessionId: number,
+  options: { at?: number; kind?: "away" } = {},
+) {
   const session = useAppStore
     .getState()
     .activeSessions.find((active) => active.id === sessionId);
   if (!session || session.pausedAt) return;
-  const pausedAt = new Date().toISOString();
-  changeActiveSession(sessionId, (active) => ({ ...active, pausedAt }));
-  logRuntime(`session paused ${session.gameName} (${session.exeName})`);
+  const nowMs = Date.now();
+  const startedAtMs = Date.parse(session.startedAt);
+  let atMs = Math.min(nowMs, options.at ?? nowMs);
+  if (Number.isFinite(startedAtMs)) atMs = Math.max(atMs, startedAtMs);
+  const pausedAt = new Date(atMs).toISOString();
+  changeActiveSession(sessionId, (active) => ({
+    ...active,
+    pausedAt,
+    ...(options.kind ? { pauseKind: options.kind } : {}),
+  }));
+  logRuntime(
+    `session paused${options.kind === "away" ? ` (away since ${pausedAt})` : ""} ${session.gameName} (${session.exeName})`,
+  );
 }
 
-export function resumeSession(sessionId: number) {
+/** Counts on. Auto pause passes `at`, the input that brought you back. */
+export function resumeSession(
+  sessionId: number,
+  options: { at?: number } = {},
+) {
   const session = useAppStore
     .getState()
     .activeSessions.find((active) => active.id === sessionId);
   if (!session?.pausedAt) return;
-  const pauseMs = Date.now() - Date.parse(session.pausedAt);
-  changeActiveSession(sessionId, ({ pausedAt: _, ...active }) => ({
-    ...active,
-    pausedMs:
-      (active.pausedMs ?? 0) +
-      (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
-  }));
+  const pausedAtMs = Date.parse(session.pausedAt);
+  const nowMs = Date.now();
+  const pauseMs =
+    Math.min(nowMs, Math.max(pausedAtMs, options.at ?? nowMs)) - pausedAtMs;
+  changeActiveSession(
+    sessionId,
+    ({ pausedAt: _, pauseKind: __, ...active }) => ({
+      ...active,
+      pausedMs:
+        (active.pausedMs ?? 0) +
+        (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
+    }),
+  );
   logRuntime(`session resumed ${session.gameName} (${session.exeName})`);
 }
 
@@ -9790,6 +9998,7 @@ function updateActiveSession(session: ActiveSession) {
             note: active.note,
             pausedAt: active.pausedAt,
             pausedMs: active.pausedMs,
+            pauseKind: active.pauseKind,
             counts: active.counts,
             lastCounterId: active.lastCounterId,
           }

@@ -232,7 +232,9 @@ describe("the guide", () => {
   it("tells which launchers bring playtime totals, and that no sessions are made up", () => {
     const { body } = stepOf(guide, "totals");
     expect(body).toMatch(/Steam[^.]*this PC/);
-    expect(body).toMatch(/Xbox, Epic Games, GOG and PlayStation[^.]*sign in/);
+    expect(body).toMatch(
+      /Xbox, Epic Games, GOG, PlayStation and Nintendo[^.]*sign in/,
+    );
     expect(body).toMatch(/Battle\.net[^.]*none/);
     expect(body).toMatch(/made-up sessions/);
   });

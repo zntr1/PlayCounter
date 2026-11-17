@@ -15,6 +15,7 @@ import {
   IMPORT_GROUP_ORDER,
   type ImportGroupKey,
 } from "../../library/importGroups";
+import { holdsAccount } from "../../library/accountReadings";
 import { importProfile } from "../../library/importProfiles";
 import {
   selectableGameIds,
@@ -240,9 +241,14 @@ export function ImportReview({
       (row) => row.selectable && session.selected.has(row.game.externalId),
     )
     .map((row) => row.game.externalId);
-  const updates = chosen.filter((id) =>
-    libraryImports.has(`${session.providerId}:${id}`),
-  ).length;
+  // A game in My Games without this account is new for it
+  // (docs/remove-account-hours-plan.md).
+  const updates = chosen.filter((id) => {
+    const existing = libraryImports.get(`${session.providerId}:${id}`);
+    return (
+      existing !== undefined && holdsAccount(existing, session.scan?.account)
+    );
+  }).length;
   const added = chosen.length - updates;
 
   return (

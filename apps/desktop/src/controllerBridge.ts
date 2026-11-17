@@ -42,8 +42,11 @@ function controllerSupported() {
 async function setWatcher(
   state: ControllerBridgeState,
   flags: { navigation: boolean; counting: boolean },
+  readPads = shouldReadPads(state),
 ) {
-  const enabled = flags.navigation || flags.counting;
+  // Reading pads for auto pause alone sends no actions: the watcher only
+  // notes when a pad last moved (play_activity asks for it).
+  const enabled = flags.navigation || flags.counting || readPads;
   const watching = enabled ? `${flags.navigation}|${flags.counting}` : false;
   if (state.disposed || bridge !== state || state.watching === watching) return;
   state.watching = watching;
@@ -72,6 +75,17 @@ function shouldCount(state: ControllerBridgeState) {
   return (
     state.armed &&
     useAppStore.getState().settings.controllerCountingEnabled === true
+  );
+}
+
+/** Auto pause counts controller input as input while a game runs on this
+ *  PC (docs/auto-pause-plan.md). */
+function shouldReadPads(state: ControllerBridgeState) {
+  const { settings, activeSessions } = useAppStore.getState();
+  return (
+    state.armed &&
+    settings.autoPauseEnabled === true &&
+    activeSessions.some((session) => !session.timer && !session.console)
   );
 }
 
@@ -616,16 +630,20 @@ export function initializeControllerBridge() {
     teardown: [],
   };
   bridge = state;
+  let readPads = shouldReadPads(state);
   state.teardown.push(
     useAppStore.subscribe((current, previous) => {
+      const readPadsNow = shouldReadPads(state);
       if (
         current.settings.gameLaunchingEnabled !==
           previous.settings.gameLaunchingEnabled ||
         current.settings.controllerNavigationEnabled !==
           previous.settings.controllerNavigationEnabled ||
         current.settings.controllerCountingEnabled !==
-          previous.settings.controllerCountingEnabled
+          previous.settings.controllerCountingEnabled ||
+        readPadsNow !== readPads
       ) {
+        readPads = readPadsNow;
         syncWatcher(state);
       }
     }),
@@ -670,7 +688,7 @@ export function disposeControllerBridge() {
   state.armed = false;
   clearControllerSelection();
   emitControllerMode(false);
-  void setWatcher(state, { navigation: false, counting: false });
+  void setWatcher(state, { navigation: false, counting: false }, false);
   state.disposed = true;
   state.teardown.splice(0).forEach((teardown) => teardown());
   bridge = null;

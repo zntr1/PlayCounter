@@ -50,6 +50,7 @@ function OverlaySwitchRow({
     setting === "overlayDiscoveries" ||
     setting === "overlayShowClock" ||
     setting === "liveTimerEnabled" ||
+    setting === "autoPauseEnabled" ||
     setting === "controllerCountingEnabled";
   const checked = startsOff
     ? settings[setting] === true
@@ -96,6 +97,20 @@ export function LiveTimerRow(props: SettingsRowProps) {
   );
 }
 
+export function AutoPauseRow(props: SettingsRowProps) {
+  return (
+    <OverlaySwitchRow
+      {...props}
+      setting="autoPauseEnabled"
+      id="autoPause"
+      title={t("Pause when you're away")}
+      description={t(
+        "The timer pauses after a minute with another app in front or the game minimized, or after 5 minutes without keyboard, mouse or controller input. Time away doesn't count, and it counts on when you play again.",
+      )}
+    />
+  );
+}
+
 function corners(): ReadonlyArray<readonly [LiveTimerCorner, string]> {
   return [
     ["top-left", t("Top left")],
@@ -118,13 +133,89 @@ const pillPlace: Record<LiveTimerCorner, string> = {
   "bottom-right": "bottom-1.5 right-1.5",
 };
 
+/** A small game screen: click the corner the timer or the popups go to. */
+function CornerPicker({
+  label,
+  corner,
+  disabled,
+  onPick,
+  shape,
+  idleSize,
+  mark,
+}: {
+  label: string;
+  corner: LiveTimerCorner;
+  disabled?: boolean;
+  onPick: (corner: LiveTimerCorner) => void;
+  /** Classes of the mark, picked or as the hover outline. */
+  shape: string;
+  /** Size of the hover outline when the mark's content sets the size. */
+  idleSize?: string;
+  /** What sits in the picked corner. */
+  mark: ReactNode;
+}) {
+  const options = corners();
+  const current = options.find(([value]) => value === corner)?.[1];
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className={cn(
+        "grid justify-items-center gap-1",
+        disabled && "opacity-50",
+      )}
+    >
+      <div className="relative h-[90px] w-40 overflow-hidden rounded-lg bg-[radial-gradient(120%_90%_at_70%_20%,#3b4a63_0%,#1b2230_55%,#120f0d_100%)] shadow-raised ring-1 ring-inset ring-white/10">
+        <span
+          aria-hidden="true"
+          className="absolute bottom-3 left-1/2 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/15"
+        />
+        {options.map(([value, name]) => {
+          const on = value === corner;
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-label={name}
+              title={name}
+              aria-pressed={on}
+              disabled={disabled}
+              onClick={() => onPick(value)}
+              className={cn(
+                "group absolute h-1/2 w-1/2 disabled:cursor-not-allowed",
+                cornerPlace[value],
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute",
+                  shape,
+                  pillPlace[value],
+                  on
+                    ? "bg-black/80 text-white ring-1 ring-accent"
+                    : cn(
+                        idleSize,
+                        "border border-dashed border-white/60 opacity-0 group-hover:opacity-100 group-disabled:opacity-0",
+                      ),
+                )}
+              >
+                {on ? mark : null}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <span className="text-xs text-text-muted">{current}</span>
+    </div>
+  );
+}
+
 export function TimerCornerRow({ level, disabled }: SettingsRowProps) {
   const corner = useAppStore(
     (state) => state.settings.liveTimerCorner ?? "top-left",
   );
   const setLiveTimerCorner = useAppStore((state) => state.setLiveTimerCorner);
-  const options = corners();
-  const label = options.find(([value]) => value === corner)?.[1];
   return (
     <SettingsRow
       id="liveTimerCorner"
@@ -133,59 +224,55 @@ export function TimerCornerRow({ level, disabled }: SettingsRowProps) {
       title={t("Timer position")}
       description={t("Pick a corner your game's HUD leaves free.")}
       control={
-        <div
-          role="group"
-          aria-label={t("Timer position")}
-          className={cn(
-            "grid justify-items-center gap-1",
-            disabled && "opacity-50",
-          )}
-        >
-          {/* A small game screen: click the corner the timer goes to. */}
-          <div className="relative h-[90px] w-40 overflow-hidden rounded-lg bg-[radial-gradient(120%_90%_at_70%_20%,#3b4a63_0%,#1b2230_55%,#120f0d_100%)] shadow-raised ring-1 ring-inset ring-white/10">
-            <span
-              aria-hidden="true"
-              className="absolute bottom-3 left-1/2 h-1.5 w-16 -translate-x-1/2 rounded-full bg-white/15"
-            />
-            {options.map(([value, name]) => {
-              const on = value === corner;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-label={name}
-                  title={name}
-                  aria-pressed={on}
-                  disabled={disabled}
-                  onClick={() => setLiveTimerCorner(value)}
-                  className={cn(
-                    "group absolute h-1/2 w-1/2 disabled:cursor-not-allowed",
-                    cornerPlace[value],
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "absolute inline-flex items-center gap-[3px] rounded-full px-1.5 font-mono text-[10px] font-semibold leading-[14px]",
-                      pillPlace[value],
-                      on
-                        ? "bg-black/80 text-white ring-1 ring-accent"
-                        : "h-4 w-[52px] border border-dashed border-white/60 opacity-0 group-hover:opacity-100 group-disabled:opacity-0",
-                    )}
-                  >
-                    {on ? (
-                      <>
-                        <Timer size={10} strokeWidth={2.5} />
-                        1:42:07
-                      </>
-                    ) : null}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <span className="text-xs text-text-muted">{label}</span>
-        </div>
+        <CornerPicker
+          label={t("Timer position")}
+          corner={corner}
+          disabled={disabled}
+          onPick={setLiveTimerCorner}
+          shape="inline-flex items-center gap-[3px] rounded-full px-1.5 font-mono text-[10px] font-semibold leading-[14px]"
+          idleSize="h-4 w-[52px]"
+          mark={
+            <>
+              <Timer size={10} strokeWidth={2.5} />
+              1:42:07
+            </>
+          }
+        />
+      }
+    />
+  );
+}
+
+export function PopupCornerRow({ level, disabled }: SettingsRowProps) {
+  const corner = useAppStore(
+    (state) => state.settings.overlayCorner ?? "top-right",
+  );
+  const setOverlayCorner = useAppStore((state) => state.setOverlayCorner);
+  return (
+    <SettingsRow
+      id="overlayCorner"
+      level={level}
+      disabled={disabled}
+      title={t("Popup position")}
+      description={t("Pick a corner your game's HUD leaves free.")}
+      control={
+        <CornerPicker
+          label={t("Popup position")}
+          corner={corner}
+          disabled={disabled}
+          onPick={setOverlayCorner}
+          shape="flex h-[22px] w-[58px] items-center gap-1 rounded-[5px] px-1"
+          mark={
+            // A tiny popup card: cover, title and a line of text.
+            <>
+              <span className="h-[14px] w-2.5 shrink-0 rounded-[2px] bg-accent/70" />
+              <span className="grid gap-[3px]">
+                <span className="h-[3px] w-7 rounded-full bg-white/80" />
+                <span className="h-[3px] w-5 rounded-full bg-white/40" />
+              </span>
+            </>
+          }
+        />
       }
     />
   );
@@ -354,7 +441,7 @@ export function PopupMonitorRow({ level, disabled }: SettingsRowProps) {
       disabled={disabled}
       title={t("Popup monitor")}
       description={t(
-        "Popups appear at the top right of this display. Hotkey popups, boxes and timers you start by hand use it too. If it is disconnected, PlayCounter uses your primary monitor.",
+        "Popups appear on this display. Hotkey popups, boxes and timers you start by hand use it too. If it is disconnected, PlayCounter uses your primary monitor.",
       )}
       control={<DesktopOverlayMonitorSelect />}
     />

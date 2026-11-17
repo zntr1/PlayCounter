@@ -1,0 +1,25 @@
+// SteamPipe build for PlayCounter (App ID 5639480).
+//
+// 1. Put the signed playcounter.exe of the release into scripts\steam\content\.
+//    An installed release runs that same file:
+//    %LOCALAPPDATA%\PlayCounter\playcounter.exe
+// 2. steamcmd +login <builder account> +run_app_build <full path to this file> +quit
+// 3. Steamworks > SteamPipe > Builds: set the new build live on the default branch.
+"AppBuild"
+{
+	"AppID" "5639480"
+	"Desc" "PlayCounter"
+	"ContentRoot" "content\"
+	"BuildOutput" "output\"
+	"Depots"
+	{
+		"5639481"
+		{
+			"FileMapping"
+			{
+				"LocalPath" "playcounter.exe"
+				"DepotPath" "."
+			}
+		}
+	}
+}

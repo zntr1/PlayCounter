@@ -1,3 +1,5 @@
+import type { LiveTimerCorner } from "@playcounter/shared";
+
 export type DesktopOverlayKind =
   | "action-required"
   | "milestone"
@@ -22,6 +24,8 @@ export type DesktopOverlayMessage = {
   /** Processes to wait for before announcing a game launch. */
   targetPids?: number[];
   monitor?: string;
+  /** Absent = top right, like before corners could be picked. */
+  corner?: LiveTimerCorner;
   priority: number;
   kicker: string;
   title: string;

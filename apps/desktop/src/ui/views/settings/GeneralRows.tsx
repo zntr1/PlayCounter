@@ -1,5 +1,6 @@
 import { AlertTriangle, Moon, Sun } from "lucide-react";
 import { disable, enable } from "@tauri-apps/plugin-autostart";
+import { coverQualityOf } from "../../../coverArt";
 import {
   APP_LANGUAGES,
   LANGUAGE_NAMES,
@@ -497,6 +498,36 @@ export function MenuSizeRow({ level, disabled }: SettingsRowProps) {
           disabled={disabled}
           options={scaleOptions(DEFAULT_MENU_SCALE)}
           onChange={(value) => setInterfaceScale("menu", value)}
+        />
+      }
+    />
+  );
+}
+
+export function CoverQualityRow({ level, disabled }: SettingsRowProps) {
+  const quality = useAppStore((state) => coverQualityOf(state.settings));
+  const setCoverQuality = useAppStore((state) => state.setCoverQuality);
+  return (
+    <SettingsRow
+      id="coverQuality"
+      level={level}
+      disabled={disabled}
+      title={t("Cover quality")}
+      description={t(
+        "Sharper covers look better on big cards, but use more data and memory. Original loads each cover as it was uploaded, up to several MB.",
+      )}
+      control={
+        <Segmented
+          label={t("Cover quality")}
+          value={quality}
+          disabled={disabled}
+          options={[
+            { value: "standard", label: t("Standard"), isDefault: true },
+            { value: "sharp", label: t("Sharp") },
+            { value: "sharpest", label: t("Sharpest") },
+            { value: "original", label: t("Original") },
+          ]}
+          onChange={setCoverQuality}
         />
       }
     />

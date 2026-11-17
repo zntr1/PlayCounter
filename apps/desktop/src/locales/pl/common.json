@@ -83,10 +83,12 @@
   "sessions_many": "sesji",
   "sessions_other": "sesji",
   "Imported from your PlayStation account.": "Zaimportowano z twojego konta PlayStation.",
+  "Imported from your Nintendo Account.": "Zaimportowano z twojego konta Nintendo.",
   "Click to see this day": "Kliknij, aby zobaczyć ten dzień",
   "{{count}} more games_one": "jeszcze {{count}} gra",
   "{{count}} more games_few": "jeszcze {{count}} gry",
   "{{count}} more games_many": "jeszcze {{count}} gier",
   "{{count}} more games_other": "jeszcze {{count}} gier",
-  "Running total: {{current}}, the period before: {{previous}}": "Suma narastająco: {{current}}, poprzedni okres: {{previous}}"
+  "Running total: {{current}}, the period before: {{previous}}": "Suma narastająco: {{current}}, poprzedni okres: {{previous}}",
+  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} jest śledzona z tego folderu. {{exeName}} wysłano do weryfikacji. Po zatwierdzeniu inni gracze też będą mogli wybrać {{name}} dla tego pliku."
 }

@@ -389,8 +389,10 @@ describe("Sony's totals refresh by themselves", () => {
   });
 
   // docs/import-accounts-plan.md: a background read updates only the account
-  // it read; the game's total is the sum of its accounts.
-  it("another signed-in account adds its hours, and each account's read changes only its own", async () => {
+  // it read. docs/remove-account-hours-plan.md, Q4: it never adds an account
+  // the game doesn't have (one removed in Details would be back within the
+  // hour); another account joins a game only through the importer.
+  it("each account's read changes only its own hours, and an account the game doesn't have adds none", async () => {
     const phil = { key: "a".repeat(32), name: "zesarex_ps" };
     // Sony's list names no account: the name comes from the sign-in.
     const kid = { key: "b".repeat(32), name: null };
@@ -434,18 +436,17 @@ describe("Sony's totals refresh by themselves", () => {
       logins: [{ service: "playstation", name: "kid_ps", savedAt: 2 }],
     });
     expect(await read(kid, 4, 300)).toMatchObject({
-      hours: 17,
-      accounts: [
-        ["zesarex_ps", 13],
-        ["kid_ps", 4],
-      ],
+      hours: 13,
+      accounts: [["zesarex_ps", 13]],
+      lastReadAt: iso(100),
     });
-    expect(await read(kid, 5, 400)).toMatchObject({
-      hours: 18,
-      accounts: [
-        ["zesarex_ps", 13],
-        ["kid_ps", 5],
-      ],
+
+    useKeptLogins.setState({
+      logins: [{ service: "playstation", name: "zesarex_ps", savedAt: 3 }],
+    });
+    expect(await read(phil, 15, 400)).toMatchObject({
+      hours: 15,
+      accounts: [["zesarex_ps", 15]],
     });
 
     // It still plays live as one game.

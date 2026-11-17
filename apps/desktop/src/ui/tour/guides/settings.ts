@@ -1,5 +1,6 @@
 import { Settings } from "lucide-react";
 import { getT } from "../../../i18n";
+import { useAppStore } from "../../../store";
 import type { TourDefinition } from "../tourTypes";
 import { a } from "./shared";
 
@@ -152,9 +153,14 @@ export function settingsGuide(): TourDefinition {
         anchor: a("settings-updates"),
         additionalAnchors: [a("settings-help")],
         title: t("Updates and more guides"),
-        body: t(
-          "<b>Check</b> looks for a new version right away. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.",
-        ),
+        body:
+          useAppStore.getState().installSource === "steam"
+            ? t(
+                "Steam keeps PlayCounter up to date. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.",
+              )
+            : t(
+                "<b>Check</b> looks for a new version right away. Backups, library import and emulators have guides of their own: <b>Help & tutorials</b> says where to find them.",
+              ),
       },
     ],
   };

@@ -366,6 +366,27 @@ describe("desktop overlay bridge", () => {
     });
   });
 
+  it("puts popups at the top right until another corner is picked", async () => {
+    useAppStore.setState((state) => ({
+      settings: {
+        ...state.settings,
+        desktopOverlaysEnabled: true,
+        overlayCorner: undefined,
+      },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    previewDesktopOverlay();
+    expect(showCalls()[0]?.[1]).toMatchObject({
+      payload: { corner: "top-right" },
+    });
+    useAppStore.getState().setOverlayCorner("bottom-left");
+    previewDesktopOverlay();
+    expect(showCalls()[1]?.[1]).toMatchObject({
+      payload: { corner: "bottom-left" },
+    });
+  });
+
   it("is inert on macOS even when imported settings enable overlays", () => {
     Object.defineProperty(globalThis, "navigator", {
       configurable: true,
