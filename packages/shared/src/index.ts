@@ -844,6 +844,9 @@ export interface Settings {
   liveTimerEnabled?: boolean;
   /** Screen corner of the live timer. Absent = top left. */
   liveTimerCorner?: LiveTimerCorner;
+  /** Pause a running game after 10 minutes without input or with another app
+   *  in front (docs/auto-pause-plan.md). Absent = off. */
+  autoPauseEnabled?: boolean;
   /** Popup each time today's playtime passes another multiple of this many
    *  minutes. Null or absent = off. */
   playtimeReminderMinutes?: number | null;

@@ -506,6 +506,11 @@ export function ActiveGameHero({
               ) : null}
             </div>
           </div>
+          {paused && session.pauseKind === "away" ? (
+            <p className="mt-2 text-xs font-medium text-warning">
+              {t("Paused: you were away")}
+            </p>
+          ) : null}
         </div>
         <div className="px-6 py-4">
           <FigureLabel icon={Clock3}>{t("Total playtime")}</FigureLabel>

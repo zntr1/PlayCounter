@@ -647,6 +647,8 @@ describe("UI code", () => {
 // Messages that stay English: invariants, parse errors of launcher files,
 // paths, and the tray's defaults until the main window sends its texts.
 const RUST_ENGLISH_ON_PURPOSE = new Set([
+  // Auto pause: the check logs it and tries again in a few seconds.
+  "GetLastInputInfo failed",
   // Screenshots: logged only; the window shows its own texts for each case.
   "Screenshots are not supported on this platform.",
   "The screenshot thread stopped.",

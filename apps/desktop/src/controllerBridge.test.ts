@@ -72,6 +72,48 @@ describe("controller bridge", () => {
     expect(invokeMock).toHaveBeenCalledWith("controller_watch_stop");
   });
 
+  // docs/auto-pause-plan.md, "Controller input".
+  it("reads pads while auto pause is on and a game runs on this PC", async () => {
+    const game = {
+      id: 1,
+      gameId: 7,
+      gameName: "Elden Ring",
+      exeName: "eldenring.exe",
+      coverUrl: "",
+      startedAt: "2026-11-17T19:00:00.000Z",
+      checkpointedAt: "2026-11-17T19:59:00.000Z",
+    };
+    useAppStore.setState((state) => ({
+      activeSessions: [],
+      settings: { ...state.settings, autoPauseEnabled: false },
+    }));
+    initializeControllerBridge();
+    armControllerBridge();
+    await flush();
+
+    useAppStore.setState({ activeSessions: [game] });
+    await flush();
+    expect(invokeMock).not.toHaveBeenCalled();
+
+    useAppStore.getState().setDesktopOverlaySetting("autoPauseEnabled", true);
+    await flush();
+    expect(invokeMock).toHaveBeenLastCalledWith("controller_watch_start", {
+      navigation: false,
+      counting: false,
+    });
+
+    // A console timer has no PC input to read.
+    useAppStore.setState({ activeSessions: [{ ...game, timer: true }] });
+    await flush();
+    expect(invokeMock).toHaveBeenLastCalledWith("controller_watch_stop");
+
+    useAppStore.setState({ activeSessions: [game] });
+    await flush();
+    useAppStore.getState().setDesktopOverlaySetting("autoPauseEnabled", false);
+    await flush();
+    expect(invokeMock).toHaveBeenLastCalledWith("controller_watch_stop");
+  });
+
   it("reveals My Games, ignores tours, and tears down its listener", async () => {
     const controllerModes: boolean[] = [];
     window.addEventListener("playcounter:controller-mode", (event) => {

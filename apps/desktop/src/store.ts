@@ -169,6 +169,9 @@ export type ActiveSession = {
   pausedAt?: string;
   /** Earlier pauses of this session, added up. */
   pausedMs?: number;
+  /** "away": the running pause came from auto pause (autoPause.ts), so input
+   *  at the game ends it. Absent for a pause the player made. */
+  pauseKind?: "away";
   /** Seen running on a PlayStation console through Sony's presence. No
    *  process starts or ends it; its checkpoint is the last sighting, and it is
    *  saved as a "playstation" session (playstationLive.ts). */
@@ -444,6 +447,7 @@ export type DesktopOverlaySettingKey =
   | "overlayDiscoveries"
   | "overlayShowClock"
   | "liveTimerEnabled"
+  | "autoPauseEnabled"
   | "controllerCountingEnabled";
 
 export type ActiveTour = {
@@ -899,6 +903,7 @@ const defaultSettings: Settings = {
   overlayShowClock: false,
   liveTimerEnabled: false,
   liveTimerCorner: "top-left",
+  autoPauseEnabled: false,
   playtimeReminderMinutes: null,
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,

@@ -223,25 +223,9 @@ mod imp {
         None
     }
 
-    /// Whether the window in front belongs to the game.
-    #[cfg(target_os = "windows")]
-    fn game_in_front(target_pids: &[u32]) -> bool {
-        use windows_sys::Win32::UI::WindowsAndMessaging::{
-            GetForegroundWindow, GetWindowThreadProcessId,
-        };
-        let hwnd = unsafe { GetForegroundWindow() };
-        if hwnd.is_null() {
-            return false;
-        }
-        let mut pid = 0;
-        unsafe { GetWindowThreadProcessId(hwnd, &mut pid) };
-        target_pids.contains(&pid)
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    fn game_in_front(_target_pids: &[u32]) -> bool {
-        true
-    }
+    // Whether the window in front belongs to the game. Auto pause asks the
+    // same, so the pill and auto pause agree on which games are in front.
+    use crate::play_activity::game_in_front;
 
     /// Whether a visible mouse pointer rests on the pill. A game that hides
     /// or locks the pointer while you play never makes the pill take clicks.

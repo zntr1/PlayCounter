@@ -106,6 +106,7 @@
   "Pause the timer for {{gameName}}": "Pausar el cronómetro de {{gameName}}",
   "Resume the timer for {{gameName}}": "Reanudar el cronómetro de {{gameName}}",
   "paused {{time}}": "en pausa {{time}}",
+  "Paused: you were away": "En pausa: no estabas",
   "Deaths": "Muertes",
   "Counters": "Contadores",
   "<b>{{value}}</b> this playthrough": "<b>{{value}}</b> en esta partida",

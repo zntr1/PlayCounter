@@ -351,6 +351,7 @@ describe("hotkeys save as soon as you press them", () => {
       "liveTimerCorner",
       "liveTimerHotkey",
       "pauseTimerHotkey",
+      "autoPause",
       "playtimeReminder",
       "controllerCounting",
       "counterBoxHotkey",
@@ -530,6 +531,24 @@ describe("visible choices", () => {
     expect(useAppStore.getState().settings.liveTimerCorner).toBe(
       "bottom-right",
     );
+  });
+
+  // docs/auto-pause-plan.md, "What the player sees".
+  it("Pause when you're away is one switch, off until you turn it on, on Windows only", async () => {
+    await renderSettings("play");
+    const toggle = byLabel<HTMLInputElement>("Pause when you're away");
+    expect(toggle.checked).toBe(false);
+    expect(
+      container.querySelector('[data-row="autoPause"]')?.textContent,
+    ).toContain("10 minutes");
+    await click(toggle);
+    expect(useAppStore.getState().settings.autoPauseEnabled).toBe(true);
+    await click(toggle);
+    expect(useAppStore.getState().settings.autoPauseEnabled).toBe(false);
+
+    mocks.platform.value = "linux";
+    await act(async () => root.render(createElement(SettingsView)));
+    expect(container.querySelector('[data-row="autoPause"]')).toBeNull();
   });
 
   it("shows the controller buttons that count", async () => {

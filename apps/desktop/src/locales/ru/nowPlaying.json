@@ -107,6 +107,7 @@
   "Pause the timer for {{gameName}}": "Приостановить таймер для {{gameName}}",
   "Resume the timer for {{gameName}}": "Возобновить таймер для {{gameName}}",
   "paused {{time}}": "пауза {{time}}",
+  "Paused: you were away": "На паузе: вы отошли",
   "Deaths": "Смерти",
   "Counters": "Счётчики",
   "<b>{{value}}</b> this playthrough": "<b>{{value}}</b> в этом прохождении",

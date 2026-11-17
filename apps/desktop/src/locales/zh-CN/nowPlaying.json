@@ -104,6 +104,7 @@
   "Pause the timer for {{gameName}}": "暂停 {{gameName}} 的计时",
   "Resume the timer for {{gameName}}": "继续 {{gameName}} 的计时",
   "paused {{time}}": "已暂停 {{time}}",
+  "Paused: you were away": "已暂停：你离开了",
   "Deaths": "死亡次数",
   "Counters": "计数器",
   "<b>{{value}}</b> this playthrough": "本周目 <b>{{value}}</b>",

@@ -639,6 +639,187 @@ describe("pause and resume", () => {
   });
 });
 
+// docs/auto-pause-plan.md, "Rules".
+describe("auto pause when you're away", () => {
+  const at = (time: string) => `2026-09-06T${time}:00.000Z`;
+  const active = () => useAppStore.getState().activeSessions;
+  const saved = () => useAppStore.getState().recentSessions;
+  let lastInputAt: number;
+  let gameInFront: boolean;
+  const activityAsked = () =>
+    invokeMock.mock.calls.filter(([command]) => command === "play_activity");
+
+  beforeEach(() => {
+    lastInputAt = Date.parse(at("12:00"));
+    gameInFront = true;
+    const answer = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (command: string, args?: unknown) => {
+      if (command !== "play_activity") return answer(command, args);
+      const { pidGroups } = args as { pidGroups: number[][] };
+      return {
+        inputIdleMs: Date.now() - lastInputAt,
+        padIdleMs: null,
+        inFront: pidGroups.map((pids) => gameInFront && pids.length > 0),
+        hasWindow: pidGroups.map((pids) => pids.length > 0),
+      };
+    });
+  });
+
+  function setAutoPause(enabled: boolean) {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, autoPauseEnabled: enabled },
+    }));
+  }
+
+  /** Moves the clock and lets the next check run (every 5 seconds). */
+  async function checkAt(time: string) {
+    vi.setSystemTime(new Date(at(time)));
+    await vi.advanceTimersByTimeAsync(5_000);
+  }
+
+  async function playingSince10(now: string) {
+    setAutoPause(true);
+    processes = [runningProcess];
+    await restart(at(now));
+    await scanProcessesNow();
+    expect(active()).toMatchObject([{ id: original.id, startedAt }]);
+  }
+
+  it("no input for 10 minutes: paused from the last input; the game closing then saves only the played time", async () => {
+    await playingSince10("12:00");
+    await checkAt("12:09");
+    expect(active()[0].pausedAt).toBeUndefined();
+
+    await checkAt("12:10");
+    expect(active()).toMatchObject([
+      { id: original.id, pausedAt: at("12:00"), pauseKind: "away" },
+    ]);
+
+    await stopAt(at("12:30"));
+    expect(saved()[0]).toMatchObject({
+      endedAt: at("12:30"),
+      durationSeconds: 2 * 3600,
+    });
+  });
+
+  it("another app in front for 10 minutes: paused from when the game left the front", async () => {
+    await playingSince10("12:00");
+    gameInFront = false;
+    await checkAt("12:01");
+    // Typing in the other app all along.
+    lastInputAt = Date.parse(at("12:11"));
+    await checkAt("12:11");
+    expect(active()[0].pauseKind).toBe("away");
+    // The check that first saw the game behind, a few seconds after 12:01.
+    const pausedAt = Date.parse(active()[0].pausedAt!);
+    expect(pausedAt).toBeGreaterThanOrEqual(Date.parse(at("12:01")));
+    expect(pausedAt).toBeLessThanOrEqual(Date.parse(at("12:01")) + 5_000);
+  });
+
+  it("back at the game: counts on from your input, the time away not counted", async () => {
+    await playingSince10("12:00");
+    await checkAt("12:10");
+    expect(active()[0].pauseKind).toBe("away");
+
+    lastInputAt = Date.parse(at("12:30"));
+    await checkAt("12:30");
+    expect(active()[0].pausedAt).toBeUndefined();
+    expect(active()[0].pauseKind).toBeUndefined();
+
+    await stopAt(at("12:40"));
+    expect(saved()[0].durationSeconds).toBe((2 * 60 + 10) * 60);
+  });
+
+  it("input while another app is in front: stays paused", async () => {
+    await playingSince10("12:00");
+    await checkAt("12:10");
+    gameInFront = false;
+    lastInputAt = Date.parse(at("12:30"));
+    await checkAt("12:30");
+    expect(active()[0]).toMatchObject({
+      pausedAt: at("12:00"),
+      pauseKind: "away",
+    });
+  });
+
+  it("a pause you made yourself stays when input comes", async () => {
+    await playingSince10("12:00");
+    pauseSession(original.id);
+    lastInputAt = Date.parse(at("12:20"));
+    await checkAt("12:20");
+    expect(active()[0].pausedAt).toBe(at("12:00"));
+    expect(active()[0].pauseKind).toBeUndefined();
+  });
+
+  it("the hotkey resumes an auto pause", async () => {
+    await playingSince10("12:00");
+    await checkAt("12:10");
+    togglePauseFromHotkey();
+    expect(active()[0].pausedAt).toBeUndefined();
+    expect(active()[0].pauseKind).toBeUndefined();
+  });
+
+  it("stays paused through an app restart and resumes on input", async () => {
+    setAutoPause(true);
+    processes = [runningProcess];
+    await restart(at("12:30"), {
+      activeSessions: [
+        {
+          ...original,
+          checkpointedAt: at("12:29"),
+          pausedAt: at("12:00"),
+          pauseKind: "away",
+        },
+      ],
+    });
+    await scanProcessesNow();
+    await checkAt("12:30");
+    expect(active()[0]).toMatchObject({
+      pausedAt: at("12:00"),
+      pauseKind: "away",
+    });
+
+    lastInputAt = Date.parse(at("12:31"));
+    await checkAt("12:31");
+    expect(active()[0].pausedAt).toBeUndefined();
+    await stopAt(at("12:41"));
+    expect(saved()[0].durationSeconds).toBe((2 * 60 + 10) * 60);
+  });
+
+  it("the manual timer is never paused", async () => {
+    setAutoPause(true);
+    await restart(at("12:00"), { activeSessions: [] });
+    startGameTimer({
+      gameId: original.gameId,
+      gameName: original.gameName,
+      coverUrl: original.coverUrl,
+      source: original.source ?? null,
+      exeName: original.exeName,
+    });
+    await checkAt("13:00");
+    expect(active()[0].pausedAt).toBeUndefined();
+  });
+
+  it("setting off: never paused, and nothing is asked", async () => {
+    processes = [runningProcess];
+    await restart(at("12:00"));
+    await scanProcessesNow();
+    await checkAt("12:30");
+    expect(active()[0].pausedAt).toBeUndefined();
+    expect(activityAsked()).toEqual([]);
+  });
+
+  it("turning the setting off resumes an auto pause at once", async () => {
+    await playingSince10("12:00");
+    await checkAt("12:10");
+    vi.setSystemTime(new Date(at("12:20")));
+    useAppStore.getState().setDesktopOverlaySetting("autoPauseEnabled", false);
+    expect(active()[0].pausedAt).toBeUndefined();
+    await stopAt(at("12:30"));
+    expect(saved()[0].durationSeconds).toBe((2 * 60 + 10) * 60);
+  });
+});
+
 describe("close game", () => {
   const client: ProcessSnapshot = {
     exeName: "Client.exe",

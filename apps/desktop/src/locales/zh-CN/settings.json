@@ -303,6 +303,8 @@
   "While you play": "游戏时",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "无需离开游戏即可留意时间。即使关闭了桌面弹窗，这两项也能使用。",
   "Live timer": "实时计时器",
+  "Pause when you're away": "离开时自动暂停",
+  "The timer pauses after 10 minutes without keyboard, mouse or controller input, or with another app in front. Time away doesn't count, and it counts on when you play again.": "键盘、鼠标或手柄 10 分钟没有输入，或其他应用在前台 10 分钟，计时就会暂停。离开的时间不计入，再次游玩时会继续计时。",
   "Timer position": "计时器位置",
   "Pick a corner your game's HUD leaves free.": "选择一个不会被游戏界面遮挡的角落。",
   "Top left": "左上角",

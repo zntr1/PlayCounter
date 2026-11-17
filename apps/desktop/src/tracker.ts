@@ -21,6 +21,7 @@ import {
   initializePlaytimeReminder,
   disposePlaytimeReminder,
 } from "./playtimeReminder";
+import { initializeAutoPause, disposeAutoPause } from "./autoPause";
 import {
   initializePlayStationLive,
   disposePlayStationLive,
@@ -566,6 +567,11 @@ export async function initializeTracker() {
     togglePauseSession(sessionId);
   });
   initializeScreenshots(runningGamePids);
+  initializeAutoPause({
+    gamePids: runningGamePids,
+    pause: (sessionId, at) => pauseSession(sessionId, { at, kind: "away" }),
+    resume: (sessionId, at) => resumeSession(sessionId, { at }),
+  });
   initializePlayStationLive({
     start: startConsoleSession,
     see: seeConsoleSession,
@@ -625,6 +631,7 @@ export async function stopTrackerForReset() {
   disposeCounterBox();
   disposeLiveTimer();
   disposeScreenshots();
+  disposeAutoPause();
   disposePlayStationLive();
   disposeNintendoRefresh();
   disposePlaytimeReminder();
@@ -709,6 +716,7 @@ async function finishTrackerStartup() {
     disposeCounterBox();
     disposeLiveTimer();
     disposeScreenshots();
+    disposeAutoPause();
     disposePlayStationLive();
     disposeNintendoRefresh();
     disposePlaytimeReminder();
@@ -8766,28 +8774,53 @@ function changeActiveSession(
   syncTrayNowPlaying();
 }
 
-export function pauseSession(sessionId: number) {
+/** Pauses a counting session. Auto pause passes `at`, the moment you left
+ *  (never before the start, never later than now), and `kind: "away"`. */
+export function pauseSession(
+  sessionId: number,
+  options: { at?: number; kind?: "away" } = {},
+) {
   const session = useAppStore
     .getState()
     .activeSessions.find((active) => active.id === sessionId);
   if (!session || session.pausedAt) return;
-  const pausedAt = new Date().toISOString();
-  changeActiveSession(sessionId, (active) => ({ ...active, pausedAt }));
-  logRuntime(`session paused ${session.gameName} (${session.exeName})`);
+  const nowMs = Date.now();
+  const startedAtMs = Date.parse(session.startedAt);
+  let atMs = Math.min(nowMs, options.at ?? nowMs);
+  if (Number.isFinite(startedAtMs)) atMs = Math.max(atMs, startedAtMs);
+  const pausedAt = new Date(atMs).toISOString();
+  changeActiveSession(sessionId, (active) => ({
+    ...active,
+    pausedAt,
+    ...(options.kind ? { pauseKind: options.kind } : {}),
+  }));
+  logRuntime(
+    `session paused${options.kind === "away" ? ` (away since ${pausedAt})` : ""} ${session.gameName} (${session.exeName})`,
+  );
 }
 
-export function resumeSession(sessionId: number) {
+/** Counts on. Auto pause passes `at`, the input that brought you back. */
+export function resumeSession(
+  sessionId: number,
+  options: { at?: number } = {},
+) {
   const session = useAppStore
     .getState()
     .activeSessions.find((active) => active.id === sessionId);
   if (!session?.pausedAt) return;
-  const pauseMs = Date.now() - Date.parse(session.pausedAt);
-  changeActiveSession(sessionId, ({ pausedAt: _, ...active }) => ({
-    ...active,
-    pausedMs:
-      (active.pausedMs ?? 0) +
-      (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
-  }));
+  const pausedAtMs = Date.parse(session.pausedAt);
+  const nowMs = Date.now();
+  const pauseMs =
+    Math.min(nowMs, Math.max(pausedAtMs, options.at ?? nowMs)) - pausedAtMs;
+  changeActiveSession(
+    sessionId,
+    ({ pausedAt: _, pauseKind: __, ...active }) => ({
+      ...active,
+      pausedMs:
+        (active.pausedMs ?? 0) +
+        (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
+    }),
+  );
   logRuntime(`session resumed ${session.gameName} (${session.exeName})`);
 }
 
@@ -9865,6 +9898,7 @@ function updateActiveSession(session: ActiveSession) {
             note: active.note,
             pausedAt: active.pausedAt,
             pausedMs: active.pausedMs,
+            pauseKind: active.pauseKind,
             counts: active.counts,
             lastCounterId: active.lastCounterId,
           }
