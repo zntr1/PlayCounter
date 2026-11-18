@@ -1647,7 +1647,9 @@ async function syncLaunchOnStartupPreference() {
 
   try {
     const enabled = await isEnabled();
-    if (desired && !enabled) await enable();
+    // Written again on every start, so Windows starts the copy you started
+    // last (Steam or website). A dev run shares the name and leaves it alone.
+    if (desired && (!enabled || !import.meta.env.DEV)) await enable();
     if (!desired && enabled) await disable();
     setLaunchOnStartup(desired);
     addRuntimeLogEntry(`launch on startup ${desired ? "enabled" : "disabled"}`);
