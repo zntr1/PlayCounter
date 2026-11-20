@@ -361,6 +361,8 @@ const settings = object({}, {
     "name",
     "sessions",
     "tier",
+    "timeToBeat",
+    "rating",
   ),
   libraryShowBadges: boolean,
   libraryShowOriginBadges: boolean,

@@ -549,6 +549,23 @@ export interface GameDetailsResponse {
   details: GameDetails[];
 }
 
+/**
+ * What My Games sorts by, for many games at once. Lighter than GameDetails:
+ * IGDB only, no art, no HowLongToBeat id. A game with neither number is left
+ * out of the response.
+ */
+export interface GameSortFacts {
+  igdbId: number;
+  /** IGDB's aggregate score, 0-100, rounded. */
+  rating?: number;
+  /** IGDB's "hastily" average in seconds, shown as Main story. */
+  mainStorySeconds?: number;
+}
+
+export interface GameSortFactsResponse {
+  facts: GameSortFacts[];
+}
+
 /* Artwork picker ─────────────────────────────────────────────────────────────
    The desktop lets people pick a cover or banner from SteamGridDB for any
    game, including tools IGDB does not know. The API key never leaves the
@@ -760,7 +777,9 @@ export interface Settings {
     | "playtime"
     | "name"
     | "sessions"
-    | "tier";
+    | "tier"
+    | "timeToBeat"
+    | "rating";
   /** Retired single toggle. Still read once so an existing opt-out seeds both
    *  of the toggles below; never written again. */
   libraryShowBadges?: boolean;

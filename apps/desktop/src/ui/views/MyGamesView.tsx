@@ -381,6 +381,7 @@ import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
 import { appLocale, formatNumericDate, getT } from "../../i18n";
+import { useGameSortFacts } from "../../gameSortFacts";
 import { nativeText } from "../../nativeText";
 
 const t = getT("myGames");
@@ -407,6 +408,8 @@ function sortOptions(): Array<{ key: SortKey; label: string }> {
     { key: "name", label: t("Name") },
     { key: "sessions", label: t("Sessions") },
     { key: "tier", label: t("Tier") },
+    { key: "timeToBeat", label: t("Shortest main story") },
+    { key: "rating", label: t("IGDB rating") },
   ];
 }
 
@@ -2107,24 +2110,58 @@ export function MyGamesView({
     () => libraryStatDefinitionsForKind(activeTabKind),
     [activeTabKind],
   );
+  // The whole library's IGDB ids, as one string so the list keeps its
+  // identity while the games only change their playtime.
+  const sortFactsKey = useMemo(
+    () =>
+      [
+        ...new Set(
+          ownGames.flatMap((game) => (game.igdbId ? [game.igdbId] : [])),
+        ),
+      ]
+        .sort((left, right) => left - right)
+        .join(","),
+    [ownGames],
+  );
+  const sortFactsIds = useMemo(
+    () => (sortFactsKey ? sortFactsKey.split(",").map(Number) : []),
+    [sortFactsKey],
+  );
+  const sortFacts = useGameSortFacts(
+    sortFactsIds,
+    !sampleOnly && (sortKey === "timeToBeat" || sortKey === "rating"),
+  );
   const displayedGames = useMemo(() => {
     const sorted = filterByLibraryTab(matchingGames, activeLibraryTab);
-    if (sortKey === "tier") {
-      // The tier lives in the journal, not on the game summary.
+    if (
+      sortKey === "tier" ||
+      sortKey === "timeToBeat" ||
+      sortKey === "rating"
+    ) {
+      // Not on the game summary: the tier lives in the journal, the Main
+      // story time and the rating in the loaded sort facts.
       return sorted
-        .map((game) => ({
-          game,
-          value: {
-            ...game,
-            tier: journalFor({ ...game, gameName: game.name }).tier,
-          },
-        }))
-        .sort((left, right) => compareMyGames(left.value, right.value, "tier"))
+        .map((game) => {
+          const facts = game.igdbId ? sortFacts.get(game.igdbId) : undefined;
+          return {
+            game,
+            value: {
+              ...game,
+              tier:
+                sortKey === "tier"
+                  ? journalFor({ ...game, gameName: game.name }).tier
+                  : undefined,
+              mainStorySeconds: facts?.mainStorySeconds,
+              rating: facts?.rating,
+            },
+          };
+        })
+        .sort((left, right) => compareMyGames(left.value, right.value, sortKey))
         .map((entry) => entry.game);
     }
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
-  }, [activeLibraryTab, matchingGames, sortKey, journalFor]);
+  }, [activeLibraryTab, matchingGames, sortKey, journalFor, sortFacts]);
   // Counted from what the library actually shows, search included, so the
   // numbers never contradict the count sitting right next to them.
   const statCards = useMemo(() => {

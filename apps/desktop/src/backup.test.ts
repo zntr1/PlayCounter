@@ -26,6 +26,7 @@ import {
   readPersistedRecord,
   STORAGE_KEY,
 } from "./persistence";
+import { validateBackupData } from "./backupValidation";
 import { DEFAULT_API_ENDPOINT, useAppStore } from "./store";
 import { hydrate } from "./tracker";
 
@@ -133,6 +134,20 @@ describe("backup transfer data", () => {
       expect(useAppStore.getState().settings.libraryShowProviderTabs).toBe(
         libraryShowProviderTabs !== false,
       );
+    },
+  );
+
+  it.each(["timeToBeat", "rating"] as const)(
+    "accepts a backup saved while My Games was sorted by %s",
+    (librarySortKey) => {
+      const state = useAppStore.getInitialState();
+      const data = createTransferData(
+        createPersistedPayload({
+          ...state,
+          settings: { ...state.settings, librarySortKey },
+        }) as unknown as Record<string, unknown>,
+      );
+      expect(() => validateBackupData(data, "data")).not.toThrow();
     },
   );
 

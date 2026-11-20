@@ -222,3 +222,58 @@ describe("Tier", () => {
     ).toEqual([s, aLong, aShort, f, unrated]);
   });
 });
+
+describe("Shortest main story", () => {
+  it("puts the shortest Main story first and games without a time last, A to Z", () => {
+    const short = game(1, { name: "Celeste", mainStorySeconds: 8 * 3600 });
+    const long = game(2, { name: "Elden Ring", mainStorySeconds: 55 * 3600 });
+    const mid = game(3, { name: "Hades", mainStorySeconds: 22 * 3600 });
+    // Played a lot: playtime must not pull a game without a time forward.
+    const noTimeB = game(4, { name: "Balatro", totalSeconds: 999999 });
+    const noTimeA = game(5, { name: "Among Us" });
+
+    expect(
+      [noTimeB, long, noTimeA, short, mid].sort((left, right) =>
+        compareMyGames(left, right, "timeToBeat"),
+      ),
+    ).toEqual([short, mid, long, noTimeA, noTimeB]);
+  });
+
+  it("orders games with the same time A to Z", () => {
+    const zelda = game(1, { name: "Zelda", mainStorySeconds: 3600 });
+    const doom = game(2, { name: "Doom", mainStorySeconds: 3600 });
+
+    expect(
+      [zelda, doom].sort((left, right) =>
+        compareMyGames(left, right, "timeToBeat"),
+      ),
+    ).toEqual([doom, zelda]);
+  });
+});
+
+describe("IGDB rating", () => {
+  it("puts the best rating first and unrated games last, A to Z", () => {
+    const great = game(1, { name: "Witcher 3", rating: 93 });
+    const fine = game(2, { name: "Anthem", rating: 55 });
+    const good = game(3, { name: "Hades", rating: 88 });
+    const unratedB = game(4, { name: "Balatro", totalSeconds: 999999 });
+    const unratedA = game(5, { name: "Among Us" });
+
+    expect(
+      [unratedB, fine, unratedA, great, good].sort((left, right) =>
+        compareMyGames(left, right, "rating"),
+      ),
+    ).toEqual([great, good, fine, unratedA, unratedB]);
+  });
+
+  it("orders games with the same rating A to Z", () => {
+    const zelda = game(1, { name: "Zelda", rating: 90 });
+    const doom = game(2, { name: "Doom", rating: 90 });
+
+    expect(
+      [zelda, doom].sort((left, right) =>
+        compareMyGames(left, right, "rating"),
+      ),
+    ).toEqual([doom, zelda]);
+  });
+});
