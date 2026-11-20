@@ -14,7 +14,7 @@ import {
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { formatHotkey } from "./hotkeyFormat";
 import { getT } from "./i18n";
-import { pickedCover } from "./pickedCovers";
+import { coverOverride } from "./pickedCovers";
 import { playthroughName } from "./personalLibrary";
 import { currentPlatform } from "./platform";
 import { boxLook } from "./quickNote";
@@ -149,7 +149,7 @@ export function counterBoxState(
   return {
     sessionId,
     gameName: session.gameName,
-    coverUrl: pickedCover(state, session) ?? session.coverUrl ?? null,
+    coverUrl: coverOverride(state, session) ?? session.coverUrl ?? null,
     playthroughName: playthroughName(journal, session.playthroughId ?? null),
     rows: orderedCounters(journal).map((counter) => {
       const tally = tallies.get(counter.id);

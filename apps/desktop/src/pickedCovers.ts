@@ -1,6 +1,7 @@
 import type { GameSource } from "@playcounter/shared";
 import { useCallback, useMemo } from "react";
 import { create } from "zustand";
+import { useCurrentCovers } from "./currentCovers";
 import type { EmulatorMapping } from "./emulators/types";
 import {
   customHeroArtKey,
@@ -16,7 +17,11 @@ import {
    reports, so it is never rewritten.
 
    Picks are keyed by the game's personal identity, the same key History and
-   Achievements group by, so one pick reaches every view. */
+   Achievements group by, so one pick reaches every view.
+
+   Below a pick comes the game's current cover (currentCovers.ts): IGDB's
+   cover as the server has it now, for a cover IGDB replaced after the game
+   was stored here. Then the game's own cover, then none. */
 
 type CoverState = Pick<
   AppState,
@@ -97,6 +102,37 @@ export function pickedCover(
   );
 }
 
+/** IGDB's cover as the server has it now, for a game known by its IGDB id.
+ *  The player's own games keep the cover they gave them. */
+function currentCover(
+  state: CoverState,
+  game: GameIdentityRef | null | undefined,
+  current: ReadonlyMap<number, string>,
+  unavailable: ReadonlySet<string>,
+): string | undefined {
+  if (!game || game.source === "custom" || current.size === 0) return undefined;
+  const key = pickedCoverKey(state, game);
+  if (!key.startsWith("igdb#")) return undefined;
+  return usable(current.get(Number(key.slice("igdb#".length))), unavailable);
+}
+
+/** The cover drawn instead of a game's own: the picked one, else its current
+ *  one. Callers fall back to the game's own cover. */
+export function coverOverride(
+  state: CoverState,
+  game: GameIdentityRef | null | undefined,
+): string | undefined {
+  return (
+    pickedCover(state, game) ??
+    currentCover(
+      state,
+      game,
+      useCurrentCovers.getState().byIgdbId,
+      useUnavailableCovers.getState().urls,
+    )
+  );
+}
+
 /** The banner picked or uploaded for a game, unless it failed to load in
  *  this run; then the game shows its automatic banner. Images drawing it
  *  report a failure with markCoverUnavailable. */
@@ -124,14 +160,20 @@ export function mappingGameRef(
       };
 }
 
-/** The cover to draw for a game: the picked one, else its own. */
+/** The cover to draw for a game: the picked one, else its current one, else
+ *  its own. */
 export function useCoverUrl(
   game: GameIdentityRef | null | undefined,
   coverUrl: string | null | undefined,
 ): string {
   const unavailable = useUnavailableCovers((state) => state.urls);
-  const picked = useAppStore((state) => pickedCover(state, game));
-  return picked ?? usable(coverUrl, unavailable) ?? "";
+  const current = useCurrentCovers((state) => state.byIgdbId);
+  const override = useAppStore(
+    (state) =>
+      pickedCover(state, game) ??
+      currentCover(state, game, current, unavailable),
+  );
+  return override ?? usable(coverUrl, unavailable) ?? "";
 }
 
 /** useCoverUrl for lists: one subscription, then a lookup per game. */
@@ -141,29 +183,44 @@ export function useCoverLookup() {
   const exeCache = useAppStore((state) => state.exeCache);
   const libraryImports = useAppStore((state) => state.libraryImports);
   const unavailable = useUnavailableCovers((state) => state.urls);
+  const current = useCurrentCovers((state) => state.byIgdbId);
   return useCallback(
-    (game: GameIdentityRef | null, coverUrl: string | null | undefined) =>
-      pickedCover(
-        { customCoverArt, gameMetadata, exeCache, libraryImports },
-        game,
-      ) ??
-      usable(coverUrl, unavailable) ??
-      "",
-    [customCoverArt, exeCache, gameMetadata, libraryImports, unavailable],
+    (game: GameIdentityRef | null, coverUrl: string | null | undefined) => {
+      const state = { customCoverArt, gameMetadata, exeCache, libraryImports };
+      return (
+        pickedCover(state, game) ??
+        currentCover(state, game, current, unavailable) ??
+        usable(coverUrl, unavailable) ??
+        ""
+      );
+    },
+    [
+      customCoverArt,
+      current,
+      exeCache,
+      gameMetadata,
+      libraryImports,
+      unavailable,
+    ],
   );
 }
 
-/** For callers that already hold the identity key (History, Achievements). */
+/** For callers that already hold the identity key (History, Achievements):
+ *  the cover to draw instead of a game's own by that key, the picked one,
+ *  else the current one (`igdb#<id>` keys only). */
 export function usePickedCovers() {
   const picks = useAppStore((state) => state.customCoverArt);
   const unavailable = useUnavailableCovers((state) => state.urls);
-  return useMemo(
-    () =>
-      unavailable.size === 0
-        ? picks
-        : Object.fromEntries(
-            Object.entries(picks).filter(([, url]) => !unavailable.has(url)),
-          ),
-    [picks, unavailable],
-  );
+  const current = useCurrentCovers((state) => state.byIgdbId);
+  return useMemo(() => {
+    if (current.size === 0 && unavailable.size === 0) return picks;
+    const covers: Record<string, string> = {};
+    for (const [igdbId, url] of current) {
+      if (!unavailable.has(url)) covers[`igdb#${igdbId}`] = url;
+    }
+    for (const [key, url] of Object.entries(picks)) {
+      if (!unavailable.has(url)) covers[key] = url;
+    }
+    return covers;
+  }, [current, picks, unavailable]);
 }

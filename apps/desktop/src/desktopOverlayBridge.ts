@@ -13,7 +13,7 @@ import {
   type OverlayEvent,
   type TrackerOverlayEvent,
 } from "./desktopOverlays";
-import { pickedCover } from "./pickedCovers";
+import { coverOverride } from "./pickedCovers";
 import { openQuickNote } from "./quickNote";
 import { currentPlatform } from "./platform";
 import { playedSeconds } from "./sessionTime";
@@ -53,7 +53,7 @@ export function showCurrentSessionOverlay() {
       type: "current-session",
       gameName: session?.gameName,
       coverUrl:
-        pickedCover(useAppStore.getState(), session) ?? session?.coverUrl,
+        coverOverride(useAppStore.getState(), session) ?? session?.coverUrl,
       durationSeconds: session ? playedSeconds(session, context.nowMs) : 0,
       sessionIndex: index + 1,
       sessionCount: sessions.length,
@@ -75,7 +75,7 @@ export function showPlaytimeReminderOverlay(todaySeconds: number) {
     {
       type: "playtime-reminder",
       gameName: session?.gameName,
-      coverUrl: pickedCover(store, session) ?? session?.coverUrl,
+      coverUrl: coverOverride(store, session) ?? session?.coverUrl,
       todaySeconds,
     },
     renderContext(),
@@ -100,7 +100,7 @@ export function showPauseToggledOverlay(
         paused,
         gameName: session.gameName,
         coverUrl:
-          pickedCover(useAppStore.getState(), session) ?? session.coverUrl,
+          coverOverride(useAppStore.getState(), session) ?? session.coverUrl,
         durationSeconds,
       },
       renderContext(),
@@ -119,7 +119,7 @@ export function showCounterOverlay(
   const state = bridge;
   if (!state || state.disposed) return;
   const coverUrl =
-    pickedCover(useAppStore.getState(), session) ?? session.coverUrl;
+    coverOverride(useAppStore.getState(), session) ?? session.coverUrl;
   state.queue.showImmediately(
     buildOverlayMessage(
       "current-session",
@@ -532,7 +532,7 @@ export function previewDesktopOverlay(
   const event = previewEvent(
     kind,
     sample?.gameName ?? t("Sample Game"),
-    pickedCover(store, sample) ?? sample?.coverUrl,
+    coverOverride(store, sample) ?? sample?.coverUrl,
   );
   const message = buildOverlayMessage(kind, event, renderContext());
   // Previews deliberately skip the queue. Its gating exists to protect real

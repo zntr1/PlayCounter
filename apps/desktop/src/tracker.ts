@@ -34,7 +34,7 @@ import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
 } from "./automaticBackups";
-import { pickedCover } from "./pickedCovers";
+import { coverOverride } from "./pickedCovers";
 import type {
   CommunityGameAlias,
   CommunityGameSuggestionPayload,
@@ -130,6 +130,7 @@ import {
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import { reportInstallPresence } from "./installPresence";
 import { startFeedbackReplies } from "./feedbackReplies";
+import { startCurrentCoverRefresh } from "./currentCovers";
 import { currentPlatform } from "./platform";
 import {
   evaluateMilestones,
@@ -469,6 +470,7 @@ let readyWork: Promise<void> | undefined;
 let backendHealthTimer: number | undefined;
 let contributionsTimer: number | undefined;
 let stopFeedbackReplies: (() => void) | undefined;
+let stopCurrentCoverRefresh: (() => void) | undefined;
 
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
@@ -670,6 +672,9 @@ async function finishTrackerStartup() {
   }
 
   await backfillCanonicalGameIds();
+  // After the backfill, so games stamped with their IGDB id there are asked
+  // about too.
+  stopCurrentCoverRefresh = startCurrentCoverRefresh();
 
   // Recovery is decided by the next process scan, not by session age. A game
   // may have kept running for hours while PlayCounter was closed.
@@ -693,6 +698,8 @@ async function finishTrackerStartup() {
     contributionsTimer = undefined;
     stopFeedbackReplies?.();
     stopFeedbackReplies = undefined;
+    stopCurrentCoverRefresh?.();
+    stopCurrentCoverRefresh = undefined;
     if (processTimer) window.clearInterval(processTimer);
     processTimer = undefined;
     if (trayTimer) window.clearInterval(trayTimer);
@@ -6478,7 +6485,7 @@ function startSession(
       type: "session-started",
       ...sessionJournalContext(session),
       gameName: game.name,
-      coverUrl: pickedCover(state, session) ?? game.coverUrl,
+      coverUrl: coverOverride(state, session) ?? game.coverUrl,
       firstAutoDetection,
       targetPids:
         options.targetPids ??
@@ -7031,7 +7038,7 @@ async function endSession(
       ...sessionJournalContext(session),
       gameName: session.gameName,
       coverUrl:
-        pickedCover(useAppStore.getState(), session) ?? session.coverUrl,
+        coverOverride(useAppStore.getState(), session) ?? session.coverUrl,
       durationSeconds,
       totalSeconds: currentGameTotalSeconds(session),
       milestoneTitle: top?.title,

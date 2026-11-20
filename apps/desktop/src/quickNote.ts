@@ -1,6 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { pickedCover } from "./pickedCovers";
+import { coverOverride } from "./pickedCovers";
 import { countFromMs } from "./sessionTime";
 import { currentPlatform } from "./platform";
 import type { Screenshot } from "./screenshots";
@@ -104,7 +104,7 @@ export function openQuickNote(sessionId: number) {
   const payload: QuickNotePayload = {
     sessionId,
     gameName: session.gameName ?? session.exeName.replace(/\.exe$/i, ""),
-    coverUrl: pickedCover(state, session) ?? session.coverUrl ?? null,
+    coverUrl: coverOverride(state, session) ?? session.coverUrl ?? null,
     note: session.note ?? "",
     startedAt: active ? new Date(countFromMs(active)).toISOString() : null,
     pausedAt: active?.pausedAt ?? null,

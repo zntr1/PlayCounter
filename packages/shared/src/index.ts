@@ -487,6 +487,20 @@ export interface GameMetadataResponse {
 }
 
 /**
+ * GET /api/games/covers: a game's current cover by IGDB id. Covers change on
+ * IGDB (service games get new art), and the server checks them again after a
+ * week. A game without a cover on the server is left out.
+ */
+export interface GameCover {
+  igdbId: number;
+  coverUrl: string;
+}
+
+export interface GameCoversResponse {
+  covers: GameCover[];
+}
+
+/**
  * Extended IGDB facts for one game, shown in the desktop's game details view.
  * Everything past `gameId`/`igdbId` is optional or an empty array: IGDB entries
  * are unevenly filled, and a community game may have no IGDB entry at all.

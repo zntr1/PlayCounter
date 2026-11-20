@@ -7,7 +7,7 @@ import {
   showScreenshotOverlay,
 } from "./desktopOverlayBridge";
 import { screenshotBlackNotification } from "./notifications";
-import { pickedCover } from "./pickedCovers";
+import { coverOverride } from "./pickedCovers";
 import { isSampleShot, useSampleScreenshots } from "./screenshotSample";
 import { openScreenshotCaptionBox } from "./quickNote";
 import { useAppStore, type ActiveSession } from "./store";
@@ -326,7 +326,7 @@ export async function takeScreenshot({ caption = false } = {}) {
   }
   const game = (session: ActiveSession) => ({
     gameName: session.gameName,
-    coverUrl: pickedCover(state, session) ?? (session.coverUrl || undefined),
+    coverUrl: coverOverride(state, session) ?? (session.coverUrl || undefined),
   });
   let result: TakeResult;
   try {
