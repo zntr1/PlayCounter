@@ -680,12 +680,7 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
         // Both open their days: the whole page shows just those.
         case "bestStreak":
           setSelection(
-            historySelectionFromDays(
-              highlight.fromKey,
-              highlight.toKey,
-              nowMs,
-              analytics.firstSessionMs,
-            ),
+            historySelectionFromDays(highlight.fromKey, highlight.toKey, nowMs),
           );
           break;
         case "busiestDay":
@@ -694,25 +689,17 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
               highlight.dateKey,
               highlight.dateKey,
               nowMs,
-              analytics.firstSessionMs,
             ),
           );
           break;
       }
     },
-    [analytics.firstSessionMs, nowMs, setSelectedGameKey],
+    [nowMs, setSelectedGameKey],
   );
   const selectDay = useCallback(
     (dateKey: string) =>
-      setSelection(
-        historySelectionFromDays(
-          dateKey,
-          dateKey,
-          nowMs,
-          analytics.firstSessionMs,
-        ),
-      ),
-    [analytics.firstSessionMs, nowMs],
+      setSelection(historySelectionFromDays(dateKey, dateKey, nowMs)),
+    [nowMs],
   );
   const selectedGameName = selectedGameKey
     ? (gamesByKey.get(selectedGameKey)?.name ?? query)

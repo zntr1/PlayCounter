@@ -443,6 +443,50 @@ describe("Pick dates", () => {
     expect(rangeLabel()).toBe("Sep – Oct 2026");
   });
 
+  // Report 2026-11-19: a game with 300h on Steam, dates picked from the first
+  // session up to today. The headline counts the tracked sessions only; Steam
+  // time has no date, so only the All time chip counts it.
+  it("keeps dates from the first session up to today as dates, without launcher time", async () => {
+    useAppStore.setState({
+      libraryImports: new Map([
+        [
+          "steam:1145360",
+          {
+            provider: "steam",
+            externalId: "1145360",
+            gameId: 100,
+            igdbId: 100,
+            source: "igdb",
+            name: "Hades",
+            coverUrl: "",
+            importedAt: "2026-09-01T12:00:00Z",
+            lastReadAt: "2026-09-01T12:00:00Z",
+            providerSeconds: 300 * 3600,
+            linkedExeNames: [],
+            linkedExeSources: [],
+          },
+        ],
+      ]),
+    });
+    const headline = () => plain(container.querySelector("h1")?.textContent);
+    await render();
+    expect(rangeLabel()).toBe("All time");
+    // 12h 30m tracked + 300h on Steam
+    expect(headline()).toBe("312h 30m played in total");
+
+    await click(chip("Pick dates"));
+    await click(pickerDay("Friday, November 6, 2026"));
+    await click(byLabel("Earlier months", picker()!));
+    await click(pickerDay("Thursday, September 10, 2026"));
+    await click(inPicker("Show"));
+    expect(rangeLabel()).not.toBe("All time");
+    // "<time>12h 30m</time> played<br/>across 7 days"
+    expect(headline()).toBe("12h 30m playedacross 7 days");
+    expect(
+      plain(container.querySelector("[data-strip-label]")?.textContent),
+    ).not.toContain("All time");
+  });
+
   // 11
   it("closes without a change on Cancel and on Escape", async () => {
     await render();

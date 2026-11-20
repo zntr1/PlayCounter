@@ -304,24 +304,19 @@ export function resolveHistorySelection(
  * Days picked in the calendar or on the timeline strip ([fromMs, toMs),
  * local midnights). A pick that matches a period becomes that period, so the
  * arrows step it the natural way: a whole month by months, a week by weeks.
+ * Never All time, not even from the first session up to today: All time
+ * counts launcher time, which has no date (only its chip picks it).
  */
 export function historySelectionFromRange(
   fromMs: number,
   toMs: number,
   nowMs: number,
-  firstSessionMs: number | null,
 ): HistorySelection {
   const todayMs = startOfLocalDay(nowMs).getTime();
   const tomorrowMs = addLocalDays(todayMs, 1);
   const from = startOfLocalDay(fromMs).getTime();
   const to = Math.min(toMs, tomorrowMs);
   const endsToday = to === tomorrowMs;
-  if (
-    endsToday &&
-    firstSessionMs !== null &&
-    from <= startOfLocalDay(firstSessionMs).getTime()
-  )
-    return { kind: "all" };
   const length = Math.max(1, daysBetween(from, to));
   if (length === 1) return { kind: "day", offset: daysBetween(todayMs, from) };
   if (from === startOfLocalMonth(from)) {
@@ -377,13 +372,11 @@ export function historySelectionFromDays(
   fromKey: string,
   lastKey: string,
   nowMs: number,
-  firstSessionMs: number | null,
 ) {
   return historySelectionFromRange(
     dateKeyToLocalMs(fromKey),
     addLocalDays(dateKeyToLocalMs(lastKey), 1),
     nowMs,
-    firstSessionMs,
   );
 }
 

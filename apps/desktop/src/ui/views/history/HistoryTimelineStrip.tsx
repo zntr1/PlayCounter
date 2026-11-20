@@ -46,8 +46,9 @@ export function HistoryTimelineStrip({
   nowMs: number;
   /** The range on show; null = all time. */
   range: HistoryRange | null;
-  /** The label above the strip for a span: "Oct 3 – 19 · 17 days". */
-  describe: (range: HistoryRange) => string;
+  /** The label above the strip for a span: "Oct 3 – 19 · 17 days"; null =
+   *  all time. */
+  describe: (range: HistoryRange | null) => string;
   onPick: (range: HistoryRange) => void;
 }) {
   const span = useMemo(
@@ -130,7 +131,7 @@ export function HistoryTimelineStrip({
       <div className="mb-2 flex items-baseline justify-between gap-3 text-xs text-text-faint">
         <span>{t("Your whole history · drag to pick days")}</span>
         <span data-strip-label className="font-mono font-semibold text-text">
-          {describe(visible)}
+          {describe(preview ?? range)}
         </span>
       </div>
       <div
