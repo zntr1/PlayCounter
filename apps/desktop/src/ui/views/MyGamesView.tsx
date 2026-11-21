@@ -7025,8 +7025,10 @@ export function GameLibraryCard({
                   : t("{{game}}, no launch file saved", { game: game.name })
             : undefined
         }
+        // The card never moves on hover: a moving edge slides out from under
+        // the pointer.
         className={clsx(
-          "game-library-card group relative isolate flex flex-col overflow-hidden border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
+          "game-library-card group relative isolate flex flex-col overflow-hidden border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
           compact ? "rounded-[10px]" : "rounded-xl",
         )}
       >
@@ -7469,8 +7471,10 @@ export function GameLibraryCard({
             data-tour={sampleName("demo-launch-play")}
             disabled={showPlayButton && playState.disabled}
             onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
+            // No transition: WebView2 painted the full hover fill for one
+            // frame at the end of the fade-out, which read as a flicker.
             className={clsx(
-              "flex shrink-0 items-center justify-center gap-2 border-t font-semibold transition disabled:cursor-not-allowed",
+              "flex shrink-0 items-center justify-center gap-2 border-t font-semibold disabled:cursor-not-allowed",
               footerSize,
               !showPlayButton && !showInstallInSteam
                 ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
