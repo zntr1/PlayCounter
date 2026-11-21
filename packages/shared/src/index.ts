@@ -488,8 +488,8 @@ export interface GameMetadataResponse {
 
 /**
  * GET /api/games/covers: a game's current cover by IGDB id. Covers change on
- * IGDB (service games get new art), and the server checks them again after a
- * week. A game without a cover on the server is left out.
+ * IGDB (service games get new art), and the server compares its covers with
+ * IGDB once a day. A game without a cover on the server is left out.
  */
 export interface GameCover {
   igdbId: number;

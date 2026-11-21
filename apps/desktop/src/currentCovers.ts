@@ -5,14 +5,13 @@ import { isOfflineStatus, useAppStore, type AppState } from "./store";
 
 /* Current covers ─────────────────────────────────────────────────────────────
    A game's cover as the server has it now, by IGDB id. Covers change on IGDB
-   (service games get new art), and the server compares them again after a
-   week (GET /api/games/covers). The copies stored on this PC (exeCache,
+   (service games get new art), and the server compares its covers with IGDB
+   once a day (GET /api/games/covers). The copies stored on this PC (exeCache,
    sessions, backups) are identity evidence and are never rewritten: the
    current cover only changes what is drawn (pickedCovers.ts). Memory only,
    asked again at every start and once a day. See docs/cover-refresh-plan.md. */
 
 const BATCH_SIZE = 100;
-// A batch of games not checked for a week waits for one IGDB call.
 const REQUEST_TIMEOUT_MS = 20_000;
 const REFRESH_EVERY_MS = 24 * 60 * 60 * 1000;
 // How often a running app looks whether its day is over; also the wait
