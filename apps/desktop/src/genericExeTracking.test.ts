@@ -49,6 +49,7 @@ import {
   writeWatchFolders,
 } from "./library/watchFolderState";
 import { STORAGE_KEY } from "./persistence";
+import { resetSleepWatch } from "./sleepGap";
 
 /* Game.exe and co. are linked per folder ────────────────────────────────────
    Every way a game gets linked to a generic exe name must link the folder the
@@ -1389,7 +1390,9 @@ describe("SkyrimSE.exe once the admin panel marks it per folder", () => {
     selectAmbiguousMatch("SkyrimSE.exe", ENDERAL_GAME);
     expect(activeGameNames()).toEqual([SKYRIM_GAME.name, ENDERAL_GAME.name]);
 
+    // An hour played, PlayCounter awake all along (sleepGap.ts).
     vi.setSystemTime(new Date("2026-11-17T19:00:00.000Z"));
+    resetSleepWatch();
     running = [];
     await scanProcessesNow();
     const hours = useAppStore

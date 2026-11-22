@@ -43,13 +43,17 @@ import {
   closeRunningGame,
   ignoreTrackedProcessLocally,
   initializeTracker,
+  markTrackedExecutableAsSoftware,
   pauseSession,
   resumeSession,
   scanProcessesNow,
+  selectAmbiguousMatch,
   startGameTimer,
   stopGameTimer,
   togglePauseFromHotkey,
 } from "./tracker";
+import { playedSeconds } from "./sessionTime";
+import { resetSleepWatch } from "./sleepGap";
 
 const startedAt = "2026-09-06T10:00:00.000Z";
 const checkpointedAt = "2026-09-06T10:10:00.000Z";
@@ -141,8 +145,15 @@ async function restart(at: string, overrides: Record<string, unknown> = {}) {
   ).toBe(false);
 }
 
-async function stopAt(at: string) {
+/** Most tests jump the clock to stand for time PlayCounter ran awake; the
+ *  sleep watch (sleepGap.ts) must not take such a jump for a sleep. */
+function awakeAt(at: string) {
   vi.setSystemTime(new Date(at));
+  resetSleepWatch();
+}
+
+async function stopAt(at: string) {
+  awakeAt(at);
   processes = [];
   await scanProcessesNow();
   expect(useAppStore.getState().activeSessions).toEqual([]);
@@ -501,7 +512,7 @@ describe("pause and resume", () => {
     pauseSession(original.id);
 
     // The game keeps running for half an hour.
-    vi.setSystemTime(new Date(at("12:30")));
+    awakeAt(at("12:30"));
     await scanProcessesNow();
     expect(active()).toMatchObject([
       { id: original.id, pausedAt: at("12:00") },
@@ -673,7 +684,7 @@ describe("auto pause when you're away", () => {
 
   /** Moves the clock and lets the next check run (every 5 seconds). */
   async function checkAt(time: string) {
-    vi.setSystemTime(new Date(at(time)));
+    awakeAt(at(time));
     await vi.advanceTimersByTimeAsync(5_000);
   }
 
@@ -1003,5 +1014,304 @@ describe("counts on a running session", () => {
     });
     await scanProcessesNow();
     expect(saved()[0].counts).toEqual({ deaths: 3 });
+  });
+});
+
+// GitHub issue: "play for a minute, put your pc to sleep, wake it 10 hours
+// later and keep playing, your play session is now 10hr 1min long". Time the
+// PC slept is never counted (sleepGap.ts): a gap of more than five minutes
+// between two ticks of the scan clock is a sleep.
+describe("the PC sleeps", () => {
+  const at = (time: string) => `2026-09-06T${time}.000Z`;
+  const active = () => useAppStore.getState().activeSessions;
+  const saved = () => useAppStore.getState().recentSessions;
+  // restart() sets polling to 30 s; the scan clock starts at the restart.
+  const TICK_MS = 30_000;
+  const minutes = (count: number) => count * 60;
+  const twin = {
+    exeName: "Twin.exe",
+    exePath: String.raw`C:\Games\Twin\Twin.exe`,
+    pid: 456,
+  };
+  const twinGames = [
+    { id: 11, name: "Twin One", coverUrl: "", source: "igdb" as const },
+    { id: 12, name: "Twin Two", coverUrl: "", source: "igdb" as const },
+  ];
+
+  async function playingSince10(
+    now: string,
+    overrides: Record<string, unknown> = {},
+  ) {
+    processes = [runningProcess];
+    await restart(at(now), overrides);
+    await scanProcessesNow();
+    expect(active()).toMatchObject([{ id: original.id, startedAt }]);
+  }
+
+  /** Nothing runs while the PC sleeps; at `wake` the scan clock ticks again. */
+  async function sleepUntil(wake: string) {
+    vi.setSystemTime(Date.parse(at(wake)) - TICK_MS);
+    await vi.advanceTimersByTimeAsync(TICK_MS);
+    expect(new Date().toISOString()).toBe(at(wake));
+  }
+
+  async function playFor(ms: number) {
+    await vi.advanceTimersByTimeAsync(ms);
+  }
+
+  it("play, sleep 10 hours, wake and play on: the night is not played", async () => {
+    await playingSince10("12:00:00");
+    await playFor(60_000);
+    await sleepUntil("22:01:00");
+
+    // Right after the wake, Now Playing shows the time before the sleep.
+    expect(playedSeconds(active()[0], Date.now())).toBe(minutes(2 * 60 + 1));
+
+    await playFor(60_000);
+    await stopAt(at("22:02:00"));
+    expect(saved()).toHaveLength(1);
+    expect(saved()[0]).toMatchObject({
+      id: original.id,
+      startedAt,
+      endedAt: at("22:02:00"),
+      durationSeconds: minutes(2 * 60 + 2),
+    });
+  });
+
+  it("a game that closed while the PC slept is saved with the time before the sleep", async () => {
+    await playingSince10("12:00:00");
+    await playFor(60_000);
+    processes = [];
+    await sleepUntil("22:01:00");
+
+    expect(active()).toEqual([]);
+    expect(saved()[0]).toMatchObject({
+      endedAt: at("22:01:00"),
+      durationSeconds: minutes(2 * 60 + 1),
+    });
+  });
+
+  it("a short silence of the clock, under five minutes, is still played", async () => {
+    await playingSince10("12:00:00");
+    await playFor(60_000);
+    await sleepUntil("12:05:00");
+    await stopAt(at("12:05:00"));
+    expect(saved()[0].durationSeconds).toBe(minutes(2 * 60 + 5));
+  });
+
+  it("a game paused before the sleep stays one pause", async () => {
+    await playingSince10("12:00:00");
+    await playFor(60_000);
+    pauseSession(original.id);
+    await sleepUntil("22:01:00");
+    expect(active()).toMatchObject([{ pausedAt: at("12:01:00") }]);
+
+    vi.setSystemTime(new Date(at("22:02:00")));
+    resumeSession(original.id);
+    await stopAt(at("22:03:00"));
+    expect(saved()[0].durationSeconds).toBe(minutes(2 * 60 + 2));
+  });
+
+  it("auto pause after the wake never reaches back into the sleep", async () => {
+    await playingSince10("12:00:00");
+    await playFor(60_000);
+    await sleepUntil("22:01:00");
+
+    // The last input was before the sleep; auto pause dates its pause there.
+    pauseSession(original.id, { at: Date.parse(at("12:00:50")), kind: "away" });
+    expect(active()).toMatchObject([{ pausedAt: at("22:01:00") }]);
+
+    vi.setSystemTime(new Date(at("22:01:20")));
+    resumeSession(original.id, { at: Date.now() });
+    await stopAt(at("22:02:00"));
+    expect(saved()[0].durationSeconds).toBe(minutes(2 * 60 + 1) + 40);
+  });
+
+  it("auto pause before the wake's tick: its pause covers the sleep, once", async () => {
+    await playingSince10("12:00:00", {
+      settings: {
+        ...useAppStore.getState().settings,
+        pollingIntervalSeconds: 30,
+        autoPauseEnabled: true,
+      },
+    });
+    // Its own checks read nothing here; the test pauses for it.
+    const scan = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (command: string, ...rest) => {
+      if (command === "play_activity") throw new Error("not in this test");
+      return scan(command, ...rest);
+    });
+    await playFor(60_000);
+    // Woken; auto pause checks before the scan clock ticks.
+    vi.setSystemTime(Date.parse(at("22:01:00")) - TICK_MS);
+    pauseSession(original.id, { at: Date.parse(at("12:00:50")), kind: "away" });
+    await vi.advanceTimersByTimeAsync(TICK_MS);
+    expect(active()).toMatchObject([{ pausedAt: at("12:00:50") }]);
+    expect(active()[0].pausedMs).toBeUndefined();
+
+    vi.setSystemTime(new Date(at("22:01:20")));
+    resumeSession(original.id, { at: Date.now() });
+    await stopAt(at("22:02:00"));
+    expect(saved()[0].durationSeconds).toBe(minutes(2 * 60) + 50 + 40);
+  });
+
+  it("a manual timer counts on: the console keeps playing while the PC sleeps", async () => {
+    await restart(at("12:00:00"), { activeSessions: [] });
+    startGameTimer({
+      gameId: original.gameId,
+      gameName: original.gameName,
+      coverUrl: original.coverUrl,
+      source: original.source ?? null,
+      exeName: original.exeName,
+    });
+    const id = active()[0].id;
+    await playFor(60_000);
+    await sleepUntil("22:01:00");
+    vi.setSystemTime(new Date(at("22:02:00")));
+    await stopGameTimer(id);
+    expect(saved()[0]).toMatchObject({
+      origin: "manual",
+      durationSeconds: minutes(10 * 60 + 2),
+    });
+  });
+
+  it("a Discovered app keeps only its time awake", async () => {
+    const mystery = {
+      exeName: "Mystery.exe",
+      exePath: String.raw`C:\Games\Mystery\Mystery.exe`,
+      pid: 789,
+    };
+    processes = [mystery];
+    await restart(at("12:00:00"), {
+      activeSessions: [],
+      exeCache: [
+        {
+          exeName: "Mystery.exe",
+          state: "unmatched",
+          lastCheckedAt: at("12:00:00"),
+        },
+      ],
+    });
+    await scanProcessesNow();
+    expect(
+      useAppStore.getState().exeCache.get("mystery.exe")?.runningSince,
+    ).toBe(at("12:00:00"));
+
+    await playFor(60_000);
+    await sleepUntil("22:01:00");
+    await playFor(60_000);
+    processes = [];
+    await scanProcessesNow();
+
+    const entry = useAppStore.getState().exeCache.get("mystery.exe");
+    expect(entry?.runningSince).toBeUndefined();
+    expect(entry?.trackedSeconds).toBeCloseTo(minutes(2));
+  });
+
+  it("an emulator game not known yet keeps only its time awake", async () => {
+    await restart(at("12:00:00"), { activeSessions: [] });
+    // Seen running since 11:59 (a start never carries this over).
+    useAppStore.setState({
+      emulatorObservations: [
+        {
+          kind: "content",
+          key: "mgba:rom:mystery",
+          emulatorId: "mgba",
+          label: "mGBA",
+          hostExeName: "mGBA.exe",
+          contentKind: "rom",
+          contentValue: "mystery",
+          display: "Mystery",
+          trust: "weak",
+          shareable: false,
+          state: "unknown",
+          detectedAt: at("11:59:00"),
+          runningSince: at("11:59:00"),
+        },
+      ],
+    });
+    // The emulator was closed while the PC slept. The first scan after the
+    // wake runs before the scan clock ticks.
+    vi.setSystemTime(new Date(at("22:01:00")));
+    await scanProcessesNow();
+
+    const observation = useAppStore
+      .getState()
+      .emulatorObservations.find((entry) => entry.key === "mgba:rom:mystery");
+    expect(observation).toMatchObject({
+      trackedSeconds: 60,
+      endedAt: at("22:01:00"),
+    });
+  });
+
+  async function twinInPicker(detectedAt: string) {
+    processes = [twin];
+    await restart(at("12:00:00"), {
+      activeSessions: [],
+      exeCache: [],
+      ambiguousMatches: [
+        {
+          exeName: twin.exeName,
+          exePath: twin.exePath,
+          candidates: twinGames,
+          detectedAt: at(detectedAt),
+          lastCheckedAt: at(detectedAt),
+        },
+      ],
+    });
+    await scanProcessesNow();
+    expect(useAppStore.getState().ambiguousMatches).toMatchObject([
+      { exeName: twin.exeName },
+    ]);
+    expect(useAppStore.getState().ambiguousMatches[0].endedAt).toBeUndefined();
+  }
+
+  it("the picker: a sleep while the exe waits comes off the game picked later", async () => {
+    await twinInPicker("11:59:00");
+    await playFor(60_000);
+    await sleepUntil("22:01:00");
+    await playFor(60_000);
+
+    selectAmbiguousMatch(twin.exeName, twinGames[0]);
+    expect(active()).toMatchObject([
+      { gameId: twinGames[0].id, startedAt: at("11:59:00") },
+    ]);
+    await stopAt(at("22:03:00"));
+    // 11:59 to 12:01, then 22:01 to 22:03.
+    expect(saved()[0].durationSeconds).toBe(minutes(4));
+  });
+
+  it("the picker: an exe that closed while the PC slept saves the time before", async () => {
+    await twinInPicker("11:59:00");
+    await playFor(60_000);
+    processes = [];
+    await sleepUntil("22:01:00");
+    expect(useAppStore.getState().ambiguousMatches[0].endedAt).toBe(
+      at("22:01:00"),
+    );
+
+    selectAmbiguousMatch(twin.exeName, twinGames[0]);
+    expect(saved()[0]).toMatchObject({
+      gameId: twinGames[0].id,
+      durationSeconds: minutes(2),
+    });
+  });
+
+  it("a game moved to software takes only its time awake", async () => {
+    await playingSince10("12:00:00");
+    await playFor(60_000);
+    await sleepUntil("22:01:00");
+    await playFor(60_000);
+
+    await markTrackedExecutableAsSoftware(original.exeName, {
+      name: "Game Tool",
+      share: false,
+    });
+    const usage = useAppStore.getState().toolUsage["game.exe"];
+    const total = Object.values(usage?.days ?? {}).reduce(
+      (sum, seconds) => sum + seconds,
+      0,
+    );
+    expect(total).toBeCloseTo(minutes(2 * 60 + 2));
   });
 });
