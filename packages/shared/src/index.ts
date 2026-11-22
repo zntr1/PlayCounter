@@ -782,7 +782,7 @@ export interface Settings {
   clockFormat?: ClockFormat;
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
-  libraryCardSize?: "grid" | "large" | "list";
+  libraryCardSize?: "grid" | "large" | "covers" | "list";
   /** Custom grid columns. Null or absent uses the selected view's responsive default. */
   libraryGridColumns?: number | null;
   librarySortKey?:

@@ -752,5 +752,10 @@
   "Tier cleared for {{count}} games_one": "Tier für {{count}} Spiel entfernt",
   "Tier cleared for {{count}} games_other": "Tier für {{count}} Spiele entfernt",
   "Selected games already have tier {{tier}}": "Die ausgewählten Spiele haben schon Tier {{tier}}",
-  "Selected games already have no tier": "Die ausgewählten Spiele haben schon kein Tier"
+  "Selected games already have no tier": "Die ausgewählten Spiele haben schon kein Tier",
+  "Covers view": "Cover-Ansicht",
+  "Covers": "Cover",
+  "Selected": "Ausgewählt",
+  "Show {{name}} in the banner": "{{name}} im Banner zeigen",
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Die Cover-Ansicht zeigt nur das Cover, daher gelten diese Einstellungen für Standardkacheln und große Kacheln."
 }

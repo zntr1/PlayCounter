@@ -352,7 +352,7 @@ const settings = object({}, {
   formatRegion: nullable(check(isRegionCode)),
   clockFormat: oneOf("auto", "24h", "12h"),
   showDurationDays: boolean,
-  libraryCardSize: oneOf("grid", "large", "list"),
+  libraryCardSize: oneOf("grid", "large", "covers", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),
   librarySortKey: oneOf(
     "recent",

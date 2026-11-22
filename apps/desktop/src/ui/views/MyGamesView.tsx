@@ -41,6 +41,7 @@ import {
   FolderSearch,
   Gamepad2,
   Grid2X2,
+  Grid3X3,
   History,
   ImagePlus,
   Info,
@@ -283,6 +284,7 @@ import type {
   Game,
   GameSource,
   IdentifierFlagReason,
+  LibraryFeaturedGame,
   LibraryProviderId,
 } from "@playcounter/shared";
 import {
@@ -1046,7 +1048,25 @@ export function MyGamesView({
     () => resolveLibraryStatCardIds({ libraryStatCards: statCardSetting }),
     [statCardSetting],
   );
-  const view = cardSize;
+  // Guides point at the Standard card's buttons, so a guide shows those.
+  const view: ViewMode =
+    tourDemo.active && cardSize === "covers" ? "grid" : cardSize;
+  // Covers view: a clicked cover shows in the banner until the player
+  // leaves My Games. It is never saved; "Pin to banner" keeps a game there.
+  const [bannerPick, setBannerPick] = useState<LibraryFeaturedGame | null>(
+    null,
+  );
+  const onGamesView = useAppStore((state) => state.activeView === "games");
+  useEffect(() => {
+    if (!onGamesView) setBannerPick(null);
+  }, [onGamesView]);
+  const showInBanner = useCallback((game: GameSummary) => {
+    setBannerPick({
+      gameId: game.gameId,
+      source: game.source,
+      igdbId: game.igdbId,
+    });
+  }, []);
   const gameLaunchingEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -2253,13 +2273,34 @@ export function MyGamesView({
       ),
     [featuredSetting, ownGames, hidesNew, journalFor, personalShelves],
   );
+  // Only while the clicked game is in the list shown (tab, shelf, filters).
+  const pickedGame = useMemo(
+    () =>
+      view === "covers" && bannerPick
+        ? displayedGames.find((game) => matchesFeaturedGame(game, bannerPick))
+        : undefined,
+    [bannerPick, displayedGames, view],
+  );
   const featured = useMemo(() => {
+    if (pickedGame)
+      return {
+        game: pickedGame,
+        pinned:
+          featuredSetting !== null &&
+          matchesFeaturedGame(pickedGame, featuredSetting),
+      };
     const shelfPin = selectedShelf?.featuredGame;
     const pinned = shelfPin
       ? ownGames.find((game) => matchesFeaturedGame(game, shelfPin))
       : undefined;
     return pinned ? { game: pinned, pinned: true } : defaultFeatured;
-  }, [defaultFeatured, ownGames, selectedShelf?.featuredGame]);
+  }, [
+    defaultFeatured,
+    featuredSetting,
+    ownGames,
+    pickedGame,
+    selectedShelf?.featuredGame,
+  ]);
   const shelfBannerPinned = Boolean(
     featured &&
     selectedShelf?.featuredGame &&
@@ -2523,6 +2564,7 @@ export function MyGamesView({
               key={`${selectedShelf?.id ?? "all"}:${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
               game={featured.game}
               pinned={selectedShelf ? shelfBannerPinned : featured.pinned}
+              selected={pickedGame !== undefined}
               shelfName={selectedShelf?.name}
               onArtworkChange={publishLibraryHeroArt}
               launchKey="library-hero"
@@ -2787,6 +2829,21 @@ export function MyGamesView({
                       </button>
                       <button
                         type="button"
+                        aria-label={t("Covers view")}
+                        aria-pressed={view === "covers"}
+                        title={t("Covers")}
+                        onClick={() => setMyGamesCardSize("covers")}
+                        className={clsx(
+                          "grid h-full w-8 place-items-center rounded-md transition",
+                          view === "covers"
+                            ? "bg-accent text-accent-fg"
+                            : "text-text-muted hover:bg-surface-hover hover:text-text",
+                        )}
+                      >
+                        <Grid3X3 size={15} />
+                      </button>
+                      <button
+                        type="button"
                         aria-label={t("List view")}
                         aria-pressed={view === "list"}
                         title={t("List")}
@@ -2955,6 +3012,7 @@ export function MyGamesView({
                         setMyGamesShowTrackingWarnings={
                           setMyGamesShowTrackingWarnings
                         }
+                        coversView={view === "covers"}
                       />
                     </CustomizeSection>
                   </div>
@@ -3076,6 +3134,8 @@ export function MyGamesView({
                         "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
                       view === "large" &&
                         "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
+                      view === "covers" &&
+                        "grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]",
                       view === "list" && "gap-3",
                     )}
                   >
@@ -3129,6 +3189,14 @@ export function MyGamesView({
                           showMatch={showMatch}
                           showTrackingWarning={showTrackingWarnings}
                           view={view}
+                          bannerSelected={
+                            pickedGame !== undefined &&
+                            heroVisible &&
+                            game === pickedGame
+                          }
+                          onShowInBanner={
+                            heroVisible ? showInBanner : undefined
+                          }
                           onRemove={requestRemoval}
                           onStopTracking={
                             !isDemo && game.source
@@ -3535,6 +3603,8 @@ export function GameLibraryCard({
   compact = false,
   onMarkSeen,
   detailsOnly,
+  bannerSelected = false,
+  onShowInBanner,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3567,6 +3637,11 @@ export function GameLibraryCard({
    *  Playing, the banner) with every action the card's own has. `open`:
    *  Details opens on `tab` when this is built. */
   detailsOnly?: { tab: DetailsTab; open: boolean };
+  /** Covers view: this game is the one shown in the banner. */
+  bannerSelected?: boolean;
+  /** Covers view: a click on the cover shows the game in the banner. Absent
+   *  while the banner is off: then the click opens Details. */
+  onShowInBanner?: (game: GameSummary) => void;
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
@@ -3620,6 +3695,8 @@ export function GameLibraryCard({
   );
   const isList = view === "list";
   const isLarge = view === "large";
+  // Only the cover; name, playtime and the buttons show on hover.
+  const isCovers = view === "covers";
   const footerSize = isLarge
     ? "h-12 text-sm"
     : compact
@@ -4271,6 +4348,7 @@ export function GameLibraryCard({
       ? runningSessionId
       : undefined;
   const canCloseGame = closableSessionId !== undefined;
+  const coverRunning = isCovers && (canCloseGame || playButtonRunning);
   const handleCloseGame = () => {
     const session = useAppStore
       .getState()
@@ -6993,6 +7071,370 @@ export function GameLibraryCard({
     );
 
   if (!isList) {
+    // Under the card, or one rounded button on the cover in the Covers view.
+    const footerShape = isCovers
+      ? "h-8 min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg px-2 text-xs"
+      : clsx("border-t", footerSize);
+    const launchFooter = canCloseGame ? (
+      <div
+        className={clsx(
+          "flex shrink-0 items-stretch border-success-border bg-success-tint font-semibold",
+          footerShape,
+        )}
+      >
+        <span className="flex min-w-0 flex-1 items-center justify-center gap-2 text-success">
+          <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+          </span>
+          {t("Running")}
+        </span>
+        <button
+          type="button"
+          data-controller-stop
+          aria-label={t("Stop {{name}}", { name: game.name })}
+          title={t("Stop game")}
+          onClick={handleCloseGame}
+          className="flex shrink-0 items-center gap-1.5 border-l border-success-border bg-danger-solid px-3 text-white transition hover:bg-danger-solid-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger/60"
+        >
+          <CloseKeyHint size={isLarge ? 12 : 11} />
+          {t("Stop")}
+        </button>
+      </div>
+    ) : showLaunchFooter ? (
+      <button
+        type="button"
+        aria-label={
+          showPlayButton
+            ? playState.ariaLabel
+            : showInstallInSteam
+              ? t("Install {{name}} in Steam", { name: game.name })
+              : primaryEmulatorCandidate
+                ? t(
+                    "Confirm {{file}} as the {{emulator}} game file for {{game}}",
+                    {
+                      file: primaryEmulatorCandidate.displayName,
+                      emulator: primaryEmulatorMapping?.label ?? t("emulator"),
+                      game: game.name,
+                    },
+                  )
+                : gameEmulatorMappings.length > 1
+                  ? t("Choose an emulator launch option for {{name}}", {
+                      name: game.name,
+                    })
+                  : t("Set launch file for {{name}}", { name: game.name })
+        }
+        title={
+          showPlayButton
+            ? playState.title
+            : showInstallInSteam
+              ? t("Install in Steam")
+              : primaryEmulatorCandidate
+                ? t("Confirm {{displayName}} for {{name}}", {
+                    displayName: primaryEmulatorCandidate.displayName,
+                    name: game.name,
+                  })
+                : gameEmulatorMappings.length > 1
+                  ? t("Choose emulator game…")
+                  : t("Set launch file…")
+        }
+        data-tour={sampleName("demo-launch-play")}
+        disabled={showPlayButton && playState.disabled}
+        onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
+        // No transition: WebView2 painted the full hover fill for one
+        // frame at the end of the fade-out, which read as a flicker.
+        className={clsx(
+          "flex shrink-0 items-center justify-center gap-2 font-semibold disabled:cursor-not-allowed",
+          footerShape,
+          !showPlayButton && !showInstallInSteam
+            ? isCovers
+              ? "bg-white/15 text-white hover:bg-white/25"
+              : "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
+            : playButtonRunning
+              ? "border-success-border bg-success-tint text-success disabled:opacity-100"
+              : isCovers
+                ? "bg-accent text-accent-fg hover:bg-accent-hover"
+                : "border-accent/30 bg-accent-tint text-accent-ink hover:bg-accent hover:text-accent-fg",
+        )}
+      >
+        {showInstallInSteam ? (
+          <>
+            <Download size={footerIconSize} />
+            {t("Install in Steam")}
+          </>
+        ) : !showPlayButton ? (
+          <>
+            {primaryEmulatorCandidate ? (
+              <>
+                <Check size={footerIconSize} className="shrink-0" />
+                <span className="min-w-0 truncate">
+                  {t("Use {{displayName}}", {
+                    displayName: primaryEmulatorCandidate.displayName,
+                  })}
+                </span>
+              </>
+            ) : (
+              <>
+                <FolderSearch size={footerIconSize} />
+                {gameEmulatorMappings.length > 1
+                  ? t("Choose emulator game")
+                  : t("Set launch file")}
+              </>
+            )}
+          </>
+        ) : playButtonRunning ? (
+          <>
+            <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+            </span>
+            {t("Running")}
+          </>
+        ) : playState.loading ? (
+          <>
+            <Loader2 size={footerIconSize} className="animate-spin" />
+            {t("Starting…")}
+          </>
+        ) : (
+          <>
+            {/* The selected card swaps the play icon for the key that
+                launches it, so the button doubles as the button hint. */}
+            <Play
+              size={footerIconSize}
+              className={clsx(
+                controllerNavigable &&
+                  "group-data-[controller-selected=true]:hidden",
+              )}
+            />
+            {controllerNavigable ? <LaunchKeyHint /> : null}
+            {t("Play")}
+          </>
+        )}
+      </button>
+    ) : showOpenInXbox || showPickLaunchFile ? (
+      <button
+        type="button"
+        title={
+          showOpenInXbox
+            ? t("Open {{name}} in the Xbox app", { name: game.name })
+            : t("Pick the .exe that starts {{name}}", { name: game.name })
+        }
+        onClick={() =>
+          showOpenInXbox ? void handleOpenXboxApp() : setSettingLaunchFile(true)
+        }
+        className={clsx(
+          "flex shrink-0 items-center justify-center gap-2 font-semibold transition",
+          footerShape,
+          isCovers
+            ? "bg-white/15 text-white hover:bg-white/25"
+            : "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted",
+        )}
+      >
+        {showOpenInXbox ? (
+          <>
+            <ExternalLink size={footerIconSize} />
+            {t("Open in Xbox")}
+          </>
+        ) : (
+          <>
+            <FolderSearch size={footerIconSize} />
+            {t("Set launch file")}
+          </>
+        )}
+      </button>
+    ) : showLaunchNote ? (
+      <div
+        title={t("PlayCounter can't launch this game directly")}
+        className={clsx(
+          "flex shrink-0 items-center justify-center gap-2",
+          footerShape,
+          isCovers
+            ? "bg-white/10 text-white/70"
+            : "border-border text-text-faint",
+        )}
+      >
+        <Info size={footerIconSize} />
+        {t("Not launchable")}
+      </div>
+    ) : null;
+    const communityUpgradePrompt =
+      game.communityUpgradeExeName && !compact ? (
+        <div className="mt-3 flex flex-col gap-2 border-t border-border/50 pt-3">
+          <div
+            className="truncate text-[11px] font-semibold text-success"
+            title={t("Found in database: {{communityUpgradeGameName}}", {
+              communityUpgradeGameName: game.communityUpgradeGameName,
+            })}
+          >
+            {t("Match found: {{game}}", {
+              game: game.communityUpgradeGameName ?? "",
+            })}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="primary"
+              title={t(
+                "Track this exe as {{communityUpgradeGameName}} from now on",
+                { communityUpgradeGameName: game.communityUpgradeGameName },
+              )}
+              onClick={() => {
+                acceptCommunityUpgrade(game.communityUpgradeExeName!);
+                addToast({
+                  tone: "success",
+                  title: t("Match applied"),
+                  detail: t("{{name}} now uses {{communityUpgradeGameName}}.", {
+                    name: game.name,
+                    communityUpgradeGameName: game.communityUpgradeGameName,
+                  }),
+                });
+              }}
+              className="flex-1 px-0 py-1 text-[11px]"
+            >
+              {t("Use match")}
+            </Button>
+            <Button
+              variant="secondary"
+              title={t("Keep the custom game and never show this match again")}
+              onClick={() =>
+                dismissCommunityUpgrade(game.communityUpgradeExeName!)
+              }
+              className="px-2 py-1 text-[11px]"
+            >
+              {t("Keep custom")}
+            </Button>
+          </div>
+        </div>
+      ) : null;
+    const levelUpPrompt =
+      game.communitySuggestionExeName && !game.communityUpgradeExeName ? (
+        <CommunityLevelUpButton
+          gameName={game.name}
+          variant="cover-card"
+          onLevelUp={() => {
+            convertLocalSuggestionToCommunity(game.communitySuggestionExeName!);
+            addToast({
+              tone: "success",
+              title: t("Community match applied"),
+              detail: t("{{name}} now uses the approved community match.", {
+                name: game.name,
+              }),
+            });
+          }}
+        />
+      ) : null;
+    // Anything to do: a dot on the cover, the reason in the hover layer.
+    const coverAttention = trackingWarningVisible
+      ? t("New sessions won't be tracked yet")
+      : game.communityUpgradeExeName
+        ? t("Match found: {{game}}", {
+            game: game.communityUpgradeGameName ?? "",
+          })
+        : libraryMatchPrompt
+          ? t("Match found")
+          : levelUpPrompt
+            ? t("Suggestion approved")
+            : primaryEmulatorCandidate && primaryEmulatorMapping
+              ? t("Action required")
+              : null;
+    const coverLayer = (
+      <>
+        {!selectionMode ? (
+          <button
+            type="button"
+            aria-label={
+              onShowInBanner
+                ? t("Show {{name}} in the banner", { name: game.name })
+                : t("Open details for {{name}}", { name: game.name })
+            }
+            aria-pressed={onShowInBanner ? bannerSelected : undefined}
+            onClick={() =>
+              onShowInBanner ? onShowInBanner(game) : openDetails()
+            }
+            className="absolute inset-0 z-10 cursor-pointer focus-visible:outline-none"
+          />
+        ) : null}
+        {coverRunning ? (
+          <span
+            data-cover-running
+            className="pointer-events-none absolute left-2 top-2 z-30 inline-flex items-center gap-1.5 rounded-full bg-black/80 py-[3px] pl-[7px] pr-2 text-[10px] font-bold uppercase tracking-[0.05em] text-success"
+          >
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+            {t("Running")}
+          </span>
+        ) : null}
+        {coverAttention ? (
+          <span
+            data-cover-attention
+            role="img"
+            aria-label={
+              trackingWarningVisible ? trackingWarningMessage : coverAttention
+            }
+            title={coverAttention}
+            className="pointer-events-none absolute right-2 top-2 z-30 h-3 w-3 rounded-full bg-warning shadow-[0_0_0_2px_rgb(0_0_0/0.65),0_0_10px_rgb(var(--color-warning)/0.55)]"
+          />
+        ) : null}
+        {!selectionMode ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex max-h-full flex-col justify-end gap-0.5 bg-gradient-to-b from-black/0 via-black/70 to-black/90 px-2.5 pb-2.5 pt-12 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 group-data-[controller-selected=true]:opacity-100 [&_button]:pointer-events-auto">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <NameHeading
+                className="line-clamp-2 min-w-0 flex-1 text-sm font-bold leading-tight text-white"
+                title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
+              >
+                {game.name}
+              </NameHeading>
+              {isNew ? <NewGameBadge /> : null}
+            </div>
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[11px] font-medium text-white/70">
+              <span
+                title={playtimeTitle}
+                className="whitespace-nowrap font-mono text-[13px] font-bold tracking-tight text-white"
+              >
+                {formatDuration(game.totalSeconds, showDurationDays)}
+              </span>
+              <span>{t("in")}</span>
+              <button
+                type="button"
+                disabled={game.sessionCount === 0}
+                onClick={handleShowHistory}
+                className="truncate underline decoration-white/40 underline-offset-2 hover:text-white disabled:no-underline"
+                aria-label={t(
+                  "Show {{count}} sessions for {{game}} in history",
+                  { count: game.sessionCount, game: game.name },
+                )}
+              >
+                {t("{{count}} sessions", { count: game.sessionCount })}
+              </button>
+            </div>
+            {trackingWarningVisible ? (
+              <p className="mt-0.5 flex items-start gap-1 text-[11px] font-semibold leading-tight text-warning">
+                <AlertTriangle size={12} className="mt-px shrink-0" />
+                {t("New sessions won't be tracked yet")}
+              </p>
+            ) : null}
+            {communityUpgradePrompt}
+            {libraryMatchPrompt ? (
+              <div className="mt-1.5">{libraryMatchPrompt}</div>
+            ) : null}
+            {levelUpPrompt ? (
+              <div className="mt-1.5">{levelUpPrompt}</div>
+            ) : null}
+            <div className="mt-2 flex gap-1.5">
+              {launchFooter}
+              <button
+                type="button"
+                aria-label={t("More actions for {{name}}", { name: game.name })}
+                aria-haspopup="menu"
+                title={t("More")}
+                onClick={(event) => openMenuBelow(event.currentTarget)}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/15 text-white hover:bg-white/25"
+              >
+                <MoreHorizontal size={15} />
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
     return (
       <SelectableLibraryCard
         selectionMode={selectionMode}
@@ -7028,8 +7470,20 @@ export function GameLibraryCard({
         // The card never moves on hover: a moving edge slides out from under
         // the pointer.
         className={clsx(
-          "game-library-card group relative isolate flex flex-col overflow-hidden border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
-          compact ? "rounded-[10px]" : "rounded-xl",
+          "game-library-card group relative isolate flex flex-col overflow-hidden shadow-raised transition duration-200 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
+          isCovers
+            ? clsx(
+                "rounded-[10px] bg-surface-hover",
+                bannerSelected
+                  ? "ring-2 ring-accent"
+                  : coverRunning
+                    ? "shadow-[0_0_22px_rgb(var(--color-success)/0.32)] ring-2 ring-success"
+                    : "ring-1 ring-white/[0.07] hover:ring-2 hover:ring-accent/85 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+              )
+            : clsx(
+                "border border-border/70 bg-surface hover:border-accent/80",
+                compact ? "rounded-[10px]" : "rounded-xl",
+              ),
         )}
       >
         {controllerNavigable ? (
@@ -7054,7 +7508,7 @@ export function GameLibraryCard({
             cover in another ratio (SteamGridDB grids are 2:3) would otherwise
             stretch the whole card. */}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
-          {!compact
+          {!compact && !isCovers
             ? inSampleLibrary(
                 <GameJournalBadges game={{ ...game, gameName: game.name }} />,
               )
@@ -7075,7 +7529,7 @@ export function GameLibraryCard({
 
           {/* Match seals top left. Origin coins sit beside the game name, so the
               right column is just the tracking warning and the hover actions. */}
-          {matchVisible && !selectionMode && !compact ? (
+          {matchVisible && !selectionMode && !compact && !isCovers ? (
             <GameProvenanceBadges
               className="peer/provenance absolute left-2 top-2 z-40 drop-shadow-md"
               sources={game.sources}
@@ -7089,7 +7543,7 @@ export function GameLibraryCard({
             />
           ) : null}
 
-          {trackingWarningVisible ? (
+          {trackingWarningVisible && !isCovers ? (
             <div className="peer/tracking-warning group/tracking-warning absolute right-2 top-2 z-40">
               <span
                 role="img"
@@ -7129,7 +7583,7 @@ export function GameLibraryCard({
 
           {/* Hover Actions - Top Right (constructive first, destructive last).
               The New row's small cards keep them in the right-click menu. */}
-          {!selectionMode && !compact ? (
+          {!selectionMode && !compact && !isCovers ? (
             <div
               className={clsx(
                 "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
@@ -7189,32 +7643,17 @@ export function GameLibraryCard({
             </div>
           ) : null}
 
-          {libraryMatchPrompt ? (
+          {libraryMatchPrompt && !isCovers ? (
             <div className="absolute inset-x-2 bottom-2 z-30">
               {libraryMatchPrompt}
             </div>
           ) : null}
-          {game.communitySuggestionExeName && !game.communityUpgradeExeName ? (
+          {levelUpPrompt && !isCovers ? (
             <div className="absolute inset-x-2 bottom-2 z-30 drop-shadow-lg">
-              <CommunityLevelUpButton
-                gameName={game.name}
-                variant="cover-card"
-                onLevelUp={() => {
-                  convertLocalSuggestionToCommunity(
-                    game.communitySuggestionExeName!,
-                  );
-                  addToast({
-                    tone: "success",
-                    title: t("Community match applied"),
-                    detail: t(
-                      "{{name}} now uses the approved community match.",
-                      { name: game.name },
-                    ),
-                  });
-                }}
-              />
+              {levelUpPrompt}
             </div>
           ) : null}
+          {isCovers ? coverLayer : null}
           <CardShiftPanel
             game={game}
             compact={compact}
@@ -7243,139 +7682,96 @@ export function GameLibraryCard({
         />
 
         {/* Info Panel Below Cover */}
-        <div
-          className={clsx(
-            "flex flex-1 flex-col border-t border-border bg-surface",
-            isLarge ? "p-4" : compact ? "px-2.5 pb-2 pt-2" : "p-3",
-          )}
-        >
+        {isCovers ? null : (
           <div
             className={clsx(
-              "flex min-w-0 items-center",
-              compact ? "gap-1.5" : "gap-2",
+              "flex flex-1 flex-col border-t border-border bg-surface",
+              isLarge ? "p-4" : compact ? "px-2.5 pb-2 pt-2" : "p-3",
             )}
           >
-            {/* Origin leads the name: where the game came from, then what it is */}
-            {originVisible ? (
-              <GameOriginBadges
-                providers={importedProviders}
-                emulatorIds={game.emulatorIds}
-                unknownDurationProviders={
-                  compact ? [] : unknownDurationProviders
-                }
-              />
-            ) : null}
-            <NameHeading
-              className={clsx(
-                "min-w-0 flex-1 truncate font-semibold text-text",
-                isLarge ? "text-lg" : compact ? "text-[13.5px]" : "text-[15px]",
-              )}
-              title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
-            >
-              {game.name}
-            </NameHeading>
-            {/* Everything in the New row is new: no badge there. */}
-            {isNew && !compact ? <NewGameBadge /> : null}
-          </div>
-          {compact ? (
-            <div className="mt-0.5 truncate text-[11.5px] text-text-muted">
-              {addedLabel(game.addedAt, Date.now())}
-            </div>
-          ) : (
             <div
-              data-tour={demo ? "demo-playtime-result" : undefined}
-              className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5"
+              className={clsx(
+                "flex min-w-0 items-center",
+                compact ? "gap-1.5" : "gap-2",
+              )}
             >
-              <span
-                title={playtimeTitle}
-                className={clsx(
-                  "whitespace-nowrap font-mono font-bold tracking-tight text-text",
-                  isLarge ? "text-xl" : "text-lg",
-                )}
-              >
-                {formatDuration(game.totalSeconds, showDurationDays)}
-              </span>
-              {/* "in 35 sessions" moves to its own line rather than being cut. */}
-              <span className="flex min-w-0 items-baseline gap-1.5">
-                <span className="text-[11px] font-medium text-text-muted">
-                  {t("in")}
-                </span>
-                <button
-                  type="button"
-                  disabled={game.sessionCount === 0}
-                  onClick={handleShowHistory}
-                  className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
-                  aria-label={t(
-                    "Show {{count}} sessions for {{game}} in history",
-                    {
-                      count: game.sessionCount,
-                      game: game.name,
-                    },
-                  )}
-                >
-                  {t("{{count}} sessions", { count: game.sessionCount })}
-                </button>
-              </span>
-            </div>
-          )}
-          {sampleResultNote("mt-2")}
-
-          {/* Persistent Community Prompts */}
-          {game.communityUpgradeExeName && !compact ? (
-            <div className="mt-3 flex flex-col gap-2 border-t border-border/50 pt-3">
-              <div
-                className="truncate text-[11px] font-semibold text-success"
-                title={t("Found in database: {{communityUpgradeGameName}}", {
-                  communityUpgradeGameName: game.communityUpgradeGameName,
-                })}
-              >
-                {t("Match found: {{game}}", {
-                  game: game.communityUpgradeGameName ?? "",
-                })}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  title={t(
-                    "Track this exe as {{communityUpgradeGameName}} from now on",
-                    { communityUpgradeGameName: game.communityUpgradeGameName },
-                  )}
-                  onClick={() => {
-                    acceptCommunityUpgrade(game.communityUpgradeExeName!);
-                    addToast({
-                      tone: "success",
-                      title: t("Match applied"),
-                      detail: t(
-                        "{{name}} now uses {{communityUpgradeGameName}}.",
-                        {
-                          name: game.name,
-                          communityUpgradeGameName:
-                            game.communityUpgradeGameName,
-                        },
-                      ),
-                    });
-                  }}
-                  className="flex-1 px-0 py-1 text-[11px]"
-                >
-                  {t("Use match")}
-                </Button>
-                <Button
-                  variant="secondary"
-                  title={t(
-                    "Keep the custom game and never show this match again",
-                  )}
-                  onClick={() =>
-                    dismissCommunityUpgrade(game.communityUpgradeExeName!)
+              {/* Origin leads the name: where the game came from, then what it is */}
+              {originVisible ? (
+                <GameOriginBadges
+                  providers={importedProviders}
+                  emulatorIds={game.emulatorIds}
+                  unknownDurationProviders={
+                    compact ? [] : unknownDurationProviders
                   }
-                  className="px-2 py-1 text-[11px]"
-                >
-                  {t("Keep custom")}
-                </Button>
-              </div>
+                />
+              ) : null}
+              <NameHeading
+                className={clsx(
+                  "min-w-0 flex-1 truncate font-semibold text-text",
+                  isLarge
+                    ? "text-lg"
+                    : compact
+                      ? "text-[13.5px]"
+                      : "text-[15px]",
+                )}
+                title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
+              >
+                {game.name}
+              </NameHeading>
+              {/* Everything in the New row is new: no badge there. */}
+              {isNew && !compact ? <NewGameBadge /> : null}
             </div>
-          ) : null}
-        </div>
-        {primaryEmulatorCandidate && primaryEmulatorMapping && !compact ? (
+            {compact ? (
+              <div className="mt-0.5 truncate text-[11.5px] text-text-muted">
+                {addedLabel(game.addedAt, Date.now())}
+              </div>
+            ) : (
+              <div
+                data-tour={demo ? "demo-playtime-result" : undefined}
+                className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5"
+              >
+                <span
+                  title={playtimeTitle}
+                  className={clsx(
+                    "whitespace-nowrap font-mono font-bold tracking-tight text-text",
+                    isLarge ? "text-xl" : "text-lg",
+                  )}
+                >
+                  {formatDuration(game.totalSeconds, showDurationDays)}
+                </span>
+                {/* "in 35 sessions" moves to its own line rather than being cut. */}
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <span className="text-[11px] font-medium text-text-muted">
+                    {t("in")}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={game.sessionCount === 0}
+                    onClick={handleShowHistory}
+                    className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
+                    aria-label={t(
+                      "Show {{count}} sessions for {{game}} in history",
+                      {
+                        count: game.sessionCount,
+                        game: game.name,
+                      },
+                    )}
+                  >
+                    {t("{{count}} sessions", { count: game.sessionCount })}
+                  </button>
+                </span>
+              </div>
+            )}
+            {sampleResultNote("mt-2")}
+
+            {/* Persistent Community Prompts */}
+            {communityUpgradePrompt}
+          </div>
+        )}
+        {primaryEmulatorCandidate &&
+        primaryEmulatorMapping &&
+        !compact &&
+        !isCovers ? (
           <button
             type="button"
             title={t(
@@ -7404,181 +7800,7 @@ export function GameLibraryCard({
             </span>
           </button>
         ) : null}
-        {canCloseGame ? (
-          <div
-            className={clsx(
-              "flex shrink-0 items-stretch border-t border-success-border bg-success-tint font-semibold",
-              footerSize,
-            )}
-          >
-            <span className="flex min-w-0 flex-1 items-center justify-center gap-2 text-success">
-              <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
-              </span>
-              {t("Running")}
-            </span>
-            <button
-              type="button"
-              data-controller-stop
-              aria-label={t("Stop {{name}}", { name: game.name })}
-              title={t("Stop game")}
-              onClick={handleCloseGame}
-              className="flex shrink-0 items-center gap-1.5 border-l border-success-border bg-danger-solid px-3 text-white transition hover:bg-danger-solid-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger/60"
-            >
-              <CloseKeyHint size={isLarge ? 12 : 11} />
-              {t("Stop")}
-            </button>
-          </div>
-        ) : showLaunchFooter ? (
-          <button
-            type="button"
-            aria-label={
-              showPlayButton
-                ? playState.ariaLabel
-                : showInstallInSteam
-                  ? t("Install {{name}} in Steam", { name: game.name })
-                  : primaryEmulatorCandidate
-                    ? t(
-                        "Confirm {{file}} as the {{emulator}} game file for {{game}}",
-                        {
-                          file: primaryEmulatorCandidate.displayName,
-                          emulator:
-                            primaryEmulatorMapping?.label ?? t("emulator"),
-                          game: game.name,
-                        },
-                      )
-                    : gameEmulatorMappings.length > 1
-                      ? t("Choose an emulator launch option for {{name}}", {
-                          name: game.name,
-                        })
-                      : t("Set launch file for {{name}}", { name: game.name })
-            }
-            title={
-              showPlayButton
-                ? playState.title
-                : showInstallInSteam
-                  ? t("Install in Steam")
-                  : primaryEmulatorCandidate
-                    ? t("Confirm {{displayName}} for {{name}}", {
-                        displayName: primaryEmulatorCandidate.displayName,
-                        name: game.name,
-                      })
-                    : gameEmulatorMappings.length > 1
-                      ? t("Choose emulator game…")
-                      : t("Set launch file…")
-            }
-            data-tour={sampleName("demo-launch-play")}
-            disabled={showPlayButton && playState.disabled}
-            onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
-            // No transition: WebView2 painted the full hover fill for one
-            // frame at the end of the fade-out, which read as a flicker.
-            className={clsx(
-              "flex shrink-0 items-center justify-center gap-2 border-t font-semibold disabled:cursor-not-allowed",
-              footerSize,
-              !showPlayButton && !showInstallInSteam
-                ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
-                : playButtonRunning
-                  ? "border-success-border bg-success-tint text-success disabled:opacity-100"
-                  : "border-accent/30 bg-accent-tint text-accent-ink hover:bg-accent hover:text-accent-fg",
-            )}
-          >
-            {showInstallInSteam ? (
-              <>
-                <Download size={footerIconSize} />
-                {t("Install in Steam")}
-              </>
-            ) : !showPlayButton ? (
-              <>
-                {primaryEmulatorCandidate ? (
-                  <>
-                    <Check size={footerIconSize} className="shrink-0" />
-                    <span className="min-w-0 truncate">
-                      {t("Use {{displayName}}", {
-                        displayName: primaryEmulatorCandidate.displayName,
-                      })}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <FolderSearch size={footerIconSize} />
-                    {gameEmulatorMappings.length > 1
-                      ? t("Choose emulator game")
-                      : t("Set launch file")}
-                  </>
-                )}
-              </>
-            ) : playButtonRunning ? (
-              <>
-                <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
-                </span>
-                {t("Running")}
-              </>
-            ) : playState.loading ? (
-              <>
-                <Loader2 size={footerIconSize} className="animate-spin" />
-                {t("Starting…")}
-              </>
-            ) : (
-              <>
-                {/* The selected card swaps the play icon for the key that
-                    launches it, so the button doubles as the button hint. */}
-                <Play
-                  size={footerIconSize}
-                  className={clsx(
-                    controllerNavigable &&
-                      "group-data-[controller-selected=true]:hidden",
-                  )}
-                />
-                {controllerNavigable ? <LaunchKeyHint /> : null}
-                {t("Play")}
-              </>
-            )}
-          </button>
-        ) : showOpenInXbox || showPickLaunchFile ? (
-          <button
-            type="button"
-            title={
-              showOpenInXbox
-                ? t("Open {{name}} in the Xbox app", { name: game.name })
-                : t("Pick the .exe that starts {{name}}", { name: game.name })
-            }
-            onClick={() =>
-              showOpenInXbox
-                ? void handleOpenXboxApp()
-                : setSettingLaunchFile(true)
-            }
-            className={clsx(
-              "flex shrink-0 items-center justify-center gap-2 border-t border-border font-semibold text-text-faint transition hover:bg-surface-hover hover:text-text-muted",
-              footerSize,
-            )}
-          >
-            {showOpenInXbox ? (
-              <>
-                <ExternalLink size={footerIconSize} />
-                {t("Open in Xbox")}
-              </>
-            ) : (
-              <>
-                <FolderSearch size={footerIconSize} />
-                {t("Set launch file")}
-              </>
-            )}
-          </button>
-        ) : showLaunchNote ? (
-          <div
-            title={t("PlayCounter can't launch this game directly")}
-            className={clsx(
-              "flex shrink-0 items-center justify-center gap-2 border-t border-border text-text-faint",
-              footerSize,
-            )}
-          >
-            <Info size={footerIconSize} />
-            {t("Not launchable")}
-          </div>
-        ) : null}
+        {isCovers ? null : launchFooter}
         {renderDialogs()}
       </SelectableLibraryCard>
     );

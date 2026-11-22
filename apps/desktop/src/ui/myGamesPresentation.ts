@@ -1,7 +1,8 @@
 import type { Settings } from "@playcounter/shared";
 import type { MyGamesSortKey } from "./myGamesSort";
 
-export type MyGamesCardSize = "grid" | "large" | "list";
+/** "covers": only the cover; name, playtime and Play show on hover. */
+export type MyGamesCardSize = "grid" | "large" | "covers" | "list";
 
 export const MAX_LIBRARY_GRID_COLUMNS = 48;
 
@@ -40,7 +41,12 @@ export const DEFAULT_MY_GAMES_PRESENTATION: MyGamesPresentation = {
 };
 
 export function isMyGamesCardSize(value: unknown): value is MyGamesCardSize {
-  return value === "grid" || value === "large" || value === "list";
+  return (
+    value === "grid" ||
+    value === "large" ||
+    value === "covers" ||
+    value === "list"
+  );
 }
 
 export function isMyGamesSortKey(value: unknown): value is MyGamesSortKey {

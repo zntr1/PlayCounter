@@ -785,5 +785,10 @@
   "Tier cleared for {{count}} games_many": "Tier retiré pour {{count}} jeux",
   "Tier cleared for {{count}} games_other": "Tier retiré pour {{count}} jeux",
   "Selected games already have tier {{tier}}": "Les jeux sélectionnés ont déjà le tier {{tier}}",
-  "Selected games already have no tier": "Les jeux sélectionnés n'ont déjà aucun tier"
+  "Selected games already have no tier": "Les jeux sélectionnés n'ont déjà aucun tier",
+  "Covers view": "Vue en jaquettes",
+  "Covers": "Jaquettes",
+  "Selected": "Sélectionné",
+  "Show {{name}} in the banner": "Afficher {{name}} dans la bannière",
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "La vue en jaquettes n'affiche que la jaquette, ces options s'appliquent donc aux vignettes standard et aux grandes vignettes."
 }

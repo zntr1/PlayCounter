@@ -752,5 +752,10 @@
   "Tier cleared for {{count}} games_one": "Tier cleared for {{count}} game",
   "Tier cleared for {{count}} games_other": "Tier cleared for {{count}} games",
   "Selected games already have tier {{tier}}": "Selected games already have tier {{tier}}",
-  "Selected games already have no tier": "Selected games already have no tier"
+  "Selected games already have no tier": "Selected games already have no tier",
+  "Covers view": "Covers view",
+  "Covers": "Covers",
+  "Selected": "Selected",
+  "Show {{name}} in the banner": "Show {{name}} in the banner",
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "The Covers view shows only the cover, so these apply to Standard and Large cards."
 }

@@ -719,5 +719,10 @@
   "Tier {{tier}} set for {{count}} games_other": "已将 {{count}} 个游戏的评级设为 {{tier}}",
   "Tier cleared for {{count}} games_other": "已清除 {{count}} 个游戏的评级",
   "Selected games already have tier {{tier}}": "所选游戏的评级已是 {{tier}}",
-  "Selected games already have no tier": "所选游戏已经没有评级"
+  "Selected games already have no tier": "所选游戏已经没有评级",
+  "Covers view": "封面视图",
+  "Covers": "封面",
+  "Selected": "已选中",
+  "Show {{name}} in the banner": "在横幅中显示 {{name}}",
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "封面视图只显示封面，因此这些设置仅适用于标准卡片和大卡片。"
 }

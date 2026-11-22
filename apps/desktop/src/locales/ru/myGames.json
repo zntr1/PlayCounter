@@ -818,5 +818,10 @@
   "Tier cleared for {{count}} games_many": "Тир убран у {{count}} игр",
   "Tier cleared for {{count}} games_other": "Тир убран у {{count}} игр",
   "Selected games already have tier {{tier}}": "У выбранных игр уже тир {{tier}}",
-  "Selected games already have no tier": "У выбранных игр уже нет тира"
+  "Selected games already have no tier": "У выбранных игр уже нет тира",
+  "Covers view": "Обложки",
+  "Covers": "Обложки",
+  "Selected": "Выбранная",
+  "Show {{name}} in the banner": "Показать {{name}} на баннере",
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "В режиме «Обложки» видна только обложка, поэтому эти настройки относятся к обычным и большим карточкам."
 }

@@ -785,5 +785,10 @@
   "Tier cleared for {{count}} games_many": "Se quitó el tier de {{count}} juegos",
   "Tier cleared for {{count}} games_other": "Se quitó el tier de {{count}} juegos",
   "Selected games already have tier {{tier}}": "Los juegos seleccionados ya tienen el tier {{tier}}",
-  "Selected games already have no tier": "Los juegos seleccionados ya no tienen tier"
+  "Selected games already have no tier": "Los juegos seleccionados ya no tienen tier",
+  "Covers view": "Vista de portadas",
+  "Covers": "Portadas",
+  "Selected": "Seleccionado",
+  "Show {{name}} in the banner": "Mostrar {{name}} en el banner",
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "La vista de portadas solo muestra la portada, así que estas opciones se aplican a las tarjetas estándar y grandes."
 }
