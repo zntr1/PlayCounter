@@ -125,7 +125,7 @@
   "No cover available": "No cover available",
   "Sample": "Sample",
   "{{exeName}} ignored in {{folderName}}": "{{exeName}} ignored in {{folderName}}",
-  "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.": "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.",
+  "Only this file, only on this PC. The rest of the folder stays tracked, and so do other games with this file name. Nothing was reported.": "Only this file, only on this PC. The rest of the folder stays tracked, and so do other games with this file name. Nothing was reported.",
   "{{time}} tracked so far": "{{time}} tracked so far",
   "Probably a game: it's in a folder you watch.": "Probably a game: it's in a folder you watch.",
   "Tracked so far: <time>{{time}}</time>": "Tracked so far: <time>{{time}}</time>",

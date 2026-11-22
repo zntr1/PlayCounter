@@ -15,7 +15,7 @@ export function notifyFolderIgnored(
     tone: "success",
     title: t("{{exeName}} ignored in {{folderName}}", { exeName, folderName }),
     detail: t(
-      "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.",
+      "Only this file, only on this PC. The rest of the folder stays tracked, and so do other games with this file name. Nothing was reported.",
     ),
   });
 }
