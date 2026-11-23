@@ -91,14 +91,14 @@ describe("GameCover loads the picked cover quality", () => {
 describe("GameCover fades a cover in once it has loaded", () => {
   it("keeps a cover hidden while it loads, then fades it in", async () => {
     const img = await render(null);
-    expect(img.hasAttribute("data-cover-loading")).toBe(true);
+    expect(img.hasAttribute("data-img-loading")).toBe(true);
 
     await act(async () => {
       img.dispatchEvent(new Event("load"));
     });
 
-    expect(img.hasAttribute("data-cover-loading")).toBe(false);
-    expect(img.hasAttribute("data-cover-fade-in")).toBe(true);
+    expect(img.hasAttribute("data-img-loading")).toBe(false);
+    expect(img.hasAttribute("data-img-fade-in")).toBe(true);
   });
 
   it("shows a cover the webview already has at once, without fading", async () => {
@@ -107,8 +107,8 @@ describe("GameCover fades a cover in once it has loaded", () => {
       264,
     );
     const img = await render(null);
-    expect(img.hasAttribute("data-cover-loading")).toBe(false);
-    expect(img.hasAttribute("data-cover-fade-in")).toBe(false);
+    expect(img.hasAttribute("data-img-loading")).toBe(false);
+    expect(img.hasAttribute("data-img-fade-in")).toBe(false);
     vi.restoreAllMocks();
   });
 
@@ -121,7 +121,7 @@ describe("GameCover fades a cover in once it has loaded", () => {
       // A real transitionend bubbles; React listens for it at the root.
       img.dispatchEvent(new Event("transitionend", { bubbles: true }));
     });
-    expect(img.hasAttribute("data-cover-fade-in")).toBe(false);
+    expect(img.hasAttribute("data-img-fade-in")).toBe(false);
   });
 });
 

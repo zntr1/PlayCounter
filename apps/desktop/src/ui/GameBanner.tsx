@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useEffect } from "react";
+import { ArtImage } from "./ArtImage";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
 import {
@@ -163,23 +164,9 @@ export function GameBanner({
       className="library-hero relative isolate h-[var(--banner-height)] overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised"
     >
       <div aria-hidden className="absolute inset-0">
-        {artwork ? (
-          <img
-            src={artwork}
-            srcSet={artSrcSet(artwork)}
-            sizes="100vw"
-            alt=""
-            decoding="async"
-            fetchPriority="high"
-            onError={() => markCoverUnavailable(artwork)}
-            style={{
-              top: "calc(var(--hero-lead, 0px) * -1)",
-              height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
-            }}
-            className="library-banner-art library-hero-art absolute object-cover object-[72%_0%]"
-          />
-        ) : coverUrl ? (
+        {/* The blurred cover: the art's placeholder while it loads (the art
+            fades in over it), and the backdrop of a game without art. */}
+        {coverUrl ? (
           <GameCover
             src={coverUrl}
             alt=""
@@ -190,6 +177,23 @@ export function GameBanner({
                 "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
             }}
             className="library-banner-art hero-backdrop absolute scale-125 object-cover blur-3xl saturate-150"
+          />
+        ) : null}
+        {artwork ? (
+          <ArtImage
+            key={artwork}
+            src={artwork}
+            srcSet={artSrcSet(artwork)}
+            sizes="100vw"
+            decoding="async"
+            fetchPriority="high"
+            onError={() => markCoverUnavailable(artwork)}
+            style={{
+              top: "calc(var(--hero-lead, 0px) * -1)",
+              height:
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+            }}
+            className="library-banner-art library-hero-art absolute object-cover object-[72%_0%]"
           />
         ) : null}
         <div className="library-hero-shade absolute inset-0" />
@@ -412,11 +416,11 @@ export function GameBanner({
           aria-hidden="true"
           className="library-banner-continuation pointer-events-none absolute -z-10"
         >
-          <img
+          <ArtImage
+            key={backdropArt}
             src={backdropArt}
             srcSet={artSrcSet(backdropArt)}
             sizes="100vw"
-            alt=""
             decoding="async"
             onError={() => markCoverUnavailable(backdropArt)}
             style={{

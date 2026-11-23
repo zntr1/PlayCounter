@@ -365,3 +365,69 @@ it("opens My History filtered to the banner's game, as a chip rather than search
   expect(state.historyGameName).toBe("Library favorite");
   expect(state.historyQuery).toBe("");
 });
+
+/* Banner art loads softly (Phil, 2026-11-23: "looks so bad while the banner
+   isn't loaded yet"). Until the big art has loaded, the banner shows the
+   game's blurred cover in its place, and the art fades in once it is there.
+   The same art around the banner and behind the title bar fades in too. Art
+   the webview already has shows at once. */
+function bannerWithArt() {
+  useAppStore.setState({
+    exeCache: new Map<string, ReturnType<typeof entry> & { coverUrl?: string }>([
+      [
+        "game-1.exe",
+        { ...entry(-1, "Library favorite"), coverUrl: "/library-cover.jpg" },
+      ],
+      ["game-2.exe", entry(-2, "Shelf favorite")],
+    ]),
+    customHeroArt: {
+      [customHeroArtKey(entry(-1, "Library favorite"))]: "/library-banner.jpg",
+    },
+  });
+  useAppStore.getState().setViewShowHero("achievements", true);
+}
+
+const artImages = () =>
+  [...container.querySelectorAll<HTMLImageElement>("img")].filter(
+    (img) => img.getAttribute("src") === "/library-banner.jpg",
+  );
+
+it("keeps the banner art hidden over the blurred cover until it has loaded, then fades it in", async () => {
+  bannerWithArt();
+  await act(() => root.render(<App />));
+  const card = banner()!;
+  const art = card.querySelector<HTMLImageElement>(
+    'img[src="/library-banner.jpg"]',
+  )!;
+  expect(art.hasAttribute("data-img-loading")).toBe(true);
+  // The card shows the game's cover, blurred, in the meantime.
+  expect(card.querySelector('img[src="/library-cover.jpg"]')).not.toBeNull();
+
+  await act(async () => {
+    art.dispatchEvent(new Event("load"));
+  });
+
+  expect(art.hasAttribute("data-img-loading")).toBe(false);
+  expect(art.hasAttribute("data-img-fade-in")).toBe(true);
+});
+
+it("fades in the art around the banner and behind the title bar as well", async () => {
+  bannerWithArt();
+  await act(() => root.render(<App />));
+  // The card, the continuation around it and the title bar strip.
+  expect(artImages().length).toBeGreaterThanOrEqual(3);
+  for (const img of artImages())
+    expect(img.hasAttribute("data-img-loading")).toBe(true);
+});
+
+it("shows banner art the webview already has at once", async () => {
+  vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(
+    1920,
+  );
+  bannerWithArt();
+  await act(() => root.render(<App />));
+  for (const img of artImages()) {
+    expect(img.hasAttribute("data-img-loading")).toBe(false);
+    expect(img.hasAttribute("data-img-fade-in")).toBe(false);
+  }
+});

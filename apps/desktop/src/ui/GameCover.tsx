@@ -1,13 +1,8 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ImgHTMLAttributes,
-} from "react";
+import { useEffect, useState, type ImgHTMLAttributes } from "react";
 import { coverQualityOf, upgradeCoverUrl } from "../coverArt";
 import { markCoverUnavailable } from "../pickedCovers";
 import { useAppStore } from "../store";
+import { useImageFadeIn } from "./useImageFadeIn";
 
 /* A cover <img> that honours the "Cover quality" setting.
 
@@ -45,20 +40,12 @@ export function GameCover({
     setFallback(failedUpgrades.has(upgradeCoverUrl(src, wanted)));
   }, [src, wanted]);
 
-  /* A cover still loading stays hidden and fades in once it has loaded
-     (styles.css: [data-cover-loading], [data-cover-fade-in]), instead of
-     popping in. One the webview already has shows at once, so scrolling back
-     or switching views doesn't fade it again; a later src change doesn't
-     either. The fade is a transition, dropped when it ends: an animation
-     left applying keeps an image softer in WebView2. */
-  const imgRef = useRef<HTMLImageElement>(null);
-  const [phase, setPhase] = useState<"loading" | "fade-in" | "shown">(
-    "loading",
-  );
-  useLayoutEffect(() => {
-    const img = imgRef.current;
-    if (img?.complete && img.naturalWidth > 0) setPhase("shown");
-  }, []);
+  /* Fades in once loaded instead of popping in (useImageFadeIn). Per mount:
+     a cover that changes its src keeps showing, it doesn't fade again. */
+  const fadeIn = useImageFadeIn({
+    onLoad: rest.onLoad,
+    onTransitionEnd: rest.onTransitionEnd,
+  });
 
   /* A library of any size puts far more covers in the DOM than fit on screen.
      Leaving the off-screen ones to the browser keeps the first paint cheap;
@@ -68,19 +55,7 @@ export function GameCover({
       loading="lazy"
       decoding="async"
       {...rest}
-      ref={imgRef}
-      data-cover-loading={phase === "loading" ? "" : undefined}
-      data-cover-fade-in={phase === "fade-in" ? "" : undefined}
-      onLoad={(event) => {
-        setPhase((current) => (current === "loading" ? "fade-in" : current));
-        rest.onLoad?.(event);
-      }}
-      onTransitionEnd={(event) => {
-        rest.onTransitionEnd?.(event);
-        if (event.target !== event.currentTarget) return;
-        if (event.propertyName && event.propertyName !== "opacity") return;
-        setPhase((current) => (current === "fade-in" ? "shown" : current));
-      }}
+      {...fadeIn}
       src={fallback ? src : upgraded}
       onError={(event) => {
         if (!fallback && upgraded !== src) {

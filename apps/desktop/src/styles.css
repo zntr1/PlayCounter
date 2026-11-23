@@ -1861,14 +1861,18 @@ body.shift-held
   visibility: hidden;
 }
 
-/* Covers fade in once loaded instead of popping in (GameCover), in every
-   view. A transition, dropped when it ends: an animation left applying keeps
-   an image softer in WebView2 (the banner art had that). */
-img[data-cover-loading] {
+/* Covers and banner art fade in once loaded instead of popping in
+   (useImageFadeIn), in every view. A transition, dropped when it ends: an
+   animation left applying keeps an image softer in WebView2 (the banner art
+   had that). Art with its own entrance animation (.library-hero-art,
+   .history-hero-art) holds it while loading; it starts once the image is
+   there, instead of playing on an empty frame. */
+img[data-img-loading] {
   opacity: 0;
+  animation: none;
 }
 
-img[data-cover-fade-in] {
+img[data-img-fade-in] {
   transition: opacity 0.4s ease-out;
 }
 

@@ -50,6 +50,7 @@ import {
   type GameIdentityRef,
 } from "../../../store";
 import { removeLauncherAccount, removeOwnGameFile } from "../../../tracker";
+import { ArtImage } from "../../ArtImage";
 import { artSrcSet } from "../../artSrcSet";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -577,22 +578,25 @@ export function GameDetailsDialog({
       {/* Artwork sits behind everything; the shade keeps the left half
           readable and the bottom fades into the panel so the tabs read. */}
       <div aria-hidden className="absolute inset-0 overflow-hidden">
-        {artwork ? (
-          <img
-            src={artwork}
-            srcSet={artSrcSet(artwork)}
-            sizes="1024px"
-            alt=""
-            decoding="async"
-            onError={() => markCoverUnavailable(artwork)}
-            className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
-          />
-        ) : coverUrl ? (
+        {/* The blurred cover: placeholder while the art loads, backdrop of a
+            game without art. */}
+        {coverUrl ? (
           <GameCover
             src={coverUrl}
             alt=""
             loading="eager"
             className="hero-backdrop absolute inset-0 h-full w-full scale-125 object-cover blur-3xl saturate-150"
+          />
+        ) : null}
+        {artwork ? (
+          <ArtImage
+            key={artwork}
+            src={artwork}
+            srcSet={artSrcSet(artwork)}
+            sizes="1024px"
+            decoding="async"
+            onError={() => markCoverUnavailable(artwork)}
+            className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
           />
         ) : null}
         <div className="library-hero-shade absolute inset-0" />
