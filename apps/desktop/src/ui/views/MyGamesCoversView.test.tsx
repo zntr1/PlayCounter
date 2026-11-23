@@ -160,19 +160,35 @@ it("puts a clicked cover in the banner without pinning it", async () => {
   const before = bannerTitle();
   const other = before === "Hades" ? "Celeste" : "Hades";
   const cover = labelled(card(other), `Show ${other} in the banner`)!;
-  expect(cover.getAttribute("aria-pressed")).toBe("false");
 
   await act(async () => cover.click());
 
   expect(bannerTitle()).toBe(other);
-  expect(
-    labelled(card(other), `Show ${other} in the banner`)!.getAttribute(
-      "aria-pressed",
-    ),
-  ).toBe("true");
   expect(useAppStore.getState().settings.libraryFeaturedGame ?? null).toBe(
     null,
   );
+});
+
+// Phil, 2026-11-23: the second click on the game already in the banner opens
+// its Details.
+it("opens Details when you click the cover that is already in the banner", async () => {
+  await render();
+  const other = bannerTitle() === "Hades" ? "Celeste" : "Hades";
+  await act(async () =>
+    labelled(card(other), `Show ${other} in the banner`)!.click(),
+  );
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+  // The same cover now says what a click does.
+  expect(labelled(card(other), `Show ${other} in the banner`)).toBeNull();
+  await act(async () =>
+    labelled(card(other), `Open details for ${other}`)!.click(),
+  );
+
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+    other,
+  );
+  expect(bannerTitle()).toBe(other);
 });
 
 it("gives the banner back once you leave My Games", async () => {

@@ -7366,16 +7366,19 @@ export function GameLibraryCard({
     const coverLayer = (
       <>
         {!selectionMode ? (
+          // First click puts the game in the banner; a click on the game
+          // already there (or with the banner off) opens its Details.
           <button
             type="button"
             aria-label={
-              onShowInBanner
+              onShowInBanner && !bannerSelected
                 ? t("Show {{name}} in the banner", { name: game.name })
                 : t("Open details for {{name}}", { name: game.name })
             }
-            aria-pressed={onShowInBanner ? bannerSelected : undefined}
             onClick={() =>
-              onShowInBanner ? onShowInBanner(game) : openDetails()
+              onShowInBanner && !bannerSelected
+                ? onShowInBanner(game)
+                : openDetails()
             }
             className="absolute inset-0 z-10 cursor-pointer focus-visible:outline-none"
           />
