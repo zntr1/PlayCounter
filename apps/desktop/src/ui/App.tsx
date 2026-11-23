@@ -1264,7 +1264,7 @@ export function App() {
                   width: "calc(var(--content-width, 100%) * var(--zoom-ratio))",
                   height: `calc(${
                     artFrame === "card"
-                      ? "(var(--banner-height) + var(--banner-tail))"
+                      ? "(var(--banner-height) + var(--art-tail, var(--banner-tail)))"
                       : "560px"
                   } * var(--zoom-ratio) + 72px + var(--notice-height, 0px) / ${menuScale})`,
                 }}

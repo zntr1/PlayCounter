@@ -174,7 +174,7 @@ export function GameBanner({
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--art-tail))",
             }}
             className="library-banner-art hero-backdrop absolute scale-125 object-cover blur-3xl saturate-150"
           />
@@ -191,7 +191,7 @@ export function GameBanner({
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--art-tail))",
             }}
             className="library-banner-art library-hero-art absolute object-cover object-[72%_0%]"
           />
@@ -416,6 +416,13 @@ export function GameBanner({
           aria-hidden="true"
           className="library-banner-continuation pointer-events-none absolute -z-10"
         >
+          {/* A blurred copy carries the colors on down the tail. */}
+          <ArtImage
+            key={`soft:${backdropArt}`}
+            src={backdropArt}
+            decoding="async"
+            className="library-banner-soft absolute inset-0 h-full w-full scale-110 object-cover blur-3xl saturate-[1.3]"
+          />
           <ArtImage
             key={backdropArt}
             src={backdropArt}
@@ -426,9 +433,9 @@ export function GameBanner({
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--art-tail))",
             }}
-            className="absolute inset-x-0 w-full object-cover object-[72%_0%]"
+            className="library-banner-sharp absolute inset-x-0 w-full object-cover object-[72%_0%]"
           />
         </div>
       ) : null}

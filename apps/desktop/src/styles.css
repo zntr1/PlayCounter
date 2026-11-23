@@ -297,12 +297,22 @@
 
 [data-banner-layout="full"] {
   --banner-height: clamp(300px, 40vh, 360px);
-  --banner-tail: 144px;
+  /* The art reaches 560px below the card, behind the library. --art-tail
+     is how far the sharp picture reaches: the card keeps its crop, and below
+     it a blurred copy carries the colors on (.library-banner-soft). */
+  --banner-tail: 560px;
+  --art-tail: 144px;
 }
 
 [data-banner-layout="compact"] {
   --banner-height: 200px;
   --banner-tail: 112px;
+  --art-tail: 112px;
+}
+
+/* The sharp continuation fades into the blurred one below it. */
+.library-banner-continuation .library-banner-sharp {
+  mask-image: linear-gradient(180deg, #000 calc(100% - 140px), transparent);
 }
 
 /* Continue the same picture around the card, fading out through the side
