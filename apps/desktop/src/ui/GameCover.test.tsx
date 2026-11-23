@@ -83,6 +83,49 @@ describe("GameCover loads the picked cover quality", () => {
     );
   });
 
+});
+
+/* Covers fade in once loaded instead of popping in (Phil, 2026-11-22: a must
+   have in every view). A cover the webview already has shows at once, so
+   scrolling back or switching views doesn't fade it again. */
+describe("GameCover fades a cover in once it has loaded", () => {
+  it("keeps a cover hidden while it loads, then fades it in", async () => {
+    const img = await render(null);
+    expect(img.hasAttribute("data-cover-loading")).toBe(true);
+
+    await act(async () => {
+      img.dispatchEvent(new Event("load"));
+    });
+
+    expect(img.hasAttribute("data-cover-loading")).toBe(false);
+    expect(img.hasAttribute("data-cover-fade-in")).toBe(true);
+  });
+
+  it("shows a cover the webview already has at once, without fading", async () => {
+    // happy-dom reports every image complete; a decoded one has a width.
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(
+      264,
+    );
+    const img = await render(null);
+    expect(img.hasAttribute("data-cover-loading")).toBe(false);
+    expect(img.hasAttribute("data-cover-fade-in")).toBe(false);
+    vi.restoreAllMocks();
+  });
+
+  it("drops the fade once it has played", async () => {
+    const img = await render(null);
+    await act(async () => {
+      img.dispatchEvent(new Event("load"));
+    });
+    await act(async () => {
+      // A real transitionend bubbles; React listens for it at the root.
+      img.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(img.hasAttribute("data-cover-fade-in")).toBe(false);
+  });
+});
+
+describe("GameCover keeps the stored cover as a fallback", () => {
   it("falls back to the stored cover when the larger file fails", async () => {
     const img = await render("sharpest", { large: true });
     await act(async () => {

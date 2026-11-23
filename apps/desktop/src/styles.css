@@ -1861,6 +1861,141 @@ body.shift-held
   visibility: hidden;
 }
 
+/* Covers fade in once loaded instead of popping in (GameCover), in every
+   view. A transition, dropped when it ends: an animation left applying keeps
+   an image softer in WebView2 (the banner art had that). */
+img[data-cover-loading] {
+  opacity: 0;
+}
+
+img[data-cover-fade-in] {
+  transition: opacity 0.4s ease-out;
+}
+
+/* ── Covers view (My Games) ─────────────────────────────────────────────
+   Depth: layered soft shadows (Tailwind shadow-cover) and a light top edge
+   drawn over the cover (.covers-edge). On hover the edge brightens instead of
+   an amber ring: amber is the cover in the banner and the keyboard focus.
+   The hovered cover drops the dark shadow so its glow shows. */
+:root {
+  --shadow-cover:
+    0 1px 1px rgb(0 0 0 / 0.45), 0 8px 16px -6px rgb(0 0 0 / 0.6),
+    0 22px 40px -18px rgb(0 0 0 / 0.7);
+  --shadow-cover-lit: 0 1px 2px rgb(0 0 0 / 0.5);
+  --cover-edge:
+    inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.06),
+    inset 0 -1px 0 rgb(0 0 0 / 0.4);
+  --cover-edge-hover:
+    inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.26);
+}
+
+:root[data-theme="light"] {
+  --shadow-cover:
+    0 1px 1px rgba(60, 44, 20, 0.12), 0 8px 16px -6px rgba(60, 44, 20, 0.2),
+    0 22px 40px -18px rgba(60, 44, 20, 0.26);
+  --shadow-cover-lit: 0 1px 2px rgba(60, 44, 20, 0.14);
+  --cover-edge:
+    inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  --cover-edge-hover:
+    inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 0 0 1px rgb(0 0 0 / 0.24);
+}
+
+.covers-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  border-radius: 10px;
+  box-shadow: var(--cover-edge);
+  pointer-events: none;
+}
+
+.covers-tile:hover .covers-edge {
+  box-shadow: var(--cover-edge-hover);
+}
+
+/* The hover text grows with the tile: 14 px names on the smallest covers,
+   up to 20 px on big ones. The cover box is the container. */
+.covers-box {
+  container-type: inline-size;
+}
+
+.covers-hover {
+  gap: clamp(2px, 1cqi, 4px);
+  padding: 3rem clamp(10px, 4.5cqi, 16px) clamp(10px, 4.5cqi, 16px);
+}
+
+.covers-hover-name {
+  font-size: clamp(14px, 6cqi, 20px);
+}
+
+.covers-hover-meta {
+  font-size: clamp(11px, 4.2cqi, 14px);
+}
+
+.covers-hover-time {
+  font-size: clamp(13px, 5cqi, 17px);
+}
+
+.covers-hover-button {
+  height: clamp(32px, 12.5cqi, 42px);
+  font-size: clamp(12px, 4.6cqi, 15px);
+}
+
+.covers-hover-more {
+  width: clamp(32px, 12.5cqi, 42px);
+  height: clamp(32px, 12.5cqi, 42px);
+}
+
+/* The glow in the colors of the cover under the pointer (useCoverGlow): two
+   blurred cover copies serve the whole grid. Only their opacity animates; an
+   unlit one is hidden, so it is never painted. */
+.cover-glow {
+  position: absolute;
+  z-index: 0;
+  border-radius: 18px;
+  object-fit: cover;
+  filter: blur(32px) saturate(1.2) brightness(0.95);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.35s ease-out,
+    visibility 0s 0.35s;
+  pointer-events: none;
+}
+
+.cover-glow[data-on] {
+  opacity: 0.45;
+  visibility: visible;
+  transition: opacity 0.35s ease-out;
+}
+
+:root[data-theme="light"] .cover-glow[data-on] {
+  opacity: 0.35;
+}
+
+.cover-glow:not([src]) {
+  display: none;
+}
+
+/* Spotlight (Customize, off unless turned on): the other covers step back
+   while one is pointed at. */
+.covers-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 26;
+  border-radius: 10px;
+  background: rgb(var(--color-bg));
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
+}
+
+[data-cover-spotlight]:has(.covers-tile:hover)
+  .covers-tile:not(:hover)
+  .covers-dim {
+  opacity: 0.5;
+}
+
 .level-up-arrow {
   animation: level-up-arrow 1.55s ease-in-out 6;
 }

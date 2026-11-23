@@ -371,6 +371,7 @@ const settings = object({}, {
   libraryShowNoteBadges: boolean,
   libraryShowTierBadges: boolean,
   libraryShowTrackingWarnings: boolean,
+  libraryCoverSpotlight: boolean,
   libraryHighResCovers: boolean,
   coverQuality: oneOf("standard", "sharp", "sharpest", "original"),
   libraryShowStatCards: boolean,
