@@ -788,7 +788,7 @@
   "Selected games already have no tier": "Os jogos selecionados já não têm tier",
   "Covers view": "Visualização de capas",
   "Covers": "Capas",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "A visualização de capas mostra só a capa, então estas opções valem para os cartões padrão e grandes.",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "A visualização de capas tem aqui suas próprias opções, todas desligadas até você ligá-las.",
   "Spotlight on hover": "Destaque ao apontar",
   "The other covers step back while you point at one.": "As outras capas ficam em segundo plano enquanto você aponta para uma.",
   "Space between covers": "Espaço entre as capas",

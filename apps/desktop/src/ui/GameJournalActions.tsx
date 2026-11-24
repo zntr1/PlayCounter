@@ -282,22 +282,34 @@ const badgeShell =
 export function GameJournalBadges({
   game,
   compact = false,
+  covers = false,
 }: {
   game: GameIdentityRef;
   compact?: boolean;
+  /** The Covers view: its own switches, off until turned on, and no
+   *  favorite star (it has no switch, and the view shows only the cover
+   *  unless asked). The caller places the row. */
+  covers?: boolean;
 }) {
   const practice = useLibraryPractice();
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
-  const showStatus = usePersonalLibraryState(
-    (s) => s.settings.libraryShowStatusBadges !== false,
+  const showStatus = usePersonalLibraryState((s) =>
+    covers
+      ? s.settings.libraryCoversShowStatusBadges === true
+      : s.settings.libraryShowStatusBadges !== false,
   );
-  const showNotes = usePersonalLibraryState(
-    (s) => s.settings.libraryShowNoteBadges !== false,
+  const showNotes = usePersonalLibraryState((s) =>
+    covers
+      ? s.settings.libraryCoversShowNoteBadges === true
+      : s.settings.libraryShowNoteBadges !== false,
   );
-  const showTiers = usePersonalLibraryState(
-    (s) => s.settings.libraryShowTierBadges !== false,
+  const showTiers = usePersonalLibraryState((s) =>
+    covers
+      ? s.settings.libraryCoversShowTierBadges === true
+      : s.settings.libraryShowTierBadges !== false,
   );
+  const favorite = journal.favorite && !covers;
   const status = showStatus ? journal.status : null;
   const statusLabel = status
     ? t("Status: {{status}}", { status: gameStatusLabel(status) })
@@ -310,10 +322,10 @@ export function GameJournalBadges({
     journal.playthroughs.find(
       (p) => p.id === journal.activePlaythroughId && p.note,
     )?.id ?? (journal.note ? null : other?.id);
-  if (!hasNote && !journal.favorite && !tier && !status) return null;
+  if (!hasNote && !favorite && !tier && !status) return null;
   return (
     <div
-      className={`game-card-journal-badges status-on-dark absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
+      className={`game-card-journal-badges status-on-dark ${covers ? "pointer-events-auto flex items-center gap-1" : `absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}`}
     >
       {status ? (
         // First, so it sits in the same spot on every card. The icon alone,
@@ -343,7 +355,7 @@ export function GameJournalBadges({
           <StickyNote size={compact ? 12 : 14} />
         </button>
       ) : null}
-      {journal.favorite ? (
+      {favorite ? (
         <span
           aria-label={t("Favorite")}
           title={t("Favorite")}

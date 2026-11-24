@@ -232,8 +232,9 @@ type CardProps = {
   setMyGamesShowNoteBadges: (value: boolean) => void;
   setMyGamesShowTierBadges?: (value: boolean) => void;
   setMyGamesShowTrackingWarnings: (value: boolean) => void;
-  /** The Covers view draws none of the badges; its dot is the tracking
-   *  warning, so that switch stays. */
+  /** The Covers view keeps its own badge choices (off until turned on); the
+   *  caller passes those values and setters. Tracking warnings are one
+   *  switch for every view. This only adds the note saying so. */
   coversView?: boolean;
 };
 
@@ -353,7 +354,7 @@ export function LibraryCardControls({
         <p className="mb-1 mt-1.5 flex gap-2 rounded-lg border border-accent/25 bg-accent-tint px-2.5 py-2 text-xs leading-[1.45] text-text">
           <Info size={14} className="mt-px shrink-0 text-accent-ink" />
           {t(
-            "The Covers view shows only the cover, so these apply to Standard and Large cards.",
+            "The Covers view keeps its own choices here, all off until you turn them on.",
           )}
         </p>
       ) : null}
@@ -364,7 +365,6 @@ export function LibraryCardControls({
           "The Steam, Xbox, emulator or PlayCounter mark beside the name.",
         )}
         checked={showOrigin}
-        disabled={coversView}
         onChange={setMyGamesShowOriginBadges}
       />
       <OptionRow
@@ -372,7 +372,6 @@ export function LibraryCardControls({
         label={t("File match info")}
         help={t("The IGDB, Community or Custom seal in the cover corner.")}
         checked={showMatch}
-        disabled={coversView}
         onChange={setMyGamesShowMatchBadges}
       />
       <OptionRow
@@ -381,7 +380,6 @@ export function LibraryCardControls({
         help={t("In progress, Finished and other statuses on the cover.")}
         checked={showStatus}
         dataTour={practice ? "demo-show-status" : undefined}
-        disabled={coversView}
         onChange={setMyGamesShowStatusBadges}
       />
       <OptionRow
@@ -390,7 +388,6 @@ export function LibraryCardControls({
         help={t("A note icon on every game that has a note.")}
         checked={showNotes}
         dataTour={practice ? "demo-show-notes" : undefined}
-        disabled={coversView}
         onChange={setMyGamesShowNoteBadges}
       />
       {setMyGamesShowTierBadges ? (
@@ -399,7 +396,6 @@ export function LibraryCardControls({
           label={t("Tiers on cards")}
           help={t("Your tier, S to F, on every game you rated.")}
           checked={showTiers !== false}
-          disabled={coversView}
           onChange={setMyGamesShowTierBadges}
         />
       ) : null}

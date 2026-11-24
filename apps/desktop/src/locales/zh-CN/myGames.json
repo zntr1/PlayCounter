@@ -722,7 +722,7 @@
   "Selected games already have no tier": "所选游戏已经没有评级",
   "Covers view": "封面视图",
   "Covers": "封面",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "封面视图只显示封面，因此这些设置仅适用于标准卡片和大卡片。",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "封面视图在这里有自己的设置，默认全部关闭，需要时再打开。",
   "Spotlight on hover": "悬停聚焦",
   "The other covers step back while you point at one.": "鼠标移到一个封面上时，其他封面会变暗。",
   "Space between covers": "封面间距",

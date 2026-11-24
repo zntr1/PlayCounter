@@ -989,6 +989,25 @@ export function MyGamesView({
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
   );
+  // The Covers view's own badge choices: off until turned on there.
+  const coversShowOrigin = useAppStore(
+    (state) => state.settings.libraryCoversShowOriginBadges === true,
+  );
+  const coversShowMatch = useAppStore(
+    (state) => state.settings.libraryCoversShowMatchBadges === true,
+  );
+  const coversShowStatus = useAppStore(
+    (state) => state.settings.libraryCoversShowStatusBadges === true,
+  );
+  const coversShowNotes = useAppStore(
+    (state) => state.settings.libraryCoversShowNoteBadges === true,
+  );
+  const coversShowTiers = useAppStore(
+    (state) => state.settings.libraryCoversShowTierBadges === true,
+  );
+  const setMyGamesCoversBadge = useAppStore(
+    (state) => state.setMyGamesCoversBadge,
+  );
   const coverSpotlight = useAppStore(
     (state) => state.settings.libraryCoverSpotlight === true,
   );
@@ -1066,6 +1085,9 @@ export function MyGamesView({
   const view: ViewMode =
     tourDemo.active && cardSize === "covers" ? "grid" : cardSize;
   const coverGlow = useCoverGlow(view === "covers");
+  // Cards in the Covers view follow its own choices.
+  const cardShowOrigin = view === "covers" ? coversShowOrigin : showOrigin;
+  const cardShowMatch = view === "covers" ? coversShowMatch : showMatch;
   const gameLaunchingEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -2457,8 +2479,8 @@ export function MyGamesView({
         onAcquireLaunch={acquireLaunchLock}
         onReleaseLaunch={releaseLaunchLock}
         showDurationDays={showDurationDays}
-        showOrigin={showOrigin}
-        showMatch={showMatch}
+        showOrigin={cardShowOrigin}
+        showMatch={cardShowMatch}
         showTrackingWarning={showTrackingWarnings}
         view={view}
         onRemove={requestRemoval}
@@ -3027,23 +3049,71 @@ export function MyGamesView({
                       title={t("Card details")}
                       hint={t("What each game card shows.")}
                     >
-                      <LibraryCardControls
-                        showOrigin={showOrigin}
-                        showMatch={showMatch}
-                        showStatus={showStatus}
-                        showNotes={showNotes}
-                        showTiers={showTiers}
-                        showTrackingWarnings={showTrackingWarnings}
-                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
-                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
-                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
-                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
-                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
-                        setMyGamesShowTrackingWarnings={
-                          setMyGamesShowTrackingWarnings
-                        }
-                        coversView={view === "covers"}
-                      />
+                      {view === "covers" ? (
+                        <LibraryCardControls
+                          showOrigin={coversShowOrigin}
+                          showMatch={coversShowMatch}
+                          showStatus={coversShowStatus}
+                          showNotes={coversShowNotes}
+                          showTiers={coversShowTiers}
+                          showTrackingWarnings={showTrackingWarnings}
+                          setMyGamesShowOriginBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowOriginBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowMatchBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowMatchBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowStatusBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowStatusBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowNoteBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowNoteBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowTierBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowTierBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowTrackingWarnings={
+                            setMyGamesShowTrackingWarnings
+                          }
+                          coversView
+                        />
+                      ) : (
+                        <LibraryCardControls
+                          showOrigin={showOrigin}
+                          showMatch={showMatch}
+                          showStatus={showStatus}
+                          showNotes={showNotes}
+                          showTiers={showTiers}
+                          showTrackingWarnings={showTrackingWarnings}
+                          setMyGamesShowOriginBadges={
+                            setMyGamesShowOriginBadges
+                          }
+                          setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                          setMyGamesShowStatusBadges={
+                            setMyGamesShowStatusBadges
+                          }
+                          setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                          setMyGamesShowTierBadges={setMyGamesShowTierBadges}
+                          setMyGamesShowTrackingWarnings={
+                            setMyGamesShowTrackingWarnings
+                          }
+                        />
+                      )}
                     </CustomizeSection>
                   </div>
                 </div>
@@ -3228,8 +3298,8 @@ export function MyGamesView({
                               : undefined
                           }
                           showDurationDays={showDurationDays}
-                          showOrigin={showOrigin}
-                          showMatch={showMatch}
+                          showOrigin={cardShowOrigin}
+                          showMatch={cardShowMatch}
                           showTrackingWarning={showTrackingWarnings}
                           view={view}
                           onRemove={requestRemoval}
@@ -7375,15 +7445,39 @@ export function GameLibraryCard({
             className="absolute inset-0 z-10 cursor-pointer focus-visible:outline-none"
           />
         ) : null}
-        {coverRunning ? (
-          <span
-            data-cover-running
-            className="pointer-events-none absolute left-2 top-2 z-30 inline-flex items-center gap-1.5 rounded-full bg-black/80 py-[3px] pl-[7px] pr-2 text-[10px] font-bold uppercase tracking-[0.05em] text-success"
-          >
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
-            {t("Running")}
-          </span>
-        ) : null}
+        {/* One row top left: Running, then the badges the player turned on
+            for Covers (Customize > Card details; all off at first). Top,
+            because the hover layer takes the bottom. Clear of the dot. Under
+            Spotlight's shade (z-26), so they step back with their cover. */}
+        <div className="covers-badges pointer-events-none absolute left-2 right-8 top-2 z-[24] flex flex-wrap items-center gap-1">
+          {coverRunning ? (
+            <span
+              data-cover-running
+              className="pointer-events-none inline-flex items-center gap-1.5 rounded-full bg-black/80 py-[3px] pl-[7px] pr-2 text-[10px] font-bold uppercase tracking-[0.05em] text-success"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+              {t("Running")}
+            </span>
+          ) : null}
+          {matchVisible && !selectionMode ? (
+            <GameProvenanceBadges
+              className="pointer-events-auto drop-shadow-md"
+              sources={game.sources}
+              emulatorSources={game.emulatorSources}
+              approval={communityApproval}
+              providers={importedProviders}
+              emulatorIds={game.emulatorIds}
+              unknownDurationProviders={unknownDurationProviders}
+              describeOrigins={originVisible}
+            />
+          ) : null}
+          {inSampleLibrary(
+            <GameJournalBadges
+              game={{ ...game, gameName: game.name }}
+              covers
+            />,
+          )}
+        </div>
         {coverAttention ? (
           <span
             data-cover-attention
@@ -7399,6 +7493,14 @@ export function GameLibraryCard({
           // Sizes grow with the tile (styles.css, .covers-hover*).
           <div className="covers-hover pointer-events-none absolute inset-x-0 bottom-0 z-20 flex max-h-full flex-col justify-end bg-gradient-to-b from-black/0 via-black/70 to-black/90 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 group-data-[controller-selected=true]:opacity-100 [&_button]:pointer-events-auto">
             <div className="flex min-w-0 items-center gap-1.5">
+              {originVisible ? (
+                <GameOriginBadges
+                  className="shrink-0"
+                  providers={importedProviders}
+                  emulatorIds={game.emulatorIds}
+                  unknownDurationProviders={unknownDurationProviders}
+                />
+              ) : null}
               <NameHeading
                 className="covers-hover-name line-clamp-2 min-w-0 flex-1 font-bold leading-tight text-white"
                 title={exeLabel ? `${game.name} (${exeLabel})` : game.name}

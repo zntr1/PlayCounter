@@ -129,20 +129,110 @@ it("keeps Covers through a restart and a backup", () => {
   ).not.toThrow();
 });
 
-it("shows only the cover: no badges, seal, source mark or hover column", async () => {
-  useAppStore
-    .getState()
-    .updateGameJournal(
-      { gameId: HADES.gameId, source: "custom", gameName: "Hades" },
-      { favorite: true, status: "playing" },
-    );
+/* Badges in Covers (Phil, 2026-11-24): off when you switch to the view, but
+   you can turn each one on again. Covers keeps its own choices, so turning
+   them on or off there leaves Standard and Large cards as they were. */
+
+/** Hades with a status, a note, a tier and the favorite star. */
+function hadesWithJournal() {
+  const hades = {
+    gameId: HADES.gameId,
+    source: "custom" as const,
+    gameName: "Hades",
+  };
+  useAppStore.getState().updateGameJournal(hades, {
+    favorite: true,
+    status: "playing",
+    note: "Try the spear",
+  });
+  useAppStore.getState().setGameTier(hades, "S");
+}
+
+const BADGES = {
+  origin: (scope: Element) => scope.querySelector('[aria-label^="PlayCounter: "]'),
+  match: (scope: Element) =>
+    scope.textContent?.includes("How this file was matched") ? scope : null,
+  status: (scope: Element) => scope.querySelector('[aria-label^="Status: "]'),
+  notes: (scope: Element) => labelled(scope, "Read note for Hades"),
+  tiers: (scope: Element) => scope.querySelector('[aria-label="Tier: S"]'),
+};
+const SWITCHES = {
+  origin: "#library-show-origin",
+  match: "#library-show-match",
+  status: "#library-show-status",
+  notes: "#library-show-notes",
+  tiers: "#library-show-tiers",
+} as const;
+const box = (id: string) => document.querySelector<HTMLInputElement>(id)!;
+
+it("shows only the cover at first: no badges, seal or source mark, even with them on for Standard cards", async () => {
+  hadesWithJournal();
   await render();
   const hades = card("Hades");
+  for (const [name, find] of Object.entries(BADGES))
+    expect(find(hades), name).toBeNull();
   expect(hades.querySelector('[aria-label="Favorite"]')).toBeNull();
-  expect(hades.querySelector('[aria-label^="Status: "]')).toBeNull();
-  expect(hades.textContent).not.toContain("How this file was matched");
   expect(labelled(hades, "Open journal for Hades")).toBeNull();
   expect(labelled(hades, "Log a missed session for Hades")).toBeNull();
+
+  // Standard cards still show them.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  for (const [name, find] of Object.entries(BADGES))
+    expect(find(card("Hades")), name).not.toBeNull();
+});
+
+it("turns each badge on for Covers in Customize, and Standard cards keep their own choice", async () => {
+  hadesWithJournal();
+  await render();
+  await openCustomize();
+  for (const [name, id] of Object.entries(SWITCHES)) {
+    expect(box(id).disabled, name).toBe(false);
+    expect(box(id).checked, name).toBe(false);
+  }
+
+  for (const [name, id] of Object.entries(SWITCHES)) {
+    await act(async () => box(id).click());
+    expect(box(id).checked, name).toBe(true);
+    expect(BADGES[name as keyof typeof BADGES](card("Hades")), name).not.toBeNull();
+  }
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings).toMatchObject({
+    libraryCoversShowOriginBadges: true,
+    libraryCoversShowMatchBadges: true,
+    libraryCoversShowStatusBadges: true,
+    libraryCoversShowNoteBadges: true,
+    libraryCoversShowTierBadges: true,
+  });
+
+  // Turn Status off again in Covers: Standard cards still show it.
+  await act(async () => box(SWITCHES.status).click());
+  expect(BADGES.status(card("Hades"))).toBeNull();
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(box(SWITCHES.status).checked).toBe(true);
+  expect(BADGES.status(card("Hades"))).not.toBeNull();
+
+  // And turning one off for Standard cards leaves Covers as it is.
+  await act(async () => box(SWITCHES.tiers).click());
+  expect(BADGES.tiers(card("Hades"))).toBeNull();
+  await act(async () => useAppStore.getState().setMyGamesCardSize("covers"));
+  expect(box(SWITCHES.tiers).checked).toBe(true);
+  expect(BADGES.tiers(card("Hades"))).not.toBeNull();
+});
+
+it("keeps the Covers badge choices in a backup", () => {
+  for (const key of [
+    "libraryCoversShowOriginBadges",
+    "libraryCoversShowMatchBadges",
+    "libraryCoversShowStatusBadges",
+    "libraryCoversShowNoteBadges",
+    "libraryCoversShowTierBadges",
+  ]) {
+    expect(() =>
+      validateBackupData({ settings: { [key]: true } }, "data"),
+    ).not.toThrow();
+    expect(() =>
+      validateBackupData({ settings: { [key]: "on" } }, "data"),
+    ).toThrow();
+  }
 });
 
 it("has the name, playtime, Play and ⋯ on the cover for hover", async () => {
@@ -236,35 +326,17 @@ it("marks a game with something to do, and says what on hover", async () => {
   expect(card("Portal 2").querySelector("[data-cover-attention]")).toBeNull();
 });
 
-it("says in Customize that card details don't apply to Covers", async () => {
+it("says in Customize that Covers keeps its own badge choices", async () => {
   await render();
-  await act(async () => labelled(container, "Customize library view")!.click());
-  expect(document.body.textContent).toContain(
-    "The Covers view shows only the cover, so these apply to Standard and Large cards.",
-  );
-  for (const id of [
-    "show-origin",
-    "show-match",
-    "show-status",
-    "show-notes",
-    "show-tiers",
-  ])
-    expect(
-      document.querySelector<HTMLInputElement>(`#library-${id}`)?.disabled,
-      id,
-    ).toBe(true);
-  expect(
-    document.querySelector<HTMLInputElement>("#library-show-tracking-warnings")
-      ?.disabled,
-  ).toBe(false);
+  await openCustomize();
+  const note =
+    "The Covers view keeps its own choices here, all off until you turn them on.";
+  expect(document.body.textContent).toContain(note);
+  // Tracking warnings are one switch for every view.
+  expect(box("#library-show-tracking-warnings").disabled).toBe(false);
 
   await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
-  expect(document.body.textContent).not.toContain(
-    "The Covers view shows only the cover",
-  );
-  expect(
-    document.querySelector<HTMLInputElement>("#library-show-status")?.disabled,
-  ).toBe(false);
+  expect(document.body.textContent).not.toContain(note);
 });
 
 /* The polish (Phil, 2026-11-22, docs/cover-view-polish-mockups.html): 4

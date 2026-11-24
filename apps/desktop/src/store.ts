@@ -765,6 +765,7 @@ export type AppState = {
   setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
   setMyGamesCoverSpotlight: (enabled: boolean) => void;
+  setMyGamesCoversBadge: (key: CoversBadgeSetting, enabled: boolean) => void;
   setMyGamesCoverGap: (gap: number) => void;
   setCoverQuality: (quality: CoverQuality) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
@@ -842,6 +843,14 @@ export type AppState = {
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
 };
+
+/** The Covers view's own badge switches (Settings.libraryCoversShow*). */
+export type CoversBadgeSetting =
+  | "libraryCoversShowOriginBadges"
+  | "libraryCoversShowMatchBadges"
+  | "libraryCoversShowStatusBadges"
+  | "libraryCoversShowNoteBadges"
+  | "libraryCoversShowTierBadges";
 
 export const DEFAULT_API_ENDPOINT =
   import.meta.env.VITE_PLAYCOUNTER_API_URL ?? "http://localhost:3003";
@@ -2067,6 +2076,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowTrackingWarnings: (libraryShowTrackingWarnings) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowTrackingWarnings },
+    }));
+    persistSoon();
+  },
+  setMyGamesCoversBadge: (key, enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, [key]: enabled },
     }));
     persistSoon();
   },
