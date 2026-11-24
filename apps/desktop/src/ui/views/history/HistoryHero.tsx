@@ -31,6 +31,7 @@ import {
 } from "../../../pickedCovers";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
+import { ArtImage } from "../../ArtImage";
 import { GameCover } from "../../GameCover";
 import { appLocale, getT } from "../../../i18n";
 import { HistoryDatePicker } from "./HistoryDatePicker";
@@ -208,9 +209,9 @@ export function HistoryHero({
       className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface shadow-raised"
     >
       {artwork ? (
-        <img
+        <ArtImage
+          key={artwork}
           src={artwork}
-          alt=""
           aria-hidden="true"
           onError={() => markCoverUnavailable(artwork)}
           className={clsx(

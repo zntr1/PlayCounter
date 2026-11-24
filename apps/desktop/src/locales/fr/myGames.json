@@ -788,9 +788,9 @@
   "Selected games already have no tier": "Les jeux sélectionnés n'ont déjà aucun tier",
   "Covers view": "Vue en jaquettes",
   "Covers": "Jaquettes",
-  "Selected": "Sélectionné",
-  "Show {{name}} in the banner": "Afficher {{name}} dans la bannière",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "La vue en jaquettes n'affiche que la jaquette, ces options s'appliquent donc aux vignettes standard et aux grandes vignettes.",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "La vue en jaquettes a ici ses propres réglages, tous désactivés jusqu'à ce que vous les activiez.",
   "Spotlight on hover": "Projecteur au survol",
-  "The other covers step back while you point at one.": "Les autres jaquettes s'effacent pendant que vous en pointez une."
+  "The other covers step back while you point at one.": "Les autres jaquettes s'effacent pendant que vous en pointez une.",
+  "Space between covers": "Espace entre les jaquettes",
+  "How much room the covers get around them.": "L'espace laissé autour des jaquettes."
 }

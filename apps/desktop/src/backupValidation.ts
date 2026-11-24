@@ -2,7 +2,7 @@ import type { Settings } from "@playcounter/shared";
 import { EMULATOR_IDS } from "./emulators/registry";
 import { isInterfaceScale } from "./interfaceScale";
 import { isFeedbackReplyId } from "./notifications";
-import { isLibraryGridColumns } from "./ui/myGamesPresentation";
+import { isCoverGap, isLibraryGridColumns } from "./ui/myGamesPresentation";
 import {
   GAME_STATUSES,
   GAME_TIERS,
@@ -371,7 +371,13 @@ const settings = object({}, {
   libraryShowNoteBadges: boolean,
   libraryShowTierBadges: boolean,
   libraryShowTrackingWarnings: boolean,
+  libraryCoversShowOriginBadges: boolean,
+  libraryCoversShowMatchBadges: boolean,
+  libraryCoversShowStatusBadges: boolean,
+  libraryCoversShowNoteBadges: boolean,
+  libraryCoversShowTierBadges: boolean,
   libraryCoverSpotlight: boolean,
+  libraryCoverGap: check(isCoverGap),
   libraryHighResCovers: boolean,
   coverQuality: oneOf("standard", "sharp", "sharpest", "original"),
   libraryShowStatCards: boolean,

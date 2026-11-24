@@ -79,6 +79,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { Trans } from "react-i18next";
 import {
@@ -378,7 +379,11 @@ import {
   providerTabConfigs,
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
-import { type MyGamesCardSize } from "../myGamesPresentation";
+import {
+  COVER_GAP,
+  coverGapStyle,
+  type MyGamesCardSize,
+} from "../myGamesPresentation";
 import { useCoverGlow } from "../useCoverGlow";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
@@ -984,12 +989,33 @@ export function MyGamesView({
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
   );
+  // The Covers view's own badge choices: off until turned on there.
+  const coversShowOrigin = useAppStore(
+    (state) => state.settings.libraryCoversShowOriginBadges === true,
+  );
+  const coversShowMatch = useAppStore(
+    (state) => state.settings.libraryCoversShowMatchBadges === true,
+  );
+  const coversShowStatus = useAppStore(
+    (state) => state.settings.libraryCoversShowStatusBadges === true,
+  );
+  const coversShowNotes = useAppStore(
+    (state) => state.settings.libraryCoversShowNoteBadges === true,
+  );
+  const coversShowTiers = useAppStore(
+    (state) => state.settings.libraryCoversShowTierBadges === true,
+  );
+  const setMyGamesCoversBadge = useAppStore(
+    (state) => state.setMyGamesCoversBadge,
+  );
   const coverSpotlight = useAppStore(
     (state) => state.settings.libraryCoverSpotlight === true,
   );
   const setMyGamesCoverSpotlight = useAppStore(
     (state) => state.setMyGamesCoverSpotlight,
   );
+  const coverGap = useAppStore((state) => state.settings.libraryCoverGap);
+  const setMyGamesCoverGap = useAppStore((state) => state.setMyGamesCoverGap);
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
   );
@@ -1058,23 +1084,10 @@ export function MyGamesView({
   // Guides point at the Standard card's buttons, so a guide shows those.
   const view: ViewMode =
     tourDemo.active && cardSize === "covers" ? "grid" : cardSize;
-  // Covers view: a clicked cover shows in the banner until the player
-  // leaves My Games. It is never saved; "Pin to banner" keeps a game there.
-  const [bannerPick, setBannerPick] = useState<LibraryFeaturedGame | null>(
-    null,
-  );
   const coverGlow = useCoverGlow(view === "covers");
-  const onGamesView = useAppStore((state) => state.activeView === "games");
-  useEffect(() => {
-    if (!onGamesView) setBannerPick(null);
-  }, [onGamesView]);
-  const showInBanner = useCallback((game: GameSummary) => {
-    setBannerPick({
-      gameId: game.gameId,
-      source: game.source,
-      igdbId: game.igdbId,
-    });
-  }, []);
+  // Cards in the Covers view follow its own choices.
+  const cardShowOrigin = view === "covers" ? coversShowOrigin : showOrigin;
+  const cardShowMatch = view === "covers" ? coversShowMatch : showMatch;
   const gameLaunchingEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -2281,34 +2294,13 @@ export function MyGamesView({
       ),
     [featuredSetting, ownGames, hidesNew, journalFor, personalShelves],
   );
-  // Only while the clicked game is in the list shown (tab, shelf, filters).
-  const pickedGame = useMemo(
-    () =>
-      view === "covers" && bannerPick
-        ? displayedGames.find((game) => matchesFeaturedGame(game, bannerPick))
-        : undefined,
-    [bannerPick, displayedGames, view],
-  );
   const featured = useMemo(() => {
-    if (pickedGame)
-      return {
-        game: pickedGame,
-        pinned:
-          featuredSetting !== null &&
-          matchesFeaturedGame(pickedGame, featuredSetting),
-      };
     const shelfPin = selectedShelf?.featuredGame;
     const pinned = shelfPin
       ? ownGames.find((game) => matchesFeaturedGame(game, shelfPin))
       : undefined;
     return pinned ? { game: pinned, pinned: true } : defaultFeatured;
-  }, [
-    defaultFeatured,
-    featuredSetting,
-    ownGames,
-    pickedGame,
-    selectedShelf?.featuredGame,
-  ]);
+  }, [defaultFeatured, ownGames, selectedShelf?.featuredGame]);
   const shelfBannerPinned = Boolean(
     featured &&
     selectedShelf?.featuredGame &&
@@ -2487,8 +2479,8 @@ export function MyGamesView({
         onAcquireLaunch={acquireLaunchLock}
         onReleaseLaunch={releaseLaunchLock}
         showDurationDays={showDurationDays}
-        showOrigin={showOrigin}
-        showMatch={showMatch}
+        showOrigin={cardShowOrigin}
+        showMatch={cardShowMatch}
         showTrackingWarning={showTrackingWarnings}
         view={view}
         onRemove={requestRemoval}
@@ -2572,7 +2564,6 @@ export function MyGamesView({
               key={`${selectedShelf?.id ?? "all"}:${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
               game={featured.game}
               pinned={selectedShelf ? shelfBannerPinned : featured.pinned}
-              selected={pickedGame !== undefined}
               shelfName={selectedShelf?.name}
               onArtworkChange={publishLibraryHeroArt}
               launchKey="library-hero"
@@ -2941,6 +2932,48 @@ export function MyGamesView({
                         setMyGamesShowShelves={setMyGamesShowShelves}
                       />
                       {view === "covers" ? (
+                        <div className="py-2.5">
+                          <label
+                            htmlFor="library-cover-gap"
+                            className="text-[13px] font-medium text-text"
+                          >
+                            {t("Space between covers")}
+                          </label>
+                          <p
+                            id="library-cover-gap-help"
+                            className="text-xs leading-4 text-text-faint"
+                          >
+                            {t("How much room the covers get around them.")}
+                          </p>
+                          <input
+                            id="library-cover-gap"
+                            type="range"
+                            min={COVER_GAP.min}
+                            max={COVER_GAP.max}
+                            step={COVER_GAP.step}
+                            value={coverGapStyle(coverGap).columnGap}
+                            aria-describedby="library-cover-gap-help"
+                            data-controller-item="library-option"
+                            onChange={(event) =>
+                              setMyGamesCoverGap(
+                                event.currentTarget.valueAsNumber,
+                              )
+                            }
+                            className="pc-range mt-2 w-full"
+                            style={
+                              {
+                                "--range-progress": `${
+                                  ((coverGapStyle(coverGap).columnGap -
+                                    COVER_GAP.min) /
+                                    (COVER_GAP.max - COVER_GAP.min)) *
+                                  100
+                                }%`,
+                              } as CSSProperties
+                            }
+                          />
+                        </div>
+                      ) : null}
+                      {view === "covers" ? (
                         <OptionRow
                           id="library-cover-spotlight"
                           label={t("Spotlight on hover")}
@@ -3016,23 +3049,71 @@ export function MyGamesView({
                       title={t("Card details")}
                       hint={t("What each game card shows.")}
                     >
-                      <LibraryCardControls
-                        showOrigin={showOrigin}
-                        showMatch={showMatch}
-                        showStatus={showStatus}
-                        showNotes={showNotes}
-                        showTiers={showTiers}
-                        showTrackingWarnings={showTrackingWarnings}
-                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
-                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
-                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
-                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
-                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
-                        setMyGamesShowTrackingWarnings={
-                          setMyGamesShowTrackingWarnings
-                        }
-                        coversView={view === "covers"}
-                      />
+                      {view === "covers" ? (
+                        <LibraryCardControls
+                          showOrigin={coversShowOrigin}
+                          showMatch={coversShowMatch}
+                          showStatus={coversShowStatus}
+                          showNotes={coversShowNotes}
+                          showTiers={coversShowTiers}
+                          showTrackingWarnings={showTrackingWarnings}
+                          setMyGamesShowOriginBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowOriginBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowMatchBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowMatchBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowStatusBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowStatusBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowNoteBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowNoteBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowTierBadges={(value) =>
+                            setMyGamesCoversBadge(
+                              "libraryCoversShowTierBadges",
+                              value,
+                            )
+                          }
+                          setMyGamesShowTrackingWarnings={
+                            setMyGamesShowTrackingWarnings
+                          }
+                          coversView
+                        />
+                      ) : (
+                        <LibraryCardControls
+                          showOrigin={showOrigin}
+                          showMatch={showMatch}
+                          showStatus={showStatus}
+                          showNotes={showNotes}
+                          showTiers={showTiers}
+                          showTrackingWarnings={showTrackingWarnings}
+                          setMyGamesShowOriginBadges={
+                            setMyGamesShowOriginBadges
+                          }
+                          setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                          setMyGamesShowStatusBadges={
+                            setMyGamesShowStatusBadges
+                          }
+                          setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                          setMyGamesShowTierBadges={setMyGamesShowTierBadges}
+                          setMyGamesShowTrackingWarnings={
+                            setMyGamesShowTrackingWarnings
+                          }
+                        />
+                      )}
                     </CustomizeSection>
                   </div>
                 </div>
@@ -3144,7 +3225,10 @@ export function MyGamesView({
                         ? {
                             gridTemplateColumns: `repeat(${Math.min(gridLayout.columns, 2)}, minmax(0, 260px))`,
                           }
-                        : gridLayout.style
+                        : view === "covers"
+                          ? // The space the player picked (Customize).
+                            { ...gridLayout.style, ...coverGapStyle(coverGap) }
+                          : gridLayout.style
                     }
                     data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
                     data-cover-spotlight={
@@ -3152,16 +3236,18 @@ export function MyGamesView({
                     }
                     onPointerOver={coverGlow.onPointerOver}
                     onPointerLeave={coverGlow.onPointerLeave}
+                    onFocus={coverGlow.onFocus}
+                    onBlur={coverGlow.onBlur}
                     className={clsx(
                       "grid",
                       view === "grid" &&
                         "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
                       view === "large" &&
                         "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
-                      // Room to breathe: at most 4 per row, wide gaps.
+                      // At most 4 per row; the gaps come from the style.
                       // `relative` for the glow (useCoverGlow).
                       view === "covers" &&
-                        "relative grid-cols-2 gap-x-11 gap-y-14 sm:grid-cols-3 xl:grid-cols-4",
+                        "relative grid-cols-2 sm:grid-cols-3 xl:grid-cols-4",
                       view === "list" && "gap-3",
                     )}
                   >
@@ -3212,18 +3298,10 @@ export function MyGamesView({
                               : undefined
                           }
                           showDurationDays={showDurationDays}
-                          showOrigin={showOrigin}
-                          showMatch={showMatch}
+                          showOrigin={cardShowOrigin}
+                          showMatch={cardShowMatch}
                           showTrackingWarning={showTrackingWarnings}
                           view={view}
-                          bannerSelected={
-                            pickedGame !== undefined &&
-                            heroVisible &&
-                            game === pickedGame
-                          }
-                          onShowInBanner={
-                            heroVisible ? showInBanner : undefined
-                          }
                           onRemove={requestRemoval}
                           onStopTracking={
                             !isDemo && game.source
@@ -3630,8 +3708,6 @@ export function GameLibraryCard({
   compact = false,
   onMarkSeen,
   detailsOnly,
-  bannerSelected = false,
-  onShowInBanner,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3664,11 +3740,6 @@ export function GameLibraryCard({
    *  Playing, the banner) with every action the card's own has. `open`:
    *  Details opens on `tab` when this is built. */
   detailsOnly?: { tab: DetailsTab; open: boolean };
-  /** Covers view: this game is the one shown in the banner. */
-  bannerSelected?: boolean;
-  /** Covers view: a click on the cover shows the game in the banner. Absent
-   *  while the banner is off: then the click opens Details. */
-  onShowInBanner?: (game: GameSummary) => void;
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
@@ -7366,29 +7437,47 @@ export function GameLibraryCard({
     const coverLayer = (
       <>
         {!selectionMode ? (
+          // A click on the cover opens its Details.
           <button
             type="button"
-            aria-label={
-              onShowInBanner
-                ? t("Show {{name}} in the banner", { name: game.name })
-                : t("Open details for {{name}}", { name: game.name })
-            }
-            aria-pressed={onShowInBanner ? bannerSelected : undefined}
-            onClick={() =>
-              onShowInBanner ? onShowInBanner(game) : openDetails()
-            }
+            aria-label={t("Open details for {{name}}", { name: game.name })}
+            onClick={() => openDetails()}
             className="absolute inset-0 z-10 cursor-pointer focus-visible:outline-none"
           />
         ) : null}
-        {coverRunning ? (
-          <span
-            data-cover-running
-            className="pointer-events-none absolute left-2 top-2 z-30 inline-flex items-center gap-1.5 rounded-full bg-black/80 py-[3px] pl-[7px] pr-2 text-[10px] font-bold uppercase tracking-[0.05em] text-success"
-          >
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
-            {t("Running")}
-          </span>
-        ) : null}
+        {/* One row top left: Running, then the badges the player turned on
+            for Covers (Customize > Card details; all off at first). Top,
+            because the hover layer takes the bottom. Clear of the dot. Under
+            Spotlight's shade (z-26), so they step back with their cover. */}
+        <div className="covers-badges pointer-events-none absolute left-2 right-8 top-2 z-[24] flex flex-wrap items-center gap-1">
+          {coverRunning ? (
+            <span
+              data-cover-running
+              className="pointer-events-none inline-flex items-center gap-1.5 rounded-full bg-black/80 py-[3px] pl-[7px] pr-2 text-[10px] font-bold uppercase tracking-[0.05em] text-success"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+              {t("Running")}
+            </span>
+          ) : null}
+          {matchVisible && !selectionMode ? (
+            <GameProvenanceBadges
+              className="pointer-events-auto drop-shadow-md"
+              sources={game.sources}
+              emulatorSources={game.emulatorSources}
+              approval={communityApproval}
+              providers={importedProviders}
+              emulatorIds={game.emulatorIds}
+              unknownDurationProviders={unknownDurationProviders}
+              describeOrigins={originVisible}
+            />
+          ) : null}
+          {inSampleLibrary(
+            <GameJournalBadges
+              game={{ ...game, gameName: game.name }}
+              covers
+            />,
+          )}
+        </div>
         {coverAttention ? (
           <span
             data-cover-attention
@@ -7404,6 +7493,14 @@ export function GameLibraryCard({
           // Sizes grow with the tile (styles.css, .covers-hover*).
           <div className="covers-hover pointer-events-none absolute inset-x-0 bottom-0 z-20 flex max-h-full flex-col justify-end bg-gradient-to-b from-black/0 via-black/70 to-black/90 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 group-data-[controller-selected=true]:opacity-100 [&_button]:pointer-events-auto">
             <div className="flex min-w-0 items-center gap-1.5">
+              {originVisible ? (
+                <GameOriginBadges
+                  className="shrink-0"
+                  providers={importedProviders}
+                  emulatorIds={game.emulatorIds}
+                  unknownDurationProviders={unknownDurationProviders}
+                />
+              ) : null}
               <NameHeading
                 className="covers-hover-name line-clamp-2 min-w-0 flex-1 font-bold leading-tight text-white"
                 title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
@@ -7503,16 +7600,14 @@ export function GameLibraryCard({
         className={clsx(
           "game-library-card group relative isolate flex flex-col overflow-hidden transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
           // Covers: depth from soft shadows and the light edge (.covers-edge);
-          // hover brightens the edge, no amber ring. Amber is the cover in
-          // the banner and keyboard focus, green a running game.
+          // hover brightens the edge, no amber ring. Amber is keyboard focus,
+          // green a running game.
           isCovers
             ? clsx(
                 "covers-tile rounded-[10px] bg-surface-hover",
-                bannerSelected
-                  ? "shadow-cover ring-2 ring-accent hover:shadow-cover-lit"
-                  : coverRunning
-                    ? "shadow-[0_0_22px_rgb(var(--color-success)/0.32)] ring-2 ring-success"
-                    : "shadow-cover hover:shadow-cover-lit has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+                coverRunning
+                  ? "shadow-[0_0_22px_rgb(var(--color-success)/0.32)] ring-2 ring-success"
+                  : "shadow-cover hover:shadow-cover-lit has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
               )
             : clsx(
                 "border border-border/70 bg-surface shadow-raised hover:border-accent/80 hover:shadow-card-hover",

@@ -363,6 +363,7 @@ export function Modal({
   bodyClassName,
   dataTour,
   backdropDataTour,
+  anchor = "center",
   children,
 }: {
   size?: ModalSize;
@@ -386,6 +387,10 @@ export function Modal({
   bodyClassName?: string;
   dataTour?: string;
   backdropDataTour?: string;
+  /** "top": the dialog keeps its top edge where it is and grows or shrinks
+   *  downward, so a tabbed dialog whose tabs differ in height (or load in
+   *  steps) never moves its header. Centered by default. */
+  anchor?: "center" | "top";
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -396,7 +401,12 @@ export function Modal({
     <div
       data-tour={backdropDataTour}
       data-modal-backdrop
-      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
+      className={cn(
+        "fixed inset-0 z-50 grid bg-black/65 p-4 backdrop-blur-sm sm:p-6",
+        anchor === "top"
+          ? "items-start justify-items-center pt-[5vh] sm:pt-[5vh]"
+          : "place-items-center",
+      )}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

@@ -29,6 +29,7 @@ mod install_source;
 mod launch;
 mod library;
 mod live_timer;
+mod moved_drives;
 mod notification_overlay;
 mod play_activity;
 mod playstation_pad;
@@ -659,6 +660,7 @@ pub fn run() {
             close_game::close_game_processes,
             launch::reveal_executable,
             launch::verify_launch_paths,
+            moved_drives::find_moved_paths,
             library::library_detect_providers,
             library::library_list_accounts,
             library::library_scan,

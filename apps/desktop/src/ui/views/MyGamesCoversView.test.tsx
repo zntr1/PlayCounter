@@ -11,9 +11,9 @@ import { resolveMyGamesPresentation } from "../myGamesPresentation";
 import { LibraryTestShell } from "./libraryTestShell";
 
 /* The Covers view (Phil, 2026-11-22): only the cover; name, playtime, Play
-   and ⋯ on hover; a running game and anything to do stay visible; a click
-   puts the game in the banner until you leave My Games, without scrolling;
-   with the banner off, a click opens Details. */
+   and ⋯ on hover; a running game and anything to do stay visible. A click on
+   a cover opens its Details (Phil, 2026-11-24: the banner selection it had
+   at first brought nothing, and further down nobody saw it). */
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -129,20 +129,110 @@ it("keeps Covers through a restart and a backup", () => {
   ).not.toThrow();
 });
 
-it("shows only the cover: no badges, seal, source mark or hover column", async () => {
-  useAppStore
-    .getState()
-    .updateGameJournal(
-      { gameId: HADES.gameId, source: "custom", gameName: "Hades" },
-      { favorite: true, status: "playing" },
-    );
+/* Badges in Covers (Phil, 2026-11-24): off when you switch to the view, but
+   you can turn each one on again. Covers keeps its own choices, so turning
+   them on or off there leaves Standard and Large cards as they were. */
+
+/** Hades with a status, a note, a tier and the favorite star. */
+function hadesWithJournal() {
+  const hades = {
+    gameId: HADES.gameId,
+    source: "custom" as const,
+    gameName: "Hades",
+  };
+  useAppStore.getState().updateGameJournal(hades, {
+    favorite: true,
+    status: "playing",
+    note: "Try the spear",
+  });
+  useAppStore.getState().setGameTier(hades, "S");
+}
+
+const BADGES = {
+  origin: (scope: Element) => scope.querySelector('[aria-label^="PlayCounter: "]'),
+  match: (scope: Element) =>
+    scope.textContent?.includes("How this file was matched") ? scope : null,
+  status: (scope: Element) => scope.querySelector('[aria-label^="Status: "]'),
+  notes: (scope: Element) => labelled(scope, "Read note for Hades"),
+  tiers: (scope: Element) => scope.querySelector('[aria-label="Tier: S"]'),
+};
+const SWITCHES = {
+  origin: "#library-show-origin",
+  match: "#library-show-match",
+  status: "#library-show-status",
+  notes: "#library-show-notes",
+  tiers: "#library-show-tiers",
+} as const;
+const box = (id: string) => document.querySelector<HTMLInputElement>(id)!;
+
+it("shows only the cover at first: no badges, seal or source mark, even with them on for Standard cards", async () => {
+  hadesWithJournal();
   await render();
   const hades = card("Hades");
+  for (const [name, find] of Object.entries(BADGES))
+    expect(find(hades), name).toBeNull();
   expect(hades.querySelector('[aria-label="Favorite"]')).toBeNull();
-  expect(hades.querySelector('[aria-label^="Status: "]')).toBeNull();
-  expect(hades.textContent).not.toContain("How this file was matched");
   expect(labelled(hades, "Open journal for Hades")).toBeNull();
   expect(labelled(hades, "Log a missed session for Hades")).toBeNull();
+
+  // Standard cards still show them.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  for (const [name, find] of Object.entries(BADGES))
+    expect(find(card("Hades")), name).not.toBeNull();
+});
+
+it("turns each badge on for Covers in Customize, and Standard cards keep their own choice", async () => {
+  hadesWithJournal();
+  await render();
+  await openCustomize();
+  for (const [name, id] of Object.entries(SWITCHES)) {
+    expect(box(id).disabled, name).toBe(false);
+    expect(box(id).checked, name).toBe(false);
+  }
+
+  for (const [name, id] of Object.entries(SWITCHES)) {
+    await act(async () => box(id).click());
+    expect(box(id).checked, name).toBe(true);
+    expect(BADGES[name as keyof typeof BADGES](card("Hades")), name).not.toBeNull();
+  }
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings).toMatchObject({
+    libraryCoversShowOriginBadges: true,
+    libraryCoversShowMatchBadges: true,
+    libraryCoversShowStatusBadges: true,
+    libraryCoversShowNoteBadges: true,
+    libraryCoversShowTierBadges: true,
+  });
+
+  // Turn Status off again in Covers: Standard cards still show it.
+  await act(async () => box(SWITCHES.status).click());
+  expect(BADGES.status(card("Hades"))).toBeNull();
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(box(SWITCHES.status).checked).toBe(true);
+  expect(BADGES.status(card("Hades"))).not.toBeNull();
+
+  // And turning one off for Standard cards leaves Covers as it is.
+  await act(async () => box(SWITCHES.tiers).click());
+  expect(BADGES.tiers(card("Hades"))).toBeNull();
+  await act(async () => useAppStore.getState().setMyGamesCardSize("covers"));
+  expect(box(SWITCHES.tiers).checked).toBe(true);
+  expect(BADGES.tiers(card("Hades"))).not.toBeNull();
+});
+
+it("keeps the Covers badge choices in a backup", () => {
+  for (const key of [
+    "libraryCoversShowOriginBadges",
+    "libraryCoversShowMatchBadges",
+    "libraryCoversShowStatusBadges",
+    "libraryCoversShowNoteBadges",
+    "libraryCoversShowTierBadges",
+  ]) {
+    expect(() =>
+      validateBackupData({ settings: { [key]: true } }, "data"),
+    ).not.toThrow();
+    expect(() =>
+      validateBackupData({ settings: { [key]: "on" } }, "data"),
+    ).toThrow();
+  }
 });
 
 it("has the name, playtime, Play and ⋯ on the cover for hover", async () => {
@@ -155,39 +245,20 @@ it("has the name, playtime, Play and ⋯ on the cover for hover", async () => {
   expect(document.querySelector('[role="menu"]')).not.toBeNull();
 });
 
-it("puts a clicked cover in the banner without pinning it", async () => {
+it("opens Details on a click, and leaves the banner as it was", async () => {
   await render();
   const before = bannerTitle();
   const other = before === "Hades" ? "Celeste" : "Hades";
-  const cover = labelled(card(other), `Show ${other} in the banner`)!;
-  expect(cover.getAttribute("aria-pressed")).toBe("false");
 
-  await act(async () => cover.click());
-
-  expect(bannerTitle()).toBe(other);
-  expect(
-    labelled(card(other), `Show ${other} in the banner`)!.getAttribute(
-      "aria-pressed",
-    ),
-  ).toBe("true");
-  expect(useAppStore.getState().settings.libraryFeaturedGame ?? null).toBe(
-    null,
-  );
-});
-
-it("gives the banner back once you leave My Games", async () => {
-  await render();
-  const before = bannerTitle();
-  const other = before === "Hades" ? "Celeste" : "Hades";
   await act(async () =>
-    labelled(card(other), `Show ${other} in the banner`)!.click(),
+    labelled(card(other), `Open details for ${other}`)!.click(),
   );
-  expect(bannerTitle()).toBe(other);
 
-  await act(async () => useAppStore.getState().setActiveView("now"));
-  await act(async () => useAppStore.getState().setActiveView("games"));
-
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+    other,
+  );
   expect(bannerTitle()).toBe(before);
+  expect(container.textContent).not.toContain("Selected");
 });
 
 it("opens Details from a click when the banner is off", async () => {
@@ -196,7 +267,6 @@ it("opens Details from a click when the banner is off", async () => {
   }));
   await render();
   expect(bannerTitle()).toBeUndefined();
-  expect(labelled(card("Celeste"), "Show Celeste in the banner")).toBeNull();
 
   await act(async () =>
     labelled(card("Celeste"), "Open details for Celeste")!.click(),
@@ -256,35 +326,17 @@ it("marks a game with something to do, and says what on hover", async () => {
   expect(card("Portal 2").querySelector("[data-cover-attention]")).toBeNull();
 });
 
-it("says in Customize that card details don't apply to Covers", async () => {
+it("says in Customize that Covers keeps its own badge choices", async () => {
   await render();
-  await act(async () => labelled(container, "Customize library view")!.click());
-  expect(document.body.textContent).toContain(
-    "The Covers view shows only the cover, so these apply to Standard and Large cards.",
-  );
-  for (const id of [
-    "show-origin",
-    "show-match",
-    "show-status",
-    "show-notes",
-    "show-tiers",
-  ])
-    expect(
-      document.querySelector<HTMLInputElement>(`#library-${id}`)?.disabled,
-      id,
-    ).toBe(true);
-  expect(
-    document.querySelector<HTMLInputElement>("#library-show-tracking-warnings")
-      ?.disabled,
-  ).toBe(false);
+  await openCustomize();
+  const note =
+    "The Covers view keeps its own choices here, all off until you turn them on.";
+  expect(document.body.textContent).toContain(note);
+  // Tracking warnings are one switch for every view.
+  expect(box("#library-show-tracking-warnings").disabled).toBe(false);
 
   await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
-  expect(document.body.textContent).not.toContain(
-    "The Covers view shows only the cover",
-  );
-  expect(
-    document.querySelector<HTMLInputElement>("#library-show-status")?.disabled,
-  ).toBe(false);
+  expect(document.body.textContent).not.toContain(note);
 });
 
 /* The polish (Phil, 2026-11-22, docs/cover-view-polish-mockups.html): 4
@@ -325,7 +377,7 @@ const litGlows = () =>
 // The pointer enters a cover: it lands on the cover's full-size button.
 const pointAt = (name: string) =>
   act(async () => {
-    labelled(card(name), `Show ${name} in the banner`)!.dispatchEvent(
+    labelled(card(name), `Open details for ${name}`)!.dispatchEvent(
       new MouseEvent("pointerover", { bubbles: true }),
     );
   });
@@ -351,6 +403,31 @@ it("loads the covers at least Sharp, even with Cover quality on Standard", async
   expect(coverImage("Hades").getAttribute("src")).toBe(
     igdbCover("t_cover_big", "hades"),
   );
+});
+
+// Phil, 2026-11-24: arrow keys and a controller get the same as the mouse.
+// Both mark the card (data-controller-selected) and focus it, as the
+// controller bridge's focusItem does.
+async function selectWithKeys(name: string) {
+  for (const item of container.querySelectorAll("[data-controller-selected]"))
+    item.removeAttribute("data-controller-selected");
+  const target = card(name) as HTMLElement;
+  target.setAttribute("data-controller-selected", "true");
+  await act(async () => target.focus());
+}
+
+it("glows behind the cover picked with the arrow keys or a controller, and stops when the pick leaves the grid", async () => {
+  withCovers();
+  await render();
+  await selectWithKeys("Hades");
+  expect(litGlows()).toEqual([coverImage("Hades").getAttribute("src")]);
+
+  await selectWithKeys("Celeste");
+  expect(litGlows()).toEqual([coverImage("Celeste").getAttribute("src")]);
+
+  // Escape or Tab out of the grid.
+  await act(async () => (card("Celeste") as HTMLElement).blur());
+  expect(litGlows()).toEqual([]);
 });
 
 it("glows in the colors of the cover under the pointer, and stops when the pointer leaves", async () => {
@@ -401,9 +478,9 @@ it("has Spotlight in Customize for the Covers view, off until you turn it on", a
 
   expect(spotlight()!.checked).toBe(true);
   expect(spotlightOn()).toBe(true);
-  expect(
-    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
-  ).toMatchObject({ libraryCoverSpotlight: true });
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings).toMatchObject(
+    { libraryCoverSpotlight: true },
+  );
 
   // Only the Covers view has it.
   await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
@@ -417,4 +494,55 @@ it("keeps Spotlight in a backup", () => {
   expect(() =>
     validateBackupData({ settings: { libraryCoverSpotlight: "on" } }, "data"),
   ).toThrow();
+});
+
+/* The space between covers (Phil, 2026-11-24): a slider in Customize for the
+   Covers view, 8 to 128 px, at 44 (the polish's room to breathe) until the
+   player moves it. Rows get a little more than columns. */
+const gapSlider = () =>
+  document.querySelector<HTMLInputElement>("#library-cover-gap");
+const coverGrid = () => card("Hades").parentElement!;
+
+async function setGap(value: number) {
+  const slider = gapSlider()!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(slider, String(value));
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+it("has a slider for the space between covers in Customize, at 44 until you move it", async () => {
+  await render();
+  await openCustomize();
+  const slider = gapSlider()!;
+  expect([slider.min, slider.max, slider.value]).toEqual(["8", "128", "44"]);
+  expect(coverGrid().style.columnGap).toBe("44px");
+  expect(coverGrid().style.rowGap).toBe("56px");
+
+  await setGap(12);
+
+  expect(gapSlider()!.value).toBe("12");
+  expect(coverGrid().style.columnGap).toBe("12px");
+  expect(coverGrid().style.rowGap).toBe("15px");
+  expect(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
+  ).toMatchObject({ libraryCoverGap: 12 });
+
+  // Only the Covers view has it, and only there are the gaps set.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(gapSlider()).toBeNull();
+  expect(coverGrid().style.columnGap).toBe("");
+});
+
+it("keeps the space between covers in a backup", () => {
+  expect(() =>
+    validateBackupData({ settings: { libraryCoverGap: 24 } }, "data"),
+  ).not.toThrow();
+  for (const junk of [4, 132, "wide", 12.5])
+    expect(() =>
+      validateBackupData({ settings: { libraryCoverGap: junk } }, "data"),
+    ).toThrow();
 });

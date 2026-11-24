@@ -297,12 +297,22 @@
 
 [data-banner-layout="full"] {
   --banner-height: clamp(300px, 40vh, 360px);
-  --banner-tail: 144px;
+  /* The art reaches 560px below the card, behind the library. --art-tail
+     is how far the sharp picture reaches: the card keeps its crop, and below
+     it a blurred copy carries the colors on (.library-banner-soft). */
+  --banner-tail: 560px;
+  --art-tail: 144px;
 }
 
 [data-banner-layout="compact"] {
   --banner-height: 200px;
   --banner-tail: 112px;
+  --art-tail: 112px;
+}
+
+/* The sharp continuation fades into the blurred one below it. */
+.library-banner-continuation .library-banner-sharp {
+  mask-image: linear-gradient(180deg, #000 calc(100% - 140px), transparent);
 }
 
 /* Continue the same picture around the card, fading out through the side
@@ -1861,15 +1871,78 @@ body.shift-held
   visibility: hidden;
 }
 
-/* Covers fade in once loaded instead of popping in (GameCover), in every
-   view. A transition, dropped when it ends: an animation left applying keeps
-   an image softer in WebView2 (the banner art had that). */
-img[data-cover-loading] {
-  opacity: 0;
+/* Covers, art and screenshots shimmer while they load and fade in once
+   loaded instead of popping in (useImageFadeIn), in every view (variant A of
+   docs/image-loading-mockups.html, Phil 2026-11-24). The shimmer is the
+   image's own background: a light band sweeping over a faint fill, in the
+   text colour so it works in both themes. object-position pushes a
+   half-loaded picture out of the box, so it never paints in rows.
+
+   The shimmer replaces any animation of the image while it loads, so art
+   with its own entrance animation (.library-hero-art, .history-hero-art)
+   plays it once the image is there, not on an empty frame. Those already
+   fade from 0; every other image gets img-fade-in (:where, so an image's own
+   animation wins). Neither has a lasting fill: one left applying keeps an
+   image softer in WebView2 (the banner art had that).
+
+   data-no-shimmer: game covers (GameCover: hundreds of lazy covers would
+   all keep animating) and art that only decorates (the strip behind the
+   title bar, the art around the banner) stay hidden while they load, as
+   before. A picture that failed stays hidden and stops shimmering.
+   .img-shimmer: the same shimmer on a box with no image yet (a screenshot
+   whose preview is still being made). */
+img[data-img-loading] {
+  object-position: -99999px 0;
 }
 
-img[data-cover-fade-in] {
-  transition: opacity 0.4s ease-out;
+img[data-img-loading],
+.img-shimmer {
+  background-color: rgb(var(--color-text) / 0.04);
+  background-image: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgb(var(--color-text) / 0.06) 45%,
+    rgb(var(--color-text) / 0.09) 50%,
+    rgb(var(--color-text) / 0.06) 55%,
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+  background-size: 250% 100%;
+  animation: img-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes img-shimmer {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+img[data-img-loading][data-no-shimmer],
+img[data-img-failed] {
+  opacity: 0;
+  background: none;
+  animation: none;
+}
+
+:where(img[data-img-fade-in]) {
+  animation: img-fade-in 0.4s ease-out backwards;
+}
+
+@keyframes img-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img[data-img-loading],
+  .img-shimmer {
+    animation: none;
+    background-position: 50% 0;
+  }
 }
 
 /* ── Covers view (My Games) ─────────────────────────────────────────────
@@ -1883,10 +1956,11 @@ img[data-cover-fade-in] {
     0 22px 40px -18px rgb(0 0 0 / 0.7);
   --shadow-cover-lit: 0 1px 2px rgb(0 0 0 / 0.5);
   --cover-edge:
-    inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.06),
-    inset 0 -1px 0 rgb(0 0 0 / 0.4);
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    inset 0 0 0 1px rgb(255 255 255 / 0.06), inset 0 -1px 0 rgb(0 0 0 / 0.4);
   --cover-edge-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.26);
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 0 0 1px rgb(255 255 255 / 0.26);
 }
 
 :root[data-theme="light"] {
@@ -1909,7 +1983,14 @@ img[data-cover-fade-in] {
   pointer-events: none;
 }
 
-.covers-tile:hover .covers-edge {
+/* Under the pointer, or picked with the arrow keys, a controller or Tab. */
+.covers-tile:hover .covers-edge,
+.covers-tile:is(
+    [data-controller-selected="true"],
+    :focus-visible,
+    :has(:focus-visible)
+  )
+  .covers-edge {
   box-shadow: var(--cover-edge-hover);
 }
 
@@ -1990,8 +2071,20 @@ img[data-cover-fade-in] {
   pointer-events: none;
 }
 
-[data-cover-spotlight]:has(.covers-tile:hover)
-  .covers-tile:not(:hover)
+/* The cover in front: under the pointer, or picked with the arrow keys, a
+   controller or Tab. Both stay lit when the mouse and the keys point at
+   different covers. */
+[data-cover-spotlight]:has(
+    .covers-tile:is(
+      :hover,
+      [data-controller-selected="true"],
+      :focus-visible,
+      :has(:focus-visible)
+    )
+  )
+  .covers-tile:not(:hover):not([data-controller-selected="true"]):not(
+    :focus-visible
+  ):not(:has(:focus-visible))
   .covers-dim {
   opacity: 0.5;
 }

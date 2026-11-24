@@ -286,6 +286,13 @@ import {
   startWatchFolderLinks,
 } from "./library/watchFolders";
 import {
+  failedOnItsFile,
+  findMovedDrives,
+  findMovedFiles,
+  relinkMovedFolders,
+  resetMovedDrives,
+} from "./library/movedDrives";
+import {
   isInsideFolder,
   readWatchFolders,
   restoreDismissedFolder,
@@ -728,6 +735,7 @@ async function finishTrackerStartup() {
     launchVerificationInFlight = undefined;
     installPresencePingInFlight = undefined;
     lastLaunchVerificationAt = 0;
+    resetMovedDrives();
     disposeDesktopOverlays();
     disposeHotkeys();
     disposeQuickNotes();
@@ -747,6 +755,9 @@ async function finishTrackerStartup() {
 
   readyTimer = window.setTimeout(() => {
     readyWork = (async () => {
+      // A disk with a new drive letter: its stored paths move before the
+      // Play check below would forget them (docs/drive-letter-plan.md).
+      await findMovedDrives("startup");
       const suppressStartupNotifications =
         useAppStore.getState().suppressStartupNotificationsOnce;
       if (identityResolved) {
@@ -1879,6 +1890,13 @@ function recordLaunchTargets(matches: ProcessMatch[]) {
 export async function launchGame(
   target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
 ): Promise<LaunchOutcome> {
+  return launchGameFile(target, true);
+}
+
+async function launchGameFile(
+  target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
+  lookForMove: boolean,
+): Promise<LaunchOutcome> {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
     throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
@@ -1895,6 +1913,15 @@ export async function launchGame(
     return "launched";
   } catch (error) {
     launchInFlight.delete(key);
+    // The disk may have come back under a new letter while PlayCounter ran
+    // (docs/drive-letter-plan.md): look there before forgetting the file.
+    if (lookForMove && failedOnItsFile(error)) {
+      const movedTo = (await findMovedFiles([target.path], "play")).get(key);
+      if (movedTo) {
+        logRuntime(`game launch file found on another drive ${target.exeName}`);
+        return launchGameFile({ ...target, path: movedTo }, false);
+      }
+    }
     if (shouldForgetOnLaunchError(launchErrorKind(error))) {
       const state = useAppStore.getState();
       const exeKey = target.exeName.toLowerCase();
@@ -2316,6 +2343,7 @@ async function dispatchEmulatorLaunch(
   emulatorId: string,
   request: { emulatorId: string; exePath: string; contentPath: string },
   logContext?: string,
+  lookForMove = true,
 ): Promise<EmulatorLaunchOutcome> {
   if (isEmulatorLaunchGuarded(emulatorId)) return { kind: "busy" };
   emulatorLaunchInFlight.set(emulatorId, Number.POSITIVE_INFINITY);
@@ -2341,6 +2369,30 @@ async function dispatchEmulatorLaunch(
     return outcome;
   } catch (error) {
     emulatorLaunchInFlight.delete(emulatorId);
+    // The program or game file may sit on a disk with a new letter.
+    if (lookForMove && failedOnItsFile(error)) {
+      const moves = await findMovedFiles(
+        [request.exePath, request.contentPath],
+        "emulator-play",
+      );
+      const exePath = moves.get(request.exePath.toLowerCase());
+      const contentPath = moves.get(request.contentPath.toLowerCase());
+      if (exePath || contentPath) {
+        logRuntime(
+          `emulator launch files found on another drive emulator=${emulatorId}${suffix}`,
+        );
+        return dispatchEmulatorLaunch(
+          emulatorId,
+          {
+            ...request,
+            exePath: exePath ?? request.exePath,
+            contentPath: contentPath ?? request.contentPath,
+          },
+          logContext,
+          false,
+        );
+      }
+    }
     if (shouldForgetEmulatorOnLaunchError(error)) {
       void verifyLaunchTargets("emulator-launch-error");
     }
@@ -2475,6 +2527,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     ? await applyEmulatorReadings(hostProcesses)
     : disableEmulatorDetectionForScan();
   useAppStore.getState().setProcesses(toPublicSnapshots(normalized));
+  // Game.exe from a disk that came back under a new letter finds its folder
+  // link or ignore before this scan sorts it.
+  await relinkMovedFolders(normalProcesses);
 
   const state = useAppStore.getState();
   // Ignoring one folder's Game.exe leaves every other Game.exe tracked.

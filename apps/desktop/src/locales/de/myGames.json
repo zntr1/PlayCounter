@@ -755,9 +755,9 @@
   "Selected games already have no tier": "Die ausgewählten Spiele haben schon kein Tier",
   "Covers view": "Cover-Ansicht",
   "Covers": "Cover",
-  "Selected": "Ausgewählt",
-  "Show {{name}} in the banner": "{{name}} im Banner zeigen",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Die Cover-Ansicht zeigt nur das Cover, daher gelten diese Einstellungen für Standardkacheln und große Kacheln.",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "Die Cover-Ansicht hat hier eigene Einstellungen, alle aus, bis du sie einschaltest.",
   "Spotlight on hover": "Spotlight beim Zeigen",
-  "The other covers step back while you point at one.": "Die anderen Cover treten zurück, während du auf eines zeigst."
+  "The other covers step back while you point at one.": "Die anderen Cover treten zurück, während du auf eines zeigst.",
+  "Space between covers": "Abstand zwischen den Covern",
+  "How much room the covers get around them.": "Wie viel Platz die Cover um sich herum bekommen."
 }

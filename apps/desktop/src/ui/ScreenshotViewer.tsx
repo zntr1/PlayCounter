@@ -20,13 +20,18 @@ import { createPortal } from "react-dom";
 import {
   closeScreenshotViewer,
   deleteScreenshot,
+  isWebPicture,
   openScreenshot,
   revealScreenshot,
   screenshotSource,
   setScreenshotCaption,
   useScreenshotViewer,
   type Screenshot,
+  type ViewerPicture,
 } from "../screenshots";
+import { ArtImage } from "./ArtImage";
+import { igdbScreenshotLarge, igdbScreenshotThumb } from "./artSrcSet";
+import { ScreenshotThumb } from "./SessionScreenshots";
 import { isSampleShot } from "../screenshotSample";
 import { useAppStore } from "../store";
 import { IconButton, useDialogFocus, useEscapeKey } from "./primitives";
@@ -38,7 +43,9 @@ const t = getT("history");
 /** One line, like a photo caption (screenshot/caption.rs). */
 const CAPTION_LIMIT = 150;
 
-/** A session's screenshots, one at a time, over the whole window. */
+/** Screenshots, one at a time, over the whole window: a session's own, or a
+ *  game's own and IGDB's (Game Details). IGDB's have no file, so no caption
+ *  or file buttons. A row of all of them runs below. */
 export function ScreenshotViewer() {
   const shots = useScreenshotViewer((state) => state.shots);
   if (!shots.length) return null;
@@ -61,7 +68,9 @@ function OpenViewer() {
       })),
     [],
   );
-  useEffect(() => setMissing(false), [shot.path]);
+  const web = isWebPicture(shot);
+  const shotKey = pictureKey(shot);
+  useEffect(() => setMissing(false), [shotKey]);
 
   // The title and buttons line up with the picture's edges, so they take
   // its width as shown.
@@ -79,7 +88,7 @@ function OpenViewer() {
     const observer = new ResizeObserver(measure);
     observer.observe(image);
     return () => observer.disconnect();
-  }, [shot.path, missing]);
+  }, [shotKey, missing]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -107,10 +116,13 @@ function OpenViewer() {
     });
 
   async function remove() {
+    if (isWebPicture(shot)) return;
     setDeleting(true);
     try {
       await deleteScreenshot(shot.path);
-      const rest = shots.filter((entry) => entry.path !== shot.path);
+      const rest = shots.filter(
+        (entry) => isWebPicture(entry) || entry.path !== shot.path,
+      );
       if (!rest.length) closeScreenshotViewer();
       else
         useScreenshotViewer.setState({
@@ -129,24 +141,35 @@ function OpenViewer() {
     }
   }
 
-  const takenAt = new Date(shot.takenAtMs).toLocaleString(appLocale(), {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-  const name = title || shot.folder;
+  const takenAt = web
+    ? ""
+    : new Date(shot.takenAtMs).toLocaleString(appLocale(), {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+  const name = title || (web ? "" : shot.folder);
+  const position = { index: index + 1, total: shots.length };
 
   return createPortal(
     <div
       data-modal-backdrop
-      data-tour={isSampleShot(shot.path) ? "demo-screenshot-viewer" : undefined}
+      data-tour={
+        !web && isSampleShot(shot.path) ? "demo-screenshot-viewer" : undefined
+      }
       className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) closeScreenshotViewer();
       }}
     >
       <ModalWindowDragRegion />
+      {/* The panel fills the screen, so the empty space around the picture
+          is the panel itself: a click there closes the viewer, like one on
+          the backdrop. */}
       <div
         ref={panelRef}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeScreenshotViewer();
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="screenshot-viewer-title"
@@ -171,48 +194,29 @@ function OpenViewer() {
               {name || t("Screenshot")}
             </h2>
             <p className="text-sm text-white/60">
-              {shots.length > 1
-                ? t("{{takenAt}} · {{index}} of {{total}}", {
-                    takenAt,
-                    index: index + 1,
-                    total: shots.length,
-                  })
-                : takenAt}
+              {web
+                ? shots.length > 1
+                  ? t("Screenshot from IGDB · {{index}} of {{total}}", position)
+                  : t("Screenshot from IGDB")
+                : shots.length > 1
+                  ? t("{{takenAt}} · {{index}} of {{total}}", {
+                      takenAt,
+                      ...position,
+                    })
+                  : takenAt}
             </p>
           </div>
           {/* Above the window's drag region, which reaches as far down as
               the app's title bar; the title stays draggable. */}
           <div className="relative z-10 flex items-center gap-3">
-            <IconButton
-              icon={ExternalLink}
-              aria-label={t("Open in your picture app")}
-              title={t("Open in your picture app")}
-              onClick={() =>
-                void openScreenshot(shot.path).catch((error) => {
-                  console.error("screenshot open failed", error);
-                  failed();
-                })
-              }
-            />
-            <IconButton
-              icon={FolderOpen}
-              aria-label={t("Show in folder")}
-              title={t("Show in folder")}
-              onClick={() =>
-                void revealScreenshot(shot.path).catch((error) => {
-                  console.error("screenshot reveal failed", error);
-                  failed();
-                })
-              }
-            />
-            <IconButton
-              icon={Trash2}
-              intent="danger"
-              disabled={deleting}
-              aria-label={t("Move to the Recycle Bin")}
-              title={t("Move to the Recycle Bin")}
-              onClick={() => void remove()}
-            />
+            {web ? null : (
+              <OwnPictureButtons
+                shot={shot}
+                deleting={deleting}
+                onFailed={failed}
+                onRemove={() => void remove()}
+              />
+            )}
             <IconButton
               icon={X}
               aria-label={t("Close")}
@@ -231,22 +235,36 @@ function OpenViewer() {
           </div>
         ) : (
           <>
-            {/* Leaves room for the title above and the caption below. */}
-            <img
-              key={shot.path}
+            {/* Leaves room for the title above, the caption and the row of
+                all pictures below. While it loads it has no size of its own,
+                so it holds a 16:9 box as tall as it may get, and shimmers. */}
+            <ArtImage
+              key={shotKey}
               ref={imageRef}
-              src={screenshotSource(shot.path)}
-              alt={t("Screenshot from {{takenAt}}", { takenAt })}
+              src={
+                web ? igdbScreenshotLarge(shot.url) : screenshotSource(shot.path)
+              }
+              alt={
+                web
+                  ? t("Screenshot from IGDB")
+                  : t("Screenshot from {{takenAt}}", { takenAt })
+              }
               decoding="async"
               draggable={false}
               onError={() => setMissing(true)}
-              className="max-h-[calc(100%-8.5rem)] min-h-0 max-w-full rounded-lg object-contain shadow-raised"
+              className={clsx(
+                "min-h-0 max-w-full rounded-lg object-contain shadow-raised data-[img-loading]:aspect-video data-[img-loading]:h-full",
+                shots.length > 1
+                  ? "max-h-[calc(100%-13rem)]"
+                  : "max-h-[calc(100%-8.5rem)]",
+              )}
             />
             <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
-              <CaptionLine key={shot.path} shot={shot} />
+              {web ? null : <CaptionLine key={shotKey} shot={shot} />}
             </div>
           </>
         )}
+        {shots.length > 1 ? <PictureRow shots={shots} index={index} /> : null}
         {shots.length > 1 ? (
           <>
             <IconButton
@@ -268,6 +286,124 @@ function OpenViewer() {
       </div>
     </div>,
     document.body,
+  );
+}
+
+function pictureKey(picture: ViewerPicture) {
+  return isWebPicture(picture) ? picture.url : picture.path;
+}
+
+/** Open, Show in folder and Recycle Bin: only a picture of the player's own
+ *  has a file. */
+function OwnPictureButtons({
+  shot,
+  deleting,
+  onFailed: failed,
+  onRemove,
+}: {
+  shot: Screenshot;
+  deleting: boolean;
+  onFailed: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <>
+      <IconButton
+        icon={ExternalLink}
+        aria-label={t("Open in your picture app")}
+        title={t("Open in your picture app")}
+        onClick={() =>
+          void openScreenshot(shot.path).catch((error) => {
+            console.error("screenshot open failed", error);
+            failed();
+          })
+        }
+      />
+      <IconButton
+        icon={FolderOpen}
+        aria-label={t("Show in folder")}
+        title={t("Show in folder")}
+        onClick={() =>
+          void revealScreenshot(shot.path).catch((error) => {
+            console.error("screenshot reveal failed", error);
+            failed();
+          })
+        }
+      />
+      <IconButton
+        icon={Trash2}
+        intent="danger"
+        disabled={deleting}
+        aria-label={t("Move to the Recycle Bin")}
+        title={t("Move to the Recycle Bin")}
+        onClick={onRemove}
+      />
+    </>
+  );
+}
+
+/** Every picture as a small one, the shown one marked; a click shows it.
+ *  The player's own come first, IGDB's after a line. */
+function PictureRow({
+  shots,
+  index,
+}: {
+  shots: ViewerPicture[];
+  index: number;
+}) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView?.({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [index]);
+  return (
+    <ul
+      aria-label={t("All screenshots")}
+      className="mt-2 flex max-w-full shrink-0 items-center gap-1.5 overflow-x-auto px-1 py-1"
+    >
+      {shots.map((picture, position) => {
+        const web = isWebPicture(picture);
+        const afterOwn = position > 0 && !isWebPicture(shots[position - 1]);
+        return (
+          <li key={pictureKey(picture)} className="flex shrink-0 items-center">
+            {web && afterOwn ? (
+              <span aria-hidden className="mx-2 h-8 w-px bg-white/20" />
+            ) : null}
+            <button
+              ref={position === index ? activeRef : undefined}
+              type="button"
+              aria-label={t("Open screenshot {{index}} of {{total}}", {
+                index: position + 1,
+                total: shots.length,
+              })}
+              aria-current={position === index ? "true" : undefined}
+              onClick={() => useScreenshotViewer.setState({ index: position })}
+              className={clsx(
+                "relative block h-12 w-[86px] overflow-hidden rounded-md bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                position === index
+                  ? "opacity-100 ring-2 ring-accent"
+                  : "opacity-50 hover:opacity-90",
+              )}
+            >
+              {web ? (
+                <ArtImage
+                  src={igdbScreenshotThumb(picture.url)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ScreenshotThumb shot={picture} />
+              )}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

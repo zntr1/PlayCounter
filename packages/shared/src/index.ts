@@ -809,9 +809,20 @@ export interface Settings {
   libraryShowTierBadges?: boolean;
   /** Warn on covers of games with no known .exe yet. Absent = enabled. */
   libraryShowTrackingWarnings?: boolean;
+  /** Covers view: its own badge choices, so Standard and Large cards keep
+   *  theirs. Absent = off: the Covers view shows only the cover until the
+   *  player turns a badge on there. */
+  libraryCoversShowOriginBadges?: boolean;
+  libraryCoversShowMatchBadges?: boolean;
+  libraryCoversShowStatusBadges?: boolean;
+  libraryCoversShowNoteBadges?: boolean;
+  libraryCoversShowTierBadges?: boolean;
   /** Covers view: the other covers step back while one is pointed at.
    *  Absent = off. */
   libraryCoverSpotlight?: boolean;
+  /** Covers view: the space between covers in px, 8-128 (columns; rows get
+   *  a little more). Absent = 44. */
+  libraryCoverGap?: number;
   /** Request IGDB cover art one size up. Absent = off, the smaller default.
    *  Replaced by coverQuality; still read while coverQuality is absent. */
   libraryHighResCovers?: boolean;

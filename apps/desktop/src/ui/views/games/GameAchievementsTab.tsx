@@ -57,6 +57,7 @@ import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
 import { Button, Pill, Select } from "../../primitives";
 import type { GameSummary } from "../MyGamesView";
+import { SkeletonBar } from "./detailsPanels";
 import { XboxSignInWait } from "./XboxSignInWait";
 import { findTour } from "../../tour/tourDefinitions";
 import {
@@ -752,11 +753,47 @@ function KeptLoginAchievements<S extends string>({
   );
 }
 
+/** While a list is read: the overview, the filters and rows in grey, about
+ *  as tall as a list. The details dialog grows with its tab, so one line of
+ *  text here made it shrink and grow again once the list came in. */
 function Reading() {
   return (
-    <p role="status" className="py-6 text-center text-sm text-text-muted">
-      {t("Reading achievements…")}
-    </p>
+    <div role="status" className="grid gap-4">
+      <span className="sr-only">{t("Reading achievements…")}</span>
+      <div className="rounded-xl border border-border bg-bg p-4">
+        <div className="flex items-center gap-4">
+          <SkeletonBar className="h-12 w-12 shrink-0 rounded-full" />
+          <div className="grid flex-1 gap-2">
+            <SkeletonBar className="h-4 w-40" />
+            <SkeletonBar className="h-7 w-28" />
+          </div>
+        </div>
+        <SkeletonBar className="mt-3 h-1.5 w-full rounded-full" />
+      </div>
+      <div className="flex gap-2">
+        {["w-24", "w-28", "w-24"].map((width, index) => (
+          <SkeletonBar
+            key={index}
+            className={clsx("h-8 rounded-full", width)}
+          />
+        ))}
+      </div>
+      <ul className="grid gap-2">
+        {Array.from({ length: 8 }, (_, index) => (
+          <li
+            key={index}
+            data-achievement-placeholder-row
+            className="flex items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2.5"
+          >
+            <SkeletonBar className="h-12 w-12 shrink-0 rounded-md" />
+            <div className="grid flex-1 gap-2">
+              <SkeletonBar className="h-4 w-1/3" />
+              <SkeletonBar className="h-4 w-2/3" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
