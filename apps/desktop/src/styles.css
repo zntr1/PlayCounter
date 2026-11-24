@@ -1885,9 +1885,10 @@ body.shift-held
    animation wins). Neither has a lasting fill: one left applying keeps an
    image softer in WebView2 (the banner art had that).
 
-   data-no-shimmer: art that only decorates (the strip behind the title bar,
-   the art around the banner, blurred backdrops) stays hidden while it loads,
-   as before. A picture that failed stays hidden and stops shimmering.
+   data-no-shimmer: game covers (GameCover: hundreds of lazy covers would
+   all keep animating) and art that only decorates (the strip behind the
+   title bar, the art around the banner) stay hidden while they load, as
+   before. A picture that failed stays hidden and stops shimmering.
    .img-shimmer: the same shimmer on a box with no image yet (a screenshot
    whose preview is still being made). */
 img[data-img-loading] {

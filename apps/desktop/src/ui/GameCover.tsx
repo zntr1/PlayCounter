@@ -40,9 +40,11 @@ export function GameCover({
     setFallback(failedUpgrades.has(upgradeCoverUrl(src, wanted)));
   }, [src, wanted]);
 
-  /* Shimmers while loading, fades in once loaded instead of popping in
-     (useImageFadeIn). Per mount: a cover that changes its src keeps showing,
-     it doesn't fade again. */
+  /* Fades in once loaded instead of popping in (useImageFadeIn). Per mount:
+     a cover that changes its src keeps showing, it doesn't fade again.
+     No loading shimmer (data-no-shimmer): a library puts hundreds of lazy
+     covers in the page, and every one not loaded yet would keep animating
+     (Phil, 2026-11-24: covers without it for now). */
   const fadeIn = useImageFadeIn({
     onLoad: rest.onLoad,
     onAnimationEnd: rest.onAnimationEnd,
@@ -55,6 +57,7 @@ export function GameCover({
     <img
       loading="lazy"
       decoding="async"
+      data-no-shimmer
       {...rest}
       {...fadeIn}
       src={fallback ? src : upgraded}
