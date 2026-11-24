@@ -810,6 +810,18 @@ describe("Epic Games", () => {
     expect(container.textContent).toContain("Reading achievements…");
   });
 
+  // Phil, 2026-11-24: the details dialog jumped from one line to the list.
+  // While it reads, the tab holds the shape and height of a list.
+  it("holds the shape of a list while it reads, not a single line", async () => {
+    nothingSaved();
+    epic(() => new Promise(() => {}));
+    await render(sugar);
+    const placeholder = container.querySelector('[role="status"]')!;
+    expect(
+      placeholder.querySelectorAll("[data-achievement-placeholder-row]").length,
+    ).toBeGreaterThanOrEqual(8);
+  });
+
   it("a refresh that fails keeps the saved list on screen, with the line above it", async () => {
     saved([achievement("1", { name: "Stocked", unlocked: true, xp: 50 })]);
     epic(() => ({ status: "blocked" }));
