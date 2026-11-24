@@ -434,6 +434,7 @@ export function AmbiguousMatchCard({
           unidentified
           demo={Boolean(sample)}
           exeName={exeName}
+          folder={folder ?? undefined}
           gameName=""
           onCancel={() => setNotAGameOpen(false)}
           // Known software already has its own tile above.

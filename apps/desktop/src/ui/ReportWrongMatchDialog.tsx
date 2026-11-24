@@ -99,19 +99,33 @@ function notThisGameCopy(gameName: string, exeName: string, reported: boolean) {
   };
 }
 
-// Game.exe and co.: only this folder is ignored, and nothing is ever reported.
-function genericFolderCopy(exeName: string) {
+// Game.exe and co.: only this file in its folder is ignored, and nothing is
+// ever reported. The words name the file: "Ignore this folder" read as the
+// whole folder, every game in it included.
+function genericFolderCopy(exeName: string, folder?: string) {
   return {
-    title: t("Ignore this folder's file on this PC?"),
+    title: t("Ignore only this {{exeName}}?", { exeName }),
     points: [
-      t("PlayCounter stops tracking {{exeName}} in this game's folder.", {
-        exeName,
-      }),
+      ...(folder
+        ? [
+            t("PlayCounter stops tracking {{exeName}} in {{folder}}.", {
+              exeName,
+              folder,
+            }),
+            t("Everything else in {{folder}} stays tracked, games included.", {
+              folder,
+            }),
+          ]
+        : [
+            t("PlayCounter stops tracking {{exeName}} in this game's folder.", {
+              exeName,
+            }),
+          ]),
       t("Other games with their own {{exeName}} stay tracked.", { exeName }),
       t("Nothing is reported."),
       t("You can restore it anytime in Discovered."),
     ],
-    action: t("Ignore this folder"),
+    action: t("Ignore only {{exeName}}", { exeName }),
   };
 }
 
@@ -129,6 +143,7 @@ export function ReportWrongMatchDialog({
   onIgnoreApp,
   onNotThisGame,
   unidentified = false,
+  folder,
   demo = false,
 }: {
   /** The file to report. Empty: the user picks one of `files` first. */
@@ -157,6 +172,8 @@ export function ReportWrongMatchDialog({
   /** A file with no game yet (Now Playing's unidentified card): only what
    *  the file is, with the same choices and confirm steps. */
   unidentified?: boolean;
+  /** The folder a Game.exe-like file runs from, named when ignoring it. */
+  folder?: string;
   demo?: boolean;
 }) {
   const reportable = files?.filter(canReportFile) ?? [];
@@ -182,7 +199,7 @@ export function ReportWrongMatchDialog({
       : confirming === "not-this-game"
         ? notThisGameCopy(game, exeName, reportsNotThisGame)
         : isGenericExeName(exeName)
-          ? genericFolderCopy(exeName)
+          ? genericFolderCopy(exeName, folder)
           : confirming === "app"
             ? ignoreAppCopy()
             : confirmCopy()[confirming];

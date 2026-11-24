@@ -125,7 +125,7 @@
   "No cover available": "暂无封面",
   "Sample": "示例",
   "{{exeName}} ignored in {{folderName}}": "已在 {{folderName}} 中忽略 {{exeName}}",
-  "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.": "仅限此文件夹，仅在这台电脑上。使用这个文件名的其他游戏仍会被记录。没有报告任何内容。",
+  "Only this file, only on this PC. The rest of the folder stays tracked, and so do other games with this file name. Nothing was reported.": "仅限此文件，仅在这台电脑上。此文件夹中的其他内容仍会被记录，使用这个文件名的其他游戏也一样。没有报告任何内容。",
   "{{time}} tracked so far": "目前已记录 {{time}}",
   "Probably a game: it's in a folder you watch.": "可能是游戏：它在你监控的文件夹中。",
   "Tracked so far: <time>{{time}}</time>": "目前已记录：<time>{{time}}</time>",

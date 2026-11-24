@@ -125,9 +125,39 @@ it.each(["part of the game, not the game", "Not sure, just ignore it"])(
     await click(choice);
     expect(document.body.textContent).toContain("Nothing is reported.");
     expect(document.body.textContent).not.toContain("community review");
-    expect(button("Ignore this folder")).toBeDefined();
+    // The button names the file: "Ignore this folder" read as the whole
+    // folder, every game in it included.
+    expect(button("Ignore only Game.exe")).toBeDefined();
+    expect(document.body.textContent).not.toContain("Ignore this folder");
   },
 );
+
+it("names the folder of an unidentified Launcher.exe and keeps the rest of it tracked", async () => {
+  // RDR2 installed straight into D:\Games, next to other games.
+  await act(() =>
+    root.render(
+      createElement(ReportWrongMatchDialog, {
+        unidentified: true,
+        exeName: "Launcher.exe",
+        gameName: "",
+        folder: String.raw`D:\Games`,
+        ...handlers,
+      }),
+    ),
+  );
+  await click("Not sure, just ignore it");
+  const text = document.body.textContent ?? "";
+  expect(text).toContain("Ignore only this Launcher.exe?");
+  expect(text).toContain(
+    String.raw`PlayCounter stops tracking Launcher.exe in D:\Games.`,
+  );
+  expect(text).toContain(
+    String.raw`Everything else in D:\Games stays tracked, games included.`,
+  );
+  expect(text).not.toContain("this game's folder");
+  await click("Ignore only Launcher.exe");
+  expect(handlers.onNotPlaying).toHaveBeenCalledWith("Launcher.exe");
+});
 
 it("removes Game.exe only from this game's folder, reporting nothing", async () => {
   await act(() =>

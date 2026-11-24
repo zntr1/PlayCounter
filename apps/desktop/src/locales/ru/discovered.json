@@ -125,7 +125,7 @@
   "No cover available": "Обложки нет",
   "Sample": "Пример",
   "{{exeName}} ignored in {{folderName}}": "{{exeName}} игнорируется в {{folderName}}",
-  "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.": "Только эта папка и только этот ПК. Другие игры с таким именем файла по-прежнему учитываются. Ничего не отправлено.",
+  "Only this file, only on this PC. The rest of the folder stays tracked, and so do other games with this file name. Nothing was reported.": "Только этот файл и только на этом ПК. Остальное в папке по-прежнему учитывается, как и другие игры с таким именем файла. Ничего не отправлено.",
   "{{time}} tracked so far": "Учтено на данный момент: {{time}}",
   "Probably a game: it's in a folder you watch.": "Похоже на игру: она в папке, которую вы отслеживаете.",
   "Tracked so far: <time>{{time}}</time>": "Учтено на данный момент: <time>{{time}}</time>",
