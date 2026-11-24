@@ -230,5 +230,8 @@
   "What's happening in this picture?": "Co dzieje się na tym obrazie?",
   "Enter saves · Esc cancels": "Enter zapisuje · Esc anuluje",
   "The caption couldn't be saved.": "Nie udało się zapisać podpisu.",
-  "{{counter}} in this session: {{value}}": "{{counter}} w tej sesji: {{value}}"
+  "{{counter}} in this session: {{value}}": "{{counter}} w tej sesji: {{value}}",
+  "Screenshot from IGDB": "Zrzut ekranu z IGDB",
+  "Screenshot from IGDB · {{index}} of {{total}}": "Zrzut ekranu z IGDB · {{index}} z {{total}}",
+  "All screenshots": "Wszystkie zrzuty ekranu"
 }

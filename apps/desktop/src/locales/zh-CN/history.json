@@ -206,5 +206,8 @@
   "What's happening in this picture?": "这张图里发生了什么？",
   "Enter saves · Esc cancels": "Enter 保存 · Esc 取消",
   "The caption couldn't be saved.": "无法保存说明。",
-  "{{counter}} in this session: {{value}}": "本次游玩的{{counter}}：{{value}}"
+  "{{counter}} in this session: {{value}}": "本次游玩的{{counter}}：{{value}}",
+  "Screenshot from IGDB": "来自 IGDB 的截图",
+  "Screenshot from IGDB · {{index}} of {{total}}": "来自 IGDB 的截图 · 第 {{index}} 张，共 {{total}} 张",
+  "All screenshots": "全部截图"
 }

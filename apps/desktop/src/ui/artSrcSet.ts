@@ -6,3 +6,10 @@ export function artSrcSet(url: string) {
   if (!url.includes(marker)) return undefined;
   return `${url} 1x, ${url.replace(marker, "/t_1080p_2x/")} 2x`;
 }
+
+/* IGDB's screenshots come at t_1080p too. As small pictures in a grid or a
+   strip they load IGDB's 569px rendition instead; other URLs stay as they
+   are. */
+export function igdbScreenshotThumb(url: string) {
+  return url.replace("/t_1080p/", "/t_screenshot_med/");
+}

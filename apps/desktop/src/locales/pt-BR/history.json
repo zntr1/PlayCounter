@@ -222,5 +222,8 @@
   "What's happening in this picture?": "O que está acontecendo nesta imagem?",
   "Enter saves · Esc cancels": "Enter salva · Esc cancela",
   "The caption couldn't be saved.": "Não foi possível salvar a legenda.",
-  "{{counter}} in this session: {{value}}": "{{counter}} nesta sessão: {{value}}"
+  "{{counter}} in this session: {{value}}": "{{counter}} nesta sessão: {{value}}",
+  "Screenshot from IGDB": "Captura de tela do IGDB",
+  "Screenshot from IGDB · {{index}} of {{total}}": "Captura de tela do IGDB · {{index}} de {{total}}",
+  "All screenshots": "Todas as capturas de tela"
 }

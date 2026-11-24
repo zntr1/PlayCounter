@@ -44,7 +44,9 @@ beforeEach(async () => {
   setCaptionMock.mockReset().mockImplementation(async (path, caption) => {
     const next = { ...withCaption, path, caption };
     useScreenshotViewer.setState((state) => ({
-      shots: state.shots.map((entry) => (entry.path === path ? next : entry)),
+      shots: state.shots.map((entry) =>
+        "path" in entry && entry.path === path ? next : entry,
+      ),
     }));
     return next;
   });

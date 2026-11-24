@@ -1,6 +1,7 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Session } from "@playcounter/shared";
+import { useMemo } from "react";
 import { create } from "zustand";
 import {
   showCurrentSessionOverlay,
@@ -10,7 +11,11 @@ import { screenshotBlackNotification } from "./notifications";
 import { coverOverride } from "./pickedCovers";
 import { isSampleShot, useSampleScreenshots } from "./screenshotSample";
 import { openScreenshotCaptionBox } from "./quickNote";
-import { useAppStore, type ActiveSession } from "./store";
+import {
+  resolvedCanonicalGameKey,
+  useAppStore,
+  type ActiveSession,
+} from "./store";
 
 /* Screenshots (docs/memory-book-plan.md). The screenshot key saves a picture
    of the game to Pictures\PlayCounter\<Game>\. That folder is the whole list:
@@ -166,12 +171,12 @@ let memo: {
 } | null = null;
 const NONE: Screenshot[] = [];
 
-/** The pictures of one session, oldest first. */
-export function useSessionScreenshots(sessionId: number): Screenshot[] {
-  const files = useScreenshots((state) => state.files);
-  const recent = useAppStore((state) => state.recentSessions);
-  const active = useAppStore((state) => state.activeSessions);
-  if (!files.length) return NONE;
+/** Every session's pictures, worked out once per change of the lists. */
+function sessionPictures(
+  files: Screenshot[],
+  recent: Session[],
+  active: ActiveSession[],
+) {
   if (
     !memo ||
     memo.files !== files ||
@@ -185,7 +190,61 @@ export function useSessionScreenshots(sessionId: number): Screenshot[] {
       map: screenshotsBySession(files, [...recent, ...active], Date.now()),
     };
   }
-  return memo.map.get(sessionId) ?? NONE;
+  return memo.map;
+}
+
+/** The pictures of one session, oldest first. */
+export function useSessionScreenshots(sessionId: number): Screenshot[] {
+  const files = useScreenshots((state) => state.files);
+  const recent = useAppStore((state) => state.recentSessions);
+  const active = useAppStore((state) => state.activeSessions);
+  if (!files.length) return NONE;
+  return sessionPictures(files, recent, active).get(sessionId) ?? NONE;
+}
+
+/** One of a game's own pictures, with the session it was taken in when that
+ *  session is still kept. */
+export type GameScreenshot = {
+  shot: Screenshot;
+  session?: Session | ActiveSession;
+};
+
+const NO_GAME_SHOTS: GameScreenshot[] = [];
+
+/** A game's own pictures, newest first (Game Details): those taken in its
+ *  sessions, plus those in its own folder that no kept session claims, such
+ *  as one from a session that has aged out of the list. `gameKey` is the
+ *  game's historyGameKey. */
+export function useGameScreenshots(
+  gameKey: string | null,
+  gameName: string,
+): GameScreenshot[] {
+  const files = useScreenshots((state) => state.files);
+  const recent = useAppStore((state) => state.recentSessions);
+  const active = useAppStore((state) => state.activeSessions);
+  return useMemo(() => {
+    if (!files.length) return NO_GAME_SHOTS;
+    const bySession = sessionPictures(files, recent, active);
+    const result: GameScreenshot[] = [];
+    if (gameKey)
+      for (const session of [...recent, ...active]) {
+        if (resolvedCanonicalGameKey(session) !== gameKey) continue;
+        for (const shot of bySession.get(session.id) ?? [])
+          result.push({ shot, session });
+      }
+    const claimed = new Set(
+      [...bySession.values()].flat().map((shot) => shot.path),
+    );
+    const folder = simplified(gameName);
+    if (folder)
+      for (const shot of files)
+        if (!claimed.has(shot.path) && simplified(shot.folder) === folder)
+          result.push({ shot });
+    if (!result.length) return NO_GAME_SHOTS;
+    return result.sort(
+      (left, right) => right.shot.takenAtMs - left.shot.takenAtMs,
+    );
+  }, [files, recent, active, gameKey, gameName]);
 }
 
 let pidsOf: ((session: ActiveSession) => number[]) | null = null;
@@ -268,8 +327,10 @@ export async function setScreenshotCaption(
       .getState()
       .shots.find((entry) => entry.path === path)!;
     const sample = { ...current, caption: caption?.trim() || null };
-    const swapSample = (shots: Screenshot[]) =>
-      shots.map((entry) => (entry.path === path ? sample : entry));
+    const swapSample = <T extends ViewerPicture>(shots: T[]) =>
+      shots.map((entry) =>
+        !isWebPicture(entry) && entry.path === path ? sample : entry,
+      );
     useSampleScreenshots.setState((state) => ({
       shots: swapSample(state.shots),
     }));
@@ -283,8 +344,10 @@ export async function setScreenshotCaption(
     caption,
   });
   const shot = toScreenshot({ ...file, path });
-  const swap = (shots: Screenshot[]) =>
-    shots.map((entry) => (entry.path === path ? shot : entry));
+  const swap = <T extends ViewerPicture>(shots: T[]) =>
+    shots.map((entry) =>
+      !isWebPicture(entry) && entry.path === path ? shot : entry,
+    );
   useScreenshots.setState((current) => ({ files: swap(current.files) }));
   useScreenshotViewer.setState((current) => ({ shots: swap(current.shots) }));
   return shot;
@@ -431,16 +494,28 @@ export function openScreenshotsFolder() {
   return invoke("screenshot_open_folder");
 }
 
+/** A picture from the web, such as IGDB's screenshots of a game, shown in
+ *  the viewer next to the player's own. It has no file: no caption, folder
+ *  or Recycle Bin. */
+export type WebPicture = { url: string };
+
+/** What the viewer pages through. */
+export type ViewerPicture = Screenshot | WebPicture;
+
+export function isWebPicture(picture: ViewerPicture): picture is WebPicture {
+  return "url" in picture;
+}
+
 /** The picture viewer: the pictures it pages through, the one shown, and the
  *  game's name for its title. */
 export const useScreenshotViewer = create<{
-  shots: Screenshot[];
+  shots: ViewerPicture[];
   index: number;
   title?: string;
 }>(() => ({ shots: [], index: 0 }));
 
 export function openScreenshotViewer(
-  shots: Screenshot[],
+  shots: ViewerPicture[],
   index: number,
   title?: string,
 ) {

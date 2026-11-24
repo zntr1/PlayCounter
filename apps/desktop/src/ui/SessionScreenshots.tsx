@@ -127,7 +127,7 @@ function ScreenshotStrip({
 }
 
 /** The picture's preview, made on the spot when it has none yet. */
-function ScreenshotThumb({ shot }: { shot: Screenshot }) {
+export function ScreenshotThumb({ shot }: { shot: Screenshot }) {
   const [preview, setPreview] = useState(shot.previewPath);
   const [failed, setFailed] = useState(false);
   useEffect(() => {

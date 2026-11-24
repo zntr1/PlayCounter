@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Gamepad2,
   Hourglass,
+  Images,
   Skull,
   Info,
   Loader2,
@@ -77,6 +78,11 @@ import { useHeroLauncher } from "./useHeroLauncher";
 import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 import { Figure, Panel, SkeletonBar, SourceTag } from "./detailsPanels";
+import {
+  GameScreenshotsTab,
+  ScreenshotStrip,
+  useDetailsScreenshots,
+} from "./GameScreenshots";
 import { HowLongToBeatTab } from "./HowLongToBeatTab";
 import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
@@ -137,6 +143,7 @@ type AccountRemoval = {
 export type DetailsTab =
   | "general"
   | "howLongToBeat"
+  | "screenshots"
   | "files"
   | "achievements"
   | "counters";
@@ -340,6 +347,7 @@ export function GameDetailsDialog({
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
     general: null,
     howLongToBeat: null,
+    screenshots: null,
     files: null,
     achievements: null,
     counters: null,
@@ -472,6 +480,12 @@ export function GameDetailsDialog({
   const duration = (seconds: number) =>
     formatDuration(Math.max(0, seconds), showDurationDays);
   const resolved = details.status === "ready" ? details.details : null;
+  // The player's own pictures and IGDB's (GameScreenshots).
+  const screenshots = useDetailsScreenshots(
+    game.historyGameKey,
+    game.name,
+    resolved?.screenshotUrls,
+  );
   const artwork = heroArtwork(demo ? undefined : pickedArt, resolved);
   const igdbUrl =
     resolved?.igdbUrl ??
@@ -564,6 +578,10 @@ export function GameDetailsDialog({
         ]
       : []),
     { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
+    // Only for a game with pictures, own or IGDB's.
+    ...(screenshots.all.length
+      ? [{ id: "screenshots" as const, label: t("Screenshots"), icon: Images }]
+      : []),
     { id: "files", label: t("Files"), icon: FolderOpen },
     // The second sample game of the guides has nothing to count.
     ...(demo && !sample
@@ -698,14 +716,14 @@ export function GameDetailsDialog({
                   >
                     <Icon size={15} />
                     {label}
-                    {id === "files" ? (
+                    {id === "files" || id === "screenshots" ? (
                       <span
                         className={clsx(
                           "font-mono text-[11px] tabular-nums",
                           selected ? "text-accent-ink/80" : "text-text-faint",
                         )}
                       >
-                        {fileCount}
+                        {id === "files" ? fileCount : screenshots.all.length}
                       </span>
                     ) : null}
                   </button>
@@ -819,7 +837,9 @@ export function GameDetailsDialog({
     );
 
   const generalTab = (
-    <div className="grid gap-4">
+    // minmax(0,1fr): the screenshot strip scrolls inside the dialog
+    // instead of widening every panel to its full length.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <Panel
         title={t("About this game")}
         icon={Info}
@@ -908,6 +928,12 @@ export function GameDetailsDialog({
           ) : null}
         </div>
       </Panel>
+
+      <ScreenshotStrip
+        shots={screenshots}
+        gameName={game.name}
+        onShowAll={() => setTab("screenshots")}
+      />
 
       {resolved &&
       (resolved.developers.length > 0 || resolved.publishers.length > 0) ? (
@@ -1324,6 +1350,8 @@ export function GameDetailsDialog({
             demo={demo}
             onOpenIgdb={() => void openOnIgdb()}
           />
+        ) : tab === "screenshots" ? (
+          <GameScreenshotsTab shots={screenshots} gameName={game.name} />
         ) : tab === "files" ? (
           filesTab
         ) : tab === "counters" ? (

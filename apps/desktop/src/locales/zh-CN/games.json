@@ -259,5 +259,18 @@
   "Remove {{name}} from My Games?": "要从我的游戏中移除 {{name}} 吗？",
   "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "此账户的 {{duration}} 不再计入 {{name}}。再次导入该账户即可恢复。",
   "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "{{launcher}} 的游戏时长、成就和启动方式将从 {{name}} 中移除。再次导入该账户即可恢复。",
-  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} 只来自这个 {{launcher}} 账户，且 PlayCounter 没有为它记录时间。再次导入该账户即可恢复。"
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} 只来自这个 {{launcher}} 账户，且 PlayCounter 没有为它记录时间。再次导入该账户即可恢复。",
+  "Screenshots": "截图",
+  "Your screenshots": "你的截图",
+  "From IGDB": "来自 IGDB",
+  "Yours": "你的",
+  "Open screenshot {{index}} of {{total}}": "打开第 {{index}} 张截图（共 {{total}} 张）",
+  "Show in folder": "在文件夹中显示",
+  "{{takenAt}} · session of {{duration}}": "{{takenAt}} · {{duration}} 的游玩记录",
+  "No screenshots of yours yet.": "你还没有自己的截图。",
+  "Set a key for “Take a screenshot” in Settings and press it while you play. Your pictures show up here, with the session they were taken in.": "在设置中为“截图”设置一个按键，游戏时按下它。你的图片会显示在这里，并附上拍摄时的游玩记录。",
+  "Press {{key}} while you play. Your pictures show up here, with the session they were taken in.": "游戏时按 {{key}}。你的图片会显示在这里，并附上拍摄时的游玩记录。",
+  "{{count}} yours_other": "你的 {{count}} 张",
+  "{{count}} from IGDB_other": "来自 IGDB 的 {{count}} 张",
+  "Show all {{count}}_other": "查看全部 {{count}} 张"
 }

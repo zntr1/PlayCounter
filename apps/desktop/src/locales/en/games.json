@@ -263,5 +263,21 @@
   "Remove {{name}} from My Games?": "Remove {{name}} from My Games?",
   "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.",
   "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.",
-  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back."
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.",
+  "Screenshots": "Screenshots",
+  "Your screenshots": "Your screenshots",
+  "From IGDB": "From IGDB",
+  "Yours": "Yours",
+  "Open screenshot {{index}} of {{total}}": "Open screenshot {{index}} of {{total}}",
+  "Show in folder": "Show in folder",
+  "{{takenAt}} · session of {{duration}}": "{{takenAt}} · session of {{duration}}",
+  "No screenshots of yours yet.": "No screenshots of yours yet.",
+  "Set a key for “Take a screenshot” in Settings and press it while you play. Your pictures show up here, with the session they were taken in.": "Set a key for “Take a screenshot” in Settings and press it while you play. Your pictures show up here, with the session they were taken in.",
+  "Press {{key}} while you play. Your pictures show up here, with the session they were taken in.": "Press {{key}} while you play. Your pictures show up here, with the session they were taken in.",
+  "{{count}} yours_one": "{{count}} yours",
+  "{{count}} yours_other": "{{count}} yours",
+  "{{count}} from IGDB_one": "{{count}} from IGDB",
+  "{{count}} from IGDB_other": "{{count}} from IGDB",
+  "Show all {{count}}_one": "Show {{count}}",
+  "Show all {{count}}_other": "Show all {{count}}"
 }
