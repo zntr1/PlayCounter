@@ -823,5 +823,7 @@
   "Covers": "Okładki",
   "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Widok okładek pokazuje tylko okładkę, więc te opcje dotyczą standardowych i dużych kafelków.",
   "Spotlight on hover": "Wyróżnienie po najechaniu",
-  "The other covers step back while you point at one.": "Pozostałe okładki przygasają, gdy najedziesz na jedną z nich."
+  "The other covers step back while you point at one.": "Pozostałe okładki przygasają, gdy najedziesz na jedną z nich.",
+  "Space between covers": "Odstęp między okładkami",
+  "How much room the covers get around them.": "Ile miejsca mają okładki wokół siebie."
 }

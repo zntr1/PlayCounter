@@ -381,9 +381,9 @@ it("has Spotlight in Customize for the Covers view, off until you turn it on", a
 
   expect(spotlight()!.checked).toBe(true);
   expect(spotlightOn()).toBe(true);
-  expect(
-    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
-  ).toMatchObject({ libraryCoverSpotlight: true });
+  expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings).toMatchObject(
+    { libraryCoverSpotlight: true },
+  );
 
   // Only the Covers view has it.
   await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
@@ -397,4 +397,55 @@ it("keeps Spotlight in a backup", () => {
   expect(() =>
     validateBackupData({ settings: { libraryCoverSpotlight: "on" } }, "data"),
   ).toThrow();
+});
+
+/* The space between covers (Phil, 2026-11-24): a slider in Customize for the
+   Covers view, 8 to 128 px, at 44 (the polish's room to breathe) until the
+   player moves it. Rows get a little more than columns. */
+const gapSlider = () =>
+  document.querySelector<HTMLInputElement>("#library-cover-gap");
+const coverGrid = () => card("Hades").parentElement!;
+
+async function setGap(value: number) {
+  const slider = gapSlider()!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(slider, String(value));
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+it("has a slider for the space between covers in Customize, at 44 until you move it", async () => {
+  await render();
+  await openCustomize();
+  const slider = gapSlider()!;
+  expect([slider.min, slider.max, slider.value]).toEqual(["8", "128", "44"]);
+  expect(coverGrid().style.columnGap).toBe("44px");
+  expect(coverGrid().style.rowGap).toBe("56px");
+
+  await setGap(12);
+
+  expect(gapSlider()!.value).toBe("12");
+  expect(coverGrid().style.columnGap).toBe("12px");
+  expect(coverGrid().style.rowGap).toBe("15px");
+  expect(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
+  ).toMatchObject({ libraryCoverGap: 12 });
+
+  // Only the Covers view has it, and only there are the gaps set.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(gapSlider()).toBeNull();
+  expect(coverGrid().style.columnGap).toBe("");
+});
+
+it("keeps the space between covers in a backup", () => {
+  expect(() =>
+    validateBackupData({ settings: { libraryCoverGap: 24 } }, "data"),
+  ).not.toThrow();
+  for (const junk of [4, 132, "wide", 12.5])
+    expect(() =>
+      validateBackupData({ settings: { libraryCoverGap: junk } }, "data"),
+    ).toThrow();
 });

@@ -79,6 +79,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { Trans } from "react-i18next";
 import {
@@ -378,7 +379,11 @@ import {
   providerTabConfigs,
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
-import { type MyGamesCardSize } from "../myGamesPresentation";
+import {
+  COVER_GAP,
+  coverGapStyle,
+  type MyGamesCardSize,
+} from "../myGamesPresentation";
 import { useCoverGlow } from "../useCoverGlow";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
@@ -990,6 +995,8 @@ export function MyGamesView({
   const setMyGamesCoverSpotlight = useAppStore(
     (state) => state.setMyGamesCoverSpotlight,
   );
+  const coverGap = useAppStore((state) => state.settings.libraryCoverGap);
+  const setMyGamesCoverGap = useAppStore((state) => state.setMyGamesCoverGap);
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
   );
@@ -2903,6 +2910,48 @@ export function MyGamesView({
                         setMyGamesShowShelves={setMyGamesShowShelves}
                       />
                       {view === "covers" ? (
+                        <div className="py-2.5">
+                          <label
+                            htmlFor="library-cover-gap"
+                            className="text-[13px] font-medium text-text"
+                          >
+                            {t("Space between covers")}
+                          </label>
+                          <p
+                            id="library-cover-gap-help"
+                            className="text-xs leading-4 text-text-faint"
+                          >
+                            {t("How much room the covers get around them.")}
+                          </p>
+                          <input
+                            id="library-cover-gap"
+                            type="range"
+                            min={COVER_GAP.min}
+                            max={COVER_GAP.max}
+                            step={COVER_GAP.step}
+                            value={coverGapStyle(coverGap).columnGap}
+                            aria-describedby="library-cover-gap-help"
+                            data-controller-item="library-option"
+                            onChange={(event) =>
+                              setMyGamesCoverGap(
+                                event.currentTarget.valueAsNumber,
+                              )
+                            }
+                            className="pc-range mt-2 w-full"
+                            style={
+                              {
+                                "--range-progress": `${
+                                  ((coverGapStyle(coverGap).columnGap -
+                                    COVER_GAP.min) /
+                                    (COVER_GAP.max - COVER_GAP.min)) *
+                                  100
+                                }%`,
+                              } as CSSProperties
+                            }
+                          />
+                        </div>
+                      ) : null}
+                      {view === "covers" ? (
                         <OptionRow
                           id="library-cover-spotlight"
                           label={t("Spotlight on hover")}
@@ -3106,7 +3155,10 @@ export function MyGamesView({
                         ? {
                             gridTemplateColumns: `repeat(${Math.min(gridLayout.columns, 2)}, minmax(0, 260px))`,
                           }
-                        : gridLayout.style
+                        : view === "covers"
+                          ? // The space the player picked (Customize).
+                            { ...gridLayout.style, ...coverGapStyle(coverGap) }
+                          : gridLayout.style
                     }
                     data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
                     data-cover-spotlight={
@@ -3120,10 +3172,10 @@ export function MyGamesView({
                         "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
                       view === "large" &&
                         "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
-                      // Room to breathe: at most 4 per row, wide gaps.
+                      // At most 4 per row; the gaps come from the style.
                       // `relative` for the glow (useCoverGlow).
                       view === "covers" &&
-                        "relative grid-cols-2 gap-x-11 gap-y-14 sm:grid-cols-3 xl:grid-cols-4",
+                        "relative grid-cols-2 sm:grid-cols-3 xl:grid-cols-4",
                       view === "list" && "gap-3",
                     )}
                   >

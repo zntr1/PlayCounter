@@ -812,6 +812,9 @@ export interface Settings {
   /** Covers view: the other covers step back while one is pointed at.
    *  Absent = off. */
   libraryCoverSpotlight?: boolean;
+  /** Covers view: the space between covers in px, 8-128 (columns; rows get
+   *  a little more). Absent = 44. */
+  libraryCoverGap?: number;
   /** Request IGDB cover art one size up. Absent = off, the smaller default.
    *  Replaced by coverQuality; still read while coverQuality is absent. */
   libraryHighResCovers?: boolean;

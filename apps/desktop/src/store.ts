@@ -765,6 +765,7 @@ export type AppState = {
   setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
   setMyGamesCoverSpotlight: (enabled: boolean) => void;
+  setMyGamesCoverGap: (gap: number) => void;
   setCoverQuality: (quality: CoverQuality) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
@@ -2072,6 +2073,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesCoverSpotlight: (libraryCoverSpotlight) => {
     set((state) => ({
       settings: { ...state.settings, libraryCoverSpotlight },
+    }));
+    persistSoon();
+  },
+  setMyGamesCoverGap: (libraryCoverGap) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryCoverGap },
     }));
     persistSoon();
   },

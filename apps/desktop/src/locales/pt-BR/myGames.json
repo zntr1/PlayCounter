@@ -790,5 +790,7 @@
   "Covers": "Capas",
   "The Covers view shows only the cover, so these apply to Standard and Large cards.": "A visualização de capas mostra só a capa, então estas opções valem para os cartões padrão e grandes.",
   "Spotlight on hover": "Destaque ao apontar",
-  "The other covers step back while you point at one.": "As outras capas ficam em segundo plano enquanto você aponta para uma."
+  "The other covers step back while you point at one.": "As outras capas ficam em segundo plano enquanto você aponta para uma.",
+  "Space between covers": "Espaço entre as capas",
+  "How much room the covers get around them.": "Quanto espaço as capas têm ao redor."
 }

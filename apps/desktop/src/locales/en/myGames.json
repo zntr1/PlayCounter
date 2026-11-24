@@ -757,5 +757,7 @@
   "Covers": "Covers",
   "The Covers view shows only the cover, so these apply to Standard and Large cards.": "The Covers view shows only the cover, so these apply to Standard and Large cards.",
   "Spotlight on hover": "Spotlight on hover",
-  "The other covers step back while you point at one.": "The other covers step back while you point at one."
+  "The other covers step back while you point at one.": "The other covers step back while you point at one.",
+  "Space between covers": "Space between covers",
+  "How much room the covers get around them.": "How much room the covers get around them."
 }
