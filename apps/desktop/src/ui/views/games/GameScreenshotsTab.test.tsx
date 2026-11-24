@@ -375,3 +375,47 @@ describe("the viewer", () => {
     );
   });
 });
+
+/* Phil, 2026-11-24 (variant A of docs/image-loading-mockups.html): a picture
+   that is still loading shimmers in its place, then fades in, like covers. */
+describe("pictures that are still loading", () => {
+  it("shimmer in the strip and the tab until they have loaded", async () => {
+    ownPictures();
+    details({ screenshotUrls: IGDB_SHOTS });
+    await openDetails();
+    // IGDB's three: happy-dom fails your previews' asset:// files at once.
+    const stripImages = document.querySelectorAll<HTMLImageElement>(
+      '[data-screenshot-strip] img[src^="https://"]',
+    );
+    expect(stripImages).toHaveLength(3);
+    for (const img of stripImages)
+      expect(img.hasAttribute("data-img-loading")).toBe(true);
+
+    await act(async () => {
+      stripImages[0].dispatchEvent(new Event("load"));
+    });
+    expect(stripImages[0].hasAttribute("data-img-loading")).toBe(false);
+    expect(stripImages[0].hasAttribute("data-img-fade-in")).toBe(true);
+  });
+
+  it("shimmer in the viewer, in a box of their own, and again for the next picture", async () => {
+    ownPictures();
+    details({ screenshotUrls: IGDB_SHOTS });
+    await openTab();
+    await act(() => section("From IGDB").querySelector("button")!.click());
+
+    const first = viewer()!.querySelector("img")!;
+    expect(first.hasAttribute("data-img-loading")).toBe(true);
+    // No size of its own yet: it holds a 16:9 box.
+    expect(first.className).toContain("data-[img-loading]:aspect-video");
+    await act(async () => {
+      first.dispatchEvent(new Event("load"));
+    });
+    expect(first.hasAttribute("data-img-loading")).toBe(false);
+
+    await act(() => useScreenshotViewer.setState({ index: 5 }));
+    expect(
+      viewer()!.querySelector("img")!.hasAttribute("data-img-loading"),
+    ).toBe(true);
+  });
+});

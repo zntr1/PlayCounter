@@ -603,6 +603,7 @@ export function GameDetailsDialog({
             src={coverUrl}
             alt=""
             loading="eager"
+            data-no-shimmer
             className="hero-backdrop absolute inset-0 h-full w-full scale-125 object-cover blur-3xl saturate-150"
           />
         ) : null}

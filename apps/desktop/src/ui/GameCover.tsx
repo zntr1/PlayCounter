@@ -40,11 +40,12 @@ export function GameCover({
     setFallback(failedUpgrades.has(upgradeCoverUrl(src, wanted)));
   }, [src, wanted]);
 
-  /* Fades in once loaded instead of popping in (useImageFadeIn). Per mount:
-     a cover that changes its src keeps showing, it doesn't fade again. */
+  /* Shimmers while loading, fades in once loaded instead of popping in
+     (useImageFadeIn). Per mount: a cover that changes its src keeps showing,
+     it doesn't fade again. */
   const fadeIn = useImageFadeIn({
     onLoad: rest.onLoad,
-    onTransitionEnd: rest.onTransitionEnd,
+    onAnimationEnd: rest.onAnimationEnd,
   });
 
   /* A library of any size puts far more covers in the DOM than fit on screen.
@@ -63,6 +64,7 @@ export function GameCover({
           setFallback(true);
           return;
         }
+        fadeIn.onError(event);
         // Every view resolving this game's cover skips it from now on.
         markCoverUnavailable(src);
         rest.onError?.(event);

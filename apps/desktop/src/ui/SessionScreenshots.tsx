@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { ArtImage } from "./ArtImage";
 import { cn } from "./cn";
 import { Camera, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -142,6 +143,9 @@ export function ScreenshotThumb({ shot }: { shot: Screenshot }) {
       current = false;
     };
   }, [preview, shot.path]);
+  // Shimmers like a loading picture while its preview is being made.
+  if (!preview && !failed)
+    return <span aria-hidden className="img-shimmer block h-full w-full" />;
   if (!preview || failed)
     return (
       <span className="grid h-full w-full place-items-center text-text-muted">
@@ -149,7 +153,8 @@ export function ScreenshotThumb({ shot }: { shot: Screenshot }) {
       </span>
     );
   return (
-    <img
+    <ArtImage
+      key={preview}
       src={screenshotSource(preview)}
       alt=""
       loading="lazy"

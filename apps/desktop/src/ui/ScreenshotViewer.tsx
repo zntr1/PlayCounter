@@ -29,6 +29,7 @@ import {
   type Screenshot,
   type ViewerPicture,
 } from "../screenshots";
+import { ArtImage } from "./ArtImage";
 import { igdbScreenshotThumb } from "./artSrcSet";
 import { ScreenshotThumb } from "./SessionScreenshots";
 import { isSampleShot } from "../screenshotSample";
@@ -229,8 +230,9 @@ function OpenViewer() {
         ) : (
           <>
             {/* Leaves room for the title above, the caption and the row of
-                all pictures below. */}
-            <img
+                all pictures below. While it loads it has no size of its own,
+                so it holds a 16:9 box as tall as it may get, and shimmers. */}
+            <ArtImage
               key={shotKey}
               ref={imageRef}
               src={web ? shot.url : screenshotSource(shot.path)}
@@ -243,7 +245,7 @@ function OpenViewer() {
               draggable={false}
               onError={() => setMissing(true)}
               className={clsx(
-                "min-h-0 max-w-full rounded-lg object-contain shadow-raised",
+                "min-h-0 max-w-full rounded-lg object-contain shadow-raised data-[img-loading]:aspect-video data-[img-loading]:h-full",
                 shots.length > 1
                   ? "max-h-[calc(100%-13rem)]"
                   : "max-h-[calc(100%-8.5rem)]",
@@ -378,7 +380,7 @@ function PictureRow({
               )}
             >
               {web ? (
-                <img
+                <ArtImage
                   src={igdbScreenshotThumb(picture.url)}
                   alt=""
                   loading="lazy"

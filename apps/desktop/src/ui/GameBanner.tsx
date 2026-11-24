@@ -212,6 +212,7 @@ export function GameBanner({
             src={coverUrl}
             alt=""
             loading="eager"
+            data-no-shimmer
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
@@ -453,6 +454,7 @@ export function GameBanner({
           <ArtImage
             key={`soft:${backdropArt}`}
             src={backdropArt}
+            data-no-shimmer
             decoding="async"
             className="library-banner-soft absolute inset-0 h-full w-full scale-110 object-cover blur-3xl saturate-[1.3]"
           />
@@ -460,6 +462,7 @@ export function GameBanner({
             key={backdropArt}
             src={backdropArt}
             srcSet={artSrcSet(backdropArt)}
+            data-no-shimmer
             sizes="100vw"
             decoding="async"
             onError={() => markCoverUnavailable(backdropArt)}

@@ -89,7 +89,7 @@ describe("GameCover loads the picked cover quality", () => {
    have in every view). A cover the webview already has shows at once, so
    scrolling back or switching views doesn't fade it again. */
 describe("GameCover fades a cover in once it has loaded", () => {
-  it("keeps a cover hidden while it loads, then fades it in", async () => {
+  it("shimmers in place of a cover while it loads, then fades it in", async () => {
     const img = await render(null);
     expect(img.hasAttribute("data-img-loading")).toBe(true);
 
@@ -118,10 +118,29 @@ describe("GameCover fades a cover in once it has loaded", () => {
       img.dispatchEvent(new Event("load"));
     });
     await act(async () => {
-      // A real transitionend bubbles; React listens for it at the root.
-      img.dispatchEvent(new Event("transitionend", { bubbles: true }));
+      // A real animationend bubbles; React listens for it at the root.
+      img.dispatchEvent(new Event("animationend", { bubbles: true }));
     });
     expect(img.hasAttribute("data-img-fade-in")).toBe(false);
+  });
+
+  /* Phil, 2026-11-24: a broken picture must not look like it is still
+     coming. */
+  it("stops shimmering when the cover can't load at all", async () => {
+    const img = await render("standard");
+    await act(async () => {
+      img.dispatchEvent(new Event("error"));
+    });
+    expect(img.hasAttribute("data-img-loading")).toBe(false);
+    expect(img.hasAttribute("data-img-failed")).toBe(true);
+  });
+
+  it("keeps shimmering while it falls back from a larger file that failed", async () => {
+    const img = await render("sharpest", { large: true });
+    await act(async () => {
+      img.dispatchEvent(new Event("error"));
+    });
+    expect(img.hasAttribute("data-img-loading")).toBe(true);
   });
 });
 

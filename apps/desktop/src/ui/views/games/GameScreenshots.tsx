@@ -10,6 +10,7 @@ import {
   type ViewerPicture,
 } from "../../../screenshots";
 import { useAppStore } from "../../../store";
+import { ArtImage } from "../../ArtImage";
 import { igdbScreenshotThumb } from "../../artSrcSet";
 import { cn } from "../../cn";
 import { formatDuration } from "../../components";
@@ -53,7 +54,8 @@ const TILE =
 
 function IgdbThumb({ url }: { url: string }) {
   return (
-    <img
+    <ArtImage
+      key={url}
       src={igdbScreenshotThumb(url)}
       alt=""
       loading="lazy"

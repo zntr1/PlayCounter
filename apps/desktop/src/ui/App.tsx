@@ -1256,6 +1256,7 @@ export function App() {
               <ArtImage
                 key={titleBarArt}
                 src={titleBarArt}
+                data-no-shimmer
                 onError={() => markCoverUnavailable(titleBarArt)}
                 style={{
                   // Replaced elements do not stretch between left and right;
@@ -1362,6 +1363,7 @@ export function App() {
                   key={titleBarArt}
                   src={titleBarArt}
                   srcSet={artSrcSet(titleBarArt)}
+                  data-no-shimmer
                   sizes="100vw"
                   onError={() => markCoverUnavailable(titleBarArt)}
                   style={{

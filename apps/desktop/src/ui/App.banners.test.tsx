@@ -420,6 +420,26 @@ it("fades in the art around the banner and behind the title bar as well", async 
     expect(img.hasAttribute("data-img-loading")).toBe(true);
 });
 
+/* Phil, 2026-11-24: loading pictures shimmer. Only the banner card itself
+   does; the art around it and behind the title bar only decorates, and the
+   blurred cover under the art is the card's placeholder. */
+it("shimmers only the banner card's art while it loads, not the decoration around it", async () => {
+  bannerWithArt();
+  await act(() => root.render(<App />));
+  const card = banner()!;
+  const shimmering = artImages().filter(
+    (img) => !img.hasAttribute("data-no-shimmer"),
+  );
+  expect(shimmering).toEqual([
+    card.querySelector('img[src="/library-banner.jpg"]'),
+  ]);
+  expect(
+    card
+      .querySelector('img[src="/library-cover.jpg"]')!
+      .hasAttribute("data-no-shimmer"),
+  ).toBe(true);
+});
+
 it("shows banner art the webview already has at once", async () => {
   vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(
     1920,

@@ -1871,19 +1871,77 @@ body.shift-held
   visibility: hidden;
 }
 
-/* Covers and banner art fade in once loaded instead of popping in
-   (useImageFadeIn), in every view. A transition, dropped when it ends: an
-   animation left applying keeps an image softer in WebView2 (the banner art
-   had that). Art with its own entrance animation (.library-hero-art,
-   .history-hero-art) holds it while loading; it starts once the image is
-   there, instead of playing on an empty frame. */
+/* Covers, art and screenshots shimmer while they load and fade in once
+   loaded instead of popping in (useImageFadeIn), in every view (variant A of
+   docs/image-loading-mockups.html, Phil 2026-11-24). The shimmer is the
+   image's own background: a light band sweeping over a faint fill, in the
+   text colour so it works in both themes. object-position pushes a
+   half-loaded picture out of the box, so it never paints in rows.
+
+   The shimmer replaces any animation of the image while it loads, so art
+   with its own entrance animation (.library-hero-art, .history-hero-art)
+   plays it once the image is there, not on an empty frame. Those already
+   fade from 0; every other image gets img-fade-in (:where, so an image's own
+   animation wins). Neither has a lasting fill: one left applying keeps an
+   image softer in WebView2 (the banner art had that).
+
+   data-no-shimmer: art that only decorates (the strip behind the title bar,
+   the art around the banner, blurred backdrops) stays hidden while it loads,
+   as before. A picture that failed stays hidden and stops shimmering.
+   .img-shimmer: the same shimmer on a box with no image yet (a screenshot
+   whose preview is still being made). */
 img[data-img-loading] {
+  object-position: -99999px 0;
+}
+
+img[data-img-loading],
+.img-shimmer {
+  background-color: rgb(var(--color-text) / 0.04);
+  background-image: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgb(var(--color-text) / 0.06) 45%,
+    rgb(var(--color-text) / 0.09) 50%,
+    rgb(var(--color-text) / 0.06) 55%,
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+  background-size: 250% 100%;
+  animation: img-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes img-shimmer {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+img[data-img-loading][data-no-shimmer],
+img[data-img-failed] {
   opacity: 0;
+  background: none;
   animation: none;
 }
 
-img[data-img-fade-in] {
-  transition: opacity 0.4s ease-out;
+:where(img[data-img-fade-in]) {
+  animation: img-fade-in 0.4s ease-out backwards;
+}
+
+@keyframes img-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img[data-img-loading],
+  .img-shimmer {
+    animation: none;
+    background-position: 50% 0;
+  }
 }
 
 /* ── Covers view (My Games) ─────────────────────────────────────────────
