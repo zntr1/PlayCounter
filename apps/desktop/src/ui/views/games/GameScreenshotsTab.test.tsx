@@ -317,9 +317,9 @@ describe("the viewer", () => {
     const { shots, index } = useScreenshotViewer.getState();
     expect(shots).toHaveLength(7);
     expect(index).toBe(4);
-    // Full size in the viewer.
+    // IGDB's largest rendition in the viewer, at any screen scaling.
     expect(viewer()!.querySelector("img")?.getAttribute("src")).toBe(
-      IGDB_SHOTS[0],
+      igdb("t_1080p_2x", "sc1"),
     );
   });
 
@@ -371,7 +371,7 @@ describe("the viewer", () => {
     await act(() => thumbs[5].click());
     expect(useScreenshotViewer.getState().index).toBe(5);
     expect(viewer()!.querySelector("img")?.getAttribute("src")).toBe(
-      IGDB_SHOTS[1],
+      igdb("t_1080p_2x", "sc2"),
     );
   });
 });

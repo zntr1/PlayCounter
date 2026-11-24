@@ -30,7 +30,7 @@ import {
   type ViewerPicture,
 } from "../screenshots";
 import { ArtImage } from "./ArtImage";
-import { igdbScreenshotThumb } from "./artSrcSet";
+import { igdbScreenshotLarge, igdbScreenshotThumb } from "./artSrcSet";
 import { ScreenshotThumb } from "./SessionScreenshots";
 import { isSampleShot } from "../screenshotSample";
 import { useAppStore } from "../store";
@@ -241,7 +241,9 @@ function OpenViewer() {
             <ArtImage
               key={shotKey}
               ref={imageRef}
-              src={web ? shot.url : screenshotSource(shot.path)}
+              src={
+                web ? igdbScreenshotLarge(shot.url) : screenshotSource(shot.path)
+              }
               alt={
                 web
                   ? t("Screenshot from IGDB")

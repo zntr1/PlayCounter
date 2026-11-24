@@ -13,3 +13,12 @@ export function artSrcSet(url: string) {
 export function igdbScreenshotThumb(url: string) {
   return url.replace("/t_1080p/", "/t_screenshot_med/");
 }
+
+/* In the viewer, one picture fills most of the screen, so it loads IGDB's 2x
+   rendition at any screen scaling (Phil, 2026-11-24: 1080p looked soft).
+   IGDB's originals are often wider than 1920 (2560 for Elden Ring); t_1080p
+   shrinks and recompresses them, t_1080p_2x keeps their detail at about
+   1 MB, where t_original is 5-9 MB. */
+export function igdbScreenshotLarge(url: string) {
+  return url.replace("/t_1080p/", "/t_1080p_2x/");
+}
