@@ -15,7 +15,7 @@ import {
   Star,
   EyeOff,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArtImage } from "./ArtImage";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
@@ -45,6 +45,55 @@ const t = getT("myGames");
 
 /* One banner for the library, shelves, and other views. The compact variant
    keeps the same artwork, actions, and fallback behavior in less space. */
+
+/** The banner is a fixed height, so a long summary is the part of the column
+ *  that gives way. It shows as many whole lines as fit and ends the last one
+ *  with "…", never half a line. An invisible copy of the full text sizes the
+ *  box (so it can grow back when there is room again); the visible copy on
+ *  top is clamped to the lines that box holds. */
+function BannerSummary({ text }: { text: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState(0);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const measure = () => {
+      const lineHeight = parseFloat(getComputedStyle(box).lineHeight);
+      if (!lineHeight) return;
+      setLines(Math.floor(box.clientHeight / lineHeight + 0.01));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={boxRef}
+      className="relative mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-hidden text-[15px] leading-[1.5]"
+    >
+      <p aria-hidden lang="en" className="invisible">
+        {text}
+      </p>
+      {lines > 0 ? (
+        <p
+          lang="en"
+          className="absolute inset-x-0 top-0 overflow-hidden text-text/85"
+          style={{
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: lines,
+          }}
+        >
+          {text}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** Wide art for a game, best source first: hand-picked, SteamGridDB hero,
  *  IGDB artwork, IGDB screenshot. The banner and the details dialog share
@@ -240,16 +289,8 @@ export function GameBanner({
               {facts.join("   •   ")}
             </p>
           ) : null}
-          {/* The banner is a fixed height, so a long summary has to give way
-              rather than clip mid-line: it is the only part of the column that
-              shrinks, and it scrolls once it runs out of room. */}
           {!compact && ready?.summary ? (
-            <p
-              lang="en"
-              className="scrollbar-hidden mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-y-auto text-[15px] leading-[1.5] text-text/85"
-            >
-              {ready.summary}
-            </p>
+            <BannerSummary text={ready.summary} />
           ) : null}
           <div
             className={clsx(
