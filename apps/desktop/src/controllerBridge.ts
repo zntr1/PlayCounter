@@ -397,14 +397,8 @@ function moveAmongControls(
       item.getBoundingClientRect(),
     );
     if (isLeftmostVisualItem(rects, column.indexOf(selected))) {
-      const openPage = inMenu
-        ? undefined
-        : controls.find(
-            (item) =>
-              menu?.contains(item) &&
-              item.getAttribute("aria-current") === "page",
-          );
-      if (openPage) focusItem(openPage);
+      const openPage = inMenu ? undefined : openPageItem(region);
+      if (openPage && controls.includes(openPage)) focusItem(openPage);
       else focusActiveNavigationItem();
       return;
     }
@@ -476,6 +470,13 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
     }
     return;
   }
+  // A settings menu item opens its page and moves into it.
+  if (item.matches("[data-controller-menu] [data-controller-page]")) {
+    const region = item.closest("[data-controller-controls]");
+    item.click();
+    focusPageWhenReady(region);
+    return;
+  }
   const launchControl = item.matches("[data-controller-launch]")
     ? item
     : item.querySelector<HTMLElement>("[data-controller-launch]");
@@ -496,6 +497,25 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
   item.click();
   focusOpenedDialogWhenReady();
   followRebuilt();
+}
+
+// The first control of the open settings page's first row, once the page
+// has rendered. The guide link in the page's head stays out: A on it would
+// start a guide.
+function focusPageWhenReady(region: Element | null, attempt = 0) {
+  globalThis.requestAnimationFrame?.(() => {
+    if (!region?.isConnected) return;
+    const menu = region.querySelector("[data-controller-menu]");
+    const first = controllerItems().find(
+      (item) =>
+        isControl(item) &&
+        region.contains(item) &&
+        !menu?.contains(item) &&
+        item.closest("[data-row]") !== null,
+    );
+    if (first) focusItem(first);
+    else if (attempt < 2) focusPageWhenReady(region, attempt + 1);
+  });
 }
 
 /** For a dialog that swaps its buttons: selects the one it names, so A /
@@ -527,33 +547,79 @@ function openSelectedDetails() {
 // the arrow keys: in the open dialog, else in the view. A ring on the tab
 // row moves along.
 function switchTab(step: 1 | -1) {
+  const dialog = topDialog();
   const scope =
-    topDialog() ??
+    dialog ??
     document.querySelector<HTMLElement>('[data-controller-content="true"]');
   if (!scope) return;
   const tablist = [
     ...scope.querySelectorAll<HTMLElement>('[role="tablist"]'),
   ].find((list) => isShown(list, scope));
-  if (!tablist) return;
-  const tabs = [
-    ...tablist.querySelectorAll<HTMLElement>('[role="tab"]'),
-  ].filter(
-    (tab) =>
-      isShown(tab, scope) &&
-      !tab.hasAttribute("disabled") &&
-      tab.getAttribute("aria-disabled") !== "true",
+  if (tablist) {
+    stepThrough(
+      [...tablist.querySelectorAll<HTMLElement>('[role="tab"]')],
+      scope,
+      (tab) => tab.getAttribute("aria-selected") === "true",
+      step,
+      tablist.contains(document.activeElement),
+    );
+    return;
+  }
+  // Settings has no tabs: LB / RB walk its pages. A ring anywhere in
+  // Settings moves to the new page's menu item, since the page it was on
+  // goes away.
+  const region = dialog
+    ? null
+    : scope.querySelector<HTMLElement>("[data-controller-controls]");
+  if (!region) return;
+  stepThrough(
+    menuPages(region),
+    scope,
+    (page) => page.getAttribute("aria-current") === "page",
+    step,
+    region.contains(document.activeElement),
   );
-  if (tabs.length < 2) return;
-  const current = tabs.findIndex(
-    (tab) => tab.getAttribute("aria-selected") === "true",
+}
+
+function stepThrough(
+  items: HTMLElement[],
+  scope: HTMLElement,
+  isOpen: (item: HTMLElement) => boolean,
+  step: 1 | -1,
+  ringFollows: boolean,
+) {
+  const shown = items.filter(
+    (item) =>
+      isShown(item, scope) &&
+      !item.hasAttribute("disabled") &&
+      item.getAttribute("aria-disabled") !== "true",
   );
+  if (shown.length < 2) return;
+  const current = shown.findIndex(isOpen);
   const next =
     current < 0
-      ? tabs[step > 0 ? 0 : tabs.length - 1]
-      : tabs[(current + step + tabs.length) % tabs.length];
-  const ringOnTabs = tablist.contains(document.activeElement);
+      ? shown[step > 0 ? 0 : shown.length - 1]
+      : shown[(current + step + shown.length) % shown.length];
   next?.click();
-  if (ringOnTabs) focusItem(next);
+  if (ringFollows) focusItem(next);
+}
+
+/** Settings' menu items, one per page. */
+function menuPages(region: Element) {
+  return [
+    ...region.querySelectorAll<HTMLElement>(
+      "[data-controller-menu] [data-controller-page]",
+    ),
+  ];
+}
+
+/** The menu item of the settings page that is open. */
+function openPageItem(region: Element | null) {
+  return region
+    ? menuPages(region).find(
+        (page) => page.getAttribute("aria-current") === "page",
+      )
+    : undefined;
 }
 
 // X / Square asks to close the game on the selected card. Only a running
@@ -658,6 +724,22 @@ function handleControllerEvent(
       window.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
+      return;
+    }
+    // Deep in a settings page, B goes to its menu item first.
+    const focused = document.activeElement;
+    const region =
+      focused instanceof HTMLElement && isControl(focused)
+        ? focused.closest("[data-controller-controls]")
+        : null;
+    const openPage = openPageItem(region);
+    if (
+      openPage &&
+      !openPage
+        .closest("[data-controller-menu]")
+        ?.contains(document.activeElement)
+    ) {
+      focusItem(openPage);
       return;
     }
     const activeNavigation = activeNavigationItem();

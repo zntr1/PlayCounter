@@ -1604,6 +1604,9 @@ function ControllerModeFooter() {
         {activeView === "history" || activeView === "achievements" ? (
           <ControllerHint button="LB" also="RB" label={t("Switch tab")} />
         ) : null}
+        {activeView === "settings" ? (
+          <ControllerHint button="LB" also="RB" label={t("Switch page")} />
+        ) : null}
         <ControllerHint button="VIEW" label={t("Card size")} />
         <ControllerHint button="MENU" label={t("Fullscreen")} />
         <div

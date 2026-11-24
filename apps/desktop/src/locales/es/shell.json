@@ -184,5 +184,6 @@
   "Sidebar": "Barra lateral",
   "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Sí. Haz clic derecho en el juego, elige {{journal}} y pulsa {{addPlaythrough}}. Ponle el nombre Speedrun: cada partida tiene su propia nota y su propia lista de sesiones.",
   "Details": "Detalles",
-  "Switch tab": "Cambiar de pestaña"
+  "Switch tab": "Cambiar de pestaña",
+  "Switch page": "Cambiar de página"
 }

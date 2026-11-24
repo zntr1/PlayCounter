@@ -145,6 +145,7 @@ export function SettingsView() {
                 <button
                   type="button"
                   data-group={group.id}
+                  data-controller-page
                   aria-current={current ? "page" : undefined}
                   onClick={() => openGroup(group.id)}
                   className={cn(

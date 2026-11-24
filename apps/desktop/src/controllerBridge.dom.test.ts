@@ -597,8 +597,8 @@ function showSettings() {
     <div id="settings" data-controller-controls>
       <nav id="settings-menu" data-controller-menu>
         <input id="settings-search" type="search" />
-        <button id="menu-general">General</button>
-        <button id="menu-play" aria-current="page">Play</button>
+        <button id="menu-general" data-controller-page>General</button>
+        <button id="menu-play" data-controller-page aria-current="page">Play</button>
       </nav>
       <div>
         <input id="switch-a" type="checkbox" />
@@ -725,6 +725,100 @@ it("changes a settings dropdown with Left and Right, skipping choices that are o
   expect(select.value).toBe("off");
   expect(changed).toHaveBeenCalledTimes(2);
   expect(document.activeElement).toBe(select);
+});
+
+it("moves into the page with A on a settings menu item, past the page's guide link", async () => {
+  enableController();
+  useAppStore.getState().setActiveView("settings");
+  content.setAttribute("aria-busy", "false");
+  content.innerHTML = `
+    <div data-controller-controls>
+      <nav data-controller-menu>
+        <button id="menu-general" data-controller-page aria-current="page">General</button>
+        <button id="menu-play" data-controller-page>Play</button>
+      </nav>
+      <div id="page"></div>
+    </div>
+  `;
+  const page = content.querySelector<HTMLElement>("#page")!;
+  const showPage = (name: string) => {
+    page.innerHTML = `
+      <header><button id="${name}-guide">Show me how</button></header>
+      <div data-row="${name}-a"><input id="${name}-switch" type="checkbox" /></div>
+      <div data-row="${name}-b"><button id="${name}-button">Reset</button></div>
+    `;
+    for (const element of content.querySelectorAll<HTMLElement>("*"))
+      element.scrollIntoView = vi.fn();
+  };
+  showPage("general");
+  const menu = ["#menu-general", "#menu-play"].map(
+    (id) => content.querySelector<HTMLElement>(id)!,
+  );
+  menu[1].addEventListener("click", () => {
+    menu[0].removeAttribute("aria-current");
+    menu[1].setAttribute("aria-current", "page");
+    // Like React: the new page comes after the click.
+    queueMicrotask(() => showPage("play"));
+  });
+
+  menu[1].focus();
+  input("confirm");
+  // React renders in a microtask, the next frame comes after it.
+  await Promise.resolve();
+  frame();
+  const target = document.getElementById("play-switch");
+  expect(document.activeElement).toBe(target);
+  expect(target?.getAttribute("data-controller-selected")).toBe("true");
+
+  // A on the page that is open already goes straight into it.
+  menu[1].focus();
+  input("confirm");
+  await Promise.resolve();
+  frame();
+  expect(document.activeElement).toBe(document.getElementById("play-switch"));
+});
+
+it("goes back with B from deep in a settings page to its menu item, then to the sidebar", () => {
+  const { nav, byId } = showSettings();
+  byId("reset").focus();
+
+  input("back");
+  expect(document.activeElement).toBe(byId("menu-play"));
+  expect(byId("menu-play").getAttribute("data-controller-selected")).toBe(
+    "true",
+  );
+  input("back");
+  expect(document.activeElement).toBe(nav);
+});
+
+it("walks the settings pages round with LB / RB, the ring on the new page's menu item", () => {
+  const { nav, byId } = showSettings();
+  const pages = [byId("menu-general"), byId("menu-play")];
+  for (const page of pages) {
+    page.addEventListener("click", () => {
+      for (const other of pages)
+        if (other === page) other.setAttribute("aria-current", "page");
+        else other.removeAttribute("aria-current");
+      // The open page's controls go, the new page's come.
+      document.getElementById("switch-a")?.remove();
+    });
+  }
+  byId("switch-a").focus();
+
+  // Play is the last page: RB goes round to General.
+  input("nextTab");
+  expect(pages[0].getAttribute("aria-current")).toBe("page");
+  expect(document.activeElement).toBe(pages[0]);
+  expect(pages[0].getAttribute("data-controller-selected")).toBe("true");
+  input("previousTab");
+  expect(pages[1].getAttribute("aria-current")).toBe("page");
+  expect(document.activeElement).toBe(pages[1]);
+
+  // From the sidebar the page changes, the ring stays on the sidebar.
+  nav.focus();
+  input("nextTab");
+  expect(pages[0].getAttribute("aria-current")).toBe("page");
+  expect(document.activeElement).toBe(nav);
 });
 
 it("stays on the language dropdown when the new language builds the page anew", () => {
