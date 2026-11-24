@@ -376,6 +376,28 @@ describe("the viewer", () => {
   });
 });
 
+/* Phil, 2026-11-24: a click into the dark space around the picture closes
+   the viewer; the game details behind it stay open. */
+describe("closing the viewer", () => {
+  it("closes on a click beside the picture, not on the picture, and keeps the details open", async () => {
+    ownPictures();
+    details({ screenshotUrls: IGDB_SHOTS });
+    await openTab();
+    await act(() => section("From IGDB").querySelector("button")!.click());
+
+    const mouseDown = (target: Element) =>
+      act(() => {
+        target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      });
+    await mouseDown(viewer()!.querySelector("img")!);
+    expect(viewer()).not.toBeNull();
+
+    await mouseDown(viewer()!);
+    expect(viewer()).toBeNull();
+    expect(tabButton()).not.toBeNull();
+  });
+});
+
 /* Phil, 2026-11-24 (variant A of docs/image-loading-mockups.html): a picture
    that is still loading shimmers in its place, then fades in, like covers. */
 describe("pictures that are still loading", () => {

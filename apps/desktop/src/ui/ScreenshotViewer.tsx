@@ -162,8 +162,14 @@ function OpenViewer() {
       }}
     >
       <ModalWindowDragRegion />
+      {/* The panel fills the screen, so the empty space around the picture
+          is the panel itself: a click there closes the viewer, like one on
+          the backdrop. */}
       <div
         ref={panelRef}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeScreenshotViewer();
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="screenshot-viewer-title"
