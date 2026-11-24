@@ -1058,23 +1058,7 @@ export function MyGamesView({
   // Guides point at the Standard card's buttons, so a guide shows those.
   const view: ViewMode =
     tourDemo.active && cardSize === "covers" ? "grid" : cardSize;
-  // Covers view: a clicked cover shows in the banner until the player
-  // leaves My Games. It is never saved; "Pin to banner" keeps a game there.
-  const [bannerPick, setBannerPick] = useState<LibraryFeaturedGame | null>(
-    null,
-  );
   const coverGlow = useCoverGlow(view === "covers");
-  const onGamesView = useAppStore((state) => state.activeView === "games");
-  useEffect(() => {
-    if (!onGamesView) setBannerPick(null);
-  }, [onGamesView]);
-  const showInBanner = useCallback((game: GameSummary) => {
-    setBannerPick({
-      gameId: game.gameId,
-      source: game.source,
-      igdbId: game.igdbId,
-    });
-  }, []);
   const gameLaunchingEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -2281,34 +2265,13 @@ export function MyGamesView({
       ),
     [featuredSetting, ownGames, hidesNew, journalFor, personalShelves],
   );
-  // Only while the clicked game is in the list shown (tab, shelf, filters).
-  const pickedGame = useMemo(
-    () =>
-      view === "covers" && bannerPick
-        ? displayedGames.find((game) => matchesFeaturedGame(game, bannerPick))
-        : undefined,
-    [bannerPick, displayedGames, view],
-  );
   const featured = useMemo(() => {
-    if (pickedGame)
-      return {
-        game: pickedGame,
-        pinned:
-          featuredSetting !== null &&
-          matchesFeaturedGame(pickedGame, featuredSetting),
-      };
     const shelfPin = selectedShelf?.featuredGame;
     const pinned = shelfPin
       ? ownGames.find((game) => matchesFeaturedGame(game, shelfPin))
       : undefined;
     return pinned ? { game: pinned, pinned: true } : defaultFeatured;
-  }, [
-    defaultFeatured,
-    featuredSetting,
-    ownGames,
-    pickedGame,
-    selectedShelf?.featuredGame,
-  ]);
+  }, [defaultFeatured, ownGames, selectedShelf?.featuredGame]);
   const shelfBannerPinned = Boolean(
     featured &&
     selectedShelf?.featuredGame &&
@@ -2572,7 +2535,6 @@ export function MyGamesView({
               key={`${selectedShelf?.id ?? "all"}:${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
               game={featured.game}
               pinned={selectedShelf ? shelfBannerPinned : featured.pinned}
-              selected={pickedGame !== undefined}
               shelfName={selectedShelf?.name}
               onArtworkChange={publishLibraryHeroArt}
               launchKey="library-hero"
@@ -3216,14 +3178,6 @@ export function MyGamesView({
                           showMatch={showMatch}
                           showTrackingWarning={showTrackingWarnings}
                           view={view}
-                          bannerSelected={
-                            pickedGame !== undefined &&
-                            heroVisible &&
-                            game === pickedGame
-                          }
-                          onShowInBanner={
-                            heroVisible ? showInBanner : undefined
-                          }
                           onRemove={requestRemoval}
                           onStopTracking={
                             !isDemo && game.source
@@ -3630,8 +3584,6 @@ export function GameLibraryCard({
   compact = false,
   onMarkSeen,
   detailsOnly,
-  bannerSelected = false,
-  onShowInBanner,
 }: {
   game: GameSummary;
   bannerShelf?: PersonalShelf;
@@ -3664,11 +3616,6 @@ export function GameLibraryCard({
    *  Playing, the banner) with every action the card's own has. `open`:
    *  Details opens on `tab` when this is built. */
   detailsOnly?: { tab: DetailsTab; open: boolean };
-  /** Covers view: this game is the one shown in the banner. */
-  bannerSelected?: boolean;
-  /** Covers view: a click on the cover shows the game in the banner. Absent
-   *  while the banner is off: then the click opens Details. */
-  onShowInBanner?: (game: GameSummary) => void;
 }) {
   const [demoTotal, setDemoTotal] = useState<number | null>(null);
   const [demoIdentity, setDemoIdentity] = useState<{
@@ -7366,20 +7313,11 @@ export function GameLibraryCard({
     const coverLayer = (
       <>
         {!selectionMode ? (
-          // First click puts the game in the banner; a click on the game
-          // already there (or with the banner off) opens its Details.
+          // A click on the cover opens its Details.
           <button
             type="button"
-            aria-label={
-              onShowInBanner && !bannerSelected
-                ? t("Show {{name}} in the banner", { name: game.name })
-                : t("Open details for {{name}}", { name: game.name })
-            }
-            onClick={() =>
-              onShowInBanner && !bannerSelected
-                ? onShowInBanner(game)
-                : openDetails()
-            }
+            aria-label={t("Open details for {{name}}", { name: game.name })}
+            onClick={() => openDetails()}
             className="absolute inset-0 z-10 cursor-pointer focus-visible:outline-none"
           />
         ) : null}
@@ -7506,16 +7444,14 @@ export function GameLibraryCard({
         className={clsx(
           "game-library-card group relative isolate flex flex-col overflow-hidden transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
           // Covers: depth from soft shadows and the light edge (.covers-edge);
-          // hover brightens the edge, no amber ring. Amber is the cover in
-          // the banner and keyboard focus, green a running game.
+          // hover brightens the edge, no amber ring. Amber is keyboard focus,
+          // green a running game.
           isCovers
             ? clsx(
                 "covers-tile rounded-[10px] bg-surface-hover",
-                bannerSelected
-                  ? "shadow-cover ring-2 ring-accent hover:shadow-cover-lit"
-                  : coverRunning
-                    ? "shadow-[0_0_22px_rgb(var(--color-success)/0.32)] ring-2 ring-success"
-                    : "shadow-cover hover:shadow-cover-lit has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+                coverRunning
+                  ? "shadow-[0_0_22px_rgb(var(--color-success)/0.32)] ring-2 ring-success"
+                  : "shadow-cover hover:shadow-cover-lit has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
               )
             : clsx(
                 "border border-border/70 bg-surface shadow-raised hover:border-accent/80 hover:shadow-card-hover",

@@ -64,8 +64,6 @@ export function heroArtwork(
 type GameBannerProps = {
   game: GameSummary;
   pinned: boolean;
-  /** Clicked in the Covers view: shown until the player leaves My Games. */
-  selected?: boolean;
   variant?: "full" | "compact";
   shelfName?: string;
   onArtworkChange: (artwork: string | null) => void;
@@ -84,7 +82,6 @@ type GameBannerProps = {
 export function GameBanner({
   game,
   pinned,
-  selected = false,
   variant = "full",
   shelfName,
   onArtworkChange,
@@ -131,18 +128,13 @@ export function GameBanner({
     return () => onArtworkChange(null);
   }, [onArtworkChange, backdropArt]);
   const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
-  const eyebrow =
-    selected && !pinned
-      ? shelfName
-        ? `${shelfName} · ${t("Selected")}`
-        : t("Selected")
-      : shelfName
-        ? `${shelfName} · ${pinned ? t("Shelf banner") : t("Library banner")}`
-        : pinned
-          ? t("Featured")
-          : played
-            ? t("Last played")
-            : t("Newest");
+  const eyebrow = shelfName
+    ? `${shelfName} · ${pinned ? t("Shelf banner") : t("Library banner")}`
+    : pinned
+      ? t("Featured")
+      : played
+        ? t("Last played")
+        : t("Newest");
   const playLabel =
     launcher.launchVia === "direct" && played
       ? t("Continue Playing")

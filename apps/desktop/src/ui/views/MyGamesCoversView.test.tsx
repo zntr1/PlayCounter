@@ -11,9 +11,9 @@ import { resolveMyGamesPresentation } from "../myGamesPresentation";
 import { LibraryTestShell } from "./libraryTestShell";
 
 /* The Covers view (Phil, 2026-11-22): only the cover; name, playtime, Play
-   and ⋯ on hover; a running game and anything to do stay visible; a click
-   puts the game in the banner until you leave My Games, without scrolling;
-   with the banner off, a click opens Details. */
+   and ⋯ on hover; a running game and anything to do stay visible. A click on
+   a cover opens its Details (Phil, 2026-11-24: the banner selection it had
+   at first brought nothing, and further down nobody saw it). */
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -155,32 +155,11 @@ it("has the name, playtime, Play and ⋯ on the cover for hover", async () => {
   expect(document.querySelector('[role="menu"]')).not.toBeNull();
 });
 
-it("puts a clicked cover in the banner without pinning it", async () => {
+it("opens Details on a click, and leaves the banner as it was", async () => {
   await render();
   const before = bannerTitle();
   const other = before === "Hades" ? "Celeste" : "Hades";
-  const cover = labelled(card(other), `Show ${other} in the banner`)!;
 
-  await act(async () => cover.click());
-
-  expect(bannerTitle()).toBe(other);
-  expect(useAppStore.getState().settings.libraryFeaturedGame ?? null).toBe(
-    null,
-  );
-});
-
-// Phil, 2026-11-23: the second click on the game already in the banner opens
-// its Details.
-it("opens Details when you click the cover that is already in the banner", async () => {
-  await render();
-  const other = bannerTitle() === "Hades" ? "Celeste" : "Hades";
-  await act(async () =>
-    labelled(card(other), `Show ${other} in the banner`)!.click(),
-  );
-  expect(document.querySelector('[role="dialog"]')).toBeNull();
-
-  // The same cover now says what a click does.
-  expect(labelled(card(other), `Show ${other} in the banner`)).toBeNull();
   await act(async () =>
     labelled(card(other), `Open details for ${other}`)!.click(),
   );
@@ -188,22 +167,8 @@ it("opens Details when you click the cover that is already in the banner", async
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
     other,
   );
-  expect(bannerTitle()).toBe(other);
-});
-
-it("gives the banner back once you leave My Games", async () => {
-  await render();
-  const before = bannerTitle();
-  const other = before === "Hades" ? "Celeste" : "Hades";
-  await act(async () =>
-    labelled(card(other), `Show ${other} in the banner`)!.click(),
-  );
-  expect(bannerTitle()).toBe(other);
-
-  await act(async () => useAppStore.getState().setActiveView("now"));
-  await act(async () => useAppStore.getState().setActiveView("games"));
-
   expect(bannerTitle()).toBe(before);
+  expect(container.textContent).not.toContain("Selected");
 });
 
 it("opens Details from a click when the banner is off", async () => {
@@ -212,7 +177,6 @@ it("opens Details from a click when the banner is off", async () => {
   }));
   await render();
   expect(bannerTitle()).toBeUndefined();
-  expect(labelled(card("Celeste"), "Show Celeste in the banner")).toBeNull();
 
   await act(async () =>
     labelled(card("Celeste"), "Open details for Celeste")!.click(),
@@ -341,7 +305,7 @@ const litGlows = () =>
 // The pointer enters a cover: it lands on the cover's full-size button.
 const pointAt = (name: string) =>
   act(async () => {
-    labelled(card(name), `Show ${name} in the banner`)!.dispatchEvent(
+    labelled(card(name), `Open details for ${name}`)!.dispatchEvent(
       new MouseEvent("pointerover", { bubbles: true }),
     );
   });

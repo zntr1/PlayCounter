@@ -821,8 +821,6 @@
   "Selected games already have no tier": "У выбранных игр уже нет тира",
   "Covers view": "Обложки",
   "Covers": "Обложки",
-  "Selected": "Выбранная",
-  "Show {{name}} in the banner": "Показать {{name}} на баннере",
   "The Covers view shows only the cover, so these apply to Standard and Large cards.": "В режиме «Обложки» видна только обложка, поэтому эти настройки относятся к обычным и большим карточкам.",
   "Spotlight on hover": "Подсветка при наведении",
   "The other covers step back while you point at one.": "Остальные обложки отходят на второй план, пока курсор на одной из них."
