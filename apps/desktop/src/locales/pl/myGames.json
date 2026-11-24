@@ -823,5 +823,7 @@
   "Covers": "Okładki",
   "Selected": "Wybrana",
   "Show {{name}} in the banner": "Pokaż {{name}} na banerze",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Widok okładek pokazuje tylko okładkę, więc te opcje dotyczą standardowych i dużych kafelków."
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Widok okładek pokazuje tylko okładkę, więc te opcje dotyczą standardowych i dużych kafelków.",
+  "Spotlight on hover": "Wyróżnienie po najechaniu",
+  "The other covers step back while you point at one.": "Pozostałe okładki przygasają, gdy najedziesz na jedną z nich."
 }

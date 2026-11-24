@@ -379,6 +379,7 @@ import {
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
 import { type MyGamesCardSize } from "../myGamesPresentation";
+import { useCoverGlow } from "../useCoverGlow";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
@@ -983,6 +984,12 @@ export function MyGamesView({
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
   );
+  const coverSpotlight = useAppStore(
+    (state) => state.settings.libraryCoverSpotlight === true,
+  );
+  const setMyGamesCoverSpotlight = useAppStore(
+    (state) => state.setMyGamesCoverSpotlight,
+  );
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
   );
@@ -1056,6 +1063,7 @@ export function MyGamesView({
   const [bannerPick, setBannerPick] = useState<LibraryFeaturedGame | null>(
     null,
   );
+  const coverGlow = useCoverGlow(view === "covers");
   const onGamesView = useAppStore((state) => state.activeView === "games");
   useEffect(() => {
     if (!onGamesView) setBannerPick(null);
@@ -2932,6 +2940,17 @@ export function MyGamesView({
                         setMyGamesGridColumns={setMyGamesGridColumns}
                         setMyGamesShowShelves={setMyGamesShowShelves}
                       />
+                      {view === "covers" ? (
+                        <OptionRow
+                          id="library-cover-spotlight"
+                          label={t("Spotlight on hover")}
+                          help={t(
+                            "The other covers step back while you point at one.",
+                          )}
+                          checked={coverSpotlight}
+                          onChange={setMyGamesCoverSpotlight}
+                        />
+                      ) : null}
                       <OptionRow
                         id="library-show-stats"
                         label={t("Summary numbers")}
@@ -3128,17 +3147,25 @@ export function MyGamesView({
                         : gridLayout.style
                     }
                     data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
+                    data-cover-spotlight={
+                      view === "covers" && coverSpotlight ? "" : undefined
+                    }
+                    onPointerOver={coverGlow.onPointerOver}
+                    onPointerLeave={coverGlow.onPointerLeave}
                     className={clsx(
                       "grid",
                       view === "grid" &&
                         "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
                       view === "large" &&
                         "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
+                      // Room to breathe: at most 4 per row, wide gaps.
+                      // `relative` for the glow (useCoverGlow).
                       view === "covers" &&
-                        "grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]",
+                        "relative grid-cols-2 gap-x-11 gap-y-14 sm:grid-cols-3 xl:grid-cols-4",
                       view === "list" && "gap-3",
                     )}
                   >
+                    {coverGlow.layer}
                     {renderedGames.map((game) => {
                       const isDemo = isTourDemoLibraryGame(game);
                       const cardKey = isDemo
@@ -7073,7 +7100,7 @@ export function GameLibraryCard({
   if (!isList) {
     // Under the card, or one rounded button on the cover in the Covers view.
     const footerShape = isCovers
-      ? "h-8 min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg px-2 text-xs"
+      ? "covers-hover-button min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg px-2"
       : clsx("border-t", footerSize);
     const launchFooter = canCloseGame ? (
       <div
@@ -7374,20 +7401,21 @@ export function GameLibraryCard({
           />
         ) : null}
         {!selectionMode ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex max-h-full flex-col justify-end gap-0.5 bg-gradient-to-b from-black/0 via-black/70 to-black/90 px-2.5 pb-2.5 pt-12 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 group-data-[controller-selected=true]:opacity-100 [&_button]:pointer-events-auto">
+          // Sizes grow with the tile (styles.css, .covers-hover*).
+          <div className="covers-hover pointer-events-none absolute inset-x-0 bottom-0 z-20 flex max-h-full flex-col justify-end bg-gradient-to-b from-black/0 via-black/70 to-black/90 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 group-data-[controller-selected=true]:opacity-100 [&_button]:pointer-events-auto">
             <div className="flex min-w-0 items-center gap-1.5">
               <NameHeading
-                className="line-clamp-2 min-w-0 flex-1 text-sm font-bold leading-tight text-white"
+                className="covers-hover-name line-clamp-2 min-w-0 flex-1 font-bold leading-tight text-white"
                 title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
               >
                 {game.name}
               </NameHeading>
               {isNew ? <NewGameBadge /> : null}
             </div>
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[11px] font-medium text-white/70">
+            <div className="covers-hover-meta flex min-w-0 flex-wrap items-baseline gap-x-1.5 font-medium text-white/70">
               <span
                 title={playtimeTitle}
-                className="whitespace-nowrap font-mono text-[13px] font-bold tracking-tight text-white"
+                className="covers-hover-time whitespace-nowrap font-mono font-bold tracking-tight text-white"
               >
                 {formatDuration(game.totalSeconds, showDurationDays)}
               </span>
@@ -7406,7 +7434,7 @@ export function GameLibraryCard({
               </button>
             </div>
             {trackingWarningVisible ? (
-              <p className="mt-0.5 flex items-start gap-1 text-[11px] font-semibold leading-tight text-warning">
+              <p className="covers-hover-meta mt-0.5 flex items-start gap-1 font-semibold leading-tight text-warning">
                 <AlertTriangle size={12} className="mt-px shrink-0" />
                 {t("New sessions won't be tracked yet")}
               </p>
@@ -7426,13 +7454,16 @@ export function GameLibraryCard({
                 aria-haspopup="menu"
                 title={t("More")}
                 onClick={(event) => openMenuBelow(event.currentTarget)}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/15 text-white hover:bg-white/25"
+                className="covers-hover-more grid shrink-0 place-items-center rounded-lg bg-white/15 text-white hover:bg-white/25"
               >
                 <MoreHorizontal size={15} />
               </button>
             </div>
           </div>
         ) : null}
+        {/* The light edge over the cover, and Spotlight's shade. */}
+        <span aria-hidden="true" className="covers-edge" />
+        <span aria-hidden="true" className="covers-dim" />
       </>
     );
     return (
@@ -7470,18 +7501,21 @@ export function GameLibraryCard({
         // The card never moves on hover: a moving edge slides out from under
         // the pointer.
         className={clsx(
-          "game-library-card group relative isolate flex flex-col overflow-hidden shadow-raised transition duration-200 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
+          "game-library-card group relative isolate flex flex-col overflow-hidden transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg",
+          // Covers: depth from soft shadows and the light edge (.covers-edge);
+          // hover brightens the edge, no amber ring. Amber is the cover in
+          // the banner and keyboard focus, green a running game.
           isCovers
             ? clsx(
-                "rounded-[10px] bg-surface-hover",
+                "covers-tile rounded-[10px] bg-surface-hover",
                 bannerSelected
-                  ? "ring-2 ring-accent"
+                  ? "shadow-cover ring-2 ring-accent hover:shadow-cover-lit"
                   : coverRunning
                     ? "shadow-[0_0_22px_rgb(var(--color-success)/0.32)] ring-2 ring-success"
-                    : "ring-1 ring-white/[0.07] hover:ring-2 hover:ring-accent/85 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
+                    : "shadow-cover hover:shadow-cover-lit has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
               )
             : clsx(
-                "border border-border/70 bg-surface hover:border-accent/80",
+                "border border-border/70 bg-surface shadow-raised hover:border-accent/80 hover:shadow-card-hover",
                 compact ? "rounded-[10px]" : "rounded-xl",
               ),
         )}
@@ -7507,19 +7541,31 @@ export function GameLibraryCard({
             percentage height against an aspect-ratio box is indefinite, so a
             cover in another ratio (SteamGridDB grids are 2:3) would otherwise
             stretch the whole card. */}
-        <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
+        <div
+          className={clsx(
+            "relative aspect-[3/4] w-full shrink-0 bg-surface-hover",
+            isCovers && "covers-box",
+          )}
+        >
           {!compact && !isCovers
             ? inSampleLibrary(
                 <GameJournalBadges game={{ ...game, gameName: game.name }} />,
               )
             : null}
           {shownCover ? (
+            // Covers: at least Sharp, since the cover is all the tile shows
+            // and 4 per row make it big; it doesn't zoom on hover.
             <GameCover
               src={shownCover}
               alt=""
               large
+              highRes={isCovers}
               draggable={false}
-              className="game-card-cover-image absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className={clsx(
+                "game-card-cover-image absolute inset-0 h-full w-full object-cover",
+                !isCovers &&
+                  "transition-transform duration-500 group-hover:scale-105",
+              )}
             />
           ) : (
             <div className="grid h-full place-items-center text-xs text-text-faint">

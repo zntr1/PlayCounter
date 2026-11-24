@@ -809,6 +809,9 @@ export interface Settings {
   libraryShowTierBadges?: boolean;
   /** Warn on covers of games with no known .exe yet. Absent = enabled. */
   libraryShowTrackingWarnings?: boolean;
+  /** Covers view: the other covers step back while one is pointed at.
+   *  Absent = off. */
+  libraryCoverSpotlight?: boolean;
   /** Request IGDB cover art one size up. Absent = off, the smaller default.
    *  Replaced by coverQuality; still read while coverQuality is absent. */
   libraryHighResCovers?: boolean;

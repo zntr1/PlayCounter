@@ -772,6 +772,7 @@ export type AppState = {
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
   setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
+  setMyGamesCoverSpotlight: (enabled: boolean) => void;
   setCoverQuality: (quality: CoverQuality) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
@@ -2079,6 +2080,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowTrackingWarnings: (libraryShowTrackingWarnings) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowTrackingWarnings },
+    }));
+    persistSoon();
+  },
+  setMyGamesCoverSpotlight: (libraryCoverSpotlight) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryCoverSpotlight },
     }));
     persistSoon();
   },

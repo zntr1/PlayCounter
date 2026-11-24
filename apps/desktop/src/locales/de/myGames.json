@@ -757,5 +757,7 @@
   "Covers": "Cover",
   "Selected": "Ausgewählt",
   "Show {{name}} in the banner": "{{name}} im Banner zeigen",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Die Cover-Ansicht zeigt nur das Cover, daher gelten diese Einstellungen für Standardkacheln und große Kacheln."
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "Die Cover-Ansicht zeigt nur das Cover, daher gelten diese Einstellungen für Standardkacheln und große Kacheln.",
+  "Spotlight on hover": "Spotlight beim Zeigen",
+  "The other covers step back while you point at one.": "Die anderen Cover treten zurück, während du auf eines zeigst."
 }

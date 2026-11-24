@@ -724,5 +724,7 @@
   "Covers": "封面",
   "Selected": "已选中",
   "Show {{name}} in the banner": "在横幅中显示 {{name}}",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "封面视图只显示封面，因此这些设置仅适用于标准卡片和大卡片。"
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "封面视图只显示封面，因此这些设置仅适用于标准卡片和大卡片。",
+  "Spotlight on hover": "悬停聚焦",
+  "The other covers step back while you point at one.": "鼠标移到一个封面上时，其他封面会变暗。"
 }

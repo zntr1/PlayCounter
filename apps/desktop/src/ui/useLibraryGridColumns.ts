@@ -64,7 +64,7 @@ export function useLibraryGridColumns(
   const capacity = measurement.capacity || MAX_LIBRARY_GRID_COLUMNS;
   const presetColumns =
     (measurement.view === view && measurement.presetColumns) ||
-    (view === "large" ? 3 : view === "covers" ? 6 : 4);
+    (view === "large" ? 3 : 4);
   const columns = custom ? Math.min(requestedColumns, capacity) : presetColumns;
 
   return {

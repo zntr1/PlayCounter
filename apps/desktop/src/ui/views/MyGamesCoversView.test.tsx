@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { validateBackupData } from "../../backupValidation";
 import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
+import { STORAGE_KEY } from "../../persistence";
 import { useAppStore, type ActiveSession } from "../../store";
 import { resolveMyGamesPresentation } from "../myGamesPresentation";
 import { LibraryTestShell } from "./libraryTestShell";
@@ -284,4 +285,136 @@ it("says in Customize that card details don't apply to Covers", async () => {
   expect(
     document.querySelector<HTMLInputElement>("#library-show-status")?.disabled,
   ).toBe(false);
+});
+
+/* The polish (Phil, 2026-11-22, docs/cover-view-polish-mockups.html): 4
+   covers per row with a lot of room, covers at least Sharp, a glow in the
+   cover's own colors behind the cover under the pointer (two glow images for
+   the whole grid, however many games), and Spotlight as a switch in
+   Customize, off until turned on. Depth, the calm hover edge, no zoom and
+   the hover text growing with the tile are styles only: checked in the app. */
+
+const igdbCover = (size: string, id: string) =>
+  `https://images.igdb.com/igdb/image/upload/${size}/${id}.jpg`;
+
+/** Hades and Celeste with IGDB covers; Tunic has none. */
+function withCovers() {
+  const store = useAppStore.getState();
+  store.setExeCacheEntry({
+    ...HADES,
+    coverUrl: igdbCover("t_cover_big", "hades"),
+  });
+  store.setExeCacheEntry({
+    ...CELESTE,
+    coverUrl: igdbCover("t_cover_big", "celeste"),
+  });
+  store.setExeCacheEntry(game(-3, "Tunic"));
+}
+
+const coverImage = (name: string) =>
+  card(name).querySelector<HTMLImageElement>(".game-card-cover-image")!;
+const openCustomize = () =>
+  act(async () => labelled(container, "Customize library view")!.click());
+const glows = () => [
+  ...container.querySelectorAll<HTMLImageElement>("[data-cover-glow]"),
+];
+const litGlows = () =>
+  glows()
+    .filter((glow) => glow.hasAttribute("data-on"))
+    .map((glow) => glow.getAttribute("src"));
+// The pointer enters a cover: it lands on the cover's full-size button.
+const pointAt = (name: string) =>
+  act(async () => {
+    labelled(card(name), `Show ${name} in the banner`)!.dispatchEvent(
+      new MouseEvent("pointerover", { bubbles: true }),
+    );
+  });
+
+it("shows 4 covers per row unless you pick another count", async () => {
+  await render();
+  await openCustomize();
+  expect(
+    document.querySelector<HTMLInputElement>("#library-grid-columns")!.value,
+  ).toBe("4");
+});
+
+it("loads the covers at least Sharp, even with Cover quality on Standard", async () => {
+  withCovers();
+  useAppStore.getState().setCoverQuality("standard");
+  await render();
+  expect(coverImage("Hades").getAttribute("src")).toBe(
+    igdbCover("t_cover_big_2x", "hades"),
+  );
+
+  // Standard cards keep the quality the player picked.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(coverImage("Hades").getAttribute("src")).toBe(
+    igdbCover("t_cover_big", "hades"),
+  );
+});
+
+it("glows in the colors of the cover under the pointer, and stops when the pointer leaves", async () => {
+  withCovers();
+  await render();
+  // Two glow images for three games: they take turns, never one per game.
+  expect(glows()).toHaveLength(2);
+  expect(litGlows()).toEqual([]);
+
+  await pointAt("Hades");
+  expect(litGlows()).toEqual([coverImage("Hades").getAttribute("src")]);
+
+  await pointAt("Celeste");
+  expect(litGlows()).toEqual([coverImage("Celeste").getAttribute("src")]);
+
+  // No cover, nothing to glow.
+  await pointAt("Tunic");
+  expect(litGlows()).toEqual([]);
+
+  await pointAt("Hades");
+  const grid = card("Hades").parentElement!;
+  await act(async () => {
+    grid.dispatchEvent(
+      new MouseEvent("pointerout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
+    );
+  });
+  expect(litGlows()).toEqual([]);
+
+  // Standard cards have no glow.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(glows()).toHaveLength(0);
+});
+
+it("has Spotlight in Customize for the Covers view, off until you turn it on", async () => {
+  await render();
+  await openCustomize();
+  const spotlight = () =>
+    document.querySelector<HTMLInputElement>("#library-cover-spotlight");
+  const spotlightOn = () =>
+    card("Hades").parentElement!.hasAttribute("data-cover-spotlight");
+  expect(spotlight()!.checked).toBe(false);
+  expect(spotlightOn()).toBe(false);
+
+  await act(async () => spotlight()!.click());
+
+  expect(spotlight()!.checked).toBe(true);
+  expect(spotlightOn()).toBe(true);
+  expect(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
+  ).toMatchObject({ libraryCoverSpotlight: true });
+
+  // Only the Covers view has it.
+  await act(async () => useAppStore.getState().setMyGamesCardSize("grid"));
+  expect(spotlight()).toBeNull();
+});
+
+it("keeps Spotlight in a backup", () => {
+  expect(() =>
+    validateBackupData({ settings: { libraryCoverSpotlight: true } }, "data"),
+  ).not.toThrow();
+  expect(() =>
+    validateBackupData({ settings: { libraryCoverSpotlight: "on" } }, "data"),
+  ).toThrow();
 });

@@ -790,5 +790,7 @@
   "Covers": "Portadas",
   "Selected": "Seleccionado",
   "Show {{name}} in the banner": "Mostrar {{name}} en el banner",
-  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "La vista de portadas solo muestra la portada, así que estas opciones se aplican a las tarjetas estándar y grandes."
+  "The Covers view shows only the cover, so these apply to Standard and Large cards.": "La vista de portadas solo muestra la portada, así que estas opciones se aplican a las tarjetas estándar y grandes.",
+  "Spotlight on hover": "Foco al apuntar",
+  "The other covers step back while you point at one.": "Las demás portadas pasan a segundo plano mientras apuntas a una."
 }
