@@ -182,5 +182,7 @@
   "Launcher groups": "Launcher-Gruppen",
   "Hide empty sources": "Leere Quellen ausblenden",
   "Sidebar": "Seitenleiste",
-  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Ja. Klick mit rechts auf das Spiel, wähle {{journal}} und klick auf {{addPlaythrough}}. Nenn ihn Speedrun: Jeder Durchgang hat eine eigene Notiz und eine eigene Liste von Sitzungen."
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Ja. Klick mit rechts auf das Spiel, wähle {{journal}} und klick auf {{addPlaythrough}}. Nenn ihn Speedrun: Jeder Durchgang hat eine eigene Notiz und eine eigene Liste von Sitzungen.",
+  "Details": "Details",
+  "Switch tab": "Tab wechseln"
 }

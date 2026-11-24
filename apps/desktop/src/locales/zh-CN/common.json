@@ -72,5 +72,7 @@
   "Click to see this day": "点击查看这一天",
   "{{count}} more games_other": "还有 {{count}} 个游戏",
   "Running total: {{current}}, the period before: {{previous}}": "累计时长：{{current}}，上一时间段：{{previous}}",
-  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} 按此文件夹记录。{{exeName}} 已提交审核。审核通过后，其他玩家也可以为这个文件选择 {{name}}。"
+  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} 按此文件夹记录。{{exeName}} 已提交审核。审核通过后，其他玩家也可以为这个文件选择 {{name}}。",
+  "Left bumper": "左肩键",
+  "Triangle": "三角键"
 }

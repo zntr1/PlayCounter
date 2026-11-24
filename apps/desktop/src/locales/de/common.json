@@ -78,5 +78,7 @@
   "{{count}} more games_one": "{{count}} weiteres Spiel",
   "{{count}} more games_other": "{{count}} weitere Spiele",
   "Running total: {{current}}, the period before: {{previous}}": "Laufende Summe: {{current}}, Zeitraum davor: {{previous}}",
-  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} wird aus diesem Ordner erfasst. {{exeName}} wurde zur Prüfung geschickt. Sobald die Datei freigegeben ist, können auch andere Spieler {{name}} dafür wählen."
+  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} wird aus diesem Ordner erfasst. {{exeName}} wurde zur Prüfung geschickt. Sobald die Datei freigegeben ist, können auch andere Spieler {{name}} dafür wählen.",
+  "Left bumper": "Linke Schultertaste",
+  "Triangle": "Dreieck"
 }

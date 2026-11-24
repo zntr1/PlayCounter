@@ -39,10 +39,12 @@ pub(crate) const BUTTON_DPAD_LEFT: u16 = 0x0004;
 pub(crate) const BUTTON_DPAD_RIGHT: u16 = 0x0008;
 pub(crate) const BUTTON_MENU: u16 = 0x0010;
 pub(crate) const BUTTON_VIEW: u16 = 0x0020;
+pub(crate) const BUTTON_LEFT_SHOULDER: u16 = 0x0100;
 pub(crate) const BUTTON_RIGHT_SHOULDER: u16 = 0x0200;
 pub(crate) const BUTTON_A: u16 = 0x1000;
 pub(crate) const BUTTON_B: u16 = 0x2000;
 pub(crate) const BUTTON_X: u16 = 0x4000;
+pub(crate) const BUTTON_Y: u16 = 0x8000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +61,11 @@ pub enum ControllerAction {
     Back,
     ToggleFullscreen,
     StopGame,
+    /// Y / Triangle: Details of the selected game.
+    OpenDetails,
+    /// LB / L1 and RB / R1: the tab before or after the open one.
+    PreviousTab,
+    NextTab,
     /// View + D-pad up held: one more on the running game's hotkey counter.
     CountAdd,
     /// View + D-pad down held: take the last count back.
@@ -218,6 +225,16 @@ impl ControllerMachine {
         }
         if pressed & BUTTON_X != 0 {
             actions.push(ControllerAction::StopGame);
+        }
+        if pressed & BUTTON_Y != 0 {
+            actions.push(ControllerAction::OpenDetails);
+        }
+        if pressed & BUTTON_LEFT_SHOULDER != 0 {
+            actions.push(ControllerAction::PreviousTab);
+        }
+        // With View held, RB starts the bring-forward chord instead.
+        if pressed & BUTTON_RIGHT_SHOULDER != 0 && !view_down {
+            actions.push(ControllerAction::NextTab);
         }
 
         // With View held the D-pad belongs to the counting combo.
@@ -722,6 +739,54 @@ mod tests {
             machine.update(BUTTON_X, (0, 0), 0, 1_200),
             vec![ControllerAction::StopGame]
         );
+    }
+
+    #[test]
+    fn y_opens_details_once_per_press() {
+        let mut machine = ControllerMachine::default();
+        assert_eq!(
+            machine.update(BUTTON_Y, (0, 0), 0, 0),
+            vec![ControllerAction::OpenDetails]
+        );
+        assert!(machine.update(BUTTON_Y, (0, 0), 0, 1_000).is_empty());
+        machine.update(0, (0, 0), 0, 1_100);
+        assert_eq!(
+            machine.update(BUTTON_Y, (0, 0), 0, 1_200),
+            vec![ControllerAction::OpenDetails]
+        );
+    }
+
+    #[test]
+    fn bumpers_switch_tabs_once_per_press() {
+        let mut machine = ControllerMachine::default();
+        assert_eq!(
+            machine.update(BUTTON_LEFT_SHOULDER, (0, 0), 0, 0),
+            vec![ControllerAction::PreviousTab]
+        );
+        assert!(machine
+            .update(BUTTON_LEFT_SHOULDER, (0, 0), 0, 1_000)
+            .is_empty());
+        machine.update(0, (0, 0), 0, 1_100);
+        assert_eq!(
+            machine.update(BUTTON_RIGHT_SHOULDER, (0, 0), 0, 1_200),
+            vec![ControllerAction::NextTab]
+        );
+        assert!(machine
+            .update(BUTTON_RIGHT_SHOULDER, (0, 0), 0, 2_000)
+            .is_empty());
+    }
+
+    #[test]
+    fn rb_held_with_view_is_the_reveal_chord_not_a_tab_switch() {
+        let mut machine = ControllerMachine::default();
+        assert!(machine.update(BUTTON_VIEW, (0, 0), 0, 0).is_empty());
+        let chord = BUTTON_VIEW | BUTTON_RIGHT_SHOULDER;
+        assert!(machine.update(chord, (0, 0), 0, 200).is_empty());
+        assert_eq!(
+            machine.update(chord, (0, 0), 0, 2_200),
+            vec![ControllerAction::Reveal]
+        );
+        assert!(machine.update(0, (0, 0), 0, 2_300).is_empty());
     }
 
     #[test]

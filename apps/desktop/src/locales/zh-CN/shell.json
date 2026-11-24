@@ -182,5 +182,7 @@
   "Launcher groups": "启动器分组",
   "Hide empty sources": "隐藏空的来源",
   "Sidebar": "侧边栏",
-  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "可以。右键点击游戏，选择{{journal}}，然后点击{{addPlaythrough}}。把它命名为“速通”：每个周目都有自己的笔记和游玩记录列表。"
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "可以。右键点击游戏，选择{{journal}}，然后点击{{addPlaythrough}}。把它命名为“速通”：每个周目都有自己的笔记和游玩记录列表。",
+  "Details": "详情",
+  "Switch tab": "切换标签页"
 }

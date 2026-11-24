@@ -1580,6 +1580,7 @@ function ViewHeading({
 
 function ControllerModeFooter() {
   const kind = useControllerKind();
+  const activeView = useAppStore((state) => state.activeView);
   return (
     <div
       aria-label={t("Controller mode controls")}
@@ -1596,6 +1597,13 @@ function ControllerModeFooter() {
         <ControllerHint button="A" label={t("Select")} />
         <ControllerHint button="B" label={t("Back")} />
         <ControllerHint button="RIGHT_STICK" label={t("Scroll")} />
+        {/* Only where the button does something. */}
+        {activeView === "games" ? (
+          <ControllerHint button="Y" label={t("Details")} />
+        ) : null}
+        {activeView === "history" || activeView === "achievements" ? (
+          <ControllerHint button="LB" also="RB" label={t("Switch tab")} />
+        ) : null}
         <ControllerHint button="VIEW" label={t("Card size")} />
         <ControllerHint button="MENU" label={t("Fullscreen")} />
         <div
@@ -1622,18 +1630,22 @@ function ControllerModeFooter() {
 
 function ControllerHint({
   button,
+  also,
   label,
 }: {
   button: ControllerControl;
+  /** A second button doing the same in the other direction (LB / RB). */
+  also?: ControllerControl;
   label: string;
 }) {
   const kind = useControllerKind();
+  const name = also
+    ? `${controllerButtonName(kind, button)} / ${controllerButtonName(kind, also)}`
+    : controllerButtonName(kind, button);
   return (
-    <span
-      className="flex items-center gap-2"
-      aria-label={`${controllerButtonName(kind, button)}: ${label}`}
-    >
+    <span className="flex items-center gap-2" aria-label={`${name}: ${label}`}>
       <ControllerButtonGlyph button={button} />
+      {also ? <ControllerButtonGlyph button={also} /> : null}
       <span>{label}</span>
     </span>
   );

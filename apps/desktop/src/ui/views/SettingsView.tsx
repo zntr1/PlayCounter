@@ -88,9 +88,15 @@ export function SettingsView() {
   }
 
   return (
-    <div className="settings-shell">
+    // The controller walks every switch, choice and button here
+    // (controllerBridge): the menu as one column, the page as the other.
+    <div className="settings-shell" data-controller-controls>
       <div className="settings-layout">
-        <nav aria-label={t("Settings")} className="settings-menu">
+        <nav
+          aria-label={t("Settings")}
+          className="settings-menu"
+          data-controller-menu
+        >
           <div
             data-tour="settings-search"
             className="settings-menu-search relative"

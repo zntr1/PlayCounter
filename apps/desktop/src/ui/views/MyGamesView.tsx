@@ -350,7 +350,11 @@ import {
   type EmulatorMatchProvenance,
 } from "../../emulators/provenance";
 import { currentPlatform } from "../../platform";
-import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
+import {
+  CONTROLLER_DETAILS_EVENT,
+  CONTROLLER_LIBRARY_VIEW_EVENT,
+} from "../../controllerBridge";
+import { nextControllerLibraryView } from "../../controllerInput";
 import {
   hasUnknownProviderPlaytime,
   isConsoleOnlyGame,
@@ -1173,7 +1177,7 @@ export function MyGamesView({
 
   useEffect(() => {
     const toggleControllerCardSize = () => {
-      setMyGamesCardSize(cardSize === "large" ? "grid" : "large");
+      setMyGamesCardSize(nextControllerLibraryView(cardSize));
       requestAnimationFrame(() => {
         document
           .querySelector<HTMLElement>('[data-controller-selected="true"]')
@@ -3913,6 +3917,19 @@ export function GameLibraryCard({
     setDetailsTab(tab);
     setShowDetails(true);
   };
+  // Y / Triangle on the selected card (controllerBridge). Every view builds
+  // its own card root, so the listener moves with the view.
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const openFromController = () => {
+      setDetailsTab("general");
+      setShowDetails(true);
+    };
+    card.addEventListener(CONTROLLER_DETAILS_EVENT, openFromController);
+    return () =>
+      card.removeEventListener(CONTROLLER_DETAILS_EVENT, openFromController);
+  }, [view]);
   // A sample always has the entry: its Details carries sample achievements.
   const hasGameAchievements = useMemo(
     () => demo || achievementSources(game).length > 0,

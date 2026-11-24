@@ -5,7 +5,8 @@
 
 use crate::controller::{
     ControllerKind, PadInputs, BUTTON_A, BUTTON_B, BUTTON_DPAD_DOWN, BUTTON_DPAD_LEFT,
-    BUTTON_DPAD_RIGHT, BUTTON_DPAD_UP, BUTTON_MENU, BUTTON_RIGHT_SHOULDER, BUTTON_VIEW, BUTTON_X,
+    BUTTON_DPAD_RIGHT, BUTTON_DPAD_UP, BUTTON_LEFT_SHOULDER, BUTTON_MENU, BUTTON_RIGHT_SHOULDER,
+    BUTTON_VIEW, BUTTON_X, BUTTON_Y,
 };
 
 pub const SONY_VENDOR_ID: u16 = 0x054c;
@@ -50,6 +51,8 @@ pub struct PadState {
 const SQUARE: u8 = 0x10;
 const CROSS: u8 = 0x20;
 const CIRCLE: u8 = 0x40;
+const TRIANGLE: u8 = 0x80;
+const L1: u8 = 0x01;
 const R1: u8 = 0x02;
 const CREATE_OR_SHARE: u8 = 0x10;
 const OPTIONS: u8 = 0x20;
@@ -140,6 +143,12 @@ pub fn parse_report(model: PadModel, data: &[u8]) -> Option<PadState> {
     }
     if buttons0 & SQUARE != 0 {
         buttons |= BUTTON_X;
+    }
+    if buttons0 & TRIANGLE != 0 {
+        buttons |= BUTTON_Y;
+    }
+    if buttons1 & L1 != 0 {
+        buttons |= BUTTON_LEFT_SHOULDER;
     }
     if buttons1 & R1 != 0 {
         buttons |= BUTTON_RIGHT_SHOULDER;
@@ -445,6 +454,20 @@ mod tests {
         assert_eq!(
             parse_report(PadModel::DualShock4, &data).map(|state| state.buttons),
             Some(BUTTON_X)
+        );
+    }
+
+    #[test]
+    fn maps_triangle_l1_and_r1_to_y_and_the_bumpers() {
+        let data = report(0x31, 78, 2, 9, [HAT_RELEASED | TRIANGLE, L1 | R1]);
+        assert_eq!(
+            parse_report(PadModel::DualSense, &data).map(|state| state.buttons),
+            Some(BUTTON_Y | BUTTON_LEFT_SHOULDER | BUTTON_RIGHT_SHOULDER)
+        );
+        let data = report(0x01, 64, 1, 5, [HAT_RELEASED | TRIANGLE, L1 | R1]);
+        assert_eq!(
+            parse_report(PadModel::DualShock4, &data).map(|state| state.buttons),
+            Some(BUTTON_Y | BUTTON_LEFT_SHOULDER | BUTTON_RIGHT_SHOULDER)
         );
     }
 
