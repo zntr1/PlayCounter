@@ -1897,10 +1897,11 @@ img[data-img-fade-in] {
     0 22px 40px -18px rgb(0 0 0 / 0.7);
   --shadow-cover-lit: 0 1px 2px rgb(0 0 0 / 0.5);
   --cover-edge:
-    inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.06),
-    inset 0 -1px 0 rgb(0 0 0 / 0.4);
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    inset 0 0 0 1px rgb(255 255 255 / 0.06), inset 0 -1px 0 rgb(0 0 0 / 0.4);
   --cover-edge-hover:
-    inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.26);
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 0 0 1px rgb(255 255 255 / 0.26);
 }
 
 :root[data-theme="light"] {
@@ -1923,7 +1924,14 @@ img[data-img-fade-in] {
   pointer-events: none;
 }
 
-.covers-tile:hover .covers-edge {
+/* Under the pointer, or picked with the arrow keys, a controller or Tab. */
+.covers-tile:hover .covers-edge,
+.covers-tile:is(
+    [data-controller-selected="true"],
+    :focus-visible,
+    :has(:focus-visible)
+  )
+  .covers-edge {
   box-shadow: var(--cover-edge-hover);
 }
 
@@ -2004,8 +2012,20 @@ img[data-img-fade-in] {
   pointer-events: none;
 }
 
-[data-cover-spotlight]:has(.covers-tile:hover)
-  .covers-tile:not(:hover)
+/* The cover in front: under the pointer, or picked with the arrow keys, a
+   controller or Tab. Both stay lit when the mouse and the keys point at
+   different covers. */
+[data-cover-spotlight]:has(
+    .covers-tile:is(
+      :hover,
+      [data-controller-selected="true"],
+      :focus-visible,
+      :has(:focus-visible)
+    )
+  )
+  .covers-tile:not(:hover):not([data-controller-selected="true"]):not(
+    :focus-visible
+  ):not(:has(:focus-visible))
   .covers-dim {
   opacity: 0.5;
 }

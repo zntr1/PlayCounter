@@ -333,6 +333,31 @@ it("loads the covers at least Sharp, even with Cover quality on Standard", async
   );
 });
 
+// Phil, 2026-11-24: arrow keys and a controller get the same as the mouse.
+// Both mark the card (data-controller-selected) and focus it, as the
+// controller bridge's focusItem does.
+async function selectWithKeys(name: string) {
+  for (const item of container.querySelectorAll("[data-controller-selected]"))
+    item.removeAttribute("data-controller-selected");
+  const target = card(name) as HTMLElement;
+  target.setAttribute("data-controller-selected", "true");
+  await act(async () => target.focus());
+}
+
+it("glows behind the cover picked with the arrow keys or a controller, and stops when the pick leaves the grid", async () => {
+  withCovers();
+  await render();
+  await selectWithKeys("Hades");
+  expect(litGlows()).toEqual([coverImage("Hades").getAttribute("src")]);
+
+  await selectWithKeys("Celeste");
+  expect(litGlows()).toEqual([coverImage("Celeste").getAttribute("src")]);
+
+  // Escape or Tab out of the grid.
+  await act(async () => (card("Celeste") as HTMLElement).blur());
+  expect(litGlows()).toEqual([]);
+});
+
 it("glows in the colors of the cover under the pointer, and stops when the pointer leaves", async () => {
   withCovers();
   await render();

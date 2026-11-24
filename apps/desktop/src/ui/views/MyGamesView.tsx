@@ -3166,6 +3166,8 @@ export function MyGamesView({
                     }
                     onPointerOver={coverGlow.onPointerOver}
                     onPointerLeave={coverGlow.onPointerLeave}
+                    onFocus={coverGlow.onFocus}
+                    onBlur={coverGlow.onBlur}
                     className={clsx(
                       "grid",
                       view === "grid" &&
