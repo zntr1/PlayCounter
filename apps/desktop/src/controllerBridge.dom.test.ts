@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import {
   armControllerBridge,
+  CONTROLLER_BACK_EVENT,
   CONTROLLER_DETAILS_EVENT,
   disposeControllerBridge,
   initializeControllerBridge,
@@ -313,6 +314,62 @@ it("keeps the controller on the cards until B takes it to the sidebar; the arrow
   card.focus();
   press("ArrowLeft");
   expect(document.activeElement).toBe(gamesNav);
+});
+
+it("walks My History's sessions with the controller: A filters by the game, B drops the filter, then goes to the sidebar", () => {
+  enableController();
+  useAppStore.getState().setActiveView("history");
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.setAttribute("data-controller-active-view", "true");
+  content.setAttribute("aria-busy", "false");
+  content.innerHTML = ["hades", "celeste"]
+    .map(
+      (game) => `<article id="row-${game}" data-controller-item="history-session" tabindex="0">
+        <button id="filter-${game}" data-controller-launch="filter" hidden></button>${game}
+      </article>`,
+    )
+    .join("");
+  place({ "row-hades": [0, 100, 600, 60], "row-celeste": [0, 170, 600, 60] });
+  let filter: string | null = null;
+  for (const game of ["hades", "celeste"])
+    document
+      .getElementById(`filter-${game}`)!
+      .addEventListener("click", () => (filter = game));
+  const backs = vi.fn();
+  window.addEventListener(CONTROLLER_BACK_EVENT, (event) => {
+    backs();
+    if (filter === null) return;
+    event.preventDefault();
+    filter = null;
+  });
+  const row = (game: string) => document.getElementById(`row-${game}`)!;
+  nav.focus();
+
+  input("right");
+  expect(document.activeElement).toBe(row("hades"));
+  input("down");
+  expect(document.activeElement).toBe(row("celeste"));
+  // Left and Right don't hop to another session, nor to the sidebar.
+  input("left");
+  expect(document.activeElement).toBe(row("celeste"));
+
+  input("confirm");
+  expect(filter).toBe("celeste");
+  expect(row("celeste").getAttribute("data-controller-selected")).toBe("true");
+
+  // B drops the filter first; the ring stays on the session.
+  input("back");
+  expect(filter).toBeNull();
+  expect(document.activeElement).toBe(row("celeste"));
+  expect(row("celeste").getAttribute("data-controller-selected")).toBe("true");
+  // Without a filter B goes back to the sidebar.
+  input("back");
+  expect(document.activeElement).toBe(nav);
+  expect(backs).toHaveBeenCalledTimes(2);
+
+  // The keyboard keeps the rows' own arrow keys.
+  row("hades").focus();
+  expect(press("ArrowDown").defaultPrevented).toBe(false);
 });
 
 it("keeps the controller on the sidebar when A opens a view without cards, and Right enters it to scroll", () => {

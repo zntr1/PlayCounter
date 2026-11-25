@@ -85,6 +85,7 @@ import {
 } from "./history/SessionChangeDialogs";
 import { appLocale, formatNumericDate, getT } from "../../i18n";
 import { TabBumperHint } from "../TabBumperHint";
+import { CONTROLLER_BACK_EVENT } from "../../controllerBridge";
 
 const t = getT("history");
 
@@ -655,6 +656,18 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [clearGameFilter, hasGameFilter]);
+  // B on a pad (controllerBridge) drops the game filter before it leaves My
+  // History; A on a session set it.
+  useEffect(() => {
+    if (!hasGameFilter) return;
+    const handleBack = (event: Event) => {
+      if (useAppStore.getState().activeView !== "history") return;
+      event.preventDefault();
+      clearGameFilter();
+    };
+    window.addEventListener(CONTROLLER_BACK_EVENT, handleBack);
+    return () => window.removeEventListener(CONTROLLER_BACK_EVENT, handleBack);
   }, [clearGameFilter, hasGameFilter]);
   const selectGame = useCallback(
     (key: string) => {

@@ -22,6 +22,9 @@ export const CONTROLLER_LIBRARY_VIEW_EVENT =
   "playcounter:controller-library-view";
 /** Sent to the selected game card: Y / Triangle asks for its Details. */
 export const CONTROLLER_DETAILS_EVENT = "playcounter:controller-details";
+/** Sent to the window when B would leave the view: a view with something to
+ *  undo first (My History's game filter) cancels the event and does that. */
+export const CONTROLLER_BACK_EVENT = "playcounter:controller-back";
 
 type ControllerBridgeState = {
   armed: boolean;
@@ -141,6 +144,9 @@ function track(
 // (Settings); the keyboard leaves those to Tab and their own keys.
 const SIDEBAR_ROLES = new Set(["navigation", "library-tab"]);
 const NAVIGABLE_ROLES = new Set(["game-card", ...SIDEBAR_ROLES]);
+// My History's sessions: the pad walks them (A filters by the game, B drops
+// the filter). The keyboard keeps the rows' own arrow keys.
+const PAD_ROLES = new Set(["history-session"]);
 const CONTROLS = [
   "button",
   "select",
@@ -168,9 +174,10 @@ function isControl(item: Element) {
 }
 
 function isNavigableItem(item: Element, keyboard = false) {
+  const role = item.getAttribute("data-controller-item") ?? "";
   return (
-    NAVIGABLE_ROLES.has(item.getAttribute("data-controller-item") ?? "") ||
-    (!keyboard && isControl(item))
+    NAVIGABLE_ROLES.has(role) ||
+    (!keyboard && (PAD_ROLES.has(role) || isControl(item)))
   );
 }
 
@@ -781,9 +788,16 @@ function handleControllerEvent(
   }
 
   if (event.action === "back") {
-    // On the sidebar there is nothing further back: B leaves the ring where
-    // it is.
-    if (!topDialog() && document.activeElement?.closest?.("aside")) return;
+    if (!topDialog()) {
+      // On the sidebar there is nothing further back: B leaves the ring
+      // where it is.
+      if (document.activeElement?.closest?.("aside")) return;
+      // The view takes B first when it has something to undo, like My
+      // History's game filter; the ring stays where it is.
+      const back = new CustomEvent(CONTROLLER_BACK_EVENT, { cancelable: true });
+      window.dispatchEvent(back);
+      if (back.defaultPrevented) return;
+    }
     clearControllerSelection();
     const closing = topDialog();
     if (closing) {
@@ -898,7 +912,8 @@ function navigateItems(action: ControllerAction, keyboard = false) {
         moveAmongControls(contentItems, selected, action);
         return;
       }
-      moveWithinItems(contentItems, selected, action);
+      // A list (My History's sessions): Left and Right stay on the row.
+      moveWithinItems(contentItems, selected, action, false);
       return;
     }
 
