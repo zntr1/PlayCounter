@@ -1,33 +1,34 @@
-import xboxAUrl from "../../../../assets/xbox/XboxSeriesX_A.png";
-import xboxBUrl from "../../../../assets/xbox/XboxSeriesX_B.png";
-import xboxDpadUrl from "../../../../assets/xbox/XboxSeriesX_Dpad.png";
-import xboxMenuUrl from "../../../../assets/xbox/XboxSeriesX_Menu.png";
-import xboxRbUrl from "../../../../assets/xbox/XboxSeriesX_RB.png";
-import xboxRightStickUrl from "../../../../assets/xbox/XboxSeriesX_Right_Stick_Click.png";
-import xboxViewUrl from "../../../../assets/xbox/XboxSeriesX_View.png";
-import xboxXUrl from "../../../../assets/xbox/XboxSeriesX_X.png";
-import xboxYUrl from "../../../../assets/xbox/XboxSeriesX_Y.png";
-import xboxLbUrl from "../../../../assets/xbox/XboxSeriesX_LB.png";
-import ps5CrossUrl from "../../../../assets/playstation/PS5_Cross.png";
-import ps5CircleUrl from "../../../../assets/playstation/PS5_Circle.png";
-import ps5DpadUrl from "../../../../assets/playstation/PS5_Dpad.png";
-import ps5OptionsUrl from "../../../../assets/playstation/PS5_Options.png";
-import ps5R1Url from "../../../../assets/playstation/PS5_R1.png";
-import ps5RightStickUrl from "../../../../assets/playstation/PS5_Right_Stick_Click.png";
-import ps5CreateUrl from "../../../../assets/playstation/PS5_Share.png";
-import ps5SquareUrl from "../../../../assets/playstation/PS5_Square.png";
-import ps5TriangleUrl from "../../../../assets/playstation/PS5_Triangle.png";
-import ps5L1Url from "../../../../assets/playstation/PS5_L1.png";
-import ps4CrossUrl from "../../../../assets/playstation/PS4_Cross.png";
-import ps4CircleUrl from "../../../../assets/playstation/PS4_Circle.png";
-import ps4DpadUrl from "../../../../assets/playstation/PS4_Dpad.png";
-import ps4OptionsUrl from "../../../../assets/playstation/PS4_Options.png";
-import ps4R1Url from "../../../../assets/playstation/PS4_R1.png";
-import ps4RightStickUrl from "../../../../assets/playstation/PS4_Right_Stick_Click.png";
-import ps4ShareUrl from "../../../../assets/playstation/PS4_Share.png";
-import ps4SquareUrl from "../../../../assets/playstation/PS4_Square.png";
-import ps4TriangleUrl from "../../../../assets/playstation/PS4_Triangle.png";
-import ps4L1Url from "../../../../assets/playstation/PS4_L1.png";
+// Unreal "Input Prompts Pack", style Alt with coloured letters.
+import xboxAUrl from "../../../../assets/xbox/T_X_A_Color_Alt.png";
+import xboxBUrl from "../../../../assets/xbox/T_X_B_Color_Alt.png";
+import xboxDpadUrl from "../../../../assets/xbox/T_X_Dpad_Alt.png";
+import xboxMenuUrl from "../../../../assets/xbox/T_X_X_Alt.png";
+import xboxRbUrl from "../../../../assets/xbox/T_X_RB_Alt.png";
+import xboxRightStickUrl from "../../../../assets/xbox/T_X_R_Alt.png";
+import xboxViewUrl from "../../../../assets/xbox/T_X_Share_Alt.png";
+import xboxXUrl from "../../../../assets/xbox/T_X_X_Color_Alt.png";
+import xboxYUrl from "../../../../assets/xbox/T_X_Y_Color_Alt.png";
+import xboxLbUrl from "../../../../assets/xbox/T_X_LB_Alt.png";
+import ps5CrossUrl from "../../../../assets/playstation/T_P5_Cross_Color_Alt.png";
+import ps5CircleUrl from "../../../../assets/playstation/T_P5_Circle_Color_Alt.png";
+import ps5DpadUrl from "../../../../assets/playstation/T_P5_Dpad_Alt.png";
+import ps5OptionsUrl from "../../../../assets/playstation/T_P5_Options_Alt.png";
+import ps5R1Url from "../../../../assets/playstation/T_P5_R1_Alt.png";
+import ps5RightStickUrl from "../../../../assets/playstation/T_P5_R_Alt.png";
+import ps5CreateUrl from "../../../../assets/playstation/T_P5_Share_Alt.png";
+import ps5SquareUrl from "../../../../assets/playstation/T_P5_Square_Color_Alt.png";
+import ps5TriangleUrl from "../../../../assets/playstation/T_P5_Triangle_Color_Alt.png";
+import ps5L1Url from "../../../../assets/playstation/T_P5_L1_Alt.png";
+import ps4CrossUrl from "../../../../assets/playstation/T_P4_Cross_Color_Alt.png";
+import ps4CircleUrl from "../../../../assets/playstation/T_P4_Circle_Color_Alt.png";
+import ps4DpadUrl from "../../../../assets/playstation/T_P4_Dpad_Alt.png";
+import ps4OptionsUrl from "../../../../assets/playstation/T_P4_Options_Alt.png";
+import ps4R1Url from "../../../../assets/playstation/T_P4_R1_Alt.png";
+import ps4RightStickUrl from "../../../../assets/playstation/T_P4_R_Alt.png";
+import ps4ShareUrl from "../../../../assets/playstation/T_P4_Share_Alt.png";
+import ps4SquareUrl from "../../../../assets/playstation/T_P4_Square_Color_Alt.png";
+import ps4TriangleUrl from "../../../../assets/playstation/T_P4_Triangle_Color_Alt.png";
+import ps4L1Url from "../../../../assets/playstation/T_P4_L1_Alt.png";
 import { useControllerKind, type ControllerKind } from "../controllerKind";
 import { getT } from "../i18n";
 
@@ -139,16 +140,12 @@ export function controllerButtonName(
   return buttonNames()[kind][button];
 }
 
-// The shoulder button artwork is letterboxed inside its square canvas, so it
-// needs a bump to read at the same visual weight as the round face buttons.
-const glyphScale: Partial<Record<ControllerControl, number>> = {
-  LB: 1.4,
-  RB: 1.4,
-};
-
+// The round buttons fill the middle 75% of their square (12.5% empty on
+// each side, see .details-key-hint in styles.css); the shoulder buttons its
+// full width.
 const basePx: Record<"small" | "normal", number> = {
-  small: 26,
-  normal: 34,
+  small: 28,
+  normal: 37,
 };
 
 export function ControllerButtonGlyph({
@@ -159,7 +156,7 @@ export function ControllerButtonGlyph({
   size?: "small" | "normal";
 }) {
   const kind = useControllerKind();
-  const px = Math.round(basePx[size] * (glyphScale[button] ?? 1));
+  const px = basePx[size];
 
   return (
     <img

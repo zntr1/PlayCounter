@@ -477,9 +477,9 @@
   display: none;
   flex: 0 100 auto;
   flex-wrap: wrap;
-  /* The small glyph (26px), px-2 and a border. The action beside it has
+  /* The small glyph (28px), px-2 and a border. The action beside it has
      px-2 too, so the even split comes out even. */
-  min-width: calc(26px + 1rem + 2px);
+  min-width: calc(28px + 1rem + 2px);
   overflow: hidden;
 }
 
@@ -499,13 +499,13 @@
   min-width: max-content;
 }
 
-/* The glyph art leaves 9% of its square empty on each side. Beside a name
-   that reads as extra room on the glyph's side, so A Play and Y Details
-   looked off-centre in their buttons. Pulling the empty edges in centres
-   what you see. */
+/* The glyph art leaves 12.5% of its square empty on each side. Beside a
+   name that reads as extra room on the glyph's side, so A Play and
+   Y Details looked off-centre in their buttons. Pulling the empty edges in
+   centres what you see. */
 .details-key-hint > span:first-child,
 .details-key-row .launch-key-hint--controller {
-  margin-inline: calc(26px * -0.09);
+  margin-inline: calc(28px * -0.125);
 }
 
 :root[data-controller-mode="true"]
