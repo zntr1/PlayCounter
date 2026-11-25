@@ -3,20 +3,20 @@
 export const site = {
   origin: "https://playcounter.app",
   name: "PlayCounter",
-  version: "1.7.0",
+  version: "1.7.3",
   reviewed: "2026-09-24",
   // Optional, for the release named in `version`: its publish date and the
   // byte size of PlayCounter-Setup.exe, both from the GitHub release. When null,
   // the download line omits the size and the structured data omits the date.
-  releaseDate: "2026-11-13",
-  installerBytes: 8462592,
+  releaseDate: "2026-11-25",
+  installerBytes: 8976824,
   download:
     "https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe",
   releases: "https://github.com/zntr1/PlayCounter/releases/latest",
   repository: "https://github.com/zntr1/PlayCounter",
   discord: "https://discord.gg/t2nG3jaEEY",
   description:
-    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic, GOG and PlayStation hours.",
+    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic, GOG, PlayStation and Nintendo hours.",
   milestone: "+500 installations in the last 30 days.",
   // The milestone is the owner's install count for the last 30 days, September 2026.
   // It is not the presence endpoint's online installation count or a download count.
@@ -307,11 +307,22 @@ export const site = {
       logo: "/brands/playstation.svg",
       method: "With PlayStation sign-in",
       brings: "Games + your PS5 & PS4 hours",
-      isNew: true,
       detail:
         "Sign in to bring in your PS5 and PS4 games with the playtime Sony recorded. While PlayCounter runs, a game you start on the console shows up live in Now Playing.",
       guide: "/check-playtime-ps5/",
       guideLabel: "Import PS5 playtime",
+    },
+    {
+      id: "nintendo",
+      name: "Nintendo",
+      logo: "/brands/nintendo.svg",
+      method: "With Nintendo Account sign-in",
+      brings: "Games + your Switch hours",
+      isNew: true,
+      detail:
+        "Sign in to bring in the games you played on your Nintendo Switch with the playtime Nintendo recorded. While PlayCounter runs, it reads your totals again about once an hour.",
+      guide: "/check-playtime-nintendo-switch/",
+      guideLabel: "Import Switch playtime",
     },
     {
       id: "battlenet",
@@ -473,7 +484,7 @@ export const faq = [
   ],
   [
     "Can I bring in hours from before I installed it?",
-    'Yes. Steam, Xbox, Epic, GOG and PlayStation imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
+    'Yes. Steam, Xbox, Epic, GOG, PlayStation and Nintendo imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
   ],
   [
     "Which emulators are supported?",
@@ -481,7 +492,11 @@ export const faq = [
   ],
   [
     "Can PlayCounter take screenshots of my games?",
-    "Yes. Set a key under <strong>Settings → While you play → Screenshots</strong>. PlayCounter saves a picture of the game window to your Pictures folder, without Steam or Game Bar, and shows it on the session it was taken in. A second key adds a caption right away; the caption is stored in the picture file. Games in exclusive fullscreen can come out black, so use borderless or windowed mode.",
+    "Yes. Set a key under <strong>Settings → While you play → Screenshots</strong>. PlayCounter saves a picture of the game window to your Pictures folder, without Steam or Game Bar, and shows it on the session it was taken in. A second key adds a caption right away; the caption is stored in the picture file. With HDR on, PlayCounter converts the HDR picture itself, so bright highlights are kept instead of cut off. Games in exclusive fullscreen can come out black, so use borderless or windowed mode.",
+  ],
+  [
+    "Does it track PC ports and recompiled games like Ship of Harkinian?",
+    'Yes. A PC port or recompilation runs as a normal Windows program, so PlayCounter tracks it like any other game. Ship of Harkinian counts as The Legend of Zelda: Ocarina of Time, 2 Ship 2 Harkinian as Majora’s Mask, and Zelda 64: Recompiled is recognized too. A port PlayCounter doesn’t know yet shows up in Discovered: match it with its game once and it is tracked from then on. <a href="/game-not-detected/">How to add a game</a>.',
   ],
   [
     "Which languages is the app available in?",
@@ -489,7 +504,7 @@ export const faq = [
   ],
   [
     "What stays on my PC, and what goes online?",
-    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic, GOG, PlayStation and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
+    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic, GOG, PlayStation, Nintendo and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
   ],
   [
     "Is PlayCounter coming to Steam?",
@@ -497,6 +512,6 @@ export const faq = [
   ],
   [
     "Does it work on macOS, Linux or consoles?",
-    "The public installer is for Windows. PlayCounter records games running on that PC. Xbox import can include account playtime reported for other devices. The PlayStation import adds your PS5 and PS4 playtime and, while PlayCounter runs, sees what you play on the console.",
+    "The public installer is for Windows. PlayCounter records games running on that PC. Xbox import can include account playtime reported for other devices. The PlayStation import adds your PS5 and PS4 playtime and, while PlayCounter runs, sees what you play on the console. The Nintendo import adds the playtime Nintendo recorded for your Switch games.",
   ],
 ];

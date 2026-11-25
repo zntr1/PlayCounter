@@ -44,12 +44,15 @@ before the deployment action runs.
   (which also reads its recent-games list from `melonDS.toml`) and Xenia; the
   next adds the GOG import; the next adds the PlayStation import, its live
   console status and the PS5 playtime guide; the next adds BlueStacks (which
-  reads its `Player.log` and the instance's `AppCache.json`).
+  reads its `Player.log` and the instance's `AppCache.json`); the next adds the
+  Nintendo import and the Switch playtime guide.
 
 `site.reviewed` is the explicit date of the full September 2026 content review;
 it is not the build date. Do not bump it on every build or ordinary release.
-If future edits affect only selected pages, introduce per-page modification
-dates rather than assigning fresh dates to unchanged guides.
+A guide that changed after that review carries its own `updated` date in its
+`guides-*.mjs` entry; its Updated line, its structured data and the sitemap use
+it. Set it only when the guide's content changed: don't assign fresh dates to
+unchanged guides.
 
 The roughly 200-user milestone is the owner's September 2026 estimate since
 the June launch. It is not a count of online installations, monthly active users
