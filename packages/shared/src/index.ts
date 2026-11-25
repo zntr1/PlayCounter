@@ -501,6 +501,21 @@ export interface GameCoversResponse {
 }
 
 /**
+ * GET /api/games/cover-changes: the covers the server replaced after `since`,
+ * for every game it stores, oldest change first. The app remembers `next` and
+ * sends it as `since` the next time, so it reads every change once. Without
+ * `since` the answer has no covers, only where to start reading. A change is
+ * handed out once it is a few minutes old.
+ */
+export interface GameCoverChangesResponse {
+  covers: GameCover[];
+  /** Where this answer ends: the `since` of the next request. */
+  next: string;
+  /** More changes wait: ask again with `next`. */
+  more: boolean;
+}
+
+/**
  * Extended IGDB facts for one game, shown in the desktop's game details view.
  * Everything past `gameId`/`igdbId` is optional or an empty array: IGDB entries
  * are unevenly filled, and a community game may have no IGDB entry at all.
