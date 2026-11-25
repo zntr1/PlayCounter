@@ -239,6 +239,37 @@ pub fn save_preview_from_file(
     imp::save_preview_from_file(source, path, max_width, quality)
 }
 
+/// Reads a picture file (JPEG, PNG, WebP) as BGRA rows.
+pub fn read_picture(path: &std::path::Path) -> Result<Picture, String> {
+    imp::read_picture(path)
+}
+
+/// Reads a picture file held in memory (the marks the viewer sends as a
+/// PNG) as BGRA rows. Unlike a captured picture, its alpha counts: 0 is see
+/// through, 255 covers.
+pub fn read_picture_bytes(bytes: &[u8]) -> Result<Picture, String> {
+    imp::read_picture_bytes(bytes)
+}
+
+/// Lays `marks` (as big as `picture`, straight alpha) over `picture`.
+pub fn blend_marks(picture: &mut Picture, marks: &Picture) {
+    for (base, mark) in picture
+        .bgra
+        .chunks_exact_mut(4)
+        .zip(marks.bgra.chunks_exact(4))
+    {
+        let alpha = u32::from(mark[3]);
+        if alpha == 0 {
+            continue;
+        }
+        for channel in 0..3 {
+            let over = u32::from(mark[channel]) * alpha;
+            let under = u32::from(base[channel]) * (255 - alpha);
+            base[channel] = ((over + under + 127) / 255) as u8;
+        }
+    }
+}
+
 /// Asks Windows once to capture without the yellow border. The answer as
 /// text: Allowed, DeniedByUser, … or why it couldn't be asked.
 pub fn request_borderless_capture() -> String {
@@ -277,6 +308,14 @@ mod imp {
         _max_width: u32,
         _quality: f32,
     ) -> Result<u64, String> {
+        Err(UNSUPPORTED.into())
+    }
+
+    pub fn read_picture(_path: &std::path::Path) -> Result<Picture, String> {
+        Err(UNSUPPORTED.into())
+    }
+
+    pub fn read_picture_bytes(_bytes: &[u8]) -> Result<Picture, String> {
         Err(UNSUPPORTED.into())
     }
 
@@ -334,8 +373,8 @@ mod imp {
                 },
                 Imaging::{
                     CLSID_WICImagingFactory, GUID_ContainerFormatJpeg, GUID_WICPixelFormat24bppBGR,
-                    GUID_WICPixelFormat32bppBGR, IWICBitmapSource, IWICImagingFactory,
-                    WICBitmapDitherTypeNone, WICBitmapEncoderNoCache,
+                    GUID_WICPixelFormat32bppBGR, GUID_WICPixelFormat32bppBGRA, IWICBitmapSource,
+                    IWICImagingFactory, WICBitmapDitherTypeNone, WICBitmapEncoderNoCache,
                     WICBitmapInterpolationModeFant, WICBitmapPaletteTypeCustom,
                     WICDecodeMetadataCacheOnDemand,
                 },
@@ -812,6 +851,66 @@ mod imp {
         file_size(path)
     }
 
+    pub fn read_picture(path: &Path) -> Result<Picture, String> {
+        on_com_thread(|| unsafe {
+            let factory = imaging_factory()?;
+            let decoder = factory
+                .CreateDecoderFromFilename(
+                    &HSTRING::from(path.as_os_str()),
+                    None,
+                    GENERIC_READ,
+                    WICDecodeMetadataCacheOnDemand,
+                )
+                .map_err(text)?;
+            let frame = decoder.GetFrame(0).map_err(text)?;
+            bgra_pixels(&factory, &frame.cast().map_err(text)?)
+        })
+    }
+
+    pub fn read_picture_bytes(bytes: &[u8]) -> Result<Picture, String> {
+        on_com_thread(|| unsafe {
+            let factory = imaging_factory()?;
+            let stream = factory.CreateStream().map_err(text)?;
+            stream.InitializeFromMemory(bytes).map_err(text)?;
+            let decoder = factory
+                .CreateDecoderFromStream(&stream, std::ptr::null(), WICDecodeMetadataCacheOnDemand)
+                .map_err(text)?;
+            let frame = decoder.GetFrame(0).map_err(text)?;
+            bgra_pixels(&factory, &frame.cast().map_err(text)?)
+        })
+    }
+
+    /// The source's pixels as tight BGRA rows, alpha not premultiplied.
+    unsafe fn bgra_pixels(
+        factory: &IWICImagingFactory,
+        source: &IWICBitmapSource,
+    ) -> Result<Picture, String> {
+        unsafe {
+            let (mut width, mut height) = (0, 0);
+            source.GetSize(&mut width, &mut height).map_err(text)?;
+            let converter = factory.CreateFormatConverter().map_err(text)?;
+            converter
+                .Initialize(
+                    source,
+                    &GUID_WICPixelFormat32bppBGRA,
+                    WICBitmapDitherTypeNone,
+                    None,
+                    0.0,
+                    WICBitmapPaletteTypeCustom,
+                )
+                .map_err(text)?;
+            let mut bgra = vec![0; width as usize * height as usize * 4];
+            converter
+                .CopyPixels(std::ptr::null(), width * 4, &mut bgra)
+                .map_err(text)?;
+            Ok(Picture {
+                width,
+                height,
+                bgra,
+            })
+        }
+    }
+
     fn encode_jpeg(
         factory: &IWICImagingFactory,
         source: &IWICBitmapSource,
@@ -921,6 +1020,27 @@ mod tests {
             }
         }
         pixels
+    }
+
+    /// Mark up: a mark covers the picture, a see-through spot leaves it, an
+    /// edge pixel (half covered) mixes the two.
+    #[test]
+    fn lays_the_marks_over_the_picture() {
+        let mut picture = Picture {
+            width: 3,
+            height: 1,
+            bgra: vec![90, 90, 90, 0, 90, 90, 90, 0, 90, 90, 90, 0],
+        };
+        let marks = Picture {
+            width: 3,
+            height: 1,
+            // Red, nothing, red at half.
+            bgra: vec![0, 0, 255, 255, 0, 0, 255, 0, 0, 0, 255, 128],
+        };
+        blend_marks(&mut picture, &marks);
+        assert_eq!(&picture.bgra[0..3], &[0, 0, 255]);
+        assert_eq!(&picture.bgra[4..7], &[90, 90, 90]);
+        assert_eq!(&picture.bgra[8..11], &[45, 45, 173]);
     }
 
     #[test]

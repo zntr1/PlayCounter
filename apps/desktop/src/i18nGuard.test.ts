@@ -663,6 +663,9 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Not a PlayCounter picture.",
   "The Recycle Bin did not take the picture ({result}).",
   "The capture took too long.",
+  // Mark up: the viewer says "The marks couldn't be saved." itself.
+  "Only JPEG pictures can be marked up.",
+  "The marks don't fit the picture.",
   // Captions: the viewer says "The caption couldn't be saved." itself.
   "Captions are not supported on this platform.",
   "The caption thread stopped.",

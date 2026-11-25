@@ -3,12 +3,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Session } from "@playcounter/shared";
 import {
+  canMarkUp,
   disposeScreenshots,
   initializeScreenshots,
+  markUpScreenshot,
+  openScreenshotViewer,
   SCREENSHOT_CAPTION_CLOSE_EVENT,
+  screenshotSource,
   screenshotTimeFromName,
   screenshotsBySession,
   setScreenshotCaption,
+  useScreenshotViewer,
   takeScreenshot,
   toScreenshot,
   useScreenshots,
@@ -452,5 +457,63 @@ describe("the screenshot key", () => {
       });
       expect(shot.takenAtMs).toBe(toScreenshot(saved).takenAtMs);
     });
+  });
+});
+
+describe("marking up a screenshot", () => {
+  const picture = file(
+    "Elden Ring 2026-11-25 21-44-07.jpg",
+    "Elden Ring",
+    1000,
+  );
+
+  it("sends the marks and puts the marked picture in the list and the viewer", async () => {
+    useScreenshots.setState({ files: [toScreenshot(picture)] });
+    openScreenshotViewer([toScreenshot(picture)], 0, "Elden Ring");
+    const marked = {
+      ...picture,
+      bytes: 2400,
+      modifiedMs: 5000,
+      previewPath: "C:\\previews\\new.jpg",
+    };
+    invokeMock.mockResolvedValueOnce(marked);
+    await markUpScreenshot(picture.path, new Uint8Array([137, 80, 78, 71]));
+    expect(invokeMock).toHaveBeenLastCalledWith("screenshot_markup", {
+      path: picture.path,
+      marks: [137, 80, 78, 71],
+    });
+    const [listed] = useScreenshots.getState().files;
+    expect(listed).toMatchObject({
+      modifiedMs: 5000,
+      previewPath: "C:\\previews\\new.jpg",
+    });
+    // Same name: it stays with its session.
+    expect(listed.takenAtMs).toBe(toScreenshot(picture).takenAtMs);
+    expect(useScreenshotViewer.getState().shots[0]).toMatchObject({
+      modifiedMs: 5000,
+    });
+  });
+
+  it("gives a picture that changed in place a new address", () => {
+    expect(screenshotSource(picture.path, 1000)).not.toBe(
+      screenshotSource(picture.path, 5000),
+    );
+    expect(screenshotSource(picture.path, 1000)).toContain(
+      `asset://${picture.path}`,
+    );
+  });
+
+  it("marks up only the player's own JPEG pictures", () => {
+    expect(canMarkUp(toScreenshot(picture))).toBe(true);
+    expect(
+      canMarkUp(toScreenshot(file("Elden Ring 2026-11-25 21-44-07.JPEG"))),
+    ).toBe(true);
+    expect(canMarkUp(toScreenshot(file("Map.png")))).toBe(false);
+    expect(canMarkUp(toScreenshot(file("Map.webp")))).toBe(false);
+    expect(canMarkUp({ url: "https://images.igdb.com/shot.jpg" })).toBe(false);
+    // The Screenshots guide's sample picture has no file.
+    expect(
+      canMarkUp({ ...toScreenshot(picture), path: "/tour/sample-shot-1.jpg" }),
+    ).toBe(false);
   });
 });

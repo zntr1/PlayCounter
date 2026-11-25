@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
@@ -13,6 +13,12 @@ import { SessionScreenshots } from "./SessionScreenshots";
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   convertFileSrc: (path: string) => `asset://${path}`,
+}));
+// happy-dom can't load asset:// files: every picture would fail.
+vi.mock("./ArtImage", () => ({
+  ArtImage: ({ onError: _failed, ...props }: ComponentProps<"img">) => (
+    <img {...props} />
+  ),
 }));
 
 function file(name: string, caption: string | null): ScreenshotFile {
@@ -65,6 +71,20 @@ afterEach(async () => {
   container.remove();
   useScreenshots.setState({ files: [] });
   vi.unstubAllGlobals();
+});
+
+it("shows a picture's new preview once it was marked up", async () => {
+  const [first, second] = useScreenshots.getState().files;
+  await act(() =>
+    useScreenshots.setState({
+      files: [
+        { ...first, modifiedMs: 9000, previewPath: "C:\\previews\\marked.jpg" },
+        second,
+      ],
+    }),
+  );
+  const [tile] = [...container.querySelectorAll("li button img")];
+  expect(tile.getAttribute("src")).toBe("asset://C:\\previews\\marked.jpg");
 });
 
 it("marks pictures with a caption and shows the caption on hover", () => {

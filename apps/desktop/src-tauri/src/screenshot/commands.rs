@@ -4,13 +4,15 @@
 //! added in Explorer is gone or there the next time PlayCounter looks.
 
 use super::{
-    caption::{clean_caption, read_captions, write_caption},
+    blend_marks,
+    caption::{clean_caption, read_caption, read_captions, write_caption},
     capture_window,
     files::{
         clean_file_name, is_picture, picture_inside, preview_name, screenshot_stem, unique_path,
         LocalTime,
     },
-    fill_rounded_corners, looks_black, save_jpeg, save_preview, save_preview_from_file,
+    fill_rounded_corners, looks_black, read_picture, read_picture_bytes, save_jpeg, save_preview,
+    save_preview_from_file,
     sound::{play, Sound},
     start_capture, CaptureMode, PendingCapture, CAPTURE_TIMEOUT, MINIMIZED,
 };
@@ -528,6 +530,100 @@ fn set_caption(
     Ok(file)
 }
 
+/// Draws the marks (a see-through PNG as big as the picture) into the
+/// picture for good; the picture without them goes to the Recycle Bin. The
+/// name stays, so the picture stays with its session, and so does the
+/// caption. Answers with the picture as the list shows it now.
+#[tauri::command]
+pub async fn screenshot_markup(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    path: String,
+    marks: Vec<u8>,
+) -> Result<ScreenshotFile, String> {
+    main_only(&window)?;
+    let picture = own_picture(&app, &path)?;
+    let (root, previews) = (root(&app)?, previews(&app)?);
+    tauri::async_runtime::spawn_blocking(move || {
+        mark_up(&root, &previews, &picture, &marks, window::recycle)
+    })
+    .await
+    .map_err(text)?
+}
+
+fn mark_up(
+    root: &Path,
+    previews: &Path,
+    picture: &Path,
+    marks: &[u8],
+    recycle: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<ScreenshotFile, String> {
+    // PlayCounter's own pictures are JPEGs; a PNG or WebP put into the
+    // folder by hand would come back as a JPEG under its old name.
+    let jpeg = picture
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("jpg") || extension.eq_ignore_ascii_case("jpeg")
+        });
+    if !jpeg {
+        return Err("Only JPEG pictures can be marked up.".into());
+    }
+    let root = fs::canonicalize(root).map_err(text)?;
+    let before = fs::metadata(picture).map_err(text)?;
+    let caption = read_caption(picture)?;
+    let mut image = read_picture(picture)?;
+    let overlay = read_picture_bytes(marks)?;
+    if (overlay.width, overlay.height) != (image.width, image.height) {
+        return Err("The marks don't fit the picture.".into());
+    }
+    blend_marks(&mut image, &overlay);
+
+    // Not a picture name, so no list shows it while it's there.
+    let name = picture
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let marked = picture.with_file_name(format!(".{name}.markup"));
+    if let Err(error) = save_jpeg(&image, &marked, QUALITY).and_then(|_| recycle(picture)) {
+        let _ = fs::remove_file(&marked);
+        return Err(error);
+    }
+    // The picture without marks is in the Recycle Bin now. Should this fail,
+    // the marked one stays next to it rather than being lost.
+    fs::rename(&marked, picture).map_err(text)?;
+    let caption = match caption {
+        Some(text) if write_caption(picture, Some(&text)).is_err() => None,
+        caption => caption,
+    };
+
+    let _ = fs::remove_file(preview_path_for(&root, previews, picture, &before));
+    let after = fs::metadata(picture).map_err(text)?;
+    let preview = preview_path_for(&root, previews, picture, &after);
+    let has_preview = fs::create_dir_all(previews).is_ok()
+        && save_preview(&image, &preview, PREVIEW_WIDTH, PREVIEW_QUALITY).is_ok();
+    {
+        let _one_at_a_time = CAPTIONS_FILE
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut cache = load_captions(previews);
+        cache.remove(&picture_key(&root, previews, picture, &before));
+        cache.insert(
+            picture_key(&root, previews, picture, &after),
+            caption.clone(),
+        );
+        save_captions(previews, &cache);
+    }
+    let folder = picture
+        .parent()
+        .and_then(|parent| parent.strip_prefix(&root).ok())
+        .map(path_text)
+        .unwrap_or_default();
+    let mut file = describe(&root, previews, picture, &folder, &after, |_| has_preview);
+    file.caption = caption;
+    Ok(file)
+}
+
 /// Opens the picture in the app Windows uses for pictures.
 #[tauri::command]
 pub async fn screenshot_open(
@@ -822,6 +918,207 @@ mod tests {
         let file = set_caption(&root, &previews, &resolved, Some("   ")).unwrap();
         assert_eq!(file.caption, None);
         assert_eq!(list(&root, &previews)[0].caption, None);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// A PNG as a browser's canvas writes one: 8-bit RGBA, straight alpha.
+    /// `pixel` gives [r, g, b, a].
+    fn png(width: u32, height: u32, pixel: impl Fn(u32, u32) -> [u8; 4]) -> Vec<u8> {
+        fn crc(bytes: &[u8]) -> u32 {
+            let mut crc = 0xffff_ffff_u32;
+            for &byte in bytes {
+                crc ^= u32::from(byte);
+                for _ in 0..8 {
+                    crc = if crc & 1 == 1 {
+                        (crc >> 1) ^ 0xedb8_8320
+                    } else {
+                        crc >> 1
+                    };
+                }
+            }
+            !crc
+        }
+        fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
+            out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            let mut body = kind.to_vec();
+            body.extend_from_slice(data);
+            out.extend_from_slice(&body);
+            out.extend_from_slice(&crc(&body).to_be_bytes());
+        }
+        let mut rows = Vec::new();
+        for y in 0..height {
+            rows.push(0); // no filter
+            for x in 0..width {
+                rows.extend_from_slice(&pixel(x, y));
+            }
+        }
+        let mut header = Vec::new();
+        header.extend_from_slice(&width.to_be_bytes());
+        header.extend_from_slice(&height.to_be_bytes());
+        header.extend_from_slice(&[8, 6, 0, 0, 0]);
+        let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
+        chunk(&mut out, b"IHDR", &header);
+        chunk(
+            &mut out,
+            b"IDAT",
+            &miniz_oxide::deflate::compress_to_vec_zlib(&rows, 6),
+        );
+        chunk(&mut out, b"IEND", &[]);
+        out
+    }
+
+    /// A grey picture of Elden Ring in its game folder, as the screenshot key
+    /// saves it. Returns the temp folder, Pictures\PlayCounter, the previews
+    /// and the picture's resolved path (\\?\C:\…), as `own_picture` hands it
+    /// on.
+    #[cfg(windows)]
+    fn grey_picture(test: &str) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+        let base = std::env::temp_dir().join(format!(
+            "playcounter-markup-{test}-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let (root, previews) = (base.join("PlayCounter"), base.join("previews"));
+        let path = root
+            .join("Elden Ring")
+            .join("Elden Ring 2026-11-08 21-44-07.jpg");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let picture = crate::screenshot::Picture {
+            width: 64,
+            height: 36,
+            bgra: vec![90; 64 * 36 * 4],
+        };
+        save_jpeg(&picture, &path, QUALITY).unwrap();
+        let resolved = fs::canonicalize(&path).unwrap();
+        (base, root, previews, resolved)
+    }
+
+    #[cfg(windows)]
+    fn rgb_at(picture: &crate::screenshot::Picture, x: u32, y: u32) -> [u8; 3] {
+        let at = ((y * picture.width + x) * 4) as usize;
+        let bgra = &picture.bgra[at..at + 3];
+        [bgra[2], bgra[1], bgra[0]]
+    }
+
+    #[cfg(windows)]
+    fn is_grey(rgb: [u8; 3]) -> bool {
+        rgb.iter().all(|value| value.abs_diff(90) <= 6)
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn marks_up_a_picture_the_way_the_app_asks_for_it() {
+        let (base, root, previews, picture) = grey_picture("saved");
+        set_caption(&root, &previews, &picture, Some("Fork past the bridge")).unwrap();
+        let old_preview = preview_path_for(
+            &fs::canonicalize(&root).unwrap(),
+            &previews,
+            &picture,
+            &fs::metadata(&picture).unwrap(),
+        );
+        fs::create_dir_all(&previews).unwrap();
+        fs::write(&old_preview, b"preview").unwrap();
+        // A red square from (8, 8) to (23, 23); the rest is see-through.
+        let marks = png(64, 36, |x, y| {
+            if (8..24).contains(&x) && (8..24).contains(&y) {
+                [255, 0, 0, 255]
+            } else {
+                [0, 0, 0, 0]
+            }
+        });
+        let bin = base.join("Recycle Bin");
+        fs::create_dir_all(&bin).unwrap();
+        let mut recycled = Vec::new();
+
+        let file = mark_up(&root, &previews, &picture, &marks, |path| {
+            recycled.push(path.to_path_buf());
+            fs::rename(path, bin.join("original.jpg")).map_err(text)
+        })
+        .unwrap();
+
+        // The marks are in the picture; the rest is as it was.
+        let saved = read_picture(&picture).unwrap();
+        let [red, green, blue] = rgb_at(&saved, 16, 16);
+        assert!(
+            red > 200 && green < 60 && blue < 60,
+            "{:?}",
+            [red, green, blue]
+        );
+        assert!(is_grey(rgb_at(&saved, 48, 28)));
+        // Same name, same caption: the picture stays with its session.
+        assert_eq!(file.name, "Elden Ring 2026-11-08 21-44-07.jpg");
+        assert_eq!(file.folder, "Elden Ring");
+        assert!(!file.path.starts_with(r"\\?\"));
+        assert_eq!(file.caption.as_deref(), Some("Fork past the bridge"));
+        assert_eq!(
+            read_caption(&picture).unwrap().as_deref(),
+            Some("Fork past the bridge")
+        );
+        // The picture without the marks went to the Recycle Bin, unchanged.
+        assert_eq!(recycled, vec![picture.clone()]);
+        let original = read_picture(&bin.join("original.jpg")).unwrap();
+        assert!(is_grey(rgb_at(&original, 16, 16)));
+        // A new preview with the marks; the old one is gone.
+        assert!(!old_preview.exists());
+        let preview = read_picture(Path::new(file.preview_path.as_deref().unwrap())).unwrap();
+        assert!(rgb_at(&preview, 16, 16)[0] > 200);
+        // Nothing else is left in the game folder.
+        assert_eq!(fs::read_dir(picture.parent().unwrap()).unwrap().count(), 1);
+        // The next list shows the new preview and the caption.
+        let listed = list(&root, &previews);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].preview_path, file.preview_path);
+        assert_eq!(listed[0].caption.as_deref(), Some("Fork past the bridge"));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn leaves_the_picture_alone_when_the_marks_dont_fit_it() {
+        let (base, root, previews, picture) = grey_picture("size");
+        let before = fs::read(&picture).unwrap();
+        let marks = png(32, 18, |_, _| [255, 0, 0, 255]);
+        let result = mark_up(&root, &previews, &picture, &marks, |_| {
+            panic!("nothing goes to the Recycle Bin")
+        });
+        assert!(result.is_err());
+        assert_eq!(fs::read(&picture).unwrap(), before);
+        assert_eq!(fs::read_dir(picture.parent().unwrap()).unwrap().count(), 1);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn keeps_the_picture_when_the_recycle_bin_refuses_it() {
+        let (base, root, previews, picture) = grey_picture("bin");
+        let before = fs::read(&picture).unwrap();
+        let marks = png(64, 36, |_, _| [255, 0, 0, 255]);
+        let result = mark_up(&root, &previews, &picture, &marks, |_| {
+            Err("The Recycle Bin did not take the picture (5).".into())
+        });
+        assert!(result.is_err());
+        assert_eq!(fs::read(&picture).unwrap(), before);
+        // The marked copy made on the way is gone again.
+        assert_eq!(fs::read_dir(picture.parent().unwrap()).unwrap().count(), 1);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// PlayCounter's own pictures are JPEGs; a PNG or WebP someone put into
+    /// the folder isn't marked up.
+    #[test]
+    fn marks_up_only_jpeg_pictures() {
+        let base =
+            std::env::temp_dir().join(format!("playcounter-markup-png-{}", uuid::Uuid::new_v4()));
+        let (root, previews) = (base.join("PlayCounter"), base.join("previews"));
+        let path = root.join("Elden Ring").join("Map.png");
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let picture_png = png(64, 36, |_, _| [90, 90, 90, 255]);
+        fs::write(&path, &picture_png).unwrap();
+        let marks = png(64, 36, |_, _| [255, 0, 0, 255]);
+        let result = mark_up(&root, &previews, &path, &marks, |_| {
+            panic!("nothing goes to the Recycle Bin")
+        });
+        assert!(result.is_err());
+        assert_eq!(fs::read(&path).unwrap(), picture_png);
         let _ = fs::remove_dir_all(&base);
     }
 

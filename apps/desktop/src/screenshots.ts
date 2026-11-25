@@ -447,9 +447,43 @@ export async function takeScreenshot({ caption = false } = {}) {
   }
 }
 
-/** An address the window can show a picture file from. */
-export function screenshotSource(path: string) {
-  return isSampleShot(path) ? path : convertFileSrc(path);
+/** An address the window can show a picture file from. `version` (the
+ *  file's modifiedMs) gives a picture that changed in place, such as a marked
+ *  up one, a new address, so the window doesn't show its old copy. The asset
+ *  protocol ignores the query. */
+export function screenshotSource(path: string, version?: number) {
+  if (isSampleShot(path)) return path;
+  const source = convertFileSrc(path);
+  return version ? `${source}?v=${version}` : source;
+}
+
+/** Only the player's own pictures can be marked up, and only JPEGs: that's
+ *  what the screenshot key saves. Not IGDB's, not the guide's sample, not a
+ *  PNG or WebP put into the folder by hand. */
+export function canMarkUp(picture: ViewerPicture) {
+  return (
+    !isWebPicture(picture) &&
+    !isSampleShot(picture.path) &&
+    /\.jpe?g$/i.test(picture.path)
+  );
+}
+
+/** Draws the marks (a see-through PNG as big as the picture) into the picture
+ *  for good; the picture without them goes to the Recycle Bin. Updates the
+ *  list and the viewer. */
+export async function markUpScreenshot(path: string, marks: Uint8Array) {
+  const file = await invoke<ScreenshotFile>("screenshot_markup", {
+    path,
+    marks: Array.from(marks),
+  });
+  const shot = toScreenshot({ ...file, path });
+  const swap = <T extends ViewerPicture>(shots: T[]) =>
+    shots.map((entry) =>
+      !isWebPicture(entry) && entry.path === path ? shot : entry,
+    );
+  useScreenshots.setState((current) => ({ files: swap(current.files) }));
+  useScreenshotViewer.setState((current) => ({ shots: swap(current.shots) }));
+  return shot;
 }
 
 /** The preview of a picture that has none yet, made now. Null on failure. */

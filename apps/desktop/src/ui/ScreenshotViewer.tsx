@@ -5,6 +5,7 @@ import {
   FolderOpen,
   ImageOff,
   Pencil,
+  PenLine,
   Trash2,
   X,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import {
 import clsx from "clsx";
 import { createPortal } from "react-dom";
 import {
+  canMarkUp,
   closeScreenshotViewer,
   deleteScreenshot,
   isWebPicture,
@@ -31,6 +33,7 @@ import {
 } from "../screenshots";
 import { ArtImage } from "./ArtImage";
 import { igdbScreenshotLarge, igdbScreenshotThumb } from "./artSrcSet";
+import { ScreenshotMarkup } from "./ScreenshotMarkup";
 import { ScreenshotThumb } from "./SessionScreenshots";
 import { isSampleShot } from "../screenshotSample";
 import { useAppStore } from "../store";
@@ -58,6 +61,8 @@ function OpenViewer() {
   const panelRef = useRef<HTMLDivElement>(null);
   const [missing, setMissing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  /** Mark up mode (ScreenshotMarkup), which handles Esc itself. */
+  const [marking, setMarking] = useState(false);
   useEscapeKey(closeScreenshotViewer, panelRef);
   useDialogFocus(panelRef);
 
@@ -71,6 +76,10 @@ function OpenViewer() {
   const web = isWebPicture(shot);
   const shotKey = pictureKey(shot);
   useEffect(() => setMissing(false), [shotKey]);
+  // A marked up picture keeps its path: its time makes it a new address.
+  const source = web
+    ? igdbScreenshotLarge(shot.url)
+    : screenshotSource(shot.path, shot.modifiedMs);
 
   // The title and buttons line up with the picture's edges, so they take
   // its width as shown.
@@ -88,11 +97,11 @@ function OpenViewer() {
     const observer = new ResizeObserver(measure);
     observer.observe(image);
     return () => observer.disconnect();
-  }, [shotKey, missing]);
+  }, [source, missing]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented) return;
+      if (event.defaultPrevented || marking) return;
       // Arrows in the caption field move the text cursor.
       if (
         event.target instanceof Element &&
@@ -106,7 +115,7 @@ function OpenViewer() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [go]);
+  }, [go, marking]);
 
   const failed = () =>
     useAppStore.getState().addToast({
@@ -158,17 +167,19 @@ function OpenViewer() {
       }
       className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) closeScreenshotViewer();
+        if (!marking && event.target === event.currentTarget)
+          closeScreenshotViewer();
       }}
     >
       <ModalWindowDragRegion />
       {/* The panel fills the screen, so the empty space around the picture
           is the panel itself: a click there closes the viewer, like one on
-          the backdrop. */}
+          the backdrop. Not while marking up: a stroke may end there. */}
       <div
         ref={panelRef}
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeScreenshotViewer();
+          if (!marking && event.target === event.currentTarget)
+            closeScreenshotViewer();
         }}
         role="dialog"
         aria-modal="true"
@@ -196,37 +207,55 @@ function OpenViewer() {
               {name || t("Screenshot")}
             </h2>
             <p className="text-sm text-white/60">
-              {web
-                ? shots.length > 1
-                  ? t("Screenshot from IGDB · {{index}} of {{total}}", position)
-                  : t("Screenshot from IGDB")
-                : shots.length > 1
-                  ? t("{{takenAt}} · {{index}} of {{total}}", {
-                      takenAt,
-                      ...position,
-                    })
-                  : takenAt}
+              {marking
+                ? t(
+                    "Draw on the picture. Drag stickers and numbers to move them.",
+                  )
+                : web
+                  ? shots.length > 1
+                    ? t(
+                        "Screenshot from IGDB · {{index}} of {{total}}",
+                        position,
+                      )
+                    : t("Screenshot from IGDB")
+                  : shots.length > 1
+                    ? t("{{takenAt}} · {{index}} of {{total}}", {
+                        takenAt,
+                        ...position,
+                      })
+                    : takenAt}
             </p>
           </div>
           {/* Above the window's drag region, which reaches as far down as
-              the app's title bar; the title stays draggable. */}
-          <div className="relative z-10 flex items-center gap-3">
-            {web ? null : (
-              <OwnPictureButtons
-                shot={shot}
-                deleting={deleting}
-                onFailed={failed}
-                onRemove={() => void remove()}
+              the app's title bar; the title stays draggable. While marking
+              up, Cancel and Save under the picture take their place. */}
+          {marking ? null : (
+            <div className="relative z-10 flex items-center gap-3">
+              {canMarkUp(shot) && !missing ? (
+                <IconButton
+                  icon={PenLine}
+                  aria-label={t("Mark up")}
+                  title={t("Mark up")}
+                  onClick={() => setMarking(true)}
+                />
+              ) : null}
+              {web ? null : (
+                <OwnPictureButtons
+                  shot={shot}
+                  deleting={deleting}
+                  onFailed={failed}
+                  onRemove={() => void remove()}
+                />
+              )}
+              <IconButton
+                icon={X}
+                aria-label={t("Close")}
+                title={t("Close")}
+                data-autofocus
+                onClick={closeScreenshotViewer}
               />
-            )}
-            <IconButton
-              icon={X}
-              aria-label={t("Close")}
-              title={t("Close")}
-              data-autofocus
-              onClick={closeScreenshotViewer}
-            />
-          </div>
+            </div>
+          )}
         </div>
         {missing ? (
           <div className="flex flex-col items-center gap-3 text-center text-white/70">
@@ -241,11 +270,9 @@ function OpenViewer() {
                 all pictures below. While it loads it has no size of its own,
                 so it holds a 16:9 box as tall as it may get, and shimmers. */}
             <ArtImage
-              key={shotKey}
+              key={source}
               ref={imageRef}
-              src={
-                web ? igdbScreenshotLarge(shot.url) : screenshotSource(shot.path)
-              }
+              src={source}
               alt={
                 web
                   ? t("Screenshot from IGDB")
@@ -256,18 +283,30 @@ function OpenViewer() {
               onError={() => setMissing(true)}
               className={clsx(
                 "min-h-0 max-w-full rounded-lg object-contain shadow-raised data-[img-loading]:aspect-video data-[img-loading]:h-full",
-                shots.length > 1
+                shots.length > 1 || marking
                   ? "max-h-[calc(100%-13rem)]"
                   : "max-h-[calc(100%-8.5rem)]",
               )}
             />
-            <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
-              {web ? null : <CaptionLine key={shotKey} shot={shot} />}
-            </div>
+            {marking && !isWebPicture(shot) ? (
+              <ScreenshotMarkup
+                key={shotKey}
+                shot={shot}
+                image={imageRef}
+                width={pictureWidth}
+                onDone={() => setMarking(false)}
+              />
+            ) : (
+              <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+                {web ? null : <CaptionLine key={shotKey} shot={shot} />}
+              </div>
+            )}
           </>
         )}
-        {shots.length > 1 ? <PictureRow shots={shots} index={index} /> : null}
-        {shots.length > 1 ? (
+        {shots.length > 1 && !marking ? (
+          <PictureRow shots={shots} index={index} />
+        ) : null}
+        {shots.length > 1 && !marking ? (
           <>
             <IconButton
               icon={ChevronLeft}

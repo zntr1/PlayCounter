@@ -127,8 +127,13 @@ function ScreenshotStrip({
   );
 }
 
-/** The picture's preview, made on the spot when it has none yet. */
+/** The picture's preview, made on the spot when it has none yet. A marked up
+ *  picture comes with a new preview, which starts afresh. */
 export function ScreenshotThumb({ shot }: { shot: Screenshot }) {
+  return <PreviewThumb key={shot.previewPath ?? shot.path} shot={shot} />;
+}
+
+function PreviewThumb({ shot }: { shot: Screenshot }) {
   const [preview, setPreview] = useState(shot.previewPath);
   const [failed, setFailed] = useState(false);
   useEffect(() => {

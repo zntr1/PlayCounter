@@ -131,6 +131,8 @@ Nintendo-Account).
 | exclusive fullscreen         | exklusives Vollbild                      |                                                                 |
 | borderless (window)          | randloses Fenster                        | windowed: Fenstermodus                                          |
 | caption (screenshot)         | Bildunterschrift                         | saved in the picture; Explorer shows it as Titel                |
+| mark up, marks (screenshot)  | markieren, Markierungen                  | drawn into the picture for good                                 |
+| sticker (on a screenshot)    | Sticker                                  | der Sticker, die Sticker                                        |
 | counter, counter box         | Zähler, Zählerbox                        | Deaths (the default counter): Tode                              |
 | own key (of a counter)       | eigene Taste                             | the keyboard mark: Tastatur-Symbol                              |
 
@@ -215,6 +217,8 @@ the complete translations still need native-speaker review.
 | exclusive fullscreen | tela cheia exclusiva          | pantalla completa exclusiva    | 独占全屏         |
 | borderless (window)  | janela sem bordas             | ventana sin bordes             | 无边框窗口       |
 | caption (screenshot) | legenda                       | pie de foto                    | 说明             |
+| mark up, marks       | marcar, marcações             | marcar, marcas                 | 标注             |
+| sticker              | adesivo                       | pegatina                       | 贴纸             |
 | counter              | contador                      | contador                       | 计数器           |
 | counter box          | caixa de contadores           | caja de contadores             | 计数器窗口       |
 | Deaths (counter)     | Mortes                        | Muertes                        | 死亡次数         |
@@ -309,6 +313,8 @@ native-speaker review (Weblate).
 | exclusive fullscreen | эксклюзивный полноэкранный режим  | wyłączny tryb pełnoekranowy   | plein écran exclusif              |
 | borderless (window)  | окно без рамки                    | okno bez ramki                | fenêtre sans bordure              |
 | caption (screenshot) | подпись                           | podpis                        | légende                           |
+| mark up, marks       | разметить, разметка               | oznaczyć, oznaczenia          | annoter, annotations              |
+| sticker              | наклейка                          | naklejka                      | autocollant                       |
 | counter              | счётчик                           | licznik                       | compteur                          |
 | counter box          | окно счётчиков                    | okienko liczników             | boîte des compteurs               |
 | Deaths (counter)     | Смерти                            | Śmierci                       | Morts                             |
