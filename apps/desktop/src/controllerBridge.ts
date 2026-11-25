@@ -20,6 +20,11 @@ type ControllerEvent = {
 export const CONTROLLER_MODE_EVENT = "playcounter:controller-mode";
 export const CONTROLLER_LIBRARY_VIEW_EVENT =
   "playcounter:controller-library-view";
+/** Sent to the selected game card: Y / Triangle asks for its Details. */
+export const CONTROLLER_DETAILS_EVENT = "playcounter:controller-details";
+/** Sent to the window when B would leave the view: a view with something to
+ *  undo first (My History's game filter) cancels the event and does that. */
+export const CONTROLLER_BACK_EVENT = "playcounter:controller-back";
 
 type ControllerBridgeState = {
   armed: boolean;
@@ -133,32 +138,96 @@ function track(
 // The keyboard and the controller walk only the cards and the sidebar: its
 // views and the library's source tabs under My Games. The controls above the
 // cards keep their own keyboard behavior. Inside a dialog every item is
-// reachable, since that is the only way to answer it.
+// reachable, and so are the buttons of its footer (Modal's answers, like
+// Cancel and Reset), since that is the only way to answer it. The controller
+// also walks every control of a [data-controller-controls] region
+// (Settings); the keyboard leaves those to Tab and their own keys.
 const SIDEBAR_ROLES = new Set(["navigation", "library-tab"]);
 const NAVIGABLE_ROLES = new Set(["game-card", ...SIDEBAR_ROLES]);
+// My History's sessions (A filters by the game, B drops the filter) and its
+// range chips: the pad walks them. The keyboard keeps the rows' own arrow
+// keys and Tab for the chips.
+const PAD_ROLES = new Set(["history-session", "history-filter"]);
+const CONTROLS = [
+  "button",
+  "select",
+  "a[href]",
+  'input[type="checkbox"]',
+  'input[type="radio"]',
+];
+const CONTROL_SELECTOR = CONTROLS.map(
+  (control) => "[data-controller-controls] " + control,
+).join(", ");
+const DIALOG_ITEM_SELECTOR = [
+  "[data-controller-item]",
+  ...CONTROLS.map((control) => "[data-modal-footer] " + control),
+].join(", ");
 
 function isSidebarItem(item: Element) {
   return SIDEBAR_ROLES.has(item.getAttribute("data-controller-item") ?? "");
 }
 
-function isNavigableItem(item: Element) {
-  return NAVIGABLE_ROLES.has(item.getAttribute("data-controller-item") ?? "");
+function isControl(item: Element) {
+  return (
+    !item.hasAttribute("data-controller-item") &&
+    item.closest("[data-controller-controls]") !== null
+  );
 }
 
-function controllerItems() {
-  if (typeof document === "undefined") return [];
-  const dialogs = [
+function isNavigableItem(item: Element, keyboard = false) {
+  const role = item.getAttribute("data-controller-item") ?? "";
+  return (
+    NAVIGABLE_ROLES.has(role) ||
+    (!keyboard && (PAD_ROLES.has(role) || isControl(item)))
+  );
+}
+
+function topDialog() {
+  return [
     ...document.querySelectorAll<HTMLElement>(
       '[role="dialog"][aria-modal="true"]',
     ),
-  ];
-  const root: Document | HTMLElement = dialogs.at(-1) ?? document;
-  const selector = "[data-controller-item]";
+  ].at(-1);
+}
+
+function isShown(item: HTMLElement, root: Document | HTMLElement) {
+  if (item.offsetParent === null) return false;
+  for (
+    let current: HTMLElement | null = item;
+    current;
+    current = current.parentElement
+  ) {
+    const style = getComputedStyle(current);
+    if (
+      current.hidden ||
+      current.getAttribute("aria-hidden") === "true" ||
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      Number(style.opacity) < 0.05
+    ) {
+      return false;
+    }
+    if (current === root) break;
+  }
+  return true;
+}
+
+function controllerItems(keyboard = false) {
+  if (typeof document === "undefined") return [];
+  const root: Document | HTMLElement = topDialog() ?? document;
+  const selector =
+    root !== document
+      ? DIALOG_ITEM_SELECTOR
+      : keyboard
+        ? "[data-controller-item]"
+        : "[data-controller-item], " + CONTROL_SELECTOR;
   return [...root.querySelectorAll<HTMLElement>(selector)].filter(
     (item, index, items) => {
       if (items.indexOf(item) !== index || item.offsetParent === null)
         return false;
-      if (root === document && !isNavigableItem(item)) return false;
+      if (root === document && !isNavigableItem(item, keyboard)) return false;
+      // [data-controller-ignore]: what a pad can't finish, like a guide or a
+      // button that opens a Windows file or folder window.
       if (
         item.hasAttribute("disabled") ||
         item.getAttribute("aria-disabled") === "true" ||
@@ -171,24 +240,7 @@ function controllerItems() {
         '[data-controller-item="game-card"]',
       );
       if (card && card !== item) return false;
-      for (
-        let current: HTMLElement | null = item;
-        current;
-        current = current.parentElement
-      ) {
-        const style = getComputedStyle(current);
-        if (
-          current.hidden ||
-          current.getAttribute("aria-hidden") === "true" ||
-          style.display === "none" ||
-          style.visibility === "hidden" ||
-          Number(style.opacity) < 0.05
-        ) {
-          return false;
-        }
-        if (current === root) break;
-      }
-      return true;
+      return isShown(item, root);
     },
   );
 }
@@ -266,7 +318,7 @@ function focusViewContentWhenReady(
       focusViewContentWhenReady(keyboard, view);
       return;
     }
-    const contentItems = controllerItems().filter((item) =>
+    const contentItems = controllerItems(keyboard).filter((item) =>
       content.contains(item),
     );
     const preferred = preferredControllerItem(contentItems);
@@ -286,6 +338,10 @@ function preferredControllerItem(items: HTMLElement[]) {
   return (
     items.find(
       (item) => item.getAttribute("data-controller-item") === "game-card",
+    ) ??
+    // Settings: the menu item of the page that is open.
+    items.find(
+      (item) => isControl(item) && item.getAttribute("aria-current") === "page",
     ) ??
     items.find((item) => item.closest('[data-tour="content"]')) ??
     items[0]
@@ -307,13 +363,114 @@ function moveWithinItems(
   items: HTMLElement[],
   selected: HTMLElement,
   action: Extract<ControllerAction, "up" | "down" | "left" | "right">,
+  readingOrder = true,
 ) {
   const current = items.indexOf(selected);
   if (current < 0) return;
   const rects: ControllerItemRect[] = items.map((item) =>
     item.getBoundingClientRect(),
   );
-  focusItem(items[nextControllerIndex(rects, current, action)]);
+  focusItem(
+    items[nextControllerIndex(rects, current, action, { readingOrder })],
+  );
+}
+
+// Settings: in a wide window the menu is a column beside the open page. Up
+// and Down stay in their column, Right goes from the menu into the page. In a
+// narrow one the menu is a row above the page and Down goes into it. No
+// direction leads out of the page again: B goes back to its menu item (in
+// with A, out with B). Left from the menu goes to the sidebar. On a dropdown
+// Left and Right change its value: a pad can't work its list.
+function moveAmongControls(
+  items: HTMLElement[],
+  selected: HTMLElement,
+  action: Extract<ControllerAction, "up" | "down" | "left" | "right">,
+) {
+  if (
+    selected instanceof HTMLSelectElement &&
+    (action === "left" || action === "right")
+  ) {
+    stepSelect(selected, action === "right" ? 1 : -1);
+    return;
+  }
+  const controls = items.filter(isControl);
+  const region = selected.closest<HTMLElement>("[data-controller-controls]");
+  const menu =
+    region?.querySelector<HTMLElement>("[data-controller-menu]") ?? null;
+  const inMenu = menu?.contains(selected) ?? false;
+  const pageControls = controls.filter((item) => !menu?.contains(item));
+  if (action === "right") {
+    moveWithinItems(inMenu ? controls : pageControls, selected, action, false);
+    return;
+  }
+  const menuBeside =
+    region !== null &&
+    menu !== null &&
+    menu.getBoundingClientRect().width <
+      region.getBoundingClientRect().width / 2;
+  const column = !inMenu
+    ? pageControls
+    : menuBeside
+      ? controls.filter((item) => menu.contains(item))
+      : controls;
+  if (action === "left") {
+    const rects: ControllerItemRect[] = column.map((item) =>
+      item.getBoundingClientRect(),
+    );
+    if (isLeftmostVisualItem(rects, column.indexOf(selected))) {
+      if (inMenu) focusActiveNavigationItem();
+      return;
+    }
+  }
+  moveWithinItems(column, selected, action, false);
+}
+
+function stepSelect(select: HTMLSelectElement, step: 1 | -1) {
+  for (
+    let index = select.selectedIndex + step;
+    index >= 0 && index < select.options.length;
+    index += step
+  ) {
+    const option = select.options[index]!;
+    if (option.disabled || option.hidden) continue;
+    const followRebuilt = rememberControlPlace(select);
+    select.selectedIndex = index;
+    // React's onChange listens for this event.
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    followRebuilt();
+    return;
+  }
+}
+
+// A change can build the page anew: a new language remounts it. The ring
+// then moves to the control in the same place of the same settings row, so
+// the next press goes on from there. Taken before the change, called after.
+function rememberControlPlace(control: HTMLElement) {
+  const row = control.closest("[data-row]");
+  const rowId = row?.getAttribute("data-row");
+  if (!row || !rowId) return () => {};
+  const rowControls = (element: Element) =>
+    controllerItems().filter(
+      (item) => isControl(item) && element.contains(item),
+    );
+  const place = rowControls(row).indexOf(control);
+  const follow = (attempt: number) => {
+    globalThis.requestAnimationFrame?.(() => {
+      if (control.isConnected) {
+        if (attempt < 2) follow(attempt + 1);
+        return;
+      }
+      // Something else took focus meanwhile: leave it there.
+      if (document.activeElement && document.activeElement !== document.body)
+        return;
+      const rebuilt = [...document.querySelectorAll("[data-row]")].find(
+        (element) => element.getAttribute("data-row") === rowId,
+      );
+      const replacement = rebuilt ? rowControls(rebuilt)[place] : undefined;
+      if (replacement) focusItem(replacement);
+    });
+  };
+  return () => follow(0);
 }
 
 function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
@@ -332,6 +489,13 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
     }
     return;
   }
+  // A settings menu item opens its page and moves into it.
+  if (item.matches("[data-controller-menu] [data-controller-page]")) {
+    const region = item.closest("[data-controller-controls]");
+    item.click();
+    focusPageWhenReady(region);
+    return;
+  }
   const launchControl = item.matches("[data-controller-launch]")
     ? item
     : item.querySelector<HTMLElement>("[data-controller-launch]");
@@ -348,8 +512,51 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
       // Fall back to the regular click below.
     }
   }
+  const followRebuilt = isControl(item) ? rememberControlPlace(item) : () => {};
+  const dialog = topDialog();
   item.click();
   focusOpenedDialogWhenReady();
+  // An answer that closes its dialog: the ring follows focus back.
+  if (dialog?.contains(item)) ringFocusWhenBack(dialog);
+  followRebuilt();
+  followKey(item);
+}
+
+// A control the view swaps for another one when it is pressed (a range chip
+// in My History becomes a stepper): the ring follows its
+// data-controller-key to the new element.
+function followKey(item: HTMLElement, attempt = 0) {
+  const key = item.getAttribute("data-controller-key");
+  if (!key) return;
+  globalThis.requestAnimationFrame?.(() => {
+    if (item.isConnected) {
+      if (attempt < 2) followKey(item, attempt + 1);
+      return;
+    }
+    const next = [
+      ...document.querySelectorAll<HTMLElement>("[data-controller-key]"),
+    ].find((element) => element.getAttribute("data-controller-key") === key);
+    if (next) focusItem(next);
+  });
+}
+
+// The first control of the open settings page's first row, once the page
+// has rendered. The guide link in the page's head stays out: A on it would
+// start a guide.
+function focusPageWhenReady(region: Element | null, attempt = 0) {
+  globalThis.requestAnimationFrame?.(() => {
+    if (!region?.isConnected) return;
+    const menu = region.querySelector("[data-controller-menu]");
+    const first = controllerItems().find(
+      (item) =>
+        isControl(item) &&
+        region.contains(item) &&
+        !menu?.contains(item) &&
+        item.closest("[data-row]") !== null,
+    );
+    if (first) focusItem(first);
+    else if (attempt < 2) focusPageWhenReady(region, attempt + 1);
+  });
 }
 
 /** For a dialog that swaps its buttons: selects the one it names, so A /
@@ -361,25 +568,125 @@ export function selectControllerItem(item: HTMLElement | null | undefined) {
   else item.focus();
 }
 
+function selectedGameCard() {
+  return document.querySelector<HTMLElement>(
+    '[data-controller-item="game-card"][data-controller-selected="true"]',
+  );
+}
+
+// Y / Triangle opens Details of the selected card. In a dialog the button
+// does nothing.
+function openSelectedDetails() {
+  if (topDialog()) return;
+  const card = selectedGameCard();
+  if (!card) return;
+  card.dispatchEvent(new CustomEvent(CONTROLLER_DETAILS_EVENT));
+  focusOpenedDialogWhenReady();
+}
+
+// LB / RB (L1 / R1) open the tab before or after the open one, round like
+// the arrow keys: in the open dialog, else in the view. A ring on the tab
+// row moves along. In a dialog the ring always goes to the new tab: a ring
+// in the old tab's content (a picture in Details) would go with it.
+function switchTab(step: 1 | -1) {
+  const dialog = topDialog();
+  const scope =
+    dialog ??
+    document.querySelector<HTMLElement>('[data-controller-content="true"]');
+  if (!scope) return;
+  const tablist = [
+    ...scope.querySelectorAll<HTMLElement>('[role="tablist"]'),
+  ].find((list) => isShown(list, scope));
+  if (tablist) {
+    stepThrough(
+      [...tablist.querySelectorAll<HTMLElement>('[role="tab"]')],
+      scope,
+      (tab) => tab.getAttribute("aria-selected") === "true",
+      step,
+      dialog !== undefined || tablist.contains(document.activeElement),
+    );
+    return;
+  }
+  // Settings has no tabs: LB / RB walk its pages. A ring anywhere in
+  // Settings moves to the new page's menu item, since the page it was on
+  // goes away.
+  const region = dialog
+    ? null
+    : scope.querySelector<HTMLElement>("[data-controller-controls]");
+  if (!region) return;
+  stepThrough(
+    menuPages(region),
+    scope,
+    (page) => page.getAttribute("aria-current") === "page",
+    step,
+    region.contains(document.activeElement),
+  );
+}
+
+function stepThrough(
+  items: HTMLElement[],
+  scope: HTMLElement,
+  isOpen: (item: HTMLElement) => boolean,
+  step: 1 | -1,
+  ringFollows: boolean,
+) {
+  const shown = items.filter(
+    (item) =>
+      isShown(item, scope) &&
+      !item.hasAttribute("disabled") &&
+      item.getAttribute("aria-disabled") !== "true",
+  );
+  if (shown.length < 2) return;
+  const current = shown.findIndex(isOpen);
+  const next =
+    current < 0
+      ? shown[step > 0 ? 0 : shown.length - 1]
+      : shown[(current + step + shown.length) % shown.length];
+  next?.click();
+  if (ringFollows) focusItem(next);
+}
+
+/** Settings' menu items, one per page. */
+function menuPages(region: Element) {
+  return [
+    ...region.querySelectorAll<HTMLElement>(
+      "[data-controller-menu] [data-controller-page]",
+    ),
+  ];
+}
+
+/** The menu item of the settings page that is open. */
+function openPageItem(region: Element | null) {
+  return region
+    ? menuPages(region).find(
+        (page) => page.getAttribute("aria-current") === "page",
+      )
+    : undefined;
+}
+
 // X / Square asks to close the game on the selected card. Only a running
 // card has a stop control; in a dialog the button does nothing.
 function stopSelectedGame() {
-  if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
-  const stopControl = document.querySelector<HTMLButtonElement>(
-    '[data-controller-item="game-card"][data-controller-selected="true"] [data-controller-stop]',
+  if (topDialog()) return;
+  const stopControl = selectedGameCard()?.querySelector<HTMLButtonElement>(
+    "[data-controller-stop]",
   );
   if (!stopControl || stopControl.disabled) return;
   stopControl.click();
   focusOpenedDialogWhenReady();
 }
 
+// The ring goes into the dialog on top, also when it opened over another,
+// like the screenshot viewer over Details. A dialog that pages
+// ([data-controller-pager], the viewer) gets no ring: Left / Right turn its
+// pages, B closes it.
 function focusOpenedDialogWhenReady(attempt = 0) {
   if (!globalThis.requestAnimationFrame) return;
   globalThis.requestAnimationFrame(() => {
-    const dialog = document.querySelector<HTMLElement>(
-      '[role="dialog"][aria-modal="true"]',
-    );
-    if (dialog) {
+    const dialog = topDialog();
+    if (dialog?.hasAttribute("data-controller-pager")) {
+      clearControllerSelection();
+    } else if (dialog) {
       const items = controllerItems();
       const preferred =
         dialog.querySelector<HTMLElement>("[data-autofocus]") ??
@@ -391,6 +698,32 @@ function focusOpenedDialogWhenReady(attempt = 0) {
   });
 }
 
+// A dialog that B or an answer closed hands focus back once it is gone
+// (useDialogFocus), which in a heavy view like My Games can take several
+// frames. When focus lands on something the controller walks, like the card
+// Details was opened from or the Settings button that asked, the ring goes
+// with it. Up to about a second; a ring set meanwhile (the player moved on,
+// another dialog opened) ends the wait.
+function ringFocusWhenBack(closing: HTMLElement | undefined, attempt = 0) {
+  globalThis.requestAnimationFrame?.(() => {
+    if (document.querySelector('[data-controller-selected="true"]')) return;
+    const focused = document.activeElement;
+    if (
+      !closing?.isConnected &&
+      focused instanceof HTMLElement &&
+      controllerItems().includes(focused)
+    ) {
+      focusItem(focused);
+    } else if (attempt < 60) {
+      ringFocusWhenBack(closing, attempt + 1);
+    }
+  });
+}
+
+// The right stick scrolls what the player looks at: the open dialog, or the
+// view's content, also while the ring is on the sidebar, so My History
+// scrolls right after it is picked there. A scroll region the ring sits in
+// (a pane of a dialog) goes first; the sidebar's own never does.
 function scrollCurrentView(direction: "scrollUp" | "scrollDown") {
   if (typeof document === "undefined") return;
   const focused = document.activeElement as HTMLElement | null;
@@ -399,8 +732,11 @@ function scrollCurrentView(direction: "scrollUp" | "scrollDown") {
       '[role="dialog"][aria-modal="true"]',
     ),
   ].at(-1);
+  const ownRegion = focused?.closest("aside")
+    ? null
+    : focused?.closest<HTMLElement>("[data-controller-scroll]");
   const container =
-    focused?.closest<HTMLElement>("[data-controller-scroll]") ??
+    ownRegion ??
     modal?.querySelector<HTMLElement>("[data-controller-scroll]") ??
     document.querySelector<HTMLElement>('[data-tour="content"]');
   container?.scrollBy({
@@ -447,16 +783,68 @@ function handleControllerEvent(
     return;
   }
 
+  if (event.action === "openDetails") {
+    openSelectedDetails();
+    return;
+  }
+
+  if (event.action === "previousTab" || event.action === "nextTab") {
+    switchTab(event.action === "nextTab" ? 1 : -1);
+    return;
+  }
+
+  // A dialog that pages, like the screenshot viewer: Left and Right turn
+  // its pages.
+  if (event.action === "left" || event.action === "right") {
+    const pager = topDialog()?.querySelector<HTMLElement>(
+      event.action === "left"
+        ? "[data-controller-previous]"
+        : "[data-controller-next]",
+    );
+    if (pager) {
+      pager.click();
+      return;
+    }
+  }
+
   if (event.action === "back") {
+    if (!topDialog()) {
+      // On the sidebar there is nothing further back: B leaves the ring
+      // where it is.
+      if (document.activeElement?.closest?.("aside")) return;
+      // The view takes B first when it has something to undo, like My
+      // History's game filter; the ring stays where it is.
+      const back = new CustomEvent(CONTROLLER_BACK_EVENT, { cancelable: true });
+      window.dispatchEvent(back);
+      if (back.defaultPrevented) return;
+    }
     clearControllerSelection();
-    if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+    const closing = topDialog();
+    if (closing) {
       window.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
+      ringFocusWhenBack(closing);
+      return;
+    }
+    // Deep in a settings page, B goes to its menu item first.
+    const focused = document.activeElement;
+    const region =
+      focused instanceof HTMLElement && isControl(focused)
+        ? focused.closest("[data-controller-controls]")
+        : null;
+    const openPage = openPageItem(region);
+    if (
+      openPage &&
+      !openPage
+        .closest("[data-controller-menu]")
+        ?.contains(document.activeElement)
+    ) {
+      focusItem(openPage);
       return;
     }
     const activeNavigation = activeNavigationItem();
-    if (activeNavigation && !document.activeElement?.closest?.("aside")) {
+    if (activeNavigation) {
       focusItem(activeNavigation);
       return;
     }
@@ -470,7 +858,7 @@ function handleControllerEvent(
 }
 
 function navigateItems(action: ControllerAction, keyboard = false) {
-  const items = controllerItems();
+  const items = controllerItems(keyboard);
   if (items.length === 0) return;
   const contentRoot = document.querySelector<HTMLElement>(
     '[data-controller-content="true"]',
@@ -531,20 +919,35 @@ function navigateItems(action: ControllerAction, keyboard = false) {
         const cardRects: ControllerItemRect[] = gameCards.map((item) =>
           item.getBoundingClientRect(),
         );
+        // The arrow keys go left from the first card to the sidebar. The
+        // controller stays: B takes it there (in with A, out with B).
         if (action === "left" && isLeftmostVisualItem(cardRects, cardIndex)) {
-          focusActiveNavigationItem();
+          if (keyboard) focusActiveNavigationItem();
           return;
         }
         moveWithinItems(gameCards, selected, action);
         return;
       }
-      moveWithinItems(contentItems, selected, action);
+      if (isControl(selected)) {
+        moveAmongControls(contentItems, selected, action);
+        return;
+      }
+      // A list (My History's sessions): Left and Right stay on the row.
+      moveWithinItems(contentItems, selected, action, false);
       return;
     }
 
     moveWithinItems(items, selected, action);
   } else if (action === "confirm") {
-    const selected = items[current < 0 ? 0 : current];
+    // A dialog can ring what the arrows don't walk, like its open tab: A
+    // presses that, never the dialog's first item.
+    const ringed =
+      current < 0
+        ? topDialog()?.querySelector<HTMLElement>(
+            '[data-controller-selected="true"]',
+          )
+        : null;
+    const selected = ringed ?? items[current < 0 ? 0 : current];
     focusItem(selected);
     activateItem(selected, keyboard);
   }
@@ -596,7 +999,8 @@ function handleKeyboardNavigation(
   const focused = document.activeElement;
   if (focused instanceof HTMLElement && focused.matches(TEXT_ENTRY)) return;
   const content = document.querySelector('[data-controller-content="true"]');
-  const onItem = focused instanceof HTMLElement && isNavigableItem(focused);
+  const onItem =
+    focused instanceof HTMLElement && isNavigableItem(focused, true);
   // Escape lets go of the selected card or sidebar item and its ring. It is
   // not prevented, so other Escape handlers still see it.
   if (action === "back") {
@@ -612,7 +1016,7 @@ function handleKeyboardNavigation(
     const toSidebar = action === "left" && focused === content;
     const toCards =
       store.activeView === "games" &&
-      controllerItems().some(
+      controllerItems(true).some(
         (item) => item.getAttribute("data-controller-item") === "game-card",
       );
     if (!toSidebar && !toCards) return;

@@ -249,12 +249,7 @@ export function HistoryDatePicker({
   };
   const apply = () =>
     onPick(
-      historySelectionFromRange(
-        draft.fromMs,
-        addDays(draft.lastMs, 1),
-        nowMs,
-        firstSessionMs,
-      ),
+      historySelectionFromRange(draft.fromMs, addDays(draft.lastMs, 1), nowMs),
     );
 
   const weekdays = weekdayNames("short");

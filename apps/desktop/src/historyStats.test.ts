@@ -10,6 +10,7 @@ import {
   groupSessionsByDay,
   historyBucketUnits,
   historyHighlights,
+  historySelectionFromDays,
   historySelectionFromRange,
   playHabits,
   previousHistoryRange,
@@ -455,7 +456,7 @@ describe("history ranges", () => {
   const resolve = (selection: HistorySelection) =>
     resolveHistorySelection(selection, nowMs);
   const picked = (from: string, to: string) =>
-    historySelectionFromRange(local(from), local(to), nowMs, firstMs);
+    historySelectionFromRange(local(from), local(to), nowMs);
   const canStep = (selection: HistorySelection, direction: 1 | -1) =>
     canStepHistorySelection(selection, direction, nowMs, firstMs);
   const before = (selection: HistorySelection) =>
@@ -570,7 +571,22 @@ describe("history ranges", () => {
       kind: "last7",
       offset: 0,
     });
-    expect(picked("2025-09-01", "2026-11-07")).toEqual({ kind: "all" });
+  });
+
+  // Report 2026-11-19: dates picked from the first session up to today stay
+  // those dates. Only the All time chip is All time, which counts launcher
+  // time that has no date.
+  it("keeps dates from the first session up to today as those dates", () => {
+    expect(resolve(picked("2025-09-01", "2026-11-07"))).toEqual(
+      days("2025-09-01", "2026-11-07"),
+    );
+    expect(resolve(picked("2025-08-20", "2026-11-07"))).toEqual(
+      days("2025-08-20", "2026-11-07"),
+    );
+    // a best streak from the first session up to today
+    expect(
+      resolve(historySelectionFromDays("2025-09-01", "2026-11-06", nowMs)),
+    ).toEqual(days("2025-09-01", "2026-11-07"));
   });
 
   // 18: same length, ending where the range starts

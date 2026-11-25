@@ -15,7 +15,8 @@ import {
   Star,
   EyeOff,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ArtImage } from "./ArtImage";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
 import {
@@ -44,6 +45,55 @@ const t = getT("myGames");
 
 /* One banner for the library, shelves, and other views. The compact variant
    keeps the same artwork, actions, and fallback behavior in less space. */
+
+/** The banner is a fixed height, so a long summary is the part of the column
+ *  that gives way. It shows as many whole lines as fit and ends the last one
+ *  with "…", never half a line. An invisible copy of the full text sizes the
+ *  box (so it can grow back when there is room again); the visible copy on
+ *  top is clamped to the lines that box holds. */
+function BannerSummary({ text }: { text: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [lines, setLines] = useState(0);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const measure = () => {
+      const lineHeight = parseFloat(getComputedStyle(box).lineHeight);
+      if (!lineHeight) return;
+      setLines(Math.floor(box.clientHeight / lineHeight + 0.01));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={boxRef}
+      className="relative mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-hidden text-[15px] leading-[1.5]"
+    >
+      <p aria-hidden lang="en" className="invisible">
+        {text}
+      </p>
+      {lines > 0 ? (
+        <p
+          lang="en"
+          className="absolute inset-x-0 top-0 overflow-hidden text-text/85"
+          style={{
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: lines,
+          }}
+        >
+          {text}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** Wide art for a game, best source first: hand-picked, SteamGridDB hero,
  *  IGDB artwork, IGDB screenshot. The banner and the details dialog share
@@ -155,33 +205,37 @@ export function GameBanner({
       className="library-hero relative isolate h-[var(--banner-height)] overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised"
     >
       <div aria-hidden className="absolute inset-0">
+        {/* The blurred cover: the art's placeholder while it loads (the art
+            fades in over it), and the backdrop of a game without art. */}
+        {coverUrl ? (
+          <GameCover
+            src={coverUrl}
+            alt=""
+            loading="eager"
+            data-no-shimmer
+            style={{
+              top: "calc(var(--hero-lead, 0px) * -1)",
+              height:
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--art-tail))",
+            }}
+            className="library-banner-art hero-backdrop absolute scale-125 object-cover blur-3xl saturate-150"
+          />
+        ) : null}
         {artwork ? (
-          <img
+          <ArtImage
+            key={artwork}
             src={artwork}
             srcSet={artSrcSet(artwork)}
             sizes="100vw"
-            alt=""
             decoding="async"
             fetchPriority="high"
             onError={() => markCoverUnavailable(artwork)}
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--art-tail))",
             }}
             className="library-banner-art library-hero-art absolute object-cover object-[72%_0%]"
-          />
-        ) : coverUrl ? (
-          <GameCover
-            src={coverUrl}
-            alt=""
-            loading="eager"
-            style={{
-              top: "calc(var(--hero-lead, 0px) * -1)",
-              height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
-            }}
-            className="library-banner-art hero-backdrop absolute scale-125 object-cover blur-3xl saturate-150"
           />
         ) : null}
         <div className="library-hero-shade absolute inset-0" />
@@ -236,16 +290,8 @@ export function GameBanner({
               {facts.join("   •   ")}
             </p>
           ) : null}
-          {/* The banner is a fixed height, so a long summary has to give way
-              rather than clip mid-line: it is the only part of the column that
-              shrinks, and it scrolls once it runs out of room. */}
           {!compact && ready?.summary ? (
-            <p
-              lang="en"
-              className="scrollbar-hidden mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-y-auto text-[15px] leading-[1.5] text-text/85"
-            >
-              {ready.summary}
-            </p>
+            <BannerSummary text={ready.summary} />
           ) : null}
           <div
             className={clsx(
@@ -404,19 +450,28 @@ export function GameBanner({
           aria-hidden="true"
           className="library-banner-continuation pointer-events-none absolute -z-10"
         >
-          <img
+          {/* A blurred copy carries the colors on down the tail. */}
+          <ArtImage
+            key={`soft:${backdropArt}`}
+            src={backdropArt}
+            data-no-shimmer
+            decoding="async"
+            className="library-banner-soft absolute inset-0 h-full w-full scale-110 object-cover blur-3xl saturate-[1.3]"
+          />
+          <ArtImage
+            key={backdropArt}
             src={backdropArt}
             srcSet={artSrcSet(backdropArt)}
+            data-no-shimmer
             sizes="100vw"
-            alt=""
             decoding="async"
             onError={() => markCoverUnavailable(backdropArt)}
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
               height:
-                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--art-tail))",
             }}
-            className="absolute inset-x-0 w-full object-cover object-[72%_0%]"
+            className="library-banner-sharp absolute inset-x-0 w-full object-cover object-[72%_0%]"
           />
         </div>
       ) : null}

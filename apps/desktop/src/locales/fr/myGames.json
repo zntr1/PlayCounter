@@ -432,6 +432,8 @@
   "Notes on cards": "Notes sur les vignettes",
   "A note icon on every game that has a note.": "Une icône de note sur chaque jeu qui a une note.",
   "Tier": "Tier",
+  "Shortest main story": "Histoire principale la plus courte",
+  "IGDB rating": "Note IGDB",
   "Tiers on cards": "Tiers sur les vignettes",
   "Your tier, S to F, on every game you rated.": "Votre tier, de S à F, sur chaque jeu que vous avez classé.",
   "No tier": "Sans tier",
@@ -783,5 +785,13 @@
   "Tier cleared for {{count}} games_many": "Tier retiré pour {{count}} jeux",
   "Tier cleared for {{count}} games_other": "Tier retiré pour {{count}} jeux",
   "Selected games already have tier {{tier}}": "Les jeux sélectionnés ont déjà le tier {{tier}}",
-  "Selected games already have no tier": "Les jeux sélectionnés n'ont déjà aucun tier"
+  "Selected games already have no tier": "Les jeux sélectionnés n'ont déjà aucun tier",
+  "Covers view": "Vue en jaquettes",
+  "Covers": "Jaquettes",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "La vue en jaquettes a ici ses propres réglages, tous désactivés jusqu'à ce que vous les activiez.",
+  "Spotlight on hover": "Projecteur au survol",
+  "The other covers step back while you point at one.": "Les autres jaquettes s'effacent pendant que vous en pointez une.",
+  "Space between covers": "Espace entre les jaquettes",
+  "How much room the covers get around them.": "L'espace laissé autour des jaquettes.",
+  "Details": "Détails"
 }

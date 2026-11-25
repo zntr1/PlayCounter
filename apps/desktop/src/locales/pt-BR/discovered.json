@@ -125,7 +125,7 @@
   "No cover available": "Sem capa disponível",
   "Sample": "Exemplo",
   "{{exeName}} ignored in {{folderName}}": "{{exeName}} ignorado em {{folderName}}",
-  "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.": "Só esta pasta, só neste PC. Outros jogos com esse nome de arquivo continuam sendo registrados. Nada foi informado.",
+  "Only this file, only on this PC. The rest of the folder stays tracked, and so do other games with this file name. Nothing was reported.": "Só este arquivo, só neste PC. O resto da pasta continua sendo registrado, assim como outros jogos com esse nome de arquivo. Nada foi informado.",
   "{{time}} tracked so far": "{{time}} registrados até agora",
   "Probably a game: it's in a folder you watch.": "Provavelmente um jogo: está em uma pasta que você monitora.",
   "Tracked so far: <time>{{time}}</time>": "Registrado até agora: <time>{{time}}</time>",

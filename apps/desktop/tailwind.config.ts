@@ -80,6 +80,8 @@ export default {
         raised: "var(--shadow-raised)",
         sidebar: "var(--shadow-sidebar)",
         "card-hover": "var(--shadow-card-hover)",
+        cover: "var(--shadow-cover)",
+        "cover-lit": "var(--shadow-cover-lit)",
       },
       keyframes: {
         pop: {

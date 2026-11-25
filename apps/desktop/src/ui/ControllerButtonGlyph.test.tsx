@@ -29,13 +29,13 @@ afterEach(() => {
 it("shows the art of the pad that sent the last input", () => {
   act(() => root.render(<ControllerButtonGlyph button="A" />));
   const image = () => container.querySelector("img")?.getAttribute("src");
-  expect(image()).toContain("XboxSeriesX_A");
+  expect(image()).toContain("T_X_A_Color_Alt");
 
   act(() => setControllerKind("ps5"));
-  expect(image()).toContain("PS5_Cross");
+  expect(image()).toContain("T_P5_Cross_Color_Alt");
 
   act(() => setControllerKind("ps4"));
-  expect(image()).toContain("PS4_Cross");
+  expect(image()).toContain("T_P4_Cross_Color_Alt");
 });
 
 it("names each button the way its pad labels it", () => {

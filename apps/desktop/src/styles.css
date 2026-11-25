@@ -297,12 +297,22 @@
 
 [data-banner-layout="full"] {
   --banner-height: clamp(300px, 40vh, 360px);
-  --banner-tail: 144px;
+  /* The art reaches 560px below the card, behind the library. --art-tail
+     is how far the sharp picture reaches: the card keeps its crop, and below
+     it a blurred copy carries the colors on (.library-banner-soft). */
+  --banner-tail: 560px;
+  --art-tail: 144px;
 }
 
 [data-banner-layout="compact"] {
   --banner-height: 200px;
   --banner-tail: 112px;
+  --art-tail: 112px;
+}
+
+/* The sharp continuation fades into the blurred one below it. */
+.library-banner-continuation .library-banner-sharp {
+  mask-image: linear-gradient(180deg, #000 calc(100% - 140px), transparent);
 }
 
 /* Continue the same picture around the card, fading out through the side
@@ -393,14 +403,53 @@
 
 /* Controller focus is explicit because gamepad-driven HTMLElement.focus()
    does not reliably activate the browser's :focus-visible heuristic. */
-[data-controller-selected="true"]:not(.game-library-card):not(.library-tab) {
-  position: relative;
+[data-controller-selected="true"]:not(.game-library-card):not(.library-tab):not(
+    .corner-pick
+  ):not([role="tab"]):not([data-controller-item="screenshot"]) {
   z-index: 30;
   outline: 5px solid rgb(var(--color-accent));
   outline-offset: 3px;
   box-shadow:
     0 0 0 8px rgb(var(--color-bg) / 0.88),
     0 0 24px rgb(var(--color-accent) / 0.72);
+}
+
+/* z-index needs a position. One the item already has stays: an absolute
+   button forced to relative leaves its place (the Clear search button). */
+[data-controller-selected="true"]:not(.game-library-card):not(.library-tab):not(
+    .absolute
+  ):not(.fixed):not(.sticky) {
+  position: relative;
+}
+
+/* Settings' corner pickers: each corner is a quarter of a small, clipped
+   game screen. The ring goes inside the corner, which also shows where the
+   timer or the popups would sit, like on hover. */
+.corner-pick[data-controller-selected="true"] {
+  z-index: 30;
+  background: rgb(var(--color-accent) / 0.16);
+  box-shadow: inset 0 0 0 2px rgb(var(--color-accent) / 0.85);
+}
+
+.corner-pick[data-controller-selected="true"] > span {
+  opacity: 1;
+}
+
+/* Tab rows scroll sideways (Details), which clips the ring above to two side
+   bars beside the tab. Like the library tabs below, a tab gets its ring
+   inside its own box. */
+[role="tab"][data-controller-selected="true"] {
+  z-index: 30;
+  background: rgb(var(--color-accent) / 0.16);
+  box-shadow: inset 0 0 0 2px rgb(var(--color-accent) / 0.85);
+}
+
+/* Screenshots sit in a strip that scrolls sideways (Details' General) and
+   in panels, which cut the ring above off at the top. Their ring is drawn
+   inside the picture instead, over it. */
+[data-controller-item="screenshot"][data-controller-selected="true"] {
+  outline: 4px solid rgb(var(--color-accent));
+  outline-offset: -4px;
 }
 
 /* Library tabs live in a horizontally scrolling, vertically clipped strip, so
@@ -430,6 +479,65 @@
 :root[data-controller-mode="true"]
   .game-library-card[data-controller-selected="true"]
   .launch-key-hint--controller {
+  display: inline-flex;
+}
+
+/* Beside Play on the selected card while a controller drives the app: the
+   Y / Triangle button that opens Details. When the row runs short it gives
+   up its room before the action beside it does (shrink weight 100), down to
+   the glyph alone: its name then wraps onto a second line the button cuts
+   off, and DetailsKeyButton drops the name (data-fit="glyph") so the button
+   shrinks to the glyph. When everything fits (data-fit="name"), the action
+   and Details share the card's row evenly, each at least as wide as its
+   content. Each line is as tall as the button, so the glyph stays centred. */
+.details-key-hint {
+  display: none;
+  flex: 0 100 auto;
+  flex-wrap: wrap;
+  /* The small glyph (28px), px-2 and a border. The action beside it has
+     px-2 too, so the even split comes out even. */
+  min-width: calc(28px + 1rem + 2px);
+  overflow: hidden;
+}
+
+.details-key-hint > span {
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+
+.details-key-hint[data-fit="glyph"] > span + span {
+  display: none;
+}
+
+.details-key-row > .details-key-hint[data-fit="name"],
+.details-key-row > :has(+ .details-key-hint[data-fit="name"]) {
+  flex: 1 1 0%;
+  min-width: max-content;
+}
+
+/* The glyph art leaves 12.5% of its square empty on each side. Beside a
+   name that reads as extra room on the glyph's side, so A Play and
+   Y Details looked off-centre in their buttons. Pulling the empty edges in
+   centres what you see. */
+.details-key-hint > span:first-child,
+.details-key-row .launch-key-hint--controller {
+  margin-inline: calc(28px * -0.125);
+}
+
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .details-key-hint {
+  display: flex;
+}
+
+/* Button hints that only make sense with a controller in hand, like LB / RB
+   at the ends of a tab row. */
+.controller-mode-only {
+  display: none;
+}
+
+:root[data-controller-mode="true"] .controller-mode-only {
   display: inline-flex;
 }
 
@@ -1859,6 +1967,234 @@ body.shift-held
   .game-library-card:not(:has(.level-up-cta:hover)):hover
   .game-card-journal-badges:has(~ .game-card-shift-view) {
   visibility: hidden;
+}
+
+/* Covers, art and screenshots shimmer while they load and fade in once
+   loaded instead of popping in (useImageFadeIn), in every view (variant A of
+   docs/image-loading-mockups.html, Phil 2026-11-24). The shimmer is the
+   image's own background: a light band sweeping over a faint fill, in the
+   text colour so it works in both themes. object-position pushes a
+   half-loaded picture out of the box, so it never paints in rows.
+
+   The shimmer replaces any animation of the image while it loads, so art
+   with its own entrance animation (.library-hero-art, .history-hero-art)
+   plays it once the image is there, not on an empty frame. Those already
+   fade from 0; every other image gets img-fade-in (:where, so an image's own
+   animation wins). Neither has a lasting fill: one left applying keeps an
+   image softer in WebView2 (the banner art had that).
+
+   data-no-shimmer: game covers (GameCover: hundreds of lazy covers would
+   all keep animating) and art that only decorates (the strip behind the
+   title bar, the art around the banner) stay hidden while they load, as
+   before. A picture that failed stays hidden and stops shimmering.
+   .img-shimmer: the same shimmer on a box with no image yet (a screenshot
+   whose preview is still being made). */
+img[data-img-loading] {
+  object-position: -99999px 0;
+}
+
+img[data-img-loading],
+.img-shimmer {
+  background-color: rgb(var(--color-text) / 0.04);
+  background-image: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgb(var(--color-text) / 0.06) 45%,
+    rgb(var(--color-text) / 0.09) 50%,
+    rgb(var(--color-text) / 0.06) 55%,
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+  background-size: 250% 100%;
+  animation: img-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes img-shimmer {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -30% 0;
+  }
+}
+
+img[data-img-loading][data-no-shimmer],
+img[data-img-failed] {
+  opacity: 0;
+  background: none;
+  animation: none;
+}
+
+:where(img[data-img-fade-in]) {
+  animation: img-fade-in 0.4s ease-out backwards;
+}
+
+@keyframes img-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img[data-img-loading],
+  .img-shimmer {
+    animation: none;
+    background-position: 50% 0;
+  }
+}
+
+/* ── Covers view (My Games) ─────────────────────────────────────────────
+   Depth: layered soft shadows (Tailwind shadow-cover) and a light top edge
+   drawn over the cover (.covers-edge). On hover the edge brightens instead of
+   an amber ring: amber is the cover in the banner and the keyboard focus.
+   The hovered cover drops the dark shadow so its glow shows. */
+:root {
+  --shadow-cover:
+    0 1px 1px rgb(0 0 0 / 0.45), 0 8px 16px -6px rgb(0 0 0 / 0.6),
+    0 22px 40px -18px rgb(0 0 0 / 0.7);
+  --shadow-cover-lit: 0 1px 2px rgb(0 0 0 / 0.5);
+  --cover-edge:
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    inset 0 0 0 1px rgb(255 255 255 / 0.06), inset 0 -1px 0 rgb(0 0 0 / 0.4);
+  --cover-edge-hover:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 0 0 1px rgb(255 255 255 / 0.26);
+}
+
+:root[data-theme="light"] {
+  --shadow-cover:
+    0 1px 1px rgba(60, 44, 20, 0.12), 0 8px 16px -6px rgba(60, 44, 20, 0.2),
+    0 22px 40px -18px rgba(60, 44, 20, 0.26);
+  --shadow-cover-lit: 0 1px 2px rgba(60, 44, 20, 0.14);
+  --cover-edge:
+    inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  --cover-edge-hover:
+    inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 0 0 1px rgb(0 0 0 / 0.24);
+}
+
+.covers-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  border-radius: 10px;
+  box-shadow: var(--cover-edge);
+  pointer-events: none;
+}
+
+/* Under the pointer, or picked with the arrow keys, a controller or Tab. */
+.covers-tile:hover .covers-edge,
+.covers-tile:is(
+    [data-controller-selected="true"],
+    :focus-visible,
+    :has(:focus-visible)
+  )
+  .covers-edge {
+  box-shadow: var(--cover-edge-hover);
+}
+
+/* The hover text grows with the tile: 14 px names on the smallest covers,
+   up to 20 px on big ones. The cover box is the container. */
+.covers-box {
+  container-type: inline-size;
+}
+
+.covers-hover {
+  gap: clamp(2px, 1cqi, 4px);
+  padding: 3rem clamp(10px, 4.5cqi, 16px) clamp(10px, 4.5cqi, 16px);
+}
+
+/* A cover the controller leaves hides its panel at once. Fading out, the
+   panel showed its mouse look for 150 ms (Play instead of A Play, no
+   Details), because the controller's look goes the moment the ring does.
+   The cover the ring moves to still fades its panel in. */
+:root[data-controller-mode="true"]
+  .game-library-card:not([data-controller-selected="true"])
+  .covers-hover {
+  transition: none;
+}
+
+.covers-hover-name {
+  font-size: clamp(14px, 6cqi, 20px);
+}
+
+.covers-hover-meta {
+  font-size: clamp(11px, 4.2cqi, 14px);
+}
+
+.covers-hover-time {
+  font-size: clamp(13px, 5cqi, 17px);
+}
+
+.covers-hover-button {
+  height: clamp(32px, 12.5cqi, 42px);
+  font-size: clamp(12px, 4.6cqi, 15px);
+}
+
+.covers-hover-more {
+  width: clamp(32px, 12.5cqi, 42px);
+  height: clamp(32px, 12.5cqi, 42px);
+}
+
+/* The glow in the colors of the cover under the pointer (useCoverGlow): two
+   blurred cover copies serve the whole grid. Only their opacity animates; an
+   unlit one is hidden, so it is never painted. */
+.cover-glow {
+  position: absolute;
+  z-index: 0;
+  border-radius: 18px;
+  object-fit: cover;
+  filter: blur(32px) saturate(1.2) brightness(0.95);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.35s ease-out,
+    visibility 0s 0.35s;
+  pointer-events: none;
+}
+
+.cover-glow[data-on] {
+  opacity: 0.45;
+  visibility: visible;
+  transition: opacity 0.35s ease-out;
+}
+
+:root[data-theme="light"] .cover-glow[data-on] {
+  opacity: 0.35;
+}
+
+.cover-glow:not([src]) {
+  display: none;
+}
+
+/* Spotlight (Customize, off unless turned on): the other covers step back
+   while one is pointed at. */
+.covers-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 26;
+  border-radius: 10px;
+  background: rgb(var(--color-bg));
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
+}
+
+/* The cover in front: under the pointer, or picked with the arrow keys, a
+   controller or Tab. Both stay lit when the mouse and the keys point at
+   different covers. */
+[data-cover-spotlight]:has(
+    .covers-tile:is(
+      :hover,
+      [data-controller-selected="true"],
+      :focus-visible,
+      :has(:focus-visible)
+    )
+  )
+  .covers-tile:not(:hover):not([data-controller-selected="true"]):not(
+    :focus-visible
+  ):not(:has(:focus-visible))
+  .covers-dim {
+  opacity: 0.5;
 }
 
 .level-up-arrow {

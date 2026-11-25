@@ -1,9 +1,30 @@
 import type { Settings } from "@playcounter/shared";
 import type { MyGamesSortKey } from "./myGamesSort";
 
-export type MyGamesCardSize = "grid" | "large" | "list";
+/** "covers": only the cover; name, playtime and Play show on hover. */
+export type MyGamesCardSize = "grid" | "large" | "covers" | "list";
 
 export const MAX_LIBRARY_GRID_COLUMNS = 48;
+
+/** Covers view, Customize > Space between covers: the gap between columns
+ *  in px. Rows get a little more, so covers read as rows. 44 is the room to
+ *  breathe of docs/cover-view-polish-mockups.html. */
+export const COVER_GAP = { min: 8, max: 128, step: 4, default: 44 } as const;
+
+export function isCoverGap(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= COVER_GAP.min &&
+    value <= COVER_GAP.max
+  );
+}
+
+/** The covers' gaps for a saved value; anything else is the default. */
+export function coverGapStyle(value: unknown) {
+  const column = isCoverGap(value) ? value : COVER_GAP.default;
+  return { columnGap: column, rowGap: Math.round(column * 1.27) };
+}
 
 export function isLibraryGridColumns(value: unknown): value is number {
   return (
@@ -40,7 +61,12 @@ export const DEFAULT_MY_GAMES_PRESENTATION: MyGamesPresentation = {
 };
 
 export function isMyGamesCardSize(value: unknown): value is MyGamesCardSize {
-  return value === "grid" || value === "large" || value === "list";
+  return (
+    value === "grid" ||
+    value === "large" ||
+    value === "covers" ||
+    value === "list"
+  );
 }
 
 export function isMyGamesSortKey(value: unknown): value is MyGamesSortKey {
@@ -50,7 +76,9 @@ export function isMyGamesSortKey(value: unknown): value is MyGamesSortKey {
     value === "playtime" ||
     value === "name" ||
     value === "sessions" ||
-    value === "tier"
+    value === "tier" ||
+    value === "timeToBeat" ||
+    value === "rating"
   );
 }
 

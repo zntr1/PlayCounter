@@ -222,5 +222,8 @@
   "What's happening in this picture?": "¿Qué pasa en esta imagen?",
   "Enter saves · Esc cancels": "Intro guarda · Esc cancela",
   "The caption couldn't be saved.": "No se pudo guardar el pie de foto.",
-  "{{counter}} in this session: {{value}}": "{{counter}} en esta sesión: {{value}}"
+  "{{counter}} in this session: {{value}}": "{{counter}} en esta sesión: {{value}}",
+  "Screenshot from IGDB": "Captura de pantalla de IGDB",
+  "Screenshot from IGDB · {{index}} of {{total}}": "Captura de pantalla de IGDB · {{index}} de {{total}}",
+  "All screenshots": "Todas las capturas de pantalla"
 }

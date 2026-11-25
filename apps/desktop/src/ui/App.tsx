@@ -81,6 +81,7 @@ import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
 import { ViewBanner } from "./ViewBanner";
+import { ArtImage } from "./ArtImage";
 import { artSrcSet } from "./artSrcSet";
 import { markCoverUnavailable } from "../pickedCovers";
 import { useContextMenu } from "./ContextMenu";
@@ -992,7 +993,6 @@ export function App() {
           )}
         </div>
         <nav
-          data-controller-scroll
           className={clsx(
             "flex-1 overflow-y-auto overflow-x-hidden pb-6",
             sidebarCollapsed ? "px-2.5" : "px-3",
@@ -1037,7 +1037,14 @@ export function App() {
                       activeView === item ||
                       (item === "games" && activeView === "import")
                     }
-                    controllerEnabled={item !== "discovered" && item !== "dev"}
+                    // Views a pad can't work: Discovered's review takes a
+                    // mouse, Launcher accounts' sign-ins open launcher
+                    // windows. The controller walks past them.
+                    controllerEnabled={
+                      item !== "discovered" &&
+                      item !== "accounts" &&
+                      item !== "dev"
+                    }
                     dataTour={`nav-${item}`}
                     onContextMenu={
                       item === "games"
@@ -1252,9 +1259,10 @@ export function App() {
               {/* Same image frame as the card and lower continuation. The
                   card starts its crop --hero-lead lower, leaving this strip
                   directly above it. */}
-              <img
+              <ArtImage
+                key={titleBarArt}
                 src={titleBarArt}
-                alt=""
+                data-no-shimmer
                 onError={() => markCoverUnavailable(titleBarArt)}
                 style={{
                   // Replaced elements do not stretch between left and right;
@@ -1263,7 +1271,7 @@ export function App() {
                   width: "calc(var(--content-width, 100%) * var(--zoom-ratio))",
                   height: `calc(${
                     artFrame === "card"
-                      ? "(var(--banner-height) + var(--banner-tail))"
+                      ? "(var(--banner-height) + var(--art-tail, var(--banner-tail)))"
                       : "560px"
                   } * var(--zoom-ratio) + 72px + var(--notice-height, 0px) / ${menuScale})`,
                 }}
@@ -1357,11 +1365,12 @@ export function App() {
                 // are one crop of the same picture.
                 style={{ height: "560px" }}
               >
-                <img
+                <ArtImage
+                  key={titleBarArt}
                   src={titleBarArt}
                   srcSet={artSrcSet(titleBarArt)}
+                  data-no-shimmer
                   sizes="100vw"
-                  alt=""
                   onError={() => markCoverUnavailable(titleBarArt)}
                   style={{
                     top: "calc(var(--hero-lead, 0px) * -1)",
@@ -1577,6 +1586,7 @@ function ViewHeading({
 
 function ControllerModeFooter() {
   const kind = useControllerKind();
+  const activeView = useAppStore((state) => state.activeView);
   return (
     <div
       aria-label={t("Controller mode controls")}
@@ -1593,6 +1603,16 @@ function ControllerModeFooter() {
         <ControllerHint button="A" label={t("Select")} />
         <ControllerHint button="B" label={t("Back")} />
         <ControllerHint button="RIGHT_STICK" label={t("Scroll")} />
+        {/* Only where the button does something. */}
+        {activeView === "games" ? (
+          <ControllerHint button="Y" label={t("Details")} />
+        ) : null}
+        {activeView === "history" || activeView === "achievements" ? (
+          <ControllerHint button="LB" also="RB" label={t("Switch tab")} />
+        ) : null}
+        {activeView === "settings" ? (
+          <ControllerHint button="LB" also="RB" label={t("Switch page")} />
+        ) : null}
         <ControllerHint button="VIEW" label={t("Card size")} />
         <ControllerHint button="MENU" label={t("Fullscreen")} />
         <div
@@ -1619,18 +1639,22 @@ function ControllerModeFooter() {
 
 function ControllerHint({
   button,
+  also,
   label,
 }: {
   button: ControllerControl;
+  /** A second button doing the same in the other direction (LB / RB). */
+  also?: ControllerControl;
   label: string;
 }) {
   const kind = useControllerKind();
+  const name = also
+    ? `${controllerButtonName(kind, button)} / ${controllerButtonName(kind, also)}`
+    : controllerButtonName(kind, button);
   return (
-    <span
-      className="flex items-center gap-2"
-      aria-label={`${controllerButtonName(kind, button)}: ${label}`}
-    >
+    <span className="flex items-center gap-2" aria-label={`${name}: ${label}`}>
       <ControllerButtonGlyph button={button} />
+      {also ? <ControllerButtonGlyph button={also} /> : null}
       <span>{label}</span>
     </span>
   );
@@ -1647,7 +1671,9 @@ async function syncLaunchOnStartupPreference() {
 
   try {
     const enabled = await isEnabled();
-    if (desired && !enabled) await enable();
+    // Written again on every start, so Windows starts the copy you started
+    // last (Steam or website). A dev run shares the name and leaves it alone.
+    if (desired && (!enabled || !import.meta.env.DEV)) await enable();
     if (!desired && enabled) await disable();
     setLaunchOnStartup(desired);
     addRuntimeLogEntry(`launch on startup ${desired ? "enabled" : "disabled"}`);

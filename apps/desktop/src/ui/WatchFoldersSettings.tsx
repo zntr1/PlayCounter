@@ -71,6 +71,7 @@ export function WatchFoldersSettings({
       control={
         <Button
           data-tour="settings-watch-folders-add"
+          data-controller-ignore=""
           icon={FolderPlus}
           disabled={disabled || !remembersPaths}
           aria-describedby={

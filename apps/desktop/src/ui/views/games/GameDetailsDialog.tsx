@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Gamepad2,
   Hourglass,
+  Images,
   Skull,
   Info,
   Loader2,
@@ -50,6 +51,7 @@ import {
   type GameIdentityRef,
 } from "../../../store";
 import { removeLauncherAccount, removeOwnGameFile } from "../../../tracker";
+import { ArtImage } from "../../ArtImage";
 import { artSrcSet } from "../../artSrcSet";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -76,6 +78,11 @@ import { useHeroLauncher } from "./useHeroLauncher";
 import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 import { Figure, Panel, SkeletonBar, SourceTag } from "./detailsPanels";
+import {
+  GameScreenshotsTab,
+  ScreenshotStrip,
+  useDetailsScreenshots,
+} from "./GameScreenshots";
 import { HowLongToBeatTab } from "./HowLongToBeatTab";
 import { GameCountersTab } from "./GameCountersTab";
 import type { GameSummary } from "../MyGamesView";
@@ -85,6 +92,7 @@ import { tourCounters, tourDemoDetails } from "../../tour/tourDemoDetails";
 import { PersonalLibraryContext } from "../../PersonalLibraryContext";
 import { appLanguage, formatNumericDate, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
+import { TabBumperHint } from "../../TabBumperHint";
 
 const t = getT("games");
 
@@ -136,6 +144,7 @@ type AccountRemoval = {
 export type DetailsTab =
   | "general"
   | "howLongToBeat"
+  | "screenshots"
   | "files"
   | "achievements"
   | "counters";
@@ -339,6 +348,7 @@ export function GameDetailsDialog({
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
     general: null,
     howLongToBeat: null,
+    screenshots: null,
     files: null,
     achievements: null,
     counters: null,
@@ -471,6 +481,12 @@ export function GameDetailsDialog({
   const duration = (seconds: number) =>
     formatDuration(Math.max(0, seconds), showDurationDays);
   const resolved = details.status === "ready" ? details.details : null;
+  // The player's own pictures and IGDB's (GameScreenshots).
+  const screenshots = useDetailsScreenshots(
+    game.historyGameKey,
+    game.name,
+    resolved?.screenshotUrls,
+  );
   const artwork = heroArtwork(demo ? undefined : pickedArt, resolved);
   const igdbUrl =
     resolved?.igdbUrl ??
@@ -563,6 +579,10 @@ export function GameDetailsDialog({
         ]
       : []),
     { id: "howLongToBeat", label: t("How long to beat"), icon: Hourglass },
+    // Only for a game with pictures, own or IGDB's.
+    ...(screenshots.all.length
+      ? [{ id: "screenshots" as const, label: t("Screenshots"), icon: Images }]
+      : []),
     { id: "files", label: t("Files"), icon: FolderOpen },
     // The second sample game of the guides has nothing to count.
     ...(demo && !sample
@@ -577,22 +597,26 @@ export function GameDetailsDialog({
       {/* Artwork sits behind everything; the shade keeps the left half
           readable and the bottom fades into the panel so the tabs read. */}
       <div aria-hidden className="absolute inset-0 overflow-hidden">
-        {artwork ? (
-          <img
-            src={artwork}
-            srcSet={artSrcSet(artwork)}
-            sizes="1024px"
-            alt=""
-            decoding="async"
-            onError={() => markCoverUnavailable(artwork)}
-            className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
-          />
-        ) : coverUrl ? (
+        {/* The blurred cover: placeholder while the art loads, backdrop of a
+            game without art. */}
+        {coverUrl ? (
           <GameCover
             src={coverUrl}
             alt=""
             loading="eager"
+            data-no-shimmer
             className="hero-backdrop absolute inset-0 h-full w-full scale-125 object-cover blur-3xl saturate-150"
+          />
+        ) : null}
+        {artwork ? (
+          <ArtImage
+            key={artwork}
+            src={artwork}
+            srcSet={artSrcSet(artwork)}
+            sizes="1024px"
+            decoding="async"
+            onError={() => markCoverUnavailable(artwork)}
+            className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
           />
         ) : null}
         <div className="library-hero-shade absolute inset-0" />
@@ -625,90 +649,48 @@ export function GameDetailsDialog({
         </div>
 
         <div className="flex min-w-0 flex-col">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent-ink">
-            <Gamepad2 size={13} />
-            {t("Game details")}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2 pr-10">
-            <h2
-              id="game-details-title"
-              className="break-words font-serif text-[32px] font-bold leading-[1.1] tracking-tight text-text drop-shadow-md"
-            >
-              {game.name}
-            </h2>
-            <GameProvenanceBadges
-              sources={game.sources}
-              emulatorSources={game.emulatorSources}
-              approval={
-                game.emulatorApproval ??
-                communitySuggestionApproval({
-                  suggestionId: game.communitySuggestionId,
-                  verified: game.communitySuggestionVerified,
-                  status: game.communitySuggestionStatus,
-                })
-              }
-              providers={importedProviders}
-              emulatorIds={game.emulatorIds}
-              unknownDurationProviders={importedProviders.filter((provider) =>
-                hasUnknownProviderPlaytime(game.libraryImports, provider),
-              )}
-            />
-          </div>
-          {releaseLabel ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-text-muted">
-              <CalendarDays size={15} />
-              {t("Released {{releaseLabel}}", { releaseLabel })}
-            </p>
-          ) : null}
-
-          <div className="mt-auto flex items-end justify-between gap-4 pt-5">
-            <div
-              role="tablist"
-              aria-label={t("Game details sections")}
-              onKeyDown={handleTabKeyDown}
-              className="flex gap-1"
-            >
-              {tabs.map(({ id, label, icon: Icon }) => {
-                const selected = tab === id;
-                return (
-                  <button
-                    key={id}
-                    ref={(element) => {
-                      tabRefs.current[id] = element;
-                    }}
-                    type="button"
-                    role="tab"
-                    id={`game-details-tab-${id}`}
-                    aria-selected={selected}
-                    data-autofocus={selected || undefined}
-                    aria-controls={`game-details-panel-${id}`}
-                    data-tour={demo ? `demo-details-tab-${id}` : undefined}
-                    tabIndex={selected ? 0 : -1}
-                    onClick={() => setTab(id)}
-                    className={clsx(
-                      "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-                      selected
-                        ? "bg-surface/80 text-accent-ink backdrop-blur after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
-                        : "text-text-muted hover:bg-surface/50 hover:text-text",
-                    )}
-                  >
-                    <Icon size={15} />
-                    {label}
-                    {id === "files" ? (
-                      <span
-                        className={clsx(
-                          "font-mono text-[11px] tabular-nums",
-                          selected ? "text-accent-ink/80" : "text-text-faint",
-                        )}
-                      >
-                        {fileCount}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
+          {/* Title on the left, your tier and IGDB's rating on the right:
+              the tabs below get the whole width, so they never wrap. */}
+          <div className="flex items-start gap-4 pr-12">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent-ink">
+                <Gamepad2 size={13} />
+                {t("Game details")}
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h2
+                  id="game-details-title"
+                  className="break-words font-serif text-[32px] font-bold leading-[1.1] tracking-tight text-text drop-shadow-md"
+                >
+                  {game.name}
+                </h2>
+                <GameProvenanceBadges
+                  sources={game.sources}
+                  emulatorSources={game.emulatorSources}
+                  approval={
+                    game.emulatorApproval ??
+                    communitySuggestionApproval({
+                      suggestionId: game.communitySuggestionId,
+                      verified: game.communitySuggestionVerified,
+                      status: game.communitySuggestionStatus,
+                    })
+                  }
+                  providers={importedProviders}
+                  emulatorIds={game.emulatorIds}
+                  unknownDurationProviders={importedProviders.filter(
+                    (provider) =>
+                      hasUnknownProviderPlaytime(game.libraryImports, provider),
+                  )}
+                />
+              </div>
+              {releaseLabel ? (
+                <p className="mt-3 flex items-center gap-2 text-sm text-text-muted">
+                  <CalendarDays size={15} />
+                  {t("Released {{releaseLabel}}", { releaseLabel })}
+                </p>
+              ) : null}
             </div>
-            <div className="mb-2 flex shrink-0 items-stretch gap-2">
+            <div className="flex shrink-0 items-stretch gap-2">
               {!demo ? (
                 <TierTile game={{ ...game, gameName: game.name }} />
               ) : null}
@@ -727,6 +709,59 @@ export function GameDetailsDialog({
                   </div>
                 </div>
               ) : null}
+            </div>
+          </div>
+
+          {/* One line: in a narrow window the row scrolls sideways instead
+              of breaking a tab's name over several lines. */}
+          <div className="mt-auto pt-5">
+            <div
+              role="tablist"
+              aria-label={t("Game details sections")}
+              onKeyDown={handleTabKeyDown}
+              className="flex gap-1 overflow-x-auto [scrollbar-width:none]"
+            >
+              <TabBumperHint button="LB" />
+              {tabs.map(({ id, label, icon: Icon }) => {
+                const selected = tab === id;
+                return (
+                  <button
+                    key={id}
+                    ref={(element) => {
+                      tabRefs.current[id] = element;
+                    }}
+                    type="button"
+                    role="tab"
+                    id={`game-details-tab-${id}`}
+                    aria-selected={selected}
+                    data-autofocus={selected || undefined}
+                    aria-controls={`game-details-panel-${id}`}
+                    data-tour={demo ? `demo-details-tab-${id}` : undefined}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => setTab(id)}
+                    className={clsx(
+                      "relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60",
+                      selected
+                        ? "bg-surface/80 text-accent-ink backdrop-blur after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
+                        : "text-text-muted hover:bg-surface/50 hover:text-text",
+                    )}
+                  >
+                    <Icon size={15} />
+                    {label}
+                    {id === "files" || id === "screenshots" ? (
+                      <span
+                        className={clsx(
+                          "font-mono text-[11px] tabular-nums",
+                          selected ? "text-accent-ink/80" : "text-text-faint",
+                        )}
+                      >
+                        {id === "files" ? fileCount : screenshots.all.length}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+              <TabBumperHint button="RB" />
             </div>
           </div>
         </div>
@@ -815,7 +850,9 @@ export function GameDetailsDialog({
     );
 
   const generalTab = (
-    <div className="grid gap-4">
+    // minmax(0,1fr): the screenshot strip scrolls inside the dialog
+    // instead of widening every panel to its full length.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <Panel
         title={t("About this game")}
         icon={Info}
@@ -904,6 +941,12 @@ export function GameDetailsDialog({
           ) : null}
         </div>
       </Panel>
+
+      <ScreenshotStrip
+        shots={screenshots}
+        gameName={game.name}
+        onShowAll={() => setTab("screenshots")}
+      />
 
       {resolved &&
       (resolved.developers.length > 0 || resolved.publishers.length > 0) ? (
@@ -1297,7 +1340,10 @@ export function GameDetailsDialog({
     <Modal
       dataTour={demo ? "demo-game-details" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
-      className="game-details-dialog  max-w-6xl h-[90vh]"
+      className="game-details-dialog max-w-6xl"
+      // As tall as the tab shown (90vh at most, then it scrolls), with its
+      // top edge fixed: switching tabs or a tab loading only moves the bottom.
+      anchor="top"
       size="xl"
       labelId="game-details-title"
       title={game.name}
@@ -1320,6 +1366,8 @@ export function GameDetailsDialog({
             demo={demo}
             onOpenIgdb={() => void openOnIgdb()}
           />
+        ) : tab === "screenshots" ? (
+          <GameScreenshotsTab shots={screenshots} gameName={game.name} />
         ) : tab === "files" ? (
           filesTab
         ) : tab === "counters" ? (

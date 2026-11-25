@@ -404,6 +404,7 @@ export function IgnoredAppsRow({ level, disabled }: SettingsRowProps) {
             </span>
             <Button
               icon={FolderOpen}
+              data-controller-ignore=""
               className="h-[30px] px-2.5 text-[13px]"
               disabled={disabled || !path}
               onClick={() =>

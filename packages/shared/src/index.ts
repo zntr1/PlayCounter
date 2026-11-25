@@ -487,6 +487,35 @@ export interface GameMetadataResponse {
 }
 
 /**
+ * GET /api/games/covers: a game's current cover by IGDB id. Covers change on
+ * IGDB (service games get new art), and the server compares its covers with
+ * IGDB once a day. A game without a cover on the server is left out.
+ */
+export interface GameCover {
+  igdbId: number;
+  coverUrl: string;
+}
+
+export interface GameCoversResponse {
+  covers: GameCover[];
+}
+
+/**
+ * GET /api/games/cover-changes: the covers the server replaced after `since`,
+ * for every game it stores, oldest change first. The app remembers `next` and
+ * sends it as `since` the next time, so it reads every change once. Without
+ * `since` the answer has no covers, only where to start reading. A change is
+ * handed out once it is a few minutes old.
+ */
+export interface GameCoverChangesResponse {
+  covers: GameCover[];
+  /** Where this answer ends: the `since` of the next request. */
+  next: string;
+  /** More changes wait: ask again with `next`. */
+  more: boolean;
+}
+
+/**
  * Extended IGDB facts for one game, shown in the desktop's game details view.
  * Everything past `gameId`/`igdbId` is optional or an empty array: IGDB entries
  * are unevenly filled, and a community game may have no IGDB entry at all.
@@ -547,6 +576,23 @@ export interface GameTimeToBeat {
 
 export interface GameDetailsResponse {
   details: GameDetails[];
+}
+
+/**
+ * What My Games sorts by, for many games at once. Lighter than GameDetails:
+ * IGDB only, no art, no HowLongToBeat id. A game with neither number is left
+ * out of the response.
+ */
+export interface GameSortFacts {
+  igdbId: number;
+  /** IGDB's aggregate score, 0-100, rounded. */
+  rating?: number;
+  /** IGDB's "hastily" average in seconds, shown as Main story. */
+  mainStorySeconds?: number;
+}
+
+export interface GameSortFactsResponse {
+  facts: GameSortFacts[];
 }
 
 /* Artwork picker ─────────────────────────────────────────────────────────────
@@ -751,7 +797,7 @@ export interface Settings {
   clockFormat?: ClockFormat;
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
-  libraryCardSize?: "grid" | "large" | "list";
+  libraryCardSize?: "grid" | "large" | "covers" | "list";
   /** Custom grid columns. Null or absent uses the selected view's responsive default. */
   libraryGridColumns?: number | null;
   librarySortKey?:
@@ -760,7 +806,9 @@ export interface Settings {
     | "playtime"
     | "name"
     | "sessions"
-    | "tier";
+    | "tier"
+    | "timeToBeat"
+    | "rating";
   /** Retired single toggle. Still read once so an existing opt-out seeds both
    *  of the toggles below; never written again. */
   libraryShowBadges?: boolean;
@@ -776,6 +824,20 @@ export interface Settings {
   libraryShowTierBadges?: boolean;
   /** Warn on covers of games with no known .exe yet. Absent = enabled. */
   libraryShowTrackingWarnings?: boolean;
+  /** Covers view: its own badge choices, so Standard and Large cards keep
+   *  theirs. Absent = off: the Covers view shows only the cover until the
+   *  player turns a badge on there. */
+  libraryCoversShowOriginBadges?: boolean;
+  libraryCoversShowMatchBadges?: boolean;
+  libraryCoversShowStatusBadges?: boolean;
+  libraryCoversShowNoteBadges?: boolean;
+  libraryCoversShowTierBadges?: boolean;
+  /** Covers view: the other covers step back while one is pointed at.
+   *  Absent = off. */
+  libraryCoverSpotlight?: boolean;
+  /** Covers view: the space between covers in px, 8-128 (columns; rows get
+   *  a little more). Absent = 44. */
+  libraryCoverGap?: number;
   /** Request IGDB cover art one size up. Absent = off, the smaller default.
    *  Replaced by coverQuality; still read while coverQuality is absent. */
   libraryHighResCovers?: boolean;

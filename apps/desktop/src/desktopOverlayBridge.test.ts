@@ -12,6 +12,7 @@ import {
   previewDesktopOverlay,
   showCurrentSessionOverlay,
 } from "./desktopOverlayBridge";
+import { useCurrentCovers } from "./currentCovers";
 import { useAppStore } from "./store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -229,6 +230,38 @@ describe("desktop overlay bridge", () => {
       },
     });
     expect(useAppStore.getState().activeSessions).toHaveLength(1);
+  });
+
+  it("shows a game's current cover, not the one stored with its session", async () => {
+    const stored =
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co_old_season.jpg";
+    const current =
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co_new_season.jpg";
+    useCurrentCovers.setState({ byIgdbId: new Map([[115, current]]) });
+    useAppStore.setState({
+      activeSessions: [
+        {
+          id: 1,
+          gameId: 4,
+          igdbId: 115,
+          source: "igdb",
+          gameName: "League of Legends",
+          exeName: "League of Legends.exe",
+          coverUrl: stored,
+          startedAt: new Date(0).toISOString(),
+          checkpointedAt: new Date(0).toISOString(),
+        },
+      ],
+    });
+    initializeDesktopOverlays();
+    showCurrentSessionOverlay();
+    await flush();
+
+    const payload = (showCalls()[0][1] as { payload: { coverUrl?: string } })
+      .payload;
+    expect(payload.coverUrl).toContain("co_new_season");
+    expect(useAppStore.getState().activeSessions[0].coverUrl).toBe(stored);
+    useCurrentCovers.setState({ byIgdbId: new Map() });
   });
 
   it("cycles active games, skips unconfirmed recovery, and handles no active session", async () => {

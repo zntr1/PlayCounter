@@ -222,5 +222,8 @@
   "What's happening in this picture?": "Que se passe-t-il sur cette image ?",
   "Enter saves · Esc cancels": "Entrée enregistre · Échap annule",
   "The caption couldn't be saved.": "La légende n'a pas pu être enregistrée.",
-  "{{counter}} in this session: {{value}}": "{{counter}} pendant cette session : {{value}}"
+  "{{counter}} in this session: {{value}}": "{{counter}} pendant cette session : {{value}}",
+  "Screenshot from IGDB": "Capture d'écran d'IGDB",
+  "Screenshot from IGDB · {{index}} of {{total}}": "Capture d'écran d'IGDB · {{index}} sur {{total}}",
+  "All screenshots": "Toutes les captures d'écran"
 }

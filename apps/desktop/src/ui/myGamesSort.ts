@@ -6,7 +6,9 @@ export type MyGamesSortKey =
   | "playtime"
   | "name"
   | "sessions"
-  | "tier";
+  | "tier"
+  | "timeToBeat"
+  | "rating";
 
 export const LAST_PLAYED_PROMOTION_DELAY_MS = 30_000;
 export const NEW_GAME_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -28,6 +30,10 @@ export type MyGamesSortValue = {
   addedAt?: string;
   /** Your tier from the game's journal. Absent = not rated. */
   tier?: GameTier;
+  /** IGDB's Main story time in seconds. Absent = unknown or not loaded. */
+  mainStorySeconds?: number;
+  /** IGDB's rating, 0-100. Absent = unknown or not loaded. */
+  rating?: number;
 };
 
 function newestFirst(left: string, right: string) {
@@ -102,6 +108,11 @@ export function mergeLastPlayedEvidence(
     : current;
 }
 
+/** Games with the number before games without it. */
+function knownFirst(left: number | undefined, right: number | undefined) {
+  return Number(left === undefined) - Number(right === undefined);
+}
+
 function stableIdentityOrder(left: MyGamesSortValue, right: MyGamesSortValue) {
   return (
     left.name.localeCompare(right.name) ||
@@ -143,6 +154,18 @@ export function compareMyGames(
       order =
         tierRank(right.tier) - tierRank(left.tier) ||
         right.totalSeconds - left.totalSeconds;
+      break;
+    case "timeToBeat":
+      // Shortest first; games without a time last, then A to Z.
+      order =
+        knownFirst(left.mainStorySeconds, right.mainStorySeconds) ||
+        (left.mainStorySeconds ?? 0) - (right.mainStorySeconds ?? 0);
+      break;
+    case "rating":
+      // Best first; unrated games last, then A to Z.
+      order =
+        knownFirst(left.rating, right.rating) ||
+        (right.rating ?? 0) - (left.rating ?? 0);
       break;
     case "recent":
     default: {

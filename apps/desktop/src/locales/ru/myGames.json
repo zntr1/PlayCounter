@@ -435,6 +435,8 @@
   "Notes on cards": "Заметки на карточках",
   "A note icon on every game that has a note.": "Значок заметки на каждой игре с заметкой.",
   "Tier": "Тир",
+  "Shortest main story": "Самый короткий основной сюжет",
+  "IGDB rating": "Оценка IGDB",
   "Tiers on cards": "Тиры на карточках",
   "Your tier, S to F, on every game you rated.": "Ваш тир от S до F на каждой игре, которую вы оценили.",
   "No tier": "Без тира",
@@ -816,5 +818,13 @@
   "Tier cleared for {{count}} games_many": "Тир убран у {{count}} игр",
   "Tier cleared for {{count}} games_other": "Тир убран у {{count}} игр",
   "Selected games already have tier {{tier}}": "У выбранных игр уже тир {{tier}}",
-  "Selected games already have no tier": "У выбранных игр уже нет тира"
+  "Selected games already have no tier": "У выбранных игр уже нет тира",
+  "Covers view": "Обложки",
+  "Covers": "Обложки",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "В режиме «Обложки» здесь свои настройки: все выключены, пока вы их не включите.",
+  "Spotlight on hover": "Подсветка при наведении",
+  "The other covers step back while you point at one.": "Остальные обложки отходят на второй план, пока курсор на одной из них.",
+  "Space between covers": "Расстояние между обложками",
+  "How much room the covers get around them.": "Сколько места остаётся вокруг обложек.",
+  "Details": "Сведения"
 }

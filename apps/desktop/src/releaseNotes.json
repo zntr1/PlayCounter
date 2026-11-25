@@ -1,5 +1,363 @@
 [
   {
+    "version": "1.7.3",
+    "headline": "A Covers view for My Games, screenshots in game details, and much more for your controller.",
+    "highlights": [
+      {
+        "title": "A Covers view",
+        "text": "My Games can show just your covers, big and calm. Set the space between them, let the other covers step back while you point at one, and click a cover to open its details.",
+        "hint": "My Games → Covers, beside the other views; spacing and spotlight under Customize → Layout",
+        "image": "covers"
+      },
+      {
+        "title": "Screenshots in game details",
+        "text": "A Screenshots tab shows your own screenshots first, with the session you took them in, then pictures from IGDB. General shows a row of them, and a click opens them big.",
+        "hint": "Game details → Screenshots",
+        "image": "screenshots"
+      },
+      {
+        "title": "More with your controller",
+        "text": "Y (Triangle) opens a game's details, LB/RB switch tabs and Settings pages, and View/Create steps through Standard cards, Large cards and Covers. Settings, dialogs, screenshots and My History now work from the couch too: A goes in, B goes back, and the right stick scrolls.",
+        "image": "controller"
+      },
+      {
+        "title": "Sort by length or rating",
+        "text": "Sort My Games by the shortest main story or by IGDB rating, and find a short game for tonight.",
+        "hint": "My Games → the sort menu → Shortest main story or IGDB rating"
+      },
+      {
+        "title": "Sleep doesn't count",
+        "text": "If your PC goes to sleep while a game is open, that time no longer counts as playtime."
+      },
+      {
+        "title": "New drive letter, same games",
+        "text": "When a disk gets a new letter, PlayCounter finds your games, emulators and watched folders on it again, also when you press Play."
+      },
+      {
+        "title": "Covers stay up to date",
+        "text": "When a game gets a new cover on IGDB, your library shows the new one too. A cover you picked yourself stays."
+      },
+      {
+        "title": "A calmer look",
+        "text": "Game details is only as tall as its content and keeps its tabs on one line, banner art reaches further down behind your library and fades in once loaded, and the controller buttons have new icons."
+      },
+      {
+        "title": "Fixes",
+        "text": "With Launch on startup on, PlayCounter starts the copy you opened last, and dates in My History that end today stay those dates instead of turning into All time. The Play button on cards no longer flickers, and ignoring a shared file like Launcher.exe now says it ignores only that file."
+      }
+    ],
+    "translations": {
+      "de": {
+        "headline": "Eine Cover-Ansicht für „Meine Spiele“, Screenshots in den Spieldetails und viel mehr für deinen Controller.",
+        "highlights": [
+          {
+            "title": "Die Cover-Ansicht",
+            "text": "„Meine Spiele“ kann nur deine Cover zeigen, groß und ruhig. Stell den Abstand zwischen ihnen ein, lass die anderen Cover zurücktreten, während du auf eines zeigst, und klick auf ein Cover, um seine Details zu öffnen.",
+            "hint": "„Meine Spiele“ → „Cover“ neben den anderen Ansichten; Abstand und Spotlight unter „Anpassen“ → „Aufbau“"
+          },
+          {
+            "title": "Screenshots in den Spieldetails",
+            "text": "Der Tab „Screenshots“ zeigt zuerst deine eigenen Screenshots mit der Sitzung, in der du sie gemacht hast, dann Bilder von IGDB. „Allgemein“ zeigt eine Reihe davon, und ein Klick öffnet sie groß.",
+            "hint": "„Spieldetails“ → „Screenshots“"
+          },
+          {
+            "title": "Mehr mit deinem Controller",
+            "text": "Y (Dreieck) öffnet die Details eines Spiels, LB/RB wechseln Tabs und Einstellungsseiten, und View/Create schaltet zwischen Standardkacheln, großen Kacheln und Covern um. Auch Einstellungen, Dialoge, Screenshots und „Mein Verlauf“ gehen jetzt vom Sofa aus: A geht hinein, B zurück, und der rechte Stick scrollt."
+          },
+          {
+            "title": "Nach Länge oder Bewertung sortieren",
+            "text": "Sortiere „Meine Spiele“ nach der kürzesten Hauptstory oder nach IGDB-Bewertung und finde ein kurzes Spiel für heute Abend.",
+            "hint": "„Meine Spiele“ → Sortiermenü → „Kürzeste Hauptstory“ oder „IGDB-Bewertung“"
+          },
+          {
+            "title": "Standby zählt nicht",
+            "text": "Geht dein PC in den Standby, während ein Spiel offen ist, zählt diese Zeit nicht mehr als Spielzeit."
+          },
+          {
+            "title": "Neuer Laufwerksbuchstabe, dieselben Spiele",
+            "text": "Bekommt eine Festplatte einen neuen Buchstaben, findet PlayCounter deine Spiele, Emulatoren und überwachten Ordner darauf wieder, auch wenn du auf „Spielen“ drückst."
+          },
+          {
+            "title": "Cover bleiben aktuell",
+            "text": "Bekommt ein Spiel bei IGDB ein neues Cover, zeigt deine Bibliothek auch das neue. Ein Cover, das du selbst gewählt hast, bleibt."
+          },
+          {
+            "title": "Ein ruhigeres Bild",
+            "text": "Die Spieldetails sind nur so hoch wie ihr Inhalt und halten ihre Tabs in einer Zeile, Banner-Bilder reichen weiter hinter deine Bibliothek und blenden sich ein, sobald sie geladen sind, und die Controller-Tasten haben neue Symbole."
+          },
+          {
+            "title": "Behoben",
+            "text": "Mit „Mit Windows starten“ startet PlayCounter die Kopie, die du zuletzt geöffnet hast, und Zeiträume in „Mein Verlauf“, die heute enden, bleiben diese Tage, statt zu „Gesamt“ zu werden. Der „Spielen“-Knopf auf den Kacheln flackert nicht mehr, und wenn du eine geteilte Datei wie Launcher.exe ignorierst, steht jetzt da, dass nur diese Datei ignoriert wird."
+          }
+        ]
+      },
+      "es": {
+        "headline": "Una vista de portadas para Mis juegos, capturas de pantalla en los detalles del juego y mucho más para tu mando.",
+        "highlights": [
+          {
+            "title": "Vista de portadas",
+            "text": "Mis juegos puede mostrar solo tus portadas, grandes y tranquilas. Ajusta el espacio entre ellas, deja que las demás portadas pasen a segundo plano mientras apuntas a una y haz clic en una portada para abrir sus detalles.",
+            "hint": "Mis juegos → Portadas, junto a las otras vistas; espacio y foco en Personalizar → Diseño"
+          },
+          {
+            "title": "Capturas en los detalles del juego",
+            "text": "La pestaña Capturas de pantalla muestra primero tus propias capturas, con la sesión en la que las hiciste, y luego imágenes de IGDB. General muestra una fila de ellas, y un clic las abre en grande.",
+            "hint": "Detalles del juego → Capturas de pantalla"
+          },
+          {
+            "title": "Más con tu mando",
+            "text": "Y (Triángulo) abre los detalles de un juego, LB/RB cambian de pestaña y de página de Configuración, y View/Create alterna entre Tarjetas estándar, Tarjetas grandes y Portadas. Configuración, los diálogos, las capturas y Mi historial ya funcionan desde el sofá: A entra, B vuelve y el stick derecho desplaza."
+          },
+          {
+            "title": "Ordenar por duración o valoración",
+            "text": "Ordena Mis juegos por la historia principal más corta o por la valoración de IGDB, y encuentra un juego corto para esta noche.",
+            "hint": "Mis juegos → menú de orden → Historia principal más corta o Valoración de IGDB"
+          },
+          {
+            "title": "La suspensión no cuenta",
+            "text": "Si tu PC entra en suspensión con un juego abierto, ese tiempo ya no cuenta como tiempo de juego."
+          },
+          {
+            "title": "Nueva letra de unidad, mismos juegos",
+            "text": "Cuando un disco recibe una letra nueva, PlayCounter vuelve a encontrar en él tus juegos, emuladores y carpetas supervisadas, también al pulsar “Jugar”."
+          },
+          {
+            "title": "Portadas siempre al día",
+            "text": "Cuando un juego recibe una portada nueva en IGDB, tu biblioteca también muestra la nueva. Una portada que elegiste tú se queda."
+          },
+          {
+            "title": "Un aspecto más tranquilo",
+            "text": "Los detalles del juego solo ocupan lo que su contenido y mantienen las pestañas en una línea, la imagen del banner llega más abajo detrás de tu biblioteca y aparece suavemente al cargarse, y los botones del mando tienen iconos nuevos."
+          },
+          {
+            "title": "Correcciones",
+            "text": "Con “Iniciar con el sistema” activado, PlayCounter abre la copia que abriste por última vez, y las fechas de Mi historial que terminan hoy se quedan como fechas en vez de pasar a “Todo el tiempo”. El botón “Jugar” de las tarjetas ya no parpadea, y al ignorar un archivo compartido como Launcher.exe ahora se indica que solo se ignora ese archivo."
+          }
+        ]
+      },
+      "fr": {
+        "headline": "Une vue en jaquettes pour Mes jeux, des captures d'écran dans les détails du jeu et bien plus pour votre manette.",
+        "highlights": [
+          {
+            "title": "La vue en jaquettes",
+            "text": "Mes jeux peut n'afficher que vos jaquettes, grandes et sobres. Réglez l'espace entre elles, laissez les autres jaquettes s'effacer quand vous en survolez une, et cliquez sur une jaquette pour ouvrir ses détails.",
+            "hint": "Mes jeux → Jaquettes, à côté des autres vues ; espace et projecteur dans Personnaliser → Disposition"
+          },
+          {
+            "title": "Des captures dans les détails du jeu",
+            "text": "Un onglet Captures d'écran montre d'abord vos propres captures, avec la session où elles ont été prises, puis des images d'IGDB. Général en affiche une rangée, et un clic les ouvre en grand.",
+            "hint": "Détails du jeu → Captures d'écran"
+          },
+          {
+            "title": "Plus avec votre manette",
+            "text": "Y (Triangle) ouvre les détails d'un jeu, LB/RB changent d'onglet et de page des Paramètres, et View/Create passe des vignettes standard aux grandes vignettes puis aux jaquettes. Les Paramètres, les boîtes de dialogue, les captures et Mon historique se pilotent aussi depuis le canapé : A pour entrer, B pour revenir, le stick droit pour défiler."
+          },
+          {
+            "title": "Trier par durée ou par note",
+            "text": "Triez Mes jeux par histoire principale la plus courte ou par note IGDB, et trouvez un jeu court pour ce soir.",
+            "hint": "Mes jeux → menu de tri → Histoire principale la plus courte ou Note IGDB"
+          },
+          {
+            "title": "La veille ne compte pas",
+            "text": "Si votre PC se met en veille pendant qu'un jeu est ouvert, ce temps ne compte plus comme temps de jeu."
+          },
+          {
+            "title": "Nouvelle lettre, mêmes jeux",
+            "text": "Quand un disque change de lettre, PlayCounter y retrouve vos jeux, émulateurs et dossiers surveillés, même au moment de cliquer sur « Jouer »."
+          },
+          {
+            "title": "Des jaquettes à jour",
+            "text": "Quand un jeu reçoit une nouvelle jaquette sur IGDB, votre bibliothèque l'affiche aussi. Une jaquette choisie par vous reste en place."
+          },
+          {
+            "title": "Un affichage plus sobre",
+            "text": "Les détails du jeu ne sont pas plus hauts que leur contenu et gardent leurs onglets sur une ligne, l'image de la bannière descend plus loin derrière votre bibliothèque et apparaît en fondu une fois chargée, et les boutons de la manette ont de nouvelles icônes."
+          },
+          {
+            "title": "Corrections",
+            "text": "Avec « Lancer au démarrage » activé, PlayCounter ouvre la copie lancée en dernier, et les dates de Mon historique qui finissent aujourd'hui restent ces dates au lieu de devenir « Depuis toujours ». Le bouton « Jouer » des vignettes ne clignote plus, et ignorer un fichier partagé comme Launcher.exe indique désormais que seul ce fichier est ignoré."
+          }
+        ]
+      },
+      "pl": {
+        "headline": "Nowy widok okładek, zrzuty ekranu w szczegółach gry i dużo więcej dla twojego kontrolera.",
+        "highlights": [
+          {
+            "title": "Widok okładek",
+            "text": "Moje gry mogą pokazywać same okładki, duże i spokojne. Ustaw odstęp między nimi, pozwól innym okładkom zejść na drugi plan, gdy wskazujesz jedną, i kliknij okładkę, aby otworzyć jej szczegóły.",
+            "hint": "Moje gry → Okładki, obok innych widoków; odstęp i wyróżnienie w Dostosuj → Układ"
+          },
+          {
+            "title": "Zrzuty ekranu w szczegółach gry",
+            "text": "Karta Zrzuty ekranu pokazuje najpierw twoje własne zrzuty z sesją, w której powstały, a potem obrazy z IGDB. Ogólne pokazuje ich rząd, a kliknięcie otwiera je w dużym rozmiarze.",
+            "hint": "Szczegóły gry → Zrzuty ekranu"
+          },
+          {
+            "title": "Więcej z kontrolerem",
+            "text": "Y (Trójkąt) otwiera szczegóły gry, LB/RB przełączają karty i strony ustawień, a View/Create przełącza między standardowymi kafelkami, dużymi kafelkami i okładkami. Ustawienia, okna dialogowe, zrzuty ekranu i Moja historia działają teraz też z kanapy: A wchodzi, B wraca, a prawa gałka przewija."
+          },
+          {
+            "title": "Sortuj według długości lub oceny",
+            "text": "Sortuj Moje gry według najkrótszej głównej fabuły lub oceny IGDB i znajdź krótką grę na dziś wieczór.",
+            "hint": "Moje gry → menu sortowania → „Najkrótsza główna fabuła” lub „Ocena IGDB”"
+          },
+          {
+            "title": "Uśpienie się nie liczy",
+            "text": "Gdy komputer przejdzie w stan uśpienia przy otwartej grze, ten czas nie liczy się już jako czas gry."
+          },
+          {
+            "title": "Nowa litera dysku, te same gry",
+            "text": "Gdy dysk dostanie nową literę, PlayCounter znów znajdzie na nim twoje gry, emulatory i obserwowane foldery, także po naciśnięciu „Graj”."
+          },
+          {
+            "title": "Aktualne okładki",
+            "text": "Gdy gra dostanie nową okładkę w IGDB, twoja biblioteka też pokaże nową. Okładka wybrana przez ciebie zostaje."
+          },
+          {
+            "title": "Spokojniejszy wygląd",
+            "text": "Szczegóły gry są tak wysokie jak ich zawartość i mieszczą karty w jednym wierszu, grafika banera sięga dalej w dół za bibliotekę i pojawia się płynnie po wczytaniu, a przyciski kontrolera mają nowe ikony."
+          },
+          {
+            "title": "Poprawki",
+            "text": "Przy włączonym „Uruchamiaj z Windows” PlayCounter otwiera kopię, która była uruchomiona jako ostatnia, a daty w widoku Moja historia, które kończą się dziś, zostają tymi datami zamiast zmieniać się w „Cały czas”. Przycisk „Graj” na kafelkach już nie miga, a ignorowanie wspólnego pliku, takiego jak Launcher.exe, pokazuje teraz, że ignorowany jest tylko ten plik."
+          }
+        ]
+      },
+      "pt-BR": {
+        "headline": "Uma visualização de capas para Meus jogos, capturas de tela nos detalhes do jogo e muito mais para o seu controle.",
+        "highlights": [
+          {
+            "title": "Visualização de capas",
+            "text": "Meus jogos pode mostrar só as suas capas, grandes e tranquilas. Ajuste o espaço entre elas, deixe as outras capas recuarem enquanto você aponta para uma e clique em uma capa para abrir os detalhes dela.",
+            "hint": "Meus jogos → Capas, ao lado das outras visualizações; espaço e destaque em Personalizar → Layout"
+          },
+          {
+            "title": "Capturas nos detalhes do jogo",
+            "text": "A aba Capturas de tela mostra primeiro as suas próprias capturas, com a sessão em que você as tirou, e depois imagens do IGDB. Geral mostra uma fileira delas, e um clique as abre em tamanho grande.",
+            "hint": "Detalhes do jogo → Capturas de tela"
+          },
+          {
+            "title": "Mais com o seu controle",
+            "text": "Y (Triângulo) abre os detalhes de um jogo, LB/RB trocam de aba e de página das Configurações, e View/Create alterna entre Cartões padrão, Cartões grandes e Capas. Configurações, diálogos, capturas e Meu histórico agora funcionam do sofá: A entra, B volta e o analógico direito rola a tela."
+          },
+          {
+            "title": "Ordenar por duração ou avaliação",
+            "text": "Ordene Meus jogos pela história principal mais curta ou pela avaliação do IGDB e encontre um jogo curto para hoje à noite.",
+            "hint": "Meus jogos → menu de ordenação → História principal mais curta ou Avaliação do IGDB"
+          },
+          {
+            "title": "Suspensão não conta",
+            "text": "Se o seu PC entrar em suspensão com um jogo aberto, esse tempo não conta mais como tempo de jogo."
+          },
+          {
+            "title": "Nova letra de unidade, mesmos jogos",
+            "text": "Quando um disco recebe uma letra nova, o PlayCounter encontra de novo nele os seus jogos, emuladores e pastas monitoradas, também quando você clica em “Jogar”."
+          },
+          {
+            "title": "Capas sempre atualizadas",
+            "text": "Quando um jogo ganha uma capa nova no IGDB, a sua biblioteca também mostra a nova. Uma capa escolhida por você continua."
+          },
+          {
+            "title": "Um visual mais calmo",
+            "text": "Os detalhes do jogo têm só a altura do conteúdo e mantêm as abas em uma linha, a arte do banner desce mais por trás da sua biblioteca e aparece suavemente quando carrega, e os botões do controle têm ícones novos."
+          },
+          {
+            "title": "Correções",
+            "text": "Com “Iniciar com o sistema” ativado, o PlayCounter abre a cópia que você abriu por último, e datas em Meu histórico que terminam hoje continuam sendo essas datas em vez de virar “Todo o período”. O botão “Jogar” dos cartões não pisca mais, e ignorar um arquivo compartilhado como Launcher.exe agora diz que só esse arquivo é ignorado."
+          }
+        ]
+      },
+      "ru": {
+        "headline": "Вид «Обложки» в разделе «Мои игры», скриншоты в окне «Об игре» и многое другое для геймпада.",
+        "highlights": [
+          {
+            "title": "Вид «Обложки»",
+            "text": "Раздел «Мои игры» может показывать только обложки — крупно и спокойно. Задайте расстояние между ними, пусть остальные обложки отходят на второй план, пока вы наводите на одну, а щелчок по обложке открывает её сведения.",
+            "hint": "«Мои игры» → «Обложки» рядом с другими видами; расстояние и подсветка в «Настроить» → «Макет»"
+          },
+          {
+            "title": "Скриншоты в окне «Об игре»",
+            "text": "Вкладка «Скриншоты» показывает сначала ваши скриншоты с сессией, в которой они сделаны, а затем изображения из IGDB. На вкладке «Общее» есть их ряд, а щелчок открывает их крупно.",
+            "hint": "«Об игре» → «Скриншоты»"
+          },
+          {
+            "title": "Больше возможностей для геймпада",
+            "text": "Y (Треугольник) открывает сведения об игре, LB/RB переключают вкладки и страницы настроек, а View/Create переключает «Обычные карточки», «Большие карточки» и «Обложки». «Настройки», диалоги, скриншоты и «Моя история» теперь тоже управляются с дивана: A — войти, B — назад, правый стик прокручивает."
+          },
+          {
+            "title": "Сортировка по длительности или оценке",
+            "text": "Сортируйте «Мои игры» по самому короткому основному сюжету или по оценке IGDB и найдите короткую игру на вечер.",
+            "hint": "«Мои игры» → меню сортировки → «Самый короткий основной сюжет» или «Оценка IGDB»"
+          },
+          {
+            "title": "Сон не считается",
+            "text": "Если компьютер уходит в спящий режим, пока игра открыта, это время больше не считается временем в игре."
+          },
+          {
+            "title": "Новая буква диска — те же игры",
+            "text": "Когда диск получает новую букву, PlayCounter снова находит на нём ваши игры, эмуляторы и отслеживаемые папки, в том числе при нажатии «Играть»."
+          },
+          {
+            "title": "Обложки всегда актуальны",
+            "text": "Когда у игры появляется новая обложка в IGDB, ваша библиотека тоже показывает новую. Обложка, выбранная вами, остаётся."
+          },
+          {
+            "title": "Спокойнее на вид",
+            "text": "Окно «Об игре» по высоте подстраивается под содержимое и держит вкладки в одну строку, арт баннера уходит дальше вниз за библиотеку и плавно появляется после загрузки, а у кнопок геймпада новые значки."
+          },
+          {
+            "title": "Исправления",
+            "text": "С включённым «Запускать вместе с Windows» PlayCounter открывает ту копию, которую вы запускали последней, а даты в разделе «Моя история», заканчивающиеся сегодня, остаются этими датами и не превращаются во «Всё время». Кнопка «Играть» на карточках больше не мигает, а при игнорировании общего файла вроде Launcher.exe теперь сказано, что игнорируется только этот файл."
+          }
+        ]
+      },
+      "zh-CN": {
+        "headline": "“我的游戏”新增封面视图，游戏详情里能看截图，手柄也能做更多事。",
+        "highlights": [
+          {
+            "title": "封面视图",
+            "text": "“我的游戏”可以只显示你的封面，大而安静。你可以调整封面间距，让你指向某个封面时其他封面退到后面，点击封面即可打开它的详情。",
+            "hint": "“我的游戏” → 其他视图旁的“封面”；间距和聚焦在“自定义” → “布局”"
+          },
+          {
+            "title": "游戏详情里的截图",
+            "text": "“截图”标签页先显示你自己的截图和拍摄时所在的游玩记录，再显示来自 IGDB 的图片。“常规”中会显示一排截图，点击即可放大查看。",
+            "hint": "“游戏详情” → “截图”"
+          },
+          {
+            "title": "手柄能做更多",
+            "text": "Y（三角键）打开游戏详情，LB/RB 切换标签页和设置页面，View/Create 在“标准卡片”“大卡片”和“封面”之间切换。“设置”、对话框、截图和“我的历史”现在也能坐在沙发上用手柄操作：A 进入，B 返回，右摇杆滚动。"
+          },
+          {
+            "title": "按时长或评分排序",
+            "text": "按主线剧情最短或 IGDB 评分排序“我的游戏”，为今晚挑一款短游戏。",
+            "hint": "“我的游戏” → 排序菜单 → “主线剧情最短”或“IGDB 评分”"
+          },
+          {
+            "title": "睡眠不计时",
+            "text": "如果游戏开着时电脑进入睡眠，这段时间不再算作游戏时长。"
+          },
+          {
+            "title": "盘符变了，游戏还在",
+            "text": "磁盘换了新盘符后，PlayCounter 会在上面重新找到你的游戏、模拟器和监控文件夹，点击“开始游戏”时也会。"
+          },
+          {
+            "title": "封面保持最新",
+            "text": "游戏在 IGDB 上换了新封面后，你的游戏库也会显示新封面。你自己选的封面不会变。"
+          },
+          {
+            "title": "更沉稳的界面",
+            "text": "游戏详情的高度随内容而定，标签页保持在一行；横幅图片向下延伸到游戏库后面，加载完成后淡入；手柄按键也换了新图标。"
+          },
+          {
+            "title": "修复",
+            "text": "开启“开机自动启动”后，PlayCounter 会打开你最后打开的那一份；“我的历史”中截止到今天的日期范围会保持原样，不再变成“全部时间”。卡片上的“开始游戏”按钮不再闪烁；忽略 Launcher.exe 这类共用文件时，现在会说明只忽略这个文件。"
+          }
+        ]
+      }
+    }
+  },
+  {
     "version": "1.7.2",
     "headline": "The timer can pause by itself when you step away, and popups appear in the corner you pick.",
     "highlights": [

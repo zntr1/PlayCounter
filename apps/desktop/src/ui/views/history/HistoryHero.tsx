@@ -31,6 +31,7 @@ import {
 } from "../../../pickedCovers";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
+import { ArtImage } from "../../ArtImage";
 import { GameCover } from "../../GameCover";
 import { appLocale, getT } from "../../../i18n";
 import { HistoryDatePicker } from "./HistoryDatePicker";
@@ -166,6 +167,16 @@ export function HistoryHero({
       <button
         type="button"
         {...labelProps}
+        // A chip's label goes back to its current period; a picked date
+        // range's opens the date picker, which takes a mouse.
+        data-controller-item={
+          labelProps["data-chip"] ? "history-filter" : undefined
+        }
+        data-controller-key={
+          labelProps["data-chip"]
+            ? `history-range-${labelProps["data-chip"]}`
+            : undefined
+        }
         className="inline-flex items-center gap-1.5 whitespace-nowrap px-0.5 underline-offset-[3px] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/50"
       >
         {label}
@@ -189,25 +200,17 @@ export function HistoryHero({
         : "border-border bg-bg/50 text-text-muted hover:border-text-faint hover:text-text",
     );
   // The days on show by their dates: the eyebrow already says "30 days".
-  // All time counts from the first session, even when a drag on the strip
-  // starts on the empty days before it.
-  const describeStrip = (span: HistoryRange) => {
-    const all =
-      historySelectionFromRange(span.fromMs, span.toMs, nowMs, firstSessionMs)
-        .kind === "all";
-    const firstDayMs =
-      firstSessionMs === null
-        ? span.fromMs
-        : new Date(firstSessionMs).setHours(0, 0, 0, 0);
-    return t("{{range}} · {{count}} days", {
-      range: all ? t("All time") : historySpanLabel(span, nowMs),
+  // All time (null) counts from the first session up to today.
+  const describeStrip = (span: HistoryRange | null) =>
+    t("{{range}} · {{count}} days", {
+      range: span ? historySpanLabel(span, nowMs) : t("All time"),
       count: daysIn(
-        all
-          ? { fromMs: Math.max(span.fromMs, firstDayMs), toMs: span.toMs }
-          : span,
+        span ?? {
+          fromMs: new Date(firstSessionMs ?? nowMs).setHours(0, 0, 0, 0),
+          toMs: new Date(nowMs).setHours(24, 0, 0, 0),
+        },
       ),
     });
-  };
 
   return (
     <section
@@ -216,9 +219,9 @@ export function HistoryHero({
       className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface shadow-raised"
     >
       {artwork ? (
-        <img
+        <ArtImage
+          key={artwork}
           src={artwork}
-          alt=""
           aria-hidden="true"
           onError={() => markCoverUnavailable(artwork)}
           className={clsx(
@@ -394,6 +397,10 @@ export function HistoryHero({
                   key={chip.kind}
                   type="button"
                   data-chip={chip.kind}
+                  // Picked, the chip becomes a stepper: the controller's
+                  // ring follows the key to its label.
+                  data-controller-item="history-filter"
+                  data-controller-key={`history-range-${chip.kind}`}
                   aria-pressed={selection.kind === chip.kind}
                   onClick={() =>
                     pick(
@@ -476,12 +483,7 @@ export function HistoryHero({
             describe={describeStrip}
             onPick={(span) =>
               onSelectionChange(
-                historySelectionFromRange(
-                  span.fromMs,
-                  span.toMs,
-                  nowMs,
-                  firstSessionMs,
-                ),
+                historySelectionFromRange(span.fromMs, span.toMs, nowMs),
               )
             }
           />

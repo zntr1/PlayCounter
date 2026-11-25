@@ -84,6 +84,8 @@ import {
   SplitSessionDialog,
 } from "./history/SessionChangeDialogs";
 import { appLocale, formatNumericDate, getT } from "../../i18n";
+import { TabBumperHint } from "../TabBumperHint";
+import { CONTROLLER_BACK_EVENT } from "../../controllerBridge";
 
 const t = getT("history");
 
@@ -655,6 +657,18 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [clearGameFilter, hasGameFilter]);
+  // B on a pad (controllerBridge) drops the game filter before it leaves My
+  // History; A on a session set it.
+  useEffect(() => {
+    if (!hasGameFilter) return;
+    const handleBack = (event: Event) => {
+      if (useAppStore.getState().activeView !== "history") return;
+      event.preventDefault();
+      clearGameFilter();
+    };
+    window.addEventListener(CONTROLLER_BACK_EVENT, handleBack);
+    return () => window.removeEventListener(CONTROLLER_BACK_EVENT, handleBack);
+  }, [clearGameFilter, hasGameFilter]);
   const selectGame = useCallback(
     (key: string) => {
       setSelectedGameKey(key);
@@ -680,12 +694,7 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
         // Both open their days: the whole page shows just those.
         case "bestStreak":
           setSelection(
-            historySelectionFromDays(
-              highlight.fromKey,
-              highlight.toKey,
-              nowMs,
-              analytics.firstSessionMs,
-            ),
+            historySelectionFromDays(highlight.fromKey, highlight.toKey, nowMs),
           );
           break;
         case "busiestDay":
@@ -694,25 +703,17 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
               highlight.dateKey,
               highlight.dateKey,
               nowMs,
-              analytics.firstSessionMs,
             ),
           );
           break;
       }
     },
-    [analytics.firstSessionMs, nowMs, setSelectedGameKey],
+    [nowMs, setSelectedGameKey],
   );
   const selectDay = useCallback(
     (dateKey: string) =>
-      setSelection(
-        historySelectionFromDays(
-          dateKey,
-          dateKey,
-          nowMs,
-          analytics.firstSessionMs,
-        ),
-      ),
-    [analytics.firstSessionMs, nowMs],
+      setSelection(historySelectionFromDays(dateKey, dateKey, nowMs)),
+    [nowMs],
   );
   const selectedGameName = selectedGameKey
     ? (gamesByKey.get(selectedGameKey)?.name ?? query)
@@ -930,6 +931,7 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
           onKeyDown={handleTabKeyDown}
           className="flex gap-1"
         >
+          <TabBumperHint button="LB" />
           {historyTabs().map(({ id, label, icon: Icon }) => {
             const selected = tab === id;
             const count = tabCounts[id];
@@ -972,6 +974,7 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
               </button>
             );
           })}
+          <TabBumperHint button="RB" />
         </div>
         {tab === "sessions" ? (
           <div className="flex flex-wrap items-center gap-2 pb-2">

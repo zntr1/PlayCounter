@@ -3,6 +3,7 @@ import "./pauseIdleAnimations";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./ui/App";
+import { hydrateCurrentCovers } from "./currentCovers";
 import { applyTheme, normalizeAccentColor } from "./theme";
 import { applyFormats, applyLanguage, setSystemDatePattern } from "./i18n";
 import "./styles.css";
@@ -63,6 +64,10 @@ async function readSystemDatePattern() {
     // The computer's country decides then.
   }
 }
+
+// The current covers this PC already knows (currentCovers.ts), read while
+// the app comes up, so a replaced cover is drawn from the start.
+void hydrateCurrentCovers();
 
 void readSystemDatePattern().finally(() => {
   createRoot(document.getElementById("root")!).render(

@@ -432,6 +432,8 @@
   "Notes on cards": "Notas en las tarjetas",
   "A note icon on every game that has a note.": "Un icono de nota en cada juego que tiene una nota.",
   "Tier": "Tier",
+  "Shortest main story": "Historia principal más corta",
+  "IGDB rating": "Valoración de IGDB",
   "Tiers on cards": "Tiers en las tarjetas",
   "Your tier, S to F, on every game you rated.": "Tu tier, de S a F, en cada juego que calificaste.",
   "No tier": "Sin tier",
@@ -783,5 +785,13 @@
   "Tier cleared for {{count}} games_many": "Se quitó el tier de {{count}} juegos",
   "Tier cleared for {{count}} games_other": "Se quitó el tier de {{count}} juegos",
   "Selected games already have tier {{tier}}": "Los juegos seleccionados ya tienen el tier {{tier}}",
-  "Selected games already have no tier": "Los juegos seleccionados ya no tienen tier"
+  "Selected games already have no tier": "Los juegos seleccionados ya no tienen tier",
+  "Covers view": "Vista de portadas",
+  "Covers": "Portadas",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "La vista de portadas tiene aquí sus propias opciones, todas desactivadas hasta que las actives.",
+  "Spotlight on hover": "Foco al apuntar",
+  "The other covers step back while you point at one.": "Las demás portadas pasan a segundo plano mientras apuntas a una.",
+  "Space between covers": "Espacio entre portadas",
+  "How much room the covers get around them.": "Cuánto espacio tienen las portadas a su alrededor.",
+  "Details": "Detalles"
 }

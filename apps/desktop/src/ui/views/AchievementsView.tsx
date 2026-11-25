@@ -46,6 +46,7 @@ import {
   TOUR_ACHIEVEMENTS_PAGE_TABS,
   tourSampleAchievementsPage,
 } from "../tour/tourDemoDetails";
+import { TabBumperHint } from "../TabBumperHint";
 
 const t = getT("achievements");
 
@@ -282,6 +283,7 @@ export function AchievementsView() {
           onKeyDown={handleTabKeyDown}
           className="flex gap-1"
         >
+          <TabBumperHint button="LB" />
           {achievementTabs().map(({ id, label, icon: Icon }) => {
             const selected = tab === id;
             const counts = tabCounts[id];
@@ -324,6 +326,7 @@ export function AchievementsView() {
               </button>
             );
           })}
+          <TabBumperHint button="RB" />
         </div>
       </div>
 

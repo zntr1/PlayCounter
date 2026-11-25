@@ -32,6 +32,7 @@ import {
   type SettingsNode,
   type SettingsSectionDef,
 } from "./settings/settingsTree";
+import { TabBumperHint } from "../TabBumperHint";
 
 const t = getT("settings");
 
@@ -88,9 +89,15 @@ export function SettingsView() {
   }
 
   return (
-    <div className="settings-shell">
+    // The controller walks every switch, choice and button here
+    // (controllerBridge): the menu as one column, the page as the other.
+    <div className="settings-shell" data-controller-controls>
       <div className="settings-layout">
-        <nav aria-label={t("Settings")} className="settings-menu">
+        <nav
+          aria-label={t("Settings")}
+          className="settings-menu"
+          data-controller-menu
+        >
           <div
             data-tour="settings-search"
             className="settings-menu-search relative"
@@ -127,6 +134,7 @@ export function SettingsView() {
               </button>
             ) : null}
           </div>
+          <TabBumperHint button="LB" label={t("Previous page")} />
           {groups.map((group, index) => {
             const Icon = group.icon;
             const current = !results && group.id === active.id;
@@ -139,6 +147,7 @@ export function SettingsView() {
                 <button
                   type="button"
                   data-group={group.id}
+                  data-controller-page
                   aria-current={current ? "page" : undefined}
                   onClick={() => openGroup(group.id)}
                   className={cn(
@@ -168,6 +177,7 @@ export function SettingsView() {
               </Fragment>
             );
           })}
+          <TabBumperHint button="RB" label={t("Next page")} />
         </nav>
         <div className="min-w-0">
           {results ? (

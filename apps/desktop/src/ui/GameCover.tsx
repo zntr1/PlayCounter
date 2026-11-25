@@ -2,6 +2,7 @@ import { useEffect, useState, type ImgHTMLAttributes } from "react";
 import { coverQualityOf, upgradeCoverUrl } from "../coverArt";
 import { markCoverUnavailable } from "../pickedCovers";
 import { useAppStore } from "../store";
+import { useImageFadeIn } from "./useImageFadeIn";
 
 /* A cover <img> that honours the "Cover quality" setting.
 
@@ -39,6 +40,16 @@ export function GameCover({
     setFallback(failedUpgrades.has(upgradeCoverUrl(src, wanted)));
   }, [src, wanted]);
 
+  /* Fades in once loaded instead of popping in (useImageFadeIn). Per mount:
+     a cover that changes its src keeps showing, it doesn't fade again.
+     No loading shimmer (data-no-shimmer): a library puts hundreds of lazy
+     covers in the page, and every one not loaded yet would keep animating
+     (Phil, 2026-11-24: covers without it for now). */
+  const fadeIn = useImageFadeIn({
+    onLoad: rest.onLoad,
+    onAnimationEnd: rest.onAnimationEnd,
+  });
+
   /* A library of any size puts far more covers in the DOM than fit on screen.
      Leaving the off-screen ones to the browser keeps the first paint cheap;
      callers that need a cover decoded up front (the hero) can override both. */
@@ -46,7 +57,9 @@ export function GameCover({
     <img
       loading="lazy"
       decoding="async"
+      data-no-shimmer
       {...rest}
+      {...fadeIn}
       src={fallback ? src : upgraded}
       onError={(event) => {
         if (!fallback && upgraded !== src) {
@@ -54,6 +67,7 @@ export function GameCover({
           setFallback(true);
           return;
         }
+        fadeIn.onError(event);
         // Every view resolving this game's cover skips it from now on.
         markCoverUnavailable(src);
         rest.onError?.(event);

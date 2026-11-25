@@ -429,6 +429,8 @@
   "Notes on cards": "Notes on cards",
   "A note icon on every game that has a note.": "A note icon on every game that has a note.",
   "Tier": "Tier",
+  "Shortest main story": "Shortest main story",
+  "IGDB rating": "IGDB rating",
   "Tiers on cards": "Tiers on cards",
   "Your tier, S to F, on every game you rated.": "Your tier, S to F, on every game you rated.",
   "No tier": "No tier",
@@ -750,5 +752,13 @@
   "Tier cleared for {{count}} games_one": "Tier cleared for {{count}} game",
   "Tier cleared for {{count}} games_other": "Tier cleared for {{count}} games",
   "Selected games already have tier {{tier}}": "Selected games already have tier {{tier}}",
-  "Selected games already have no tier": "Selected games already have no tier"
+  "Selected games already have no tier": "Selected games already have no tier",
+  "Covers view": "Covers view",
+  "Covers": "Covers",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "The Covers view keeps its own choices here, all off until you turn them on.",
+  "Spotlight on hover": "Spotlight on hover",
+  "The other covers step back while you point at one.": "The other covers step back while you point at one.",
+  "Space between covers": "Space between covers",
+  "How much room the covers get around them.": "How much room the covers get around them.",
+  "Details": "Details"
 }

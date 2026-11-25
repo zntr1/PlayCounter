@@ -84,5 +84,7 @@
   "{{count}} more games_many": "{{count}} autres jeux",
   "{{count}} more games_other": "{{count}} autres jeux",
   "Running total: {{current}}, the period before: {{previous}}": "Total cumulé : {{current}}, période précédente : {{previous}}",
-  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} est suivi depuis ce dossier. {{exeName}} a été envoyé pour vérification. Une fois approuvé, les autres joueurs pourront aussi choisir {{name}} pour ce fichier."
+  "{{name}} is tracked from this folder. {{exeName}} was sent for review. Once it is approved, other players can pick {{name}} for it too.": "{{name}} est suivi depuis ce dossier. {{exeName}} a été envoyé pour vérification. Une fois approuvé, les autres joueurs pourront aussi choisir {{name}} pour ce fichier.",
+  "Left bumper": "Gâchette haute gauche",
+  "Triangle": "Triangle"
 }

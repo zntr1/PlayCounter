@@ -263,5 +263,21 @@
   "Remove {{name}} from My Games?": "{{name}} aus „Meine Spiele“ entfernen?",
   "The {{duration}} from this account stop counting for {{name}}. Import the account again to bring them back.": "Die {{duration}} von diesem Konto zählen nicht mehr für {{name}}. Importiere das Konto erneut, um sie zurückzuholen.",
   "{{launcher}}'s playtime, achievements and launching leave {{name}}. Import the account again to bring them back.": "Spielzeit, Erfolge und Starten über {{launcher}} verschwinden aus {{name}}. Importiere das Konto erneut, um sie zurückzuholen.",
-  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} kam nur von diesem {{launcher}}-Konto, und PlayCounter hat keine Zeit dafür gezählt. Importiere das Konto erneut, um es zurückzuholen."
+  "{{name}} came only from this {{launcher}} account, and PlayCounter counted no time for it. Import the account again to bring it back.": "{{name}} kam nur von diesem {{launcher}}-Konto, und PlayCounter hat keine Zeit dafür gezählt. Importiere das Konto erneut, um es zurückzuholen.",
+  "Screenshots": "Screenshots",
+  "Your screenshots": "Deine Screenshots",
+  "From IGDB": "Von IGDB",
+  "Yours": "Deins",
+  "Open screenshot {{index}} of {{total}}": "Screenshot {{index}} von {{total}} öffnen",
+  "Show in folder": "Im Ordner zeigen",
+  "{{takenAt}} · session of {{duration}}": "{{takenAt}} · Sitzung von {{duration}}",
+  "No screenshots of yours yet.": "Noch keine eigenen Screenshots.",
+  "Set a key for “Take a screenshot” in Settings and press it while you play. Your pictures show up here, with the session they were taken in.": "Leg in den Einstellungen eine Taste für „Screenshot aufnehmen“ fest und drück sie beim Spielen. Deine Bilder erscheinen dann hier, mit der Sitzung, in der sie entstanden sind.",
+  "Press {{key}} while you play. Your pictures show up here, with the session they were taken in.": "Drück beim Spielen {{key}}. Deine Bilder erscheinen dann hier, mit der Sitzung, in der sie entstanden sind.",
+  "{{count}} yours_one": "{{count}} eigener",
+  "{{count}} yours_other": "{{count}} eigene",
+  "{{count}} from IGDB_one": "{{count}} von IGDB",
+  "{{count}} from IGDB_other": "{{count}} von IGDB",
+  "Show all {{count}}_one": "{{count}} zeigen",
+  "Show all {{count}}_other": "Alle {{count}} zeigen"
 }

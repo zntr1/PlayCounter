@@ -2,7 +2,7 @@ import type { Settings } from "@playcounter/shared";
 import { EMULATOR_IDS } from "./emulators/registry";
 import { isInterfaceScale } from "./interfaceScale";
 import { isFeedbackReplyId } from "./notifications";
-import { isLibraryGridColumns } from "./ui/myGamesPresentation";
+import { isCoverGap, isLibraryGridColumns } from "./ui/myGamesPresentation";
 import {
   GAME_STATUSES,
   GAME_TIERS,
@@ -352,7 +352,7 @@ const settings = object({}, {
   formatRegion: nullable(check(isRegionCode)),
   clockFormat: oneOf("auto", "24h", "12h"),
   showDurationDays: boolean,
-  libraryCardSize: oneOf("grid", "large", "list"),
+  libraryCardSize: oneOf("grid", "large", "covers", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),
   librarySortKey: oneOf(
     "recent",
@@ -361,6 +361,8 @@ const settings = object({}, {
     "name",
     "sessions",
     "tier",
+    "timeToBeat",
+    "rating",
   ),
   libraryShowBadges: boolean,
   libraryShowOriginBadges: boolean,
@@ -369,6 +371,13 @@ const settings = object({}, {
   libraryShowNoteBadges: boolean,
   libraryShowTierBadges: boolean,
   libraryShowTrackingWarnings: boolean,
+  libraryCoversShowOriginBadges: boolean,
+  libraryCoversShowMatchBadges: boolean,
+  libraryCoversShowStatusBadges: boolean,
+  libraryCoversShowNoteBadges: boolean,
+  libraryCoversShowTierBadges: boolean,
+  libraryCoverSpotlight: boolean,
+  libraryCoverGap: check(isCoverGap),
   libraryHighResCovers: boolean,
   coverQuality: oneOf("standard", "sharp", "sharpest", "original"),
   libraryShowStatCards: boolean,

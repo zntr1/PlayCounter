@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isLeftmostVisualItem,
   nextControllerIndex,
+  nextControllerLibraryView,
   type ControllerItemRect,
 } from "./controllerInput";
 
@@ -46,5 +47,37 @@ describe("controller grid navigation", () => {
     expect(isLeftmostVisualItem(grid, 0)).toBe(true);
     expect(isLeftmostVisualItem(grid, 1)).toBe(false);
     expect(isLeftmostVisualItem(grid, 2)).toBe(true);
+  });
+});
+
+describe("controller library view button", () => {
+  it("cycles Standard → Large → Covers → Standard", () => {
+    expect(nextControllerLibraryView("grid")).toBe("large");
+    expect(nextControllerLibraryView("large")).toBe("covers");
+    expect(nextControllerLibraryView("covers")).toBe("grid");
+  });
+
+  it("leaves the list for Standard, the list is not part of the cycle", () => {
+    expect(nextControllerLibraryView("list")).toBe("grid");
+  });
+});
+
+describe("controller moves without the reading-order fallback", () => {
+  it("stays put when nothing lies in the direction", () => {
+    // Two rows of one control each: Right on the first has nothing right of it.
+    const column: ControllerItemRect[] = [
+      { left: 500, top: 0, width: 40, height: 20 },
+      { left: 500, top: 60, width: 40, height: 20 },
+    ];
+    expect(nextControllerIndex(column, 0, "right")).toBe(1);
+    expect(
+      nextControllerIndex(column, 0, "right", { readingOrder: false }),
+    ).toBe(0);
+    expect(
+      nextControllerIndex(column, 1, "left", { readingOrder: false }),
+    ).toBe(1);
+    expect(
+      nextControllerIndex(column, 0, "down", { readingOrder: false }),
+    ).toBe(1);
   });
 });

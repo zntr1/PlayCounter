@@ -22,6 +22,7 @@ export function GuideLink({
     <button
       type="button"
       data-guide-link={tourId}
+      data-controller-ignore=""
       className={cn(
         "inline-flex items-center gap-1.5 rounded text-xs font-medium text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
         className,

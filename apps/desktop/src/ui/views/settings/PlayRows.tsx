@@ -182,7 +182,8 @@ function CornerPicker({
               disabled={disabled}
               onClick={() => onPick(value)}
               className={cn(
-                "group absolute h-1/2 w-1/2 disabled:cursor-not-allowed",
+                // corner-pick: the controller's ring for a corner (styles.css).
+                "corner-pick group absolute h-1/2 w-1/2 disabled:cursor-not-allowed",
                 cornerPlace[value],
               )}
             >
@@ -402,6 +403,7 @@ export function ScreenshotFolderRow({ level, disabled }: SettingsRowProps) {
       control={
         <Button
           icon={FolderOpen}
+          data-controller-ignore=""
           disabled={disabled}
           onClick={() => {
             setFailed(false);

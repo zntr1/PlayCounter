@@ -34,7 +34,7 @@ import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
 } from "./automaticBackups";
-import { pickedCover } from "./pickedCovers";
+import { coverOverride } from "./pickedCovers";
 import type {
   CommunityGameAlias,
   CommunityGameSuggestionPayload,
@@ -130,6 +130,7 @@ import {
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import { reportInstallPresence } from "./installPresence";
 import { startFeedbackReplies } from "./feedbackReplies";
+import { startCurrentCoverRefresh } from "./currentCovers";
 import { currentPlatform } from "./platform";
 import {
   evaluateMilestones,
@@ -214,6 +215,13 @@ import {
   showPauseToggledOverlay,
 } from "./desktopOverlayBridge";
 import { playedMs, playedSeconds } from "./sessionTime";
+import {
+  noticeSleep,
+  resetSleepWatch,
+  skipSleepInPicker,
+  skipSleepInSession,
+  skipSleepInStretch,
+} from "./sleepGap";
 import { milestoneMetricLabel, pickTopMilestone } from "./desktopOverlays";
 import {
   armControllerBridge,
@@ -277,6 +285,13 @@ import {
   scanWatchFoldersThrottled,
   startWatchFolderLinks,
 } from "./library/watchFolders";
+import {
+  failedOnItsFile,
+  findMovedDrives,
+  findMovedFiles,
+  relinkMovedFolders,
+  resetMovedDrives,
+} from "./library/movedDrives";
 import {
   isInsideFolder,
   readWatchFolders,
@@ -469,6 +484,7 @@ let readyWork: Promise<void> | undefined;
 let backendHealthTimer: number | undefined;
 let contributionsTimer: number | undefined;
 let stopFeedbackReplies: (() => void) | undefined;
+let stopCurrentCoverRefresh: (() => void) | undefined;
 
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
@@ -670,6 +686,9 @@ async function finishTrackerStartup() {
   }
 
   await backfillCanonicalGameIds();
+  // After the backfill, so games stamped with their IGDB id there are asked
+  // about too.
+  stopCurrentCoverRefresh = startCurrentCoverRefresh();
 
   // Recovery is decided by the next process scan, not by session age. A game
   // may have kept running for hours while PlayCounter was closed.
@@ -693,8 +712,11 @@ async function finishTrackerStartup() {
     contributionsTimer = undefined;
     stopFeedbackReplies?.();
     stopFeedbackReplies = undefined;
+    stopCurrentCoverRefresh?.();
+    stopCurrentCoverRefresh = undefined;
     if (processTimer) window.clearInterval(processTimer);
     processTimer = undefined;
+    resetSleepWatch();
     if (trayTimer) window.clearInterval(trayTimer);
     trayTimer = undefined;
     unsubscribeTraySync?.();
@@ -713,6 +735,7 @@ async function finishTrackerStartup() {
     launchVerificationInFlight = undefined;
     installPresencePingInFlight = undefined;
     lastLaunchVerificationAt = 0;
+    resetMovedDrives();
     disposeDesktopOverlays();
     disposeHotkeys();
     disposeQuickNotes();
@@ -732,6 +755,9 @@ async function finishTrackerStartup() {
 
   readyTimer = window.setTimeout(() => {
     readyWork = (async () => {
+      // A disk with a new drive letter: its stored paths move before the
+      // Play check below would forget them (docs/drive-letter-plan.md).
+      await findMovedDrives("startup");
       const suppressStartupNotifications =
         useAppStore.getState().suppressStartupNotificationsOnce;
       if (identityResolved) {
@@ -1864,6 +1890,13 @@ function recordLaunchTargets(matches: ProcessMatch[]) {
 export async function launchGame(
   target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
 ): Promise<LaunchOutcome> {
+  return launchGameFile(target, true);
+}
+
+async function launchGameFile(
+  target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
+  lookForMove: boolean,
+): Promise<LaunchOutcome> {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
     throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
@@ -1880,6 +1913,15 @@ export async function launchGame(
     return "launched";
   } catch (error) {
     launchInFlight.delete(key);
+    // The disk may have come back under a new letter while PlayCounter ran
+    // (docs/drive-letter-plan.md): look there before forgetting the file.
+    if (lookForMove && failedOnItsFile(error)) {
+      const movedTo = (await findMovedFiles([target.path], "play")).get(key);
+      if (movedTo) {
+        logRuntime(`game launch file found on another drive ${target.exeName}`);
+        return launchGameFile({ ...target, path: movedTo }, false);
+      }
+    }
     if (shouldForgetOnLaunchError(launchErrorKind(error))) {
       const state = useAppStore.getState();
       const exeKey = target.exeName.toLowerCase();
@@ -2301,6 +2343,7 @@ async function dispatchEmulatorLaunch(
   emulatorId: string,
   request: { emulatorId: string; exePath: string; contentPath: string },
   logContext?: string,
+  lookForMove = true,
 ): Promise<EmulatorLaunchOutcome> {
   if (isEmulatorLaunchGuarded(emulatorId)) return { kind: "busy" };
   emulatorLaunchInFlight.set(emulatorId, Number.POSITIVE_INFINITY);
@@ -2326,6 +2369,30 @@ async function dispatchEmulatorLaunch(
     return outcome;
   } catch (error) {
     emulatorLaunchInFlight.delete(emulatorId);
+    // The program or game file may sit on a disk with a new letter.
+    if (lookForMove && failedOnItsFile(error)) {
+      const moves = await findMovedFiles(
+        [request.exePath, request.contentPath],
+        "emulator-play",
+      );
+      const exePath = moves.get(request.exePath.toLowerCase());
+      const contentPath = moves.get(request.contentPath.toLowerCase());
+      if (exePath || contentPath) {
+        logRuntime(
+          `emulator launch files found on another drive emulator=${emulatorId}${suffix}`,
+        );
+        return dispatchEmulatorLaunch(
+          emulatorId,
+          {
+            ...request,
+            exePath: exePath ?? request.exePath,
+            contentPath: contentPath ?? request.contentPath,
+          },
+          logContext,
+          false,
+        );
+      }
+    }
     if (shouldForgetEmulatorOnLaunchError(error)) {
       void verifyLaunchTargets("emulator-launch-error");
     }
@@ -2460,6 +2527,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     ? await applyEmulatorReadings(hostProcesses)
     : disableEmulatorDetectionForScan();
   useAppStore.getState().setProcesses(toPublicSnapshots(normalized));
+  // Game.exe from a disk that came back under a new letter finds its folder
+  // link or ignore before this scan sorts it.
+  await relinkMovedFolders(normalProcesses);
 
   const state = useAppStore.getState();
   // Ignoring one folder's Game.exe leaves every other Game.exe tracked.
@@ -5515,7 +5585,9 @@ function moveGameTimeToSoftware(exeName: string) {
   for (const session of state.activeSessions.filter(
     (session) => isThisExe(session) && !session.timer && !session.console,
   )) {
-    intervals.push({ fromMs: Date.parse(session.startedAt), toMs: until });
+    // Its played time: pauses and sleep stay out, as in history.
+    const fromMs = Date.parse(session.startedAt);
+    intervals.push({ fromMs, toMs: fromMs + playedMs(session, until) });
     removeActiveSession(session);
   }
   useAppStore.setState((current) => ({
@@ -5532,12 +5604,13 @@ function moveGameTimeToSoftware(exeName: string) {
 }
 
 // The picker's time, from detection until it closed or the last software
-// tick, goes to the software counter.
+// tick, goes to the software counter; time the PC slept stays out.
 function creditAmbiguousTimeToSoftware(ambiguous: AmbiguousProcessMatch) {
   const fromMs = Date.parse(ambiguous.detectedAt);
-  const toMs = ambiguous.endedAt
-    ? Date.parse(ambiguous.endedAt)
-    : (lastToolTickAt ?? Date.now());
+  const toMs =
+    (ambiguous.endedAt
+      ? Date.parse(ambiguous.endedAt)
+      : (lastToolTickAt ?? Date.now())) - (ambiguous.pausedMs ?? 0);
   useAppStore.setState((current) => ({
     toolUsage: addToolIntervals(
       current.toolUsage,
@@ -6401,6 +6474,9 @@ function sameNamedCustomGame(exeName: string, gameName: string) {
 
 type StartSessionOptions = {
   startedAt?: string;
+  /** Sleep already left out since `startedAt` (an exe from the picker). */
+  pausedMs?: number;
+  resumedAt?: string;
   emulator?: EmulatorLaunchContext;
   origin: "automatic" | "manual";
   targetPids?: number[];
@@ -6450,6 +6526,8 @@ function startSession(
     communitySuggestionNote: cacheEntry?.communitySuggestionNote,
     startedAt,
     checkpointedAt: startedAt,
+    ...(options.pausedMs ? { pausedMs: options.pausedMs } : {}),
+    ...(options.resumedAt ? { resumedAt: options.resumedAt } : {}),
     emulator: options.emulator,
   };
   useAppStore.setState((state) => ({
@@ -6478,7 +6556,7 @@ function startSession(
       type: "session-started",
       ...sessionJournalContext(session),
       gameName: game.name,
-      coverUrl: pickedCover(state, session) ?? game.coverUrl,
+      coverUrl: coverOverride(state, session) ?? game.coverUrl,
       firstAutoDetection,
       targetPids:
         options.targetPids ??
@@ -6535,7 +6613,12 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
       startSession(
         { exeName: ambiguous.exeName, exePath: ambiguous.exePath },
         game,
-        { startedAt: ambiguous.detectedAt, origin: "manual" },
+        {
+          startedAt: ambiguous.detectedAt,
+          pausedMs: ambiguous.pausedMs,
+          resumedAt: ambiguous.resumedAt,
+          origin: "manual",
+        },
       );
     }
   }
@@ -6550,7 +6633,12 @@ function addCompletedAmbiguousSession(
   const endedAt = ambiguous.endedAt ?? new Date().toISOString();
   const durationSeconds = Math.max(
     1,
-    Math.round((Date.parse(endedAt) - Date.parse(ambiguous.detectedAt)) / 1000),
+    Math.round(
+      (Date.parse(endedAt) -
+        Date.parse(ambiguous.detectedAt) -
+        (ambiguous.pausedMs ?? 0)) /
+        1000,
+    ),
   );
   useAppStore.getState().addSession({
     id: createSessionId(),
@@ -7031,7 +7119,7 @@ async function endSession(
       ...sessionJournalContext(session),
       gameName: session.gameName,
       coverUrl:
-        pickedCover(useAppStore.getState(), session) ?? session.coverUrl,
+        coverOverride(useAppStore.getState(), session) ?? session.coverUrl,
       durationSeconds,
       totalSeconds: currentGameTotalSeconds(session),
       milestoneTitle: top?.title,
@@ -7181,7 +7269,40 @@ function setBackendHealth(
   }
 }
 
+// Time the PC slept is not played (sleepGap.ts). The scan clock starting and
+// every scan request are its ticks: the polling, and also a scan that runs
+// before the polling after the PC woke up.
+function skipTimeAsleep() {
+  const gap = noticeSleep(Date.now());
+  if (!gap) return;
+  logRuntime(
+    `pc slept from ${new Date(gap.fromMs).toISOString()} to ${new Date(gap.toMs).toISOString()}; not counted`,
+  );
+  useAppStore.setState((state) => {
+    const exeCache = new Map(state.exeCache);
+    for (const [key, entry] of exeCache) {
+      if (entry.runningSince) exeCache.set(key, skipSleepInStretch(entry, gap));
+    }
+    return {
+      activeSessions: state.activeSessions.map((session) =>
+        skipSleepInSession(session, gap),
+      ),
+      ambiguousMatches: state.ambiguousMatches.map((ambiguous) =>
+        skipSleepInPicker(ambiguous, gap),
+      ),
+      emulatorObservations: state.emulatorObservations.map((observation) =>
+        observation.kind === "content"
+          ? skipSleepInStretch(observation, gap)
+          : observation,
+      ),
+      exeCache,
+    };
+  });
+  persist();
+}
+
 function scheduleProcessPolling(intervalSeconds: number) {
+  skipTimeAsleep();
   if (processTimer) window.clearInterval(processTimer);
   processTimer = undefined;
   processTimer = window.setInterval(
@@ -8875,7 +8996,8 @@ function changeActiveSession(
 }
 
 /** Pauses a counting session. Auto pause passes `at`, the moment you left
- *  (never before the start, never later than now), and `kind: "away"`. */
+ *  (never before the start or the last resume or wake-up, never later than
+ *  now), and `kind: "away"`. */
 export function pauseSession(
   sessionId: number,
   options: { at?: number; kind?: "away" } = {},
@@ -8885,9 +9007,12 @@ export function pauseSession(
     .activeSessions.find((active) => active.id === sessionId);
   if (!session || session.pausedAt) return;
   const nowMs = Date.now();
-  const startedAtMs = Date.parse(session.startedAt);
   let atMs = Math.min(nowMs, options.at ?? nowMs);
-  if (Number.isFinite(startedAtMs)) atMs = Math.max(atMs, startedAtMs);
+  // Time before the last resume or wake-up is already counted or left out.
+  for (const since of [session.startedAt, session.resumedAt]) {
+    const sinceMs = since ? Date.parse(since) : Number.NaN;
+    if (Number.isFinite(sinceMs)) atMs = Math.max(atMs, sinceMs);
+  }
   const pausedAt = new Date(atMs).toISOString();
   changeActiveSession(sessionId, (active) => ({
     ...active,
@@ -8910,8 +9035,8 @@ export function resumeSession(
   if (!session?.pausedAt) return;
   const pausedAtMs = Date.parse(session.pausedAt);
   const nowMs = Date.now();
-  const pauseMs =
-    Math.min(nowMs, Math.max(pausedAtMs, options.at ?? nowMs)) - pausedAtMs;
+  const resumeAtMs = Math.min(nowMs, Math.max(pausedAtMs, options.at ?? nowMs));
+  const pauseMs = resumeAtMs - pausedAtMs;
   changeActiveSession(
     sessionId,
     ({ pausedAt: _, pauseKind: __, ...active }) => ({
@@ -8919,6 +9044,9 @@ export function resumeSession(
       pausedMs:
         (active.pausedMs ?? 0) +
         (Number.isFinite(pauseMs) ? Math.max(0, pauseMs) : 0),
+      ...(Number.isFinite(resumeAtMs)
+        ? { resumedAt: new Date(resumeAtMs).toISOString() }
+        : {}),
     }),
   );
   logRuntime(`session resumed ${session.gameName} (${session.exeName})`);
@@ -9753,6 +9881,8 @@ async function backfillCanonicalGameIds() {
 
 async function requestProcessScan(reason: string) {
   if (isPersistenceSuspended()) return;
+  // Before anything ends a session or folds a running app's time.
+  skipTimeAsleep();
   if (scanInFlight) {
     scanQueued = true;
     logRuntime(`scan ${reason} queued; scan already running`);
@@ -9999,6 +10129,7 @@ function updateActiveSession(session: ActiveSession) {
             pausedAt: active.pausedAt,
             pausedMs: active.pausedMs,
             pauseKind: active.pauseKind,
+            resumedAt: active.resumedAt,
             counts: active.counts,
             lastCounterId: active.lastCounterId,
           }

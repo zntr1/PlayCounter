@@ -170,6 +170,7 @@ export function AutomaticBackupSettings({
             <div className="flex flex-wrap gap-1.5">
               <Button
                 data-tour="settings-backup-choose-folder"
+                data-controller-ignore=""
                 className="h-[30px] px-2.5 text-[13px]"
                 disabled={busy}
                 onClick={() => void chooseFolder()}
@@ -178,6 +179,7 @@ export function AutomaticBackupSettings({
               </Button>
               <Button
                 data-tour="settings-backup-open-folder"
+                data-controller-ignore=""
                 icon={FolderOpen}
                 className="h-[30px] px-2.5 text-[13px]"
                 disabled={busy}

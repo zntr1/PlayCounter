@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import {
   Grid2X2,
+  Info,
   LayoutGrid,
   List,
   PanelTop,
@@ -231,6 +232,10 @@ type CardProps = {
   setMyGamesShowNoteBadges: (value: boolean) => void;
   setMyGamesShowTierBadges?: (value: boolean) => void;
   setMyGamesShowTrackingWarnings: (value: boolean) => void;
+  /** The Covers view keeps its own badge choices (off until turned on); the
+   *  caller passes those values and setters. Tracking warnings are one
+   *  switch for every view. This only adds the note saying so. */
+  coversView?: boolean;
 };
 
 function useFieldId() {
@@ -340,10 +345,19 @@ export function LibraryCardControls({
   setMyGamesShowNoteBadges,
   setMyGamesShowTierBadges,
   setMyGamesShowTrackingWarnings,
+  coversView = false,
 }: CardProps) {
   const { practice, fieldId } = useFieldId();
   return (
     <>
+      {coversView ? (
+        <p className="mb-1 mt-1.5 flex gap-2 rounded-lg border border-accent/25 bg-accent-tint px-2.5 py-2 text-xs leading-[1.45] text-text">
+          <Info size={14} className="mt-px shrink-0 text-accent-ink" />
+          {t(
+            "The Covers view keeps its own choices here, all off until you turn them on.",
+          )}
+        </p>
+      ) : null}
       <OptionRow
         id={fieldId("show-origin")}
         label={t("Source badges")}

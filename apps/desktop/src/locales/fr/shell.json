@@ -182,5 +182,8 @@
   "Launcher groups": "Groupes de launchers",
   "Hide empty sources": "Masquer les sources vides",
   "Sidebar": "Barre latérale",
-  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Oui. Faites un clic droit sur le jeu, choisissez {{journal}} puis cliquez sur {{addPlaythrough}}. Appelez-la Speedrun : chaque partie a sa propre note et sa propre liste de sessions."
+  "Yes. Right-click the game, choose {{journal}} and click {{addPlaythrough}}. Name it Speedrun: every playthrough has its own note and its own list of sessions.": "Oui. Faites un clic droit sur le jeu, choisissez {{journal}} puis cliquez sur {{addPlaythrough}}. Appelez-la Speedrun : chaque partie a sa propre note et sa propre liste de sessions.",
+  "Details": "Détails",
+  "Switch tab": "Changer d'onglet",
+  "Switch page": "Changer de page"
 }

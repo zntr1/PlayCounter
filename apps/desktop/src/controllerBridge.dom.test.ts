@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { listen } from "@tauri-apps/api/event";
 import {
   armControllerBridge,
+  CONTROLLER_BACK_EVENT,
+  CONTROLLER_DETAILS_EVENT,
   disposeControllerBridge,
   initializeControllerBridge,
   selectControllerItem,
@@ -296,6 +298,126 @@ it("keeps the arrow keys and the controller off the controls above the cards", (
   expect(document.activeElement?.id).toBe("card-a");
 });
 
+it("keeps the controller on the cards until B takes it to the sidebar; the arrow keys still go left to it", () => {
+  showLibrary();
+  enableController();
+  const gamesNav = document.querySelector<HTMLElement>("#nav-games")!;
+  gamesNav.setAttribute("data-controller-active-view", "true");
+  const card = document.querySelector<HTMLElement>("#card-a")!;
+  card.focus();
+
+  input("left");
+  expect(document.activeElement).toBe(card);
+  input("back");
+  expect(document.activeElement).toBe(gamesNav);
+
+  card.focus();
+  press("ArrowLeft");
+  expect(document.activeElement).toBe(gamesNav);
+});
+
+it("walks My History's sessions with the controller: A filters by the game, B drops the filter, then goes to the sidebar", () => {
+  enableController();
+  useAppStore.getState().setActiveView("history");
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.setAttribute("data-controller-active-view", "true");
+  content.setAttribute("aria-busy", "false");
+  content.innerHTML = ["hades", "celeste"]
+    .map(
+      (game) => `<article id="row-${game}" data-controller-item="history-session" tabindex="0">
+        <button id="filter-${game}" data-controller-launch="filter" hidden></button>${game}
+      </article>`,
+    )
+    .join("");
+  place({ "row-hades": [0, 100, 600, 60], "row-celeste": [0, 170, 600, 60] });
+  let filter: string | null = null;
+  for (const game of ["hades", "celeste"])
+    document
+      .getElementById(`filter-${game}`)!
+      .addEventListener("click", () => (filter = game));
+  const backs = vi.fn();
+  window.addEventListener(CONTROLLER_BACK_EVENT, (event) => {
+    backs();
+    if (filter === null) return;
+    event.preventDefault();
+    filter = null;
+  });
+  const row = (game: string) => document.getElementById(`row-${game}`)!;
+  nav.focus();
+
+  input("right");
+  expect(document.activeElement).toBe(row("hades"));
+  input("down");
+  expect(document.activeElement).toBe(row("celeste"));
+  // Left and Right don't hop to another session, nor to the sidebar.
+  input("left");
+  expect(document.activeElement).toBe(row("celeste"));
+
+  input("confirm");
+  expect(filter).toBe("celeste");
+  expect(row("celeste").getAttribute("data-controller-selected")).toBe("true");
+
+  // B drops the filter first; the ring stays on the session.
+  input("back");
+  expect(filter).toBeNull();
+  expect(document.activeElement).toBe(row("celeste"));
+  expect(row("celeste").getAttribute("data-controller-selected")).toBe("true");
+  // Without a filter B goes back to the sidebar.
+  input("back");
+  expect(document.activeElement).toBe(nav);
+  expect(backs).toHaveBeenCalledTimes(2);
+
+  // The keyboard keeps the rows' own arrow keys.
+  row("hades").focus();
+  expect(press("ArrowDown").defaultPrevented).toBe(false);
+});
+
+it("follows a pressed control that the view swaps for another one with the same key", async () => {
+  enableController();
+  useAppStore.getState().setActiveView("history");
+  document
+    .querySelector("#nav-now")!
+    .setAttribute("data-controller-active-view", "true");
+  content.setAttribute("aria-busy", "false");
+  content.innerHTML = `<div id="chips">
+    <button id="chip-all" data-controller-item="history-filter" data-controller-key="range-all">All</button>
+    <button id="chip-month" data-controller-item="history-filter" data-controller-key="range-month">Month</button>
+  </div>`;
+  place({ "chip-all": [0, 40, 60, 32], "chip-month": [70, 40, 80, 32] });
+  // Like React: the picked chip becomes a stepper after the click.
+  document.getElementById("chip-month")!.addEventListener("click", () =>
+    queueMicrotask(() => {
+      document.getElementById("chip-month")!.outerHTML = `<span>
+        <button id="month-previous">‹</button>
+        <button id="month-label" data-controller-item="history-filter" data-controller-key="range-month">November</button>
+        <button id="month-next">›</button>
+      </span>`;
+      place({
+        "month-previous": [70, 40, 28, 32],
+        "month-label": [100, 40, 90, 32],
+        "month-next": [192, 40, 28, 32],
+      });
+    }),
+  );
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.focus();
+
+  input("right");
+  expect(document.activeElement?.id).toBe("chip-all");
+  input("right");
+  expect(document.activeElement?.id).toBe("chip-month");
+  input("confirm");
+  await Promise.resolve();
+  frame();
+  expect(document.activeElement?.id).toBe("month-label");
+  expect(
+    document.getElementById("month-label")!.getAttribute("data-controller-selected"),
+  ).toBe("true");
+  // The stepper's arrows are the mouse's: Left goes on to the next chip.
+  input("left");
+  expect(document.activeElement?.id).toBe("chip-all");
+});
+
 it("keeps the controller on the sidebar when A opens a view without cards, and Right enters it to scroll", () => {
   const nowNav = document.querySelector<HTMLElement>("#nav-now")!;
   nowNav.addEventListener("click", () => {
@@ -327,6 +449,28 @@ it("keeps the controller on the sidebar when A opens a view without cards, and R
 
   input("left");
   expect(document.activeElement).toBe(nowNav);
+});
+
+it("scrolls the view's content with the right stick while the ring is on the sidebar", () => {
+  enableController();
+  const aside = document.querySelector<HTMLElement>("aside")!;
+  // The sidebar scrolls on its own too, but the stick never moves it.
+  aside.setAttribute("data-controller-scroll", "");
+  const sidebarScroll = vi.fn();
+  const contentScroll = vi.fn();
+  aside.scrollBy = sidebarScroll;
+  content.scrollBy = contentScroll;
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.focus();
+
+  input("scrollDown");
+  input("scrollUp");
+  expect(contentScroll.mock.calls).toEqual([
+    [{ top: 34, behavior: "auto" }],
+    [{ top: -34, behavior: "auto" }],
+  ]);
+  expect(sidebarScroll).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(nav);
 });
 
 it.each(["controller", "keyboard"])(
@@ -471,4 +615,647 @@ it("moves the ring to a dialog's new safe button only while a controller drives 
   expect(document.activeElement).toBe(safe);
   expect(safe.getAttribute("data-controller-selected")).toBe("true");
   document.documentElement.removeAttribute("data-controller-mode");
+});
+
+function enableController() {
+  useAppStore.setState((state) => ({
+    settings: { ...state.settings, controllerNavigationEnabled: true },
+  }));
+}
+
+/** A tab row like Achievements, My History and Details have: a click
+ *  selects the tab. */
+function tabRow(container: Element, ids: string[], autofocus = false) {
+  container.insertAdjacentHTML(
+    "beforeend",
+    `<div role="tablist">${ids
+      .map(
+        (id, index) =>
+          `<button role="tab" id="${id}" aria-selected="${index === 0}"${
+            autofocus && index === 0 ? " data-autofocus" : ""
+          }>${id}</button>`,
+      )
+      .join("")}</div>`,
+  );
+  const tabs = ids.map((id) => document.getElementById(id)!);
+  for (const tab of tabs) {
+    tab.scrollIntoView = vi.fn();
+    tab.addEventListener("click", () => {
+      for (const other of tabs)
+        other.setAttribute("aria-selected", String(other === tab));
+    });
+  }
+  return tabs;
+}
+
+function openTab(tabs: HTMLElement[]) {
+  return tabs.find((tab) => tab.getAttribute("aria-selected") === "true")?.id;
+}
+
+function modal() {
+  const dialog = document.createElement("div");
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  document.body.append(dialog);
+  return dialog;
+}
+
+it("opens the selected card's Details with Y / Triangle, never from the sidebar or a dialog", () => {
+  showLibrary();
+  enableController();
+  const opened = { a: vi.fn(), b: vi.fn() };
+  document
+    .querySelector("#card-a")!
+    .addEventListener(CONTROLLER_DETAILS_EVENT, opened.a);
+  const cardB = document.querySelector("#card-b")!;
+  cardB.addEventListener(CONTROLLER_DETAILS_EVENT, opened.b);
+  // Details opens as a dialog with its tab row on top.
+  let detailsTabs: HTMLElement[] = [];
+  cardB.addEventListener(CONTROLLER_DETAILS_EVENT, () => {
+    detailsTabs = tabRow(modal(), ["details-general", "details-files"], true);
+  });
+
+  document.querySelector<HTMLElement>("#nav-games")!.focus();
+  input("openDetails");
+  expect(opened.a).not.toHaveBeenCalled();
+  expect(opened.b).not.toHaveBeenCalled();
+
+  input("right");
+  input("right");
+  expect(document.activeElement?.id).toBe("card-b");
+  input("openDetails");
+  expect(opened.b).toHaveBeenCalledTimes(1);
+  expect(opened.a).not.toHaveBeenCalled();
+  // The ring moves onto Details' open tab.
+  frame();
+  expect(document.activeElement).toBe(detailsTabs[0]);
+  expect(detailsTabs[0].getAttribute("data-controller-selected")).toBe("true");
+
+  input("openDetails");
+  expect(opened.b).toHaveBeenCalledTimes(1);
+});
+
+it("switches the view's tabs with LB / RB, round like the arrow keys, and leaves the ring where it is", () => {
+  enableController();
+  useAppStore.getState().setActiveView("history");
+  content.setAttribute("aria-busy", "false");
+  const tabs = tabRow(content, ["sessions", "insights", "games"]);
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.focus();
+
+  input("nextTab");
+  expect(openTab(tabs)).toBe("insights");
+  input("nextTab");
+  input("nextTab");
+  expect(openTab(tabs)).toBe("sessions");
+  input("previousTab");
+  expect(openTab(tabs)).toBe("games");
+  expect(document.activeElement).toBe(nav);
+});
+
+it("switches the open dialog's tabs, not the view's, and the ring follows the tab", () => {
+  enableController();
+  useAppStore.getState().setActiveView("achievements");
+  content.setAttribute("aria-busy", "false");
+  const viewTabs = tabRow(content, ["milestones", "ladders"]);
+  const dialogTabs = tabRow(modal(), ["general", "files", "notes"]);
+  dialogTabs[0].focus();
+
+  input("nextTab");
+  expect(openTab(dialogTabs)).toBe("files");
+  expect(openTab(viewTabs)).toBe("milestones");
+  expect(document.activeElement).toBe(dialogTabs[1]);
+  expect(dialogTabs[1].getAttribute("data-controller-selected")).toBe("true");
+  input("previousTab");
+  input("previousTab");
+  expect(openTab(dialogTabs)).toBe("notes");
+});
+
+/** A Details-like dialog: its tab row, the open tab first, and two pictures
+ *  the controller walks. A on a picture opens a viewer over it that pages
+ *  with its Previous / Next buttons; Escape closes the viewer and, a frame
+ *  later, hands focus back to the picture (like useDialogFocus). */
+function picturesDialog() {
+  enableController();
+  useAppStore.getState().setActiveView("games");
+  content.setAttribute("aria-busy", "false");
+  const details = modal();
+  const tabs = tabRow(details, ["general", "screenshots"], true);
+  details.insertAdjacentHTML(
+    "beforeend",
+    `<button id="shot-1" data-controller-item="screenshot">1</button>
+     <button id="shot-2" data-controller-item="screenshot">2</button>`,
+  );
+  place({
+    general: [0, 0, 80, 30],
+    screenshots: [90, 0, 80, 30],
+    "shot-1": [0, 50, 200, 110],
+    "shot-2": [210, 50, 200, 110],
+  });
+  const byId = (id: string) => document.getElementById(id)!;
+  const paged: string[] = [];
+  const opened = vi.fn();
+  const openViewer = (from: HTMLElement) => {
+    opened(from.id);
+    const viewer = modal();
+    viewer.setAttribute("data-controller-pager", "");
+    viewer.innerHTML = `
+      <button id="viewer-close" data-autofocus>Close</button>
+      <button id="viewer-previous" data-controller-previous>Previous</button>
+      <button id="viewer-next" data-controller-next>Next</button>`;
+    for (const id of ["viewer-previous", "viewer-next"])
+      byId(id).addEventListener("click", () => paged.push(id));
+    byId("viewer-close").focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      window.removeEventListener("keydown", close);
+      viewer.remove();
+      requestAnimationFrame(() => from.focus());
+    };
+    window.addEventListener("keydown", close);
+  };
+  for (const id of ["shot-1", "shot-2"])
+    byId(id).addEventListener("click", () => openViewer(byId(id)));
+  return { tabs, byId, paged, opened };
+}
+
+it("walks a dialog's pictures from its open tab, and A on the tab opens none of them", () => {
+  const { tabs, byId, opened } = picturesDialog();
+  // The ring on the open tab, like after Y opened Details.
+  tabs[0].focus();
+  input("nextTab");
+  input("previousTab");
+  expect(tabs[0].getAttribute("data-controller-selected")).toBe("true");
+
+  input("confirm");
+  frame();
+  expect(opened).not.toHaveBeenCalled();
+  expect(tabs[0].getAttribute("data-controller-selected")).toBe("true");
+
+  input("down");
+  expect(document.activeElement).toBe(byId("shot-1"));
+  input("right");
+  expect(document.activeElement).toBe(byId("shot-2"));
+  input("left");
+  expect(document.activeElement).toBe(byId("shot-1"));
+});
+
+it("moves the ring from a dialog's picture to the tab LB / RB opens, since the picture goes with its tab", () => {
+  const { tabs, byId } = picturesDialog();
+  input("down");
+  expect(document.activeElement).toBe(byId("shot-1"));
+
+  input("nextTab");
+  expect(openTab(tabs)).toBe("screenshots");
+  expect(document.activeElement).toBe(tabs[1]);
+  expect(tabs[1].getAttribute("data-controller-selected")).toBe("true");
+  expect(byId("shot-1").hasAttribute("data-controller-selected")).toBe(false);
+});
+
+it("opens a picture with A, pages it with Left / Right, and B comes back to the picture", () => {
+  const { byId, paged, opened } = picturesDialog();
+  input("down");
+  input("right");
+  input("confirm");
+  frame();
+  expect(opened).toHaveBeenCalledWith("shot-2");
+  // No ring in the viewer, and none left on the dialog behind it.
+  expect(document.querySelector('[data-controller-selected="true"]')).toBeNull();
+
+  input("right");
+  input("right");
+  input("left");
+  expect(paged).toEqual(["viewer-next", "viewer-next", "viewer-previous"]);
+
+  input("back");
+  frame();
+  frame();
+  expect(document.activeElement).toBe(byId("shot-2"));
+  expect(byId("shot-2").getAttribute("data-controller-selected")).toBe("true");
+});
+
+function showSettings() {
+  enableController();
+  useAppStore.getState().setActiveView("settings");
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.setAttribute("data-controller-active-view", "true");
+  content.innerHTML = `
+    <div id="settings" data-controller-controls>
+      <nav id="settings-menu" data-controller-menu>
+        <input id="settings-search" type="search" />
+        <button id="menu-general" data-controller-page>General</button>
+        <button id="menu-play" data-controller-page aria-current="page">Play</button>
+      </nav>
+      <div>
+        <input id="switch-a" type="checkbox" />
+        <button id="seg-off" aria-pressed="true">Off</button>
+        <button id="seg-on" aria-pressed="false">On</button>
+        <select id="reminder">
+          <option value="off">Off</option>
+          <option value="30" disabled>30 min</option>
+          <option value="60">60 min</option>
+        </select>
+        <input id="switch-off" type="checkbox" disabled />
+        <button id="reset">Reset</button>
+      </div>
+    </div>
+  `;
+  content.setAttribute("aria-busy", "false");
+  // A wide window: the menu is a column left of the page.
+  place({
+    settings: [0, -50, 700, 300],
+    "settings-menu": [0, -50, 160, 140],
+    "settings-search": [0, -50, 160, 38],
+    "menu-general": [0, 0, 160, 38],
+    "menu-play": [0, 50, 160, 38],
+    "switch-a": [600, 0, 40, 24],
+    "seg-off": [500, 60, 60, 30],
+    "seg-on": [570, 60, 60, 30],
+    reminder: [520, 110, 120, 30],
+    "switch-off": [600, 160, 40, 24],
+    reset: [560, 210, 80, 30],
+  });
+  const byId = (id: string) => document.getElementById(id)!;
+  return { nav, byId };
+}
+
+function place(at: Record<string, [number, number, number, number]>) {
+  for (const [id, [left, top, width, height]] of Object.entries(at)) {
+    const element = document.getElementById(id)!;
+    element.scrollIntoView = vi.fn();
+    element.getBoundingClientRect = () =>
+      ({ left, top, width, height }) as DOMRect;
+  }
+}
+
+it("goes down from the settings menu into the page when a narrow window puts the menu above it", () => {
+  const { byId } = showSettings();
+  place({
+    settings: [0, 0, 700, 300],
+    "settings-menu": [0, 0, 700, 40],
+    "settings-search": [0, 0, 700, 38],
+    "menu-general": [0, 40, 100, 38],
+    "menu-play": [110, 40, 100, 38],
+    "switch-a": [600, 100, 40, 24],
+    "seg-off": [0, 150, 60, 30],
+    "seg-on": [70, 150, 60, 30],
+    reminder: [0, 200, 120, 30],
+    "switch-off": [600, 250, 40, 24],
+    reset: [0, 280, 80, 30],
+  });
+  byId("menu-play").focus();
+
+  input("down");
+  expect(document.activeElement).toBe(byId("seg-on"));
+  input("left");
+  expect(document.activeElement).toBe(byId("seg-off"));
+  // Neither Left at the page's edge nor Up at its top goes back into the
+  // menu above it: only B does.
+  input("left");
+  expect(document.activeElement).toBe(byId("seg-off"));
+  for (let step = 0; step < 3; step++) input("up");
+  expect(byId("settings-menu").contains(document.activeElement)).toBe(false);
+  input("back");
+  expect(document.activeElement).toBe(byId("menu-play"));
+});
+
+it("walks the settings menu and page with the controller and works their switches and buttons", () => {
+  const { nav, byId } = showSettings();
+  const segOn = vi.fn();
+  byId("seg-on").addEventListener("click", segOn);
+  nav.focus();
+
+  // Right enters at the open page's menu item, then the page beside it.
+  input("right");
+  expect(document.activeElement).toBe(byId("menu-play"));
+  expect(byId("menu-play").getAttribute("data-controller-selected")).toBe(
+    "true",
+  );
+  input("up");
+  expect(document.activeElement).toBe(byId("menu-general"));
+  input("down");
+  input("right");
+  expect(document.activeElement).toBe(byId("seg-off"));
+  input("right");
+  input("confirm");
+  expect(segOn).toHaveBeenCalledTimes(1);
+
+  input("up");
+  expect(document.activeElement).toBe(byId("switch-a"));
+  input("confirm");
+  expect((byId("switch-a") as HTMLInputElement).checked).toBe(true);
+  // Nothing right of a switch: it stays, it doesn't jump to the next row.
+  input("right");
+  expect(document.activeElement).toBe(byId("switch-a"));
+
+  // A switch that is off is skipped.
+  input("down");
+  input("down");
+  expect(document.activeElement).toBe(byId("reminder"));
+  input("down");
+  expect(document.activeElement).toBe(byId("reset"));
+
+  // No direction leaves the page: only B, for the open page's menu item.
+  // Left from the menu goes on to the sidebar.
+  input("left");
+  expect(document.activeElement).toBe(byId("reset"));
+  input("back");
+  expect(document.activeElement).toBe(byId("menu-play"));
+  input("left");
+  expect(document.activeElement).toBe(nav);
+});
+
+it("skips what a pad can't finish: guides and Windows file and folder windows", () => {
+  const { byId } = showSettings();
+  byId("reset").insertAdjacentHTML(
+    "beforebegin",
+    '<button id="open-folder" data-controller-ignore="">Open folder</button>',
+  );
+  place({ "open-folder": [560, 185, 80, 30] });
+  byId("reminder").focus();
+
+  input("down");
+  expect(document.activeElement).toBe(byId("reset"));
+  input("up");
+  expect(document.activeElement).not.toBe(byId("open-folder"));
+});
+
+/** A Reset-like question over Settings: Cancel (the safe answer, focused
+ *  first) and Reset in its footer, a close button in its head. Either
+ *  answer or Escape closes it, and a frame later focus goes back to the
+ *  button that opened it (like useDialogFocus). */
+function questionDialog(from: HTMLElement) {
+  const dialog = modal();
+  dialog.innerHTML = `
+    <button id="dialog-close">Close</button>
+    <p>Reset settings?</p>
+    <div data-modal-footer>
+      <button id="dialog-cancel" data-autofocus>Cancel</button>
+      <button id="dialog-reset">Reset</button>
+    </div>`;
+  place({
+    "dialog-close": [600, 100, 30, 30],
+    "dialog-cancel": [300, 400, 100, 36],
+    "dialog-reset": [410, 400, 100, 36],
+  });
+  const answered = vi.fn();
+  const close = () => {
+    dialog.remove();
+    window.removeEventListener("keydown", onKey);
+    requestAnimationFrame(() => from.focus());
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Escape") close();
+  };
+  window.addEventListener("keydown", onKey);
+  for (const answer of ["cancel", "reset"])
+    document
+      .getElementById(`dialog-${answer}`)!
+      .addEventListener("click", () => {
+        answered(answer);
+        close();
+      });
+  return answered;
+}
+
+it("answers a dialog's question with the controller: Left / Right pick a footer button, A presses it, the ring goes back", () => {
+  const { byId } = showSettings();
+  let answered = vi.fn();
+  byId("reset").addEventListener("click", () => {
+    answered = questionDialog(byId("reset"));
+  });
+  byId("reset").focus();
+
+  input("confirm");
+  frame();
+  expect(document.activeElement).toBe(byId("dialog-cancel"));
+  input("right");
+  expect(document.activeElement).toBe(byId("dialog-reset"));
+  expect(byId("dialog-reset").getAttribute("data-controller-selected")).toBe(
+    "true",
+  );
+  input("left");
+  expect(document.activeElement).toBe(byId("dialog-cancel"));
+  input("right");
+  input("confirm");
+  expect(answered).toHaveBeenCalledWith("reset");
+  frame();
+  expect(document.activeElement).toBe(byId("reset"));
+  expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
+
+  // B closes it without an answer, and the ring goes back too.
+  input("confirm");
+  frame();
+  input("back");
+  expect(answered).not.toHaveBeenCalled();
+  frame();
+  expect(document.activeElement).toBe(byId("reset"));
+  expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
+});
+
+it("rings what gets focus back after B, even when the dialog takes several frames to close", () => {
+  const { byId } = showSettings();
+  byId("reset").addEventListener("click", () => {
+    const dialog = modal();
+    dialog.innerHTML = `<div data-modal-footer><button id="slow-cancel" data-autofocus>Cancel</button></div>`;
+    place({ "slow-cancel": [300, 400, 100, 36] });
+    // A heavy view: closing takes three frames, focus comes back on the
+    // fourth (useDialogFocus).
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      window.removeEventListener("keydown", onKey);
+      const later = (frames: number, run: () => void) =>
+        requestAnimationFrame(() =>
+          frames > 1 ? later(frames - 1, run) : run(),
+        );
+      later(3, () => {
+        dialog.remove();
+        requestAnimationFrame(() => byId("reset").focus());
+      });
+    };
+    window.addEventListener("keydown", onKey);
+  });
+  byId("reset").focus();
+  input("confirm");
+  frame();
+  expect(document.activeElement).toBe(byId("slow-cancel"));
+
+  input("back");
+  for (let step = 0; step < 6; step++) frame();
+  expect(document.activeElement).toBe(byId("reset"));
+  expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
+});
+
+it("changes a settings dropdown with Left and Right, skipping choices that are off", () => {
+  const { byId } = showSettings();
+  const select = byId("reminder") as HTMLSelectElement;
+  const changed = vi.fn();
+  select.addEventListener("change", () => changed(select.value));
+  select.focus();
+
+  input("right");
+  expect(select.value).toBe("60");
+  expect(changed).toHaveBeenLastCalledWith("60");
+  input("left");
+  expect(select.value).toBe("off");
+  expect(changed).toHaveBeenCalledTimes(2);
+  expect(document.activeElement).toBe(select);
+});
+
+it("moves into the page with A on a settings menu item, past the page's guide link", async () => {
+  enableController();
+  useAppStore.getState().setActiveView("settings");
+  content.setAttribute("aria-busy", "false");
+  content.innerHTML = `
+    <div data-controller-controls>
+      <nav data-controller-menu>
+        <button id="menu-general" data-controller-page aria-current="page">General</button>
+        <button id="menu-play" data-controller-page>Play</button>
+      </nav>
+      <div id="page"></div>
+    </div>
+  `;
+  const page = content.querySelector<HTMLElement>("#page")!;
+  const showPage = (name: string) => {
+    page.innerHTML = `
+      <header><button id="${name}-guide">Show me how</button></header>
+      <div data-row="${name}-a"><input id="${name}-switch" type="checkbox" /></div>
+      <div data-row="${name}-b"><button id="${name}-button">Reset</button></div>
+    `;
+    for (const element of content.querySelectorAll<HTMLElement>("*"))
+      element.scrollIntoView = vi.fn();
+  };
+  showPage("general");
+  const menu = ["#menu-general", "#menu-play"].map(
+    (id) => content.querySelector<HTMLElement>(id)!,
+  );
+  menu[1].addEventListener("click", () => {
+    menu[0].removeAttribute("aria-current");
+    menu[1].setAttribute("aria-current", "page");
+    // Like React: the new page comes after the click.
+    queueMicrotask(() => showPage("play"));
+  });
+
+  menu[1].focus();
+  input("confirm");
+  // React renders in a microtask, the next frame comes after it.
+  await Promise.resolve();
+  frame();
+  const target = document.getElementById("play-switch");
+  expect(document.activeElement).toBe(target);
+  expect(target?.getAttribute("data-controller-selected")).toBe("true");
+
+  // A on the page that is open already goes straight into it.
+  menu[1].focus();
+  input("confirm");
+  await Promise.resolve();
+  frame();
+  expect(document.activeElement).toBe(document.getElementById("play-switch"));
+});
+
+it("goes back with B from deep in a settings page to its menu item, then to the sidebar, where B does nothing", () => {
+  const { nav, byId } = showSettings();
+  byId("reset").focus();
+
+  input("back");
+  expect(document.activeElement).toBe(byId("menu-play"));
+  expect(byId("menu-play").getAttribute("data-controller-selected")).toBe(
+    "true",
+  );
+  input("back");
+  expect(document.activeElement).toBe(nav);
+  // On the sidebar there is nothing further back: the ring stays.
+  input("back");
+  expect(document.activeElement).toBe(nav);
+  expect(nav.getAttribute("data-controller-selected")).toBe("true");
+});
+
+it("walks the settings pages round with LB / RB, the ring on the new page's menu item", () => {
+  const { nav, byId } = showSettings();
+  const pages = [byId("menu-general"), byId("menu-play")];
+  for (const page of pages) {
+    page.addEventListener("click", () => {
+      for (const other of pages)
+        if (other === page) other.setAttribute("aria-current", "page");
+        else other.removeAttribute("aria-current");
+      // The open page's controls go, the new page's come.
+      document.getElementById("switch-a")?.remove();
+    });
+  }
+  byId("switch-a").focus();
+
+  // Play is the last page: RB goes round to General.
+  input("nextTab");
+  expect(pages[0].getAttribute("aria-current")).toBe("page");
+  expect(document.activeElement).toBe(pages[0]);
+  expect(pages[0].getAttribute("data-controller-selected")).toBe("true");
+  input("previousTab");
+  expect(pages[1].getAttribute("aria-current")).toBe("page");
+  expect(document.activeElement).toBe(pages[1]);
+
+  // From the sidebar the page changes, the ring stays on the sidebar.
+  nav.focus();
+  input("nextTab");
+  expect(pages[0].getAttribute("aria-current")).toBe("page");
+  expect(document.activeElement).toBe(nav);
+});
+
+it("stays on the language dropdown when the new language builds the page anew", () => {
+  enableController();
+  useAppStore.getState().setActiveView("settings");
+  content.setAttribute("aria-busy", "false");
+  // Like App: a new language remounts the page, every element is new.
+  let build = 0;
+  const render = (language: string) => {
+    build += 1;
+    content.innerHTML = `
+      <div data-controller-controls>
+        <nav data-controller-menu>
+          <button id="menu-general" aria-current="page">General</button>
+        </nav>
+        <div data-row="theme"><input type="checkbox" /></div>
+        <div data-row="language">
+          <span>Language</span>
+          <select id="language-${build}">
+            <option value="system">System</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+          </select>
+        </div>
+      </div>
+    `;
+    for (const element of content.querySelectorAll<HTMLElement>("*"))
+      element.scrollIntoView = vi.fn();
+    const select = content.querySelector<HTMLSelectElement>("select")!;
+    select.value = language;
+    select.addEventListener("change", () => render(select.value));
+    return select;
+  };
+  render("system").focus();
+
+  input("right");
+  frame();
+  const rebuilt = content.querySelector<HTMLSelectElement>("select")!;
+  expect(rebuilt.id).toBe("language-2");
+  expect(rebuilt.value).toBe("en");
+  expect(document.activeElement).toBe(rebuilt);
+  expect(rebuilt.getAttribute("data-controller-selected")).toBe("true");
+
+  // Right goes straight on to the next language.
+  input("right");
+  frame();
+  expect(content.querySelector("select")!.value).toBe("de");
+  expect(document.activeElement?.id).toBe("language-3");
+});
+
+it("leaves the settings controls to the keyboard's own keys", () => {
+  const { nav, byId } = showSettings();
+  byId("switch-a").focus();
+  expect(press("ArrowDown").defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(byId("switch-a"));
+
+  // From the sidebar, Right still enters the view to scroll it.
+  nav.focus();
+  press("ArrowRight");
+  expect(document.activeElement).toBe(content);
 });

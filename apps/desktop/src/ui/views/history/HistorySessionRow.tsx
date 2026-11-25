@@ -281,6 +281,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       tabIndex={0}
       data-history-session-row
       data-history-session-id={session.id}
+      data-controller-item="history-session"
       data-tour={guideName("demo-history-row")}
       aria-label={t("{{gameName}}, session on {{sessionDate}}", {
         gameName,
@@ -298,6 +299,16 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       onKeyDown={handleKeyDown}
       className="group relative grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-border bg-surface px-3 py-2.5 outline-none transition hover:border-accent/40 hover:shadow-raised focus:border-accent/60 focus:ring-2 focus:ring-accent/40 sm:grid-cols-[auto_minmax(0,1fr)_minmax(150px,190px)_auto] sm:gap-4"
     >
+      {/* A / Cross on the session (controllerBridge): the list shows only
+          this game. Holding the mouse does the same. */}
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        data-controller-launch="filter"
+        className="hidden"
+        onClick={() => onFilterGame(gameKey, gameName)}
+      />
       {holdPosition ? (
         <span
           aria-hidden="true"

@@ -57,6 +57,15 @@ describe("My Games presentation", () => {
     });
   });
 
+  it.each(["timeToBeat", "rating"] as const)(
+    "keeps the %s sort after a restart",
+    (librarySortKey) => {
+      expect(resolveMyGamesPresentation({ librarySortKey }).sortKey).toBe(
+        librarySortKey,
+      );
+    },
+  );
+
   it("restores custom columns without changing the chosen card style", () => {
     expect(
       resolveMyGamesPresentationSettings({

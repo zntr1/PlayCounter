@@ -173,6 +173,9 @@ export type ActiveSession = {
   /** "away": the running pause came from auto pause (autoPause.ts), so input
    *  at the game ends it. Absent for a pause the player made. */
   pauseKind?: "away";
+  /** When the session last began counting again: a Resume, or the PC waking
+   *  up (sleepGap.ts). A pause dated back never reaches before it. */
+  resumedAt?: string;
   /** Seen running on a PlayStation console through Sony's presence. No
    *  process starts or ends it; its checkpoint is the last sighting, and it is
    *  saved as a "playstation" session (playstationLive.ts). */
@@ -188,6 +191,11 @@ export type AmbiguousProcessMatch = {
   hiddenCandidateCount?: number;
   detectedAt: string;
   endedAt?: string;
+  /** Time the PC slept while the exe waited here (sleepGap.ts); the session
+   *  it becomes leaves it out. */
+  pausedMs?: number;
+  /** When the PC last woke up while the exe waited here. */
+  resumedAt?: string;
   // When the candidates were last fetched; gates re-querying the match API.
   lastCheckedAt?: string;
   flagReason?: IdentifierFlagReason;
@@ -764,6 +772,9 @@ export type AppState = {
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
   setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
+  setMyGamesCoverSpotlight: (enabled: boolean) => void;
+  setMyGamesCoversBadge: (key: CoversBadgeSetting, enabled: boolean) => void;
+  setMyGamesCoverGap: (gap: number) => void;
   setCoverQuality: (quality: CoverQuality) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
@@ -840,6 +851,14 @@ export type AppState = {
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
 };
+
+/** The Covers view's own badge switches (Settings.libraryCoversShow*). */
+export type CoversBadgeSetting =
+  | "libraryCoversShowOriginBadges"
+  | "libraryCoversShowMatchBadges"
+  | "libraryCoversShowStatusBadges"
+  | "libraryCoversShowNoteBadges"
+  | "libraryCoversShowTierBadges";
 
 export const DEFAULT_API_ENDPOINT =
   import.meta.env.VITE_PLAYCOUNTER_API_URL ?? "http://localhost:3003";
@@ -1309,7 +1328,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         ambiguousMatches: existing
           ? state.ambiguousMatches.map((candidate) =>
               candidate.exeName.toLowerCase() === key
-                ? { ...match, detectedAt: existing.detectedAt }
+                ? {
+                    ...match,
+                    // The wait counts from the first sighting, minus sleep.
+                    detectedAt: existing.detectedAt,
+                    pausedMs: existing.pausedMs,
+                    resumedAt: existing.resumedAt,
+                  }
                 : candidate,
             )
           : [...state.ambiguousMatches, match],
@@ -2065,6 +2090,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowTrackingWarnings: (libraryShowTrackingWarnings) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowTrackingWarnings },
+    }));
+    persistSoon();
+  },
+  setMyGamesCoversBadge: (key, enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, [key]: enabled },
+    }));
+    persistSoon();
+  },
+  setMyGamesCoverSpotlight: (libraryCoverSpotlight) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryCoverSpotlight },
+    }));
+    persistSoon();
+  },
+  setMyGamesCoverGap: (libraryCoverGap) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryCoverGap },
     }));
     persistSoon();
   },

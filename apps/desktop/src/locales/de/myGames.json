@@ -429,6 +429,8 @@
   "Notes on cards": "Notizen auf Kacheln",
   "A note icon on every game that has a note.": "Ein Notizsymbol auf jedem Spiel mit Notiz.",
   "Tier": "Tier",
+  "Shortest main story": "Kürzeste Hauptstory",
+  "IGDB rating": "IGDB-Bewertung",
   "Tiers on cards": "Tiers auf Kacheln",
   "Your tier, S to F, on every game you rated.": "Dein Tier von S bis F auf jedem Spiel, das du eingestuft hast.",
   "No tier": "Kein Tier",
@@ -750,5 +752,13 @@
   "Tier cleared for {{count}} games_one": "Tier für {{count}} Spiel entfernt",
   "Tier cleared for {{count}} games_other": "Tier für {{count}} Spiele entfernt",
   "Selected games already have tier {{tier}}": "Die ausgewählten Spiele haben schon Tier {{tier}}",
-  "Selected games already have no tier": "Die ausgewählten Spiele haben schon kein Tier"
+  "Selected games already have no tier": "Die ausgewählten Spiele haben schon kein Tier",
+  "Covers view": "Cover-Ansicht",
+  "Covers": "Cover",
+  "The Covers view keeps its own choices here, all off until you turn them on.": "Die Cover-Ansicht hat hier eigene Einstellungen, alle aus, bis du sie einschaltest.",
+  "Spotlight on hover": "Spotlight beim Zeigen",
+  "The other covers step back while you point at one.": "Die anderen Cover treten zurück, während du auf eines zeigst.",
+  "Space between covers": "Abstand zwischen den Covern",
+  "How much room the covers get around them.": "Wie viel Platz die Cover um sich herum bekommen.",
+  "Details": "Details"
 }
