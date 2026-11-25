@@ -9,7 +9,8 @@
 
 PlayCounter watches what's actually running on your PC and records playtime for
 recognized games, regardless of how they were launched (Steam, Epic, GOG, EA,
-Ubisoft, Battle.net, an emulator, a shortcut, or a plain `.exe`). Unknown games can be added
+Ubisoft, Battle.net, an emulator, a PC port like Ship of Harkinian, a shortcut,
+or a plain `.exe`). Unknown games can be added
 locally or submitted as community matches for review. Sessions and recent
 history stay on the PC, and the free, open-source app does not require an
 account.
@@ -76,11 +77,12 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
   does not see your Microsoft password. So the next import needs no new
   sign-in, the app keeps Microsoft's refresh token on your PC, encrypted with
   Windows data protection.
-- The optional Epic Games, GOG, Battle.net and PlayStation importers open the
-  service's own sign-in page; PlayCounter does not see your password. Playtime,
-  achievements and trophies are read from the service on your PC and stay
-  there. Only game identifiers and, for games the API doesn't recognise, game
-  titles are sent to the API to resolve names and cover art. Sign-ins kept for
+- The optional Epic Games, GOG, Battle.net, PlayStation and Nintendo importers
+  open the service's own sign-in page; PlayCounter does not see your password.
+  Playtime, achievements and trophies are read from the service on your PC and
+  stay there. Only game identifiers and, for games the API doesn't recognise,
+  game titles are sent to the API to resolve names and cover art (for Nintendo
+  games, only titles). Sign-ins kept for
   the next import stay on your PC, encrypted with Windows data protection;
   **Sign out** under **Launcher accounts** deletes them.
 - With **Live from PlayStation** on, the app asks Sony about once a minute which
@@ -103,26 +105,39 @@ and retention details.
   setup and no requirement to launch through PlayCounter
 - Add local entries for games or other processes you choose to track
 - Automatic executable-to-game matching against the API
-- Steam, Xbox, Epic Games, GOG and PlayStation imports for available previous
-  playtime, with game matching and review before import; several accounts of
-  one launcher add up, and overlapping provider totals are not added together.
-  Battle.net import brings in the game list (Battle.net shares no playtime)
+- Steam, Xbox, Epic Games, GOG, PlayStation and Nintendo imports for available
+  previous playtime, with game matching and review before import; several
+  accounts of one launcher add up, and overlapping provider totals are not
+  added together. Battle.net import brings in the game list (Battle.net shares
+  no playtime)
 - Live PS5 and PS4 sessions through the optional PlayStation sign-in
+- Nintendo Switch playtime through the optional Nintendo Account sign-in, read
+  again about once an hour
+- PC ports and recompiled games are tracked like any other game: Ship of
+  Harkinian, 2 Ship 2 Harkinian and Zelda 64: Recompiled are recognized, and a
+  port PlayCounter doesn't know yet can be matched once in Discovered
 - Watched folders that add games from your game folders and new launcher
   installs
 - Dedicated per-game emulator detection for DOSBox, Dolphin, PCSX2, mGBA, Cemu,
   RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and
   BlueStacks, with local review for uncertain matches
-- Searchable game library with launcher tabs, grid/list layouts, shelves
-  (also shelves that hide their games), statuses, S to F tiers and custom
-  covers and banners
+- Searchable game library with launcher tabs, grid, list and covers-only
+  layouts, shelves (also shelves that hide their games), statuses, S to F tiers
+  and custom covers and banners
 - Screenshots with a hotkey, with an optional caption, shown on the session
-  they were taken in
+  they were taken in and in game details. With HDR on, the HDR picture is
+  converted so bright highlights are kept instead of cut off
 - Counters per game (deaths, bosses or anything else), counted with a hotkey,
   a controller or in the app
-- Pause and resume a running session, and a live timer on your game
+- Pause and resume a running session, or let it pause by itself when you step
+  away, and a live timer on your game
+- Controller navigation and a fullscreen mode for the TV
 - Session history and statistics for any dates, with editing, splitting and
   combining of sessions, manual entries and playtime adjustments
+- A manual timer for play away from this PC, like a console: start it on a
+  game, stop it, and it is saved as a session
+- Optional software tracking: how long apps like Discord or Spotify run, on
+  their own Software page, apart from games
 - Achievements for lifetime hours, monthly goals and per-game milestones, plus
   each game's Steam, Xbox, Epic Games and GOG achievements and PlayStation
   trophies
@@ -132,7 +147,8 @@ and retention details.
 - Help & guides with step-by-step guides that use sample games
 - Available in English, German, French, Polish, Russian, Portuguese (Brazil),
   Spanish and Chinese
-- Optional game-launch actions, desktop overlays and configurable shortcuts
+- Optional Play, Stop and Force stop for your games right from the library,
+  desktop popups, a break reminder and configurable shortcuts
 - Local backup export and import, plus daily or weekly automatic snapshots in app data or a chosen folder (while PlayCounter runs, with catch-up on next launch and configurable retention)
 - Current / "now playing" view with a system-tray indicator
 - Community suggestions and one-time local choices for unknown or ambiguous exes
