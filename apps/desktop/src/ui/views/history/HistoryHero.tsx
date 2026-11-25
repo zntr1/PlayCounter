@@ -167,6 +167,16 @@ export function HistoryHero({
       <button
         type="button"
         {...labelProps}
+        // A chip's label goes back to its current period; a picked date
+        // range's opens the date picker, which takes a mouse.
+        data-controller-item={
+          labelProps["data-chip"] ? "history-filter" : undefined
+        }
+        data-controller-key={
+          labelProps["data-chip"]
+            ? `history-range-${labelProps["data-chip"]}`
+            : undefined
+        }
         className="inline-flex items-center gap-1.5 whitespace-nowrap px-0.5 underline-offset-[3px] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/50"
       >
         {label}
@@ -387,6 +397,10 @@ export function HistoryHero({
                   key={chip.kind}
                   type="button"
                   data-chip={chip.kind}
+                  // Picked, the chip becomes a stepper: the controller's
+                  // ring follows the key to its label.
+                  data-controller-item="history-filter"
+                  data-controller-key={`history-range-${chip.kind}`}
                   aria-pressed={selection.kind === chip.kind}
                   onClick={() =>
                     pick(

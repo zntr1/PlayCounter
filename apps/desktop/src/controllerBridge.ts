@@ -144,9 +144,10 @@ function track(
 // (Settings); the keyboard leaves those to Tab and their own keys.
 const SIDEBAR_ROLES = new Set(["navigation", "library-tab"]);
 const NAVIGABLE_ROLES = new Set(["game-card", ...SIDEBAR_ROLES]);
-// My History's sessions: the pad walks them (A filters by the game, B drops
-// the filter). The keyboard keeps the rows' own arrow keys.
-const PAD_ROLES = new Set(["history-session"]);
+// My History's sessions (A filters by the game, B drops the filter) and its
+// range chips: the pad walks them. The keyboard keeps the rows' own arrow
+// keys and Tab for the chips.
+const PAD_ROLES = new Set(["history-session", "history-filter"]);
 const CONTROLS = [
   "button",
   "select",
@@ -518,6 +519,25 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
   // An answer that closes its dialog: the ring follows focus back.
   if (dialog?.contains(item)) ringFocusWhenBack(dialog);
   followRebuilt();
+  followKey(item);
+}
+
+// A control the view swaps for another one when it is pressed (a range chip
+// in My History becomes a stepper): the ring follows its
+// data-controller-key to the new element.
+function followKey(item: HTMLElement, attempt = 0) {
+  const key = item.getAttribute("data-controller-key");
+  if (!key) return;
+  globalThis.requestAnimationFrame?.(() => {
+    if (item.isConnected) {
+      if (attempt < 2) followKey(item, attempt + 1);
+      return;
+    }
+    const next = [
+      ...document.querySelectorAll<HTMLElement>("[data-controller-key]"),
+    ].find((element) => element.getAttribute("data-controller-key") === key);
+    if (next) focusItem(next);
+  });
 }
 
 // The first control of the open settings page's first row, once the page

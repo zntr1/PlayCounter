@@ -99,3 +99,38 @@ it("filters by the session's game with A and drops the filter with B", async () 
   // Nothing left to undo: B is the bridge's again (back to the sidebar).
   expect(pressB()).toBe(false);
 });
+
+const rangeButtons = () => [
+  ...container.querySelectorAll<HTMLElement>(
+    '[role="group"][aria-label="Range"] button',
+  ),
+];
+const byText = (text: string) =>
+  rangeButtons().find((button) => button.textContent?.trim() === text)!;
+
+it("lets the controller pick a range, but leaves Pick dates and the stepper arrows to the mouse", async () => {
+  await showSessions();
+  for (const button of rangeButtons()) {
+    const pickDates = button.textContent?.includes("Pick dates");
+    expect(button.getAttribute("data-controller-item"), button.textContent).toBe(
+      pickDates ? null : "history-filter",
+    );
+  }
+  expect(byText("Pick dates")).toBeDefined();
+
+  // A picked range turns its chip into a stepper; the ring follows the key.
+  const monthKey = byText("This month").getAttribute("data-controller-key");
+  expect(monthKey).toBeTruthy();
+  await act(() => byText("This month").click());
+  const label = container.querySelector<HTMLElement>(
+    `[data-controller-key="${monthKey}"]`,
+  )!;
+  expect(label.getAttribute("data-controller-item")).toBe("history-filter");
+  // The stepper's arrows stay the mouse's.
+  for (const name of ["Previous period", "Next period"])
+    expect(
+      container
+        .querySelector(`[aria-label="${name}"]`)!
+        .hasAttribute("data-controller-item"),
+    ).toBe(false);
+});

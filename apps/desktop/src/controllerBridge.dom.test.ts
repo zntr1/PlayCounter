@@ -372,6 +372,52 @@ it("walks My History's sessions with the controller: A filters by the game, B dr
   expect(press("ArrowDown").defaultPrevented).toBe(false);
 });
 
+it("follows a pressed control that the view swaps for another one with the same key", async () => {
+  enableController();
+  useAppStore.getState().setActiveView("history");
+  document
+    .querySelector("#nav-now")!
+    .setAttribute("data-controller-active-view", "true");
+  content.setAttribute("aria-busy", "false");
+  content.innerHTML = `<div id="chips">
+    <button id="chip-all" data-controller-item="history-filter" data-controller-key="range-all">All</button>
+    <button id="chip-month" data-controller-item="history-filter" data-controller-key="range-month">Month</button>
+  </div>`;
+  place({ "chip-all": [0, 40, 60, 32], "chip-month": [70, 40, 80, 32] });
+  // Like React: the picked chip becomes a stepper after the click.
+  document.getElementById("chip-month")!.addEventListener("click", () =>
+    queueMicrotask(() => {
+      document.getElementById("chip-month")!.outerHTML = `<span>
+        <button id="month-previous">‹</button>
+        <button id="month-label" data-controller-item="history-filter" data-controller-key="range-month">November</button>
+        <button id="month-next">›</button>
+      </span>`;
+      place({
+        "month-previous": [70, 40, 28, 32],
+        "month-label": [100, 40, 90, 32],
+        "month-next": [192, 40, 28, 32],
+      });
+    }),
+  );
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.focus();
+
+  input("right");
+  expect(document.activeElement?.id).toBe("chip-all");
+  input("right");
+  expect(document.activeElement?.id).toBe("chip-month");
+  input("confirm");
+  await Promise.resolve();
+  frame();
+  expect(document.activeElement?.id).toBe("month-label");
+  expect(
+    document.getElementById("month-label")!.getAttribute("data-controller-selected"),
+  ).toBe("true");
+  // The stepper's arrows are the mouse's: Left goes on to the next chip.
+  input("left");
+  expect(document.activeElement?.id).toBe("chip-all");
+});
+
 it("keeps the controller on the sidebar when A opens a view without cards, and Right enters it to scroll", () => {
   const nowNav = document.querySelector<HTMLElement>("#nav-now")!;
   nowNav.addEventListener("click", () => {
