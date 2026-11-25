@@ -6,16 +6,19 @@
       {
         "title": "A Covers view",
         "text": "My Games can show just your covers, big and calm. Set the space between them, let the other covers step back while you point at one, and click a cover to open its details.",
-        "hint": "My Games → Covers, beside the other views; spacing and spotlight under Customize → Layout"
+        "hint": "My Games → Covers, beside the other views; spacing and spotlight under Customize → Layout",
+        "image": "covers"
       },
       {
         "title": "Screenshots in game details",
         "text": "A Screenshots tab shows your own screenshots first, with the session you took them in, then pictures from IGDB. General shows a row of them, and a click opens them big.",
-        "hint": "Game details → Screenshots"
+        "hint": "Game details → Screenshots",
+        "image": "screenshots"
       },
       {
         "title": "More with your controller",
-        "text": "Y (Triangle) opens a game's details, LB/RB switch tabs and Settings pages, and View/Create steps through Standard cards, Large cards and Covers. Settings, dialogs, screenshots and My History now work from the couch too: A goes in, B goes back, and the right stick scrolls."
+        "text": "Y (Triangle) opens a game's details, LB/RB switch tabs and Settings pages, and View/Create steps through Standard cards, Large cards and Covers. Settings, dialogs, screenshots and My History now work from the couch too: A goes in, B goes back, and the right stick scrolls.",
+        "image": "controller"
       },
       {
         "title": "Sort by length or rating",
