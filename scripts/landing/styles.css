@@ -849,6 +849,10 @@ main[id] {
 .support-grid.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+/* An odd number of import cards: the last one takes the whole row. */
+#imports .support-grid > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
 .support-card {
   display: flex;
   flex-direction: column;

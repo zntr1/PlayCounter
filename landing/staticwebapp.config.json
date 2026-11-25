@@ -135,6 +135,11 @@
       "statusCode": 301
     },
     {
+      "route": "/check-playtime-nintendo-switch/index",
+      "redirect": "/check-playtime-nintendo-switch/",
+      "statusCode": 301
+    },
+    {
       "route": "/check-playtime-ea-app/index",
       "redirect": "/check-playtime-ea-app/",
       "statusCode": 301

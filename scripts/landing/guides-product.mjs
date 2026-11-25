@@ -3,29 +3,30 @@ import { site } from "./site.mjs";
 export const productGuides = [
   {
     slug: "total-playtime-across-all-launchers",
+    updated: "2026-11-25",
     category: "Using PlayCounter",
     title: "See your game playtime across launchers",
     description:
-      "Build one PC game library with automatic tracking, Steam, Xbox, Epic and GOG imports, clear playtime totals and local session history in PlayCounter.",
+      "Build one PC game library with automatic tracking, Steam, Xbox, Epic, GOG, PlayStation and Nintendo imports, clear playtime totals and local session history in PlayCounter.",
     answer:
-      "PlayCounter brings your tracked PC games, your Steam, Xbox, Epic and GOG playtime and your Battle.net games into My Games. Keep it running while you play, then use the library and history views to see your hours.",
+      "PlayCounter brings your tracked PC games, your Steam, Xbox, Epic, GOG, PlayStation and Nintendo playtime and your Battle.net games into My Games. Keep it running while you play, then use the library and history views to see your hours.",
     thumb: "library",
     sections: [
       {
         id: "library",
         title: "Start with one library",
-        html: "<ol><li>Install PlayCounter and leave it running. Launch your games from their usual launcher or shortcut.</li><li>Open <strong>My Games</strong> to see recognized games with their covers and recorded hours.</li><li>Use the <strong>Steam</strong>, <strong>Xbox</strong>, <strong>Epic Games</strong>, <strong>GOG</strong> and <strong>Battle.net</strong> sources in the sidebar to import the games and previous playtime you want to include.</li><li>Review uncertain matches before importing. The <strong>All games</strong> tab brings the results together.</li></ol>",
+        html: "<ol><li>Install PlayCounter and leave it running. Launch your games from their usual launcher or shortcut.</li><li>Open <strong>My Games</strong> to see recognized games with their covers and recorded hours.</li><li>Use the <strong>Steam</strong>, <strong>Xbox</strong>, <strong>Epic Games</strong>, <strong>GOG</strong>, <strong>PlayStation</strong>, <strong>Nintendo</strong> and <strong>Battle.net</strong> sources in the sidebar to import the games and previous playtime you want to include.</li><li>Review uncertain matches before importing. The <strong>All games</strong> tab brings the results together.</li></ol>",
         screenshot: "library",
       },
       {
         id: "imports",
         title: "Bring in earlier hours",
-        html: '<p>Steam import reads the available library and playtime from a Steam account on this PC. Xbox import uses a Microsoft sign-in and the playtime that individual games report to Xbox. Epic import uses an Epic sign-in and the playtime Epic recorded. GOG import uses a GOG sign-in and the playtime GOG recorded. Battle.net import only adds your Battle.net games, without playtime, so you can skip it. These are optional imports; automatic PC tracking does not depend on them.</p><p>PlayCounter does not import historical hours from Battle.net, EA, Ubisoft or other launchers. Their recognized PC games are still tracked as you play, and you can <a href="/adjust-total-playtime/">set a game’s earlier total yourself</a>. An imported or adjusted total is a starting reference, not a reconstruction of past sessions.</p>',
+        html: '<p>Steam import reads the available library and playtime from a Steam account on this PC. Xbox import uses a Microsoft sign-in and the playtime that individual games report to Xbox. Epic import uses an Epic sign-in and the playtime Epic recorded. GOG import uses a GOG sign-in and the playtime GOG recorded. PlayStation and Nintendo imports use a sign-in and bring in the playtime Sony and Nintendo recorded for your console games. Battle.net import only adds your Battle.net games, without playtime, so you can skip it. These are optional imports; automatic PC tracking does not depend on them.</p><p>PlayCounter does not import historical hours from Battle.net, EA, Ubisoft or other launchers. Their recognized PC games are still tracked as you play, and you can <a href="/adjust-total-playtime/">set a game’s earlier total yourself</a>. An imported or adjusted total is a starting reference, not a reconstruction of past sessions.</p>',
       },
       {
         id: "totals",
         title: "How playtime totals work",
-        html: '<p>Each launcher’s total counts once, and different launchers are added together: hours on Steam and hours on Xbox are separate play. PlayCounter compares that sum with its own total, meaning the sessions it recorded plus any adjustment you made, and shows the higher number.</p><div class="total-example" role="img" aria-label="Example: Steam 100 hours plus Xbox 70 hours makes 170 hours of launcher time. PlayCounter tracked 20 hours. The game shows 170 hours."><div><span>Steam</span><strong>100 h</strong></div><div class="op">+</div><div><span>Xbox</span><strong>70 h</strong></div><div class="op">=</div><div><span>Launchers</span><strong>170 h</strong></div><div class="op">vs</div><div><span>PlayCounter</span><strong>20 h</strong></div><div class="op">→</div><div class="result"><span>Shown</span><strong>170 h</strong></div></div><p>For example, a game with 100 hours reported by Steam, 70 by Xbox and 20 recorded by PlayCounter shows <strong>170 hours</strong>. New sessions still appear in history, but the displayed total stays at 170 until PlayCounter’s own total or an updated import exceeds it.</p><p>Run an import again to refresh the launcher totals. Games matched to the same game identity share a total; review unmatched or ambiguous entries so the correct titles are linked.</p><p>PlayStation is different: Sony’s total counts play on your PS5 or PS4, which never overlaps the sessions PlayCounter records on your PC, so it is added instead of compared. 10 hours on PS5 and 2 hours tracked on your PC show 12 hours, and Sony’s total refreshes by itself. <a href="/check-playtime-ps5/#history">PS5 playtime</a>.</p>',
+        html: '<p>Each launcher’s total counts once, and different launchers are added together: hours on Steam and hours on Xbox are separate play. PlayCounter compares that sum with its own total, meaning the sessions it recorded plus any adjustment you made, and shows the higher number.</p><div class="total-example" role="img" aria-label="Example: Steam 100 hours plus Xbox 70 hours makes 170 hours of launcher time. PlayCounter tracked 20 hours. The game shows 170 hours."><div><span>Steam</span><strong>100 h</strong></div><div class="op">+</div><div><span>Xbox</span><strong>70 h</strong></div><div class="op">=</div><div><span>Launchers</span><strong>170 h</strong></div><div class="op">vs</div><div><span>PlayCounter</span><strong>20 h</strong></div><div class="op">→</div><div class="result"><span>Shown</span><strong>170 h</strong></div></div><p>For example, a game with 100 hours reported by Steam, 70 by Xbox and 20 recorded by PlayCounter shows <strong>170 hours</strong>. New sessions still appear in history, but the displayed total stays at 170 until PlayCounter’s own total or an updated import exceeds it.</p><p>Run an import again to refresh the launcher totals. Games matched to the same game identity share a total; review unmatched or ambiguous entries so the correct titles are linked.</p><p>PlayStation is different: Sony’s total counts play on your PS5 or PS4, which never overlaps the sessions PlayCounter records on your PC, so it is added instead of compared. 10 hours on PS5 and 2 hours tracked on your PC show 12 hours, and Sony’s total refreshes by itself. Nintendo’s total for your Switch games is added the same way. <a href="/check-playtime-ps5/#history">PS5 playtime</a> · <a href="/check-playtime-nintendo-switch/#history">Switch playtime</a>.</p>',
       },
       {
         id: "history",
@@ -314,10 +315,11 @@ export const productGuides = [
   },
   {
     slug: "supported-games",
+    updated: "2026-11-25",
     category: "Using PlayCounter",
     title: "Which games does PlayCounter support?",
     description:
-      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox, Epic, GOG and Battle.net imports, fourteen emulators from DOSBox to BlueStacks, and local matches for unknown games.",
+      "Understand PlayCounter game detection across Windows launchers, PC ports and recompiled games, launcher and console imports, fourteen emulators from DOSBox to BlueStacks, and local matches for unknown games.",
     answer:
       "PlayCounter detects games from their running processes on Windows. There is no required launcher: recognized games from Steam, Epic, Xbox, GOG, EA, Ubisoft, Battle.net and standalone installations can all appear in one library.",
     sections: [
@@ -328,8 +330,14 @@ export const productGuides = [
       },
       {
         id: "importers",
-        title: "Imports: Steam, Xbox, Epic, GOG and Battle.net",
-        html: '<p>Dedicated importers support <strong>Steam</strong>, <strong>Xbox, including available Game Pass history</strong>, <strong>Epic Games</strong> and <strong>GOG</strong> with playtime, and <strong>Battle.net</strong> for your game list without playtime. The Battle.net import is optional, since its games are tracked without it. Steam reads local account data; Xbox uses a Microsoft sign-in; Epic uses an Epic sign-in for playtime or scans installed games without one; GOG does the same with a GOG sign-in; Battle.net scans this PC or uses an optional sign-in. Each lets you review the games before importing.</p><p>Other launchers do not need an importer for new automatic tracking. Importing brings in available earlier totals and does not recreate past sessions. <a href="/adjust-total-playtime/">Set earlier hours yourself</a> where no playtime import exists.</p>',
+        title:
+          "Imports: Steam, Xbox, Epic, GOG, PlayStation, Nintendo and Battle.net",
+        html: '<p>Dedicated importers support <strong>Steam</strong>, <strong>Xbox, including available Game Pass history</strong>, <strong>Epic Games</strong> and <strong>GOG</strong> with playtime, <strong>PlayStation</strong> and <strong>Nintendo</strong> with the playtime of your <a href="/check-playtime-ps5/">PS5 and PS4</a> and <a href="/check-playtime-nintendo-switch/">Switch</a> games, and <strong>Battle.net</strong> for your game list without playtime. The Battle.net import is optional, since its games are tracked without it. Steam reads local account data; Xbox uses a Microsoft sign-in; Epic uses an Epic sign-in for playtime or scans installed games without one; GOG does the same with a GOG sign-in; Battle.net scans this PC or uses an optional sign-in. Each lets you review the games before importing.</p><p>Other launchers do not need an importer for new automatic tracking. Importing brings in available earlier totals and does not recreate past sessions. <a href="/adjust-total-playtime/">Set earlier hours yourself</a> where no playtime import exists.</p>',
+      },
+      {
+        id: "ports",
+        title: "PC ports and recompiled games",
+        html: '<p>Fan-made PC ports and recompilations of console games run as normal Windows programs, without an emulator. PlayCounter tracks them like any other game: start the port and its timer runs.</p><p>Recognized today: <strong>Ship of Harkinian</strong> counts as The Legend of Zelda: Ocarina of Time, <strong>2 Ship 2 Harkinian</strong> as The Legend of Zelda: Majora’s Mask, and <strong>Zelda 64: Recompiled</strong> has its own entry. A port PlayCounter doesn’t know yet waits in <strong>Discovered</strong>: choose <strong>Add &amp; Share</strong>, pick the game it belongs to, and it is tracked from then on. Your match goes to community review, so it can be recognized for other players too. <a href="/game-not-detected/">How to add a game</a>.</p>',
       },
       {
         id: "emulators",

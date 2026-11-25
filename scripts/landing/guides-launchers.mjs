@@ -260,6 +260,7 @@ export const launcherGuides = [
   },
   {
     slug: "check-playtime-ps5",
+    updated: "2026-11-25",
     category: "Launcher guides",
     title: "Check your PS5 playtime and see it on your PC",
     description:
@@ -325,7 +326,80 @@ export const launcherGuides = [
         url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/playstation.ts`,
       },
     ],
-    related: ["total-playtime-across-all-launchers", "track-playtime-outside-steam"],
+    related: ["check-playtime-nintendo-switch", "total-playtime-across-all-launchers"],
+  },
+  {
+    slug: "check-playtime-nintendo-switch",
+    updated: "2026-11-25",
+    category: "Launcher guides",
+    title: "Check your Nintendo Switch playtime and see it on your PC",
+    description:
+      "Find hours played on your Nintendo Switch or Switch 2 and in Nintendo’s apps, and bring the playtime Nintendo recorded into PlayCounter with your Nintendo Account.",
+    answer:
+      "On your Switch or Switch 2, select your user icon on the HOME Menu and scroll down on your profile: it shows the playtime of the 20 games you played most recently. To bring Nintendo’s playtime into PlayCounter, open My Games, choose Nintendo and select Import from Nintendo.",
+    glance: [
+      ["Find hours on the console", "#console"],
+      ["Find hours in Nintendo’s apps", "#apps"],
+      ["Import into PlayCounter", "#import"],
+      ["How Switch hours add up", "#history"],
+    ],
+    sections: [
+      {
+        id: "console",
+        title: "Find hours played on the Switch",
+        html: "<ol><li>On the HOME Menu, select your <strong>user icon</strong> (My Page).</li><li>On the <strong>Profile</strong> page, scroll down.</li><li>It lists the total playtime of up to 20 games you played most recently.</li></ol><p>The steps are the same on a Nintendo Switch 2. A game that is not among those 20 is not listed, and the console needs an internet connection to show the latest play activity of your Nintendo Account.</p>",
+      },
+      {
+        id: "apps",
+        title: "Find hours in Nintendo’s apps",
+        html: "<ul><li><strong>Nintendo Store app:</strong> open the <strong>User Page</strong> and tap <strong>Play Activity</strong>. It shows the games you played recently with the time per day, and <strong>All Activity</strong> can be sorted by <strong>Total Time Played</strong>. New play can take up to a day to appear. Nintendo 3DS and Wii U play is shown only up to February 2020.</li><li><strong>Nintendo Switch Parental Controls app:</strong> with your console linked, <strong>Play Activity</strong> shows the daily play time and <strong>Monthly Summary</strong> the play time of each day in a month.</li></ul>",
+      },
+      {
+        id: "import",
+        title: "Import your Switch hours into PlayCounter",
+        intro:
+          "<p>Worth doing once: signing in brings in the playtime Nintendo recorded for the games you played on your Switch, and PlayCounter keeps it up to date by itself.</p>",
+        steps: [
+          {
+            title: "Open Nintendo in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>Nintendo</strong>, then <strong>Import from Nintendo</strong>. After your first import, the button says <strong>Import more from Nintendo</strong>.</p>",
+          },
+          {
+            title: "Sign in",
+            html: "<p>Select <strong>Sign in and find games</strong> and sign in with Nintendo in the window that opens. At the end, Nintendo shows your account: choose <strong>Select this person</strong>. If Nintendo’s page does not work there, select <strong>Sign in with a link</strong> on the <strong>Launcher accounts</strong> page: sign in at Nintendo in your browser, right-click <strong>Select this person</strong>, copy the link and paste it.</p>",
+          },
+          {
+            title: "Review and import",
+            html: "<p>Nintendo’s games are found by their name. A game with one clear match waits in <strong>Ready to import</strong>. Games under <strong>Needs you</strong> ask you to pick the right game first, for example when two games share a name. Then select <strong>Import</strong>.</p>",
+          },
+        ],
+        html: '<p>You sign in directly with Nintendo; PlayCounter does not see your password. The app keeps the sign-in on your PC, encrypted for your Windows account; <strong>Sign out</strong> on the <strong>Launcher accounts</strong> page deletes it. Your playtime stays on your PC: the PlayCounter API only receives game titles, as search queries, to find names and cover art. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+      },
+      {
+        id: "history",
+        title: "How Switch hours add up",
+        html: '<p>Nintendo’s total is console play, so it never overlaps the sessions PlayCounter records on your PC: it is added to your PC time instead of compared with it. 40 hours on the Switch and 5 hours PlayCounter tracked on your PC show 45 hours.</p><p>While PlayCounter runs, it reads Nintendo’s list again about once an hour. A new game you play on your Switch shows up in My Games on its own when its name fits exactly one game. Nintendo can take up to a day to list new play, and there are no live Switch sessions: a Switch game does not appear in Now Playing while you play it. <a href="/total-playtime-across-all-launchers/#totals">How launcher totals combine</a>.</p>',
+      },
+    ],
+    sources: [
+      {
+        label: "Nintendo Support: How to check Nintendo Switch play time and usage activity",
+        url: "https://en-americas-support.nintendo.com/app/answers/detail/a_id/22366",
+      },
+      {
+        label: "Nintendo Support: How to check Nintendo Switch 2 play time and usage activity",
+        url: "https://en-americas-support.nintendo.com/app/answers/detail/a_id/68301",
+      },
+      {
+        label: "Nintendo Support: How to view Play Activity in the Nintendo Store app",
+        url: "https://en-americas-support.nintendo.com/app/answers/detail/a_id/68647",
+      },
+      {
+        label: "PlayCounter: Nintendo importer",
+        url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/nintendo.ts`,
+      },
+    ],
+    related: ["check-playtime-ps5", "total-playtime-across-all-launchers"],
   },
   {
     slug: "check-playtime-ea-app",

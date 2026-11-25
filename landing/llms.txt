@@ -1,16 +1,24 @@
 # PlayCounter
 
-> Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic, GOG and PlayStation hours.
+> Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic, GOG, PlayStation and Nintendo hours.
 
-- Public Windows release: 1.7.0, published 2026-11-13. Coming soon to Steam.
+- Public Windows release: 1.7.3, published 2026-11-25. Coming soon to Steam.
 - Free desktop app; no PlayCounter account required. Desktop source is MIT-licensed. The current production API is private.
 - Automatic tracking follows recognized running games, regardless of launcher. Unknown or ambiguous games can be reviewed locally in Discovered.
-- Imports: Steam (local account files, with playtime), Xbox (optional Microsoft sign-in; playtime availability varies by game), Epic Games (optional Epic sign-in with the playtime Epic recorded, or installed games without sign-in and without playtime), GOG (optional GOG sign-in with the playtime GOG recorded, or installed games without sign-in and without playtime), PlayStation (optional PlayStation sign-in with the PS5 and PS4 playtime Sony recorded; while the app runs, games started on the console appear as live sessions) and Battle.net (optional: installed games or account sign-in, game list only, no historical playtime; Battle.net games are tracked without it).
-- Imported and adjusted totals do not recreate sessions. For a matched game, the displayed total is the higher of the PlayCounter total (tracked sessions plus any manual adjustment) and the sum of the imported launcher totals, counting each launcher once. PlayStation playtime is console play, so it is added to that total instead.
-- Earlier hours from launchers without a playtime import can be set with Adjust total playtime; a single missed session can be logged with its date.
-- Game details show achievements from Steam, Xbox, Epic Games and GOG, PlayStation trophies, and how long a game takes to beat (times from IGDB players) against the player's own progress.
-- While playing: a live timer on the game, pause and resume, counters per game (deaths, bosses or anything else; counted with a key, a controller combo or in the app) and a screenshot key that saves a picture of the game window to the Pictures folder, with an optional caption, shown on the session it was taken in.
+- Imports: Steam (local account files, with playtime), Xbox (optional Microsoft sign-in; playtime availability varies by game), Epic Games (optional Epic sign-in with the playtime Epic recorded, or installed games without sign-in and without playtime), GOG (optional GOG sign-in with the playtime GOG recorded, or installed games without sign-in and without playtime), PlayStation (optional PlayStation sign-in with the PS5 and PS4 playtime Sony recorded; while the app runs, games started on the console appear as live sessions), Nintendo (optional Nintendo Account sign-in with the playtime Nintendo recorded for Nintendo Switch and Switch 2 games; while the app runs, the totals are read again about once an hour; no live sessions) and Battle.net (optional: installed games or account sign-in, game list only, no historical playtime; Battle.net games are tracked without it).
+- Imported and adjusted totals do not recreate sessions. For a matched game, the displayed total is the higher of the PlayCounter total (tracked sessions plus any manual adjustment) and the sum of the imported launcher totals, counting each launcher once. PlayStation and Nintendo playtime is console play, so it is added to that total instead.
+- Earlier hours from launchers without a playtime import can be set with Adjust total playtime; a single missed session can be logged with its length and end time. For play away from the PC (a console, another computer), a manual timer on the game counts a session until it is stopped.
+- Game details show achievements from Steam, Xbox, Epic Games and GOG, PlayStation trophies, how long a game takes to beat (times from IGDB players) against the player's own progress, and screenshots: the player's own and pictures from IGDB.
+- While playing: a live timer on the game, pause and resume (optionally by itself when the player steps away), counters per game (deaths, bosses or anything else; counted with a key, a controller combo or in the app) and a screenshot key that saves a picture of the game window to the Pictures folder, with an optional caption, shown on the session it was taken in. Screenshots work with HDR on: the HDR picture is converted to a normal JPEG with its highlights compressed instead of cut off. A break reminder can pop up every 30 minutes to 4 hours of play. Pause, counters, screenshots, session notes and Quick add have hotkeys that work inside the game.
+- My History: every session with its date and length; totals for any dates (months, weeks, days or a picked range) compared with the time before; highlights such as the longest session, the best streak and the most played game; charts, a calendar and top games. Sessions can be edited, split and combined, and each session can carry a note.
 - Dedicated per-game emulator detection: DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS, Xenia and BlueStacks (Android). Recognition depends on exposed game identifiers, files or titles.
+- PC ports and recompiled games run as normal Windows programs and are tracked like any other game. Recognized automatically: Ship of Harkinian (soh.exe) as The Legend of Zelda: Ocarina of Time, 2 Ship 2 Harkinian (2ship.exe) as The Legend of Zelda: Majora's Mask, and Zelda 64: Recompiled (Zelda64Recompiled.exe). A port that is not recognized yet appears in Discovered and is tracked once the player matches it with its game.
+- Library and backlog: grid, list and covers-only views, search, sorting (most played, last played, recently added, tier, shortest main story, IGDB rating), shelves (also shelves that hide their games), a status per game (In progress, On hold, Finished, Want to play, Want to replay, Not planned), S to F tiers, and custom covers and banners (picked from SteamGridDB, uploaded or pasted). Light and dark themes.
+- Journal and milestones: notes and playthroughs for every game (for example New Game+ or a speedrun, each with its own playtime), and PlayCounter's own trophies for lifetime hours, monthly quests and a ladder per game.
+- Adding and starting games: launcher installs join the library on their own after a first import; watched folders add games outside any launcher; a game can be added by title or IGDB ID, also from a Quick add hotkey. An optional Play button starts games from PlayCounter with mouse, keyboard or controller, a running game can be stopped or force-stopped, and the app has a fullscreen mode for a TV.
+- Software: optionally counts how long apps such as Discord or Spotify run, on a Software page apart from games.
+- Backups: automatic weekly or daily backups on the PC or in a chosen folder, plus export and import to move to another PC.
+- Help & guides inside the app: step-by-step guides that use sample games.
 - Recorded sessions and history stay on the PC. Matching, metadata, updates and pseudonymous installation presence use online services; optional imports have additional data flows.
 - App languages: English, Deutsch, Español, Français, Polski, Português (Brasil), Русский, 中文（简体）.
 
@@ -25,6 +33,8 @@
 - [Epic Games import](https://playcounter.app/check-playtime-epic-games/)
 - [GOG import](https://playcounter.app/check-playtime-gog-galaxy/)
 - [PS5 playtime and PlayStation import](https://playcounter.app/check-playtime-ps5/)
+- [Nintendo Switch playtime and Nintendo import](https://playcounter.app/check-playtime-nintendo-switch/)
+- [Which games are recognized, including PC ports](https://playcounter.app/supported-games/)
 - [Emulator support](https://playcounter.app/playtime-tracker-for-emulators/)
 - [Privacy policy](https://playcounter.app/datenschutz#en)
 - [Download verification and source](https://playcounter.app/is-playcounter-safe/)
