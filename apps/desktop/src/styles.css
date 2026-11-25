@@ -465,6 +465,55 @@
   display: inline-flex;
 }
 
+/* Beside Play on the selected card while a controller drives the app: the
+   Y / Triangle button that opens Details. When the row runs short it gives
+   up its room before the action beside it does (shrink weight 100), down to
+   the glyph alone: its name then wraps onto a second line the button cuts
+   off, and DetailsKeyButton drops the name (data-fit="glyph") so the button
+   shrinks to the glyph. When everything fits (data-fit="name"), the action
+   and Details share the card's row evenly, each at least as wide as its
+   content. Each line is as tall as the button, so the glyph stays centred. */
+.details-key-hint {
+  display: none;
+  flex: 0 100 auto;
+  flex-wrap: wrap;
+  /* The small glyph (26px), px-2 and a border. The action beside it has
+     px-2 too, so the even split comes out even. */
+  min-width: calc(26px + 1rem + 2px);
+  overflow: hidden;
+}
+
+.details-key-hint > span {
+  display: flex;
+  height: 100%;
+  align-items: center;
+}
+
+.details-key-hint[data-fit="glyph"] > span + span {
+  display: none;
+}
+
+.details-key-row > .details-key-hint[data-fit="name"],
+.details-key-row > :has(+ .details-key-hint[data-fit="name"]) {
+  flex: 1 1 0%;
+  min-width: max-content;
+}
+
+/* The glyph art leaves 9% of its square empty on each side. Beside a name
+   that reads as extra room on the glyph's side, so A Play and Y Details
+   looked off-centre in their buttons. Pulling the empty edges in centres
+   what you see. */
+.details-key-hint > span:first-child,
+.details-key-row .launch-key-hint--controller {
+  margin-inline: calc(26px * -0.09);
+}
+
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .details-key-hint {
+  display: flex;
+}
+
 /* Button hints that only make sense with a controller in hand, like LB / RB
    at the ends of a tab row. */
 .controller-mode-only {

@@ -328,6 +328,7 @@ import {
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { LaunchKeyHint } from "./games/LaunchKeyHint";
+import { DetailsKeyButton } from "./games/DetailsKeyButton";
 import { controllerButtonName } from "../ControllerButtonGlyph";
 import { CloseGameDialog } from "./games/CloseGameDialog";
 import { CloseKeyHint } from "./games/CloseKeyHint";
@@ -7187,13 +7188,19 @@ export function GameLibraryCard({
 
   if (!isList) {
     // Under the card, or one rounded button on the cover in the Covers view.
+    // With the controller's Details button beside it, the footer is a row in
+    // which it keeps its full width first (flex-auto, see .details-key-hint).
     const footerShape = isCovers
-      ? "covers-hover-button min-w-0 flex-1 overflow-hidden whitespace-nowrap rounded-lg px-2"
-      : clsx("border-t", footerSize);
+      ? "covers-hover-button min-w-0 flex-auto overflow-hidden whitespace-nowrap rounded-lg px-2"
+      : clsx(
+          "border-t",
+          footerSize,
+          controllerNavigable ? "min-w-0 flex-auto px-2" : "shrink-0",
+        );
     const launchFooter = canCloseGame ? (
       <div
         className={clsx(
-          "flex shrink-0 items-stretch border-success-border bg-success-tint font-semibold",
+          "flex items-stretch border-success-border bg-success-tint font-semibold",
           footerShape,
         )}
       >
@@ -7259,7 +7266,7 @@ export function GameLibraryCard({
         // No transition: WebView2 painted the full hover fill for one
         // frame at the end of the fade-out, which read as a flicker.
         className={clsx(
-          "flex shrink-0 items-center justify-center gap-2 font-semibold disabled:cursor-not-allowed",
+          "flex items-center justify-center gap-2 font-semibold disabled:cursor-not-allowed",
           footerShape,
           !showPlayButton && !showInstallInSteam
             ? isCovers
@@ -7338,7 +7345,7 @@ export function GameLibraryCard({
           showOpenInXbox ? void handleOpenXboxApp() : setSettingLaunchFile(true)
         }
         className={clsx(
-          "flex shrink-0 items-center justify-center gap-2 font-semibold transition",
+          "flex items-center justify-center gap-2 font-semibold transition",
           footerShape,
           isCovers
             ? "bg-white/15 text-white hover:bg-white/25"
@@ -7361,7 +7368,7 @@ export function GameLibraryCard({
       <div
         title={t("PlayCounter can't launch this game directly")}
         className={clsx(
-          "flex shrink-0 items-center justify-center gap-2",
+          "flex items-center justify-center gap-2",
           footerShape,
           isCovers
             ? "bg-white/10 text-white/70"
@@ -7371,6 +7378,22 @@ export function GameLibraryCard({
         <Info size={footerIconSize} />
         {t("Not launchable")}
       </div>
+    ) : null;
+    // Y / Triangle beside Play (or whatever the card offers) on the selected
+    // card.
+    const detailsKey = controllerNavigable ? (
+      <DetailsKeyButton
+        gameName={game.name}
+        onClick={() => openDetails()}
+        className={
+          isCovers
+            ? "covers-hover-button rounded-lg bg-white/15 px-2 text-white hover:bg-white/25"
+            : clsx(
+                "border-l border-t border-border px-2 text-text-muted hover:bg-surface-hover hover:text-text",
+                footerSize,
+              )
+        }
+      />
     ) : null;
     const communityUpgradePrompt =
       game.communityUpgradeExeName && !compact ? (
@@ -7560,8 +7583,9 @@ export function GameLibraryCard({
             {levelUpPrompt ? (
               <div className="mt-1.5">{levelUpPrompt}</div>
             ) : null}
-            <div className="mt-2 flex gap-1.5">
+            <div className="details-key-row mt-2 flex gap-1.5">
               {launchFooter}
+              {detailsKey}
               <button
                 type="button"
                 aria-label={t("More actions for {{name}}", { name: game.name })}
@@ -7958,7 +7982,14 @@ export function GameLibraryCard({
             </span>
           </button>
         ) : null}
-        {isCovers ? null : launchFooter}
+        {isCovers ? null : detailsKey ? (
+          <div className="details-key-row flex shrink-0">
+            {launchFooter}
+            {detailsKey}
+          </div>
+        ) : (
+          launchFooter
+        )}
         {renderDialogs()}
       </SelectableLibraryCard>
     );
@@ -8208,6 +8239,13 @@ export function GameLibraryCard({
             </div>
           </div>
 
+          {controllerNavigable ? (
+            <DetailsKeyButton
+              gameName={game.name}
+              onClick={() => openDetails()}
+              className="h-9 rounded-lg border border-border px-2.5 text-sm text-text-muted hover:bg-surface-hover hover:text-text"
+            />
+          ) : null}
           {showPlayButton ? (
             <IconButton
               aria-label={playState.ariaLabel}
