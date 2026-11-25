@@ -92,6 +92,7 @@ import { tourCounters, tourDemoDetails } from "../../tour/tourDemoDetails";
 import { PersonalLibraryContext } from "../../PersonalLibraryContext";
 import { appLanguage, formatNumericDate, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
+import { TabBumperHint } from "../../TabBumperHint";
 
 const t = getT("games");
 
@@ -720,6 +721,7 @@ export function GameDetailsDialog({
               onKeyDown={handleTabKeyDown}
               className="flex gap-1 overflow-x-auto [scrollbar-width:none]"
             >
+              <TabBumperHint button="LB" />
               {tabs.map(({ id, label, icon: Icon }) => {
                 const selected = tab === id;
                 return (
@@ -759,6 +761,7 @@ export function GameDetailsDialog({
                   </button>
                 );
               })}
+              <TabBumperHint button="RB" />
             </div>
           </div>
         </div>

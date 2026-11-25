@@ -84,6 +84,7 @@ import {
   SplitSessionDialog,
 } from "./history/SessionChangeDialogs";
 import { appLocale, formatNumericDate, getT } from "../../i18n";
+import { TabBumperHint } from "../TabBumperHint";
 
 const t = getT("history");
 
@@ -917,6 +918,7 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
           onKeyDown={handleTabKeyDown}
           className="flex gap-1"
         >
+          <TabBumperHint button="LB" />
           {historyTabs().map(({ id, label, icon: Icon }) => {
             const selected = tab === id;
             const count = tabCounts[id];
@@ -959,6 +961,7 @@ function HistoryPage({ scene }: { scene?: HistoryGuideScene } = {}) {
               </button>
             );
           })}
+          <TabBumperHint button="RB" />
         </div>
         {tab === "sessions" ? (
           <div className="flex flex-wrap items-center gap-2 pb-2">

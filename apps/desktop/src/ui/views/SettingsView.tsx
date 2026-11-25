@@ -32,6 +32,7 @@ import {
   type SettingsNode,
   type SettingsSectionDef,
 } from "./settings/settingsTree";
+import { TabBumperHint } from "../TabBumperHint";
 
 const t = getT("settings");
 
@@ -133,6 +134,7 @@ export function SettingsView() {
               </button>
             ) : null}
           </div>
+          <TabBumperHint button="LB" label={t("Previous page")} />
           {groups.map((group, index) => {
             const Icon = group.icon;
             const current = !results && group.id === active.id;
@@ -175,6 +177,7 @@ export function SettingsView() {
               </Fragment>
             );
           })}
+          <TabBumperHint button="RB" label={t("Next page")} />
         </nav>
         <div className="min-w-0">
           {results ? (

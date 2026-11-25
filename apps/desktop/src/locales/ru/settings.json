@@ -428,5 +428,7 @@
   "Clock": "Формат времени",
   "Show times with 24 hours or with AM and PM. Automatic follows the format region.": "Показывает время в 24-часовом формате или с AM и PM. «Автоматически» — по региональному формату.",
   "24-hour": "24 часа",
-  "12-hour": "12 часов"
+  "12-hour": "12 часов",
+  "Previous page": "Предыдущая страница",
+  "Next page": "Следующая страница"
 }

@@ -410,5 +410,7 @@
   "Clock": "Uhrzeitformat",
   "Show times with 24 hours or with AM and PM. Automatic follows the format region.": "Zeigt Uhrzeiten mit 24 Stunden oder mit AM und PM. „Automatisch“ folgt dem regionalen Format.",
   "24-hour": "24 Stunden",
-  "12-hour": "12 Stunden"
+  "12-hour": "12 Stunden",
+  "Previous page": "Vorige Seite",
+  "Next page": "Nächste Seite"
 }
