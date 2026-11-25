@@ -210,6 +210,8 @@ function controllerItems(keyboard = false) {
       if (items.indexOf(item) !== index || item.offsetParent === null)
         return false;
       if (root === document && !isNavigableItem(item, keyboard)) return false;
+      // [data-controller-ignore]: what a pad can't finish, like a guide or a
+      // button that opens a Windows file or folder window.
       if (
         item.hasAttribute("disabled") ||
         item.getAttribute("aria-disabled") === "true" ||

@@ -939,3 +939,41 @@ describe("formats regardless of language", () => {
     expect(appLocale()).not.toContain("-u-hc");
   });
 });
+
+describe("the controller skips what it can't finish", () => {
+  // A Windows folder or file window takes a mouse, and so does a guide: the
+  // controller never selects the buttons that open them.
+  const skipped: [SettingsGroupId, string[]][] = [
+    ["shortcuts", ["Show me how"]],
+    ["play", ["Show me how", "Open folder"]],
+    ["launching", ["Show me how"]],
+    ["library", ["Show me how", "Add folder"]],
+    ["emulators", ["Show me how"]],
+    ["discovery", ["Show me how", "Folder"]],
+    [
+      "backup",
+      ["Show me how", "Export", "Import", "Choose folder", "Open folder"],
+    ],
+  ];
+
+  it.each(skipped)(
+    "leaves the %s page's %j to the mouse",
+    async (group, labels) => {
+      await renderSettings(group);
+      for (const label of labels) {
+        const button = buttonByText(label, container);
+        expect(button.closest("[data-controller-ignore]"), label).not.toBeNull();
+      }
+    },
+  );
+
+  it("still lets the controller remove a watched folder", async () => {
+    localStorage.setItem(
+      "playcounter.watchFolders",
+      JSON.stringify({ folders: ["D:/Games"], dismissed: [] }),
+    );
+    await renderSettings("library");
+    const remove = byLabel("Stop watching D:/Games");
+    expect(remove.closest("[data-controller-ignore]")).toBeNull();
+  });
+});

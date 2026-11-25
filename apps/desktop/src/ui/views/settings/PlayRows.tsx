@@ -403,6 +403,7 @@ export function ScreenshotFolderRow({ level, disabled }: SettingsRowProps) {
       control={
         <Button
           icon={FolderOpen}
+          data-controller-ignore=""
           disabled={disabled}
           onClick={() => {
             setFailed(false);

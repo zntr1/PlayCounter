@@ -711,6 +711,21 @@ it("walks the settings menu and page with the controller and works their switche
   expect(document.activeElement).toBe(nav);
 });
 
+it("skips what a pad can't finish: guides and Windows file and folder windows", () => {
+  const { byId } = showSettings();
+  byId("reset").insertAdjacentHTML(
+    "beforebegin",
+    '<button id="open-folder" data-controller-ignore="">Open folder</button>',
+  );
+  place({ "open-folder": [560, 185, 80, 30] });
+  byId("reminder").focus();
+
+  input("down");
+  expect(document.activeElement).toBe(byId("reset"));
+  input("up");
+  expect(document.activeElement).not.toBe(byId("open-folder"));
+});
+
 it("changes a settings dropdown with Left and Right, skipping choices that are off", () => {
   const { byId } = showSettings();
   const select = byId("reminder") as HTMLSelectElement;

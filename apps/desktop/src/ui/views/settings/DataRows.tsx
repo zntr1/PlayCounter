@@ -56,6 +56,7 @@ export function ExportDataRow({ level, disabled }: SettingsRowProps) {
       control={
         <Button
           icon={Download}
+          data-controller-ignore=""
           loading={exporting}
           disabled={disabled}
           onClick={() => void handleExport()}
@@ -110,6 +111,7 @@ export function ImportDataRow({ level, disabled }: SettingsRowProps) {
         control={
           <Button
             icon={Upload}
+            data-controller-ignore=""
             loading={importing}
             disabled={disabled}
             onClick={() => setConfirming(true)}
