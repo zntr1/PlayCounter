@@ -1038,7 +1038,14 @@ export function App() {
                       activeView === item ||
                       (item === "games" && activeView === "import")
                     }
-                    controllerEnabled={item !== "discovered" && item !== "dev"}
+                    // Views a pad can't work: Discovered's review takes a
+                    // mouse, Launcher accounts' sign-ins open launcher
+                    // windows. The controller walks past them.
+                    controllerEnabled={
+                      item !== "discovered" &&
+                      item !== "accounts" &&
+                      item !== "dev"
+                    }
                     dataTour={`nav-${item}`}
                     onContextMenu={
                       item === "games"

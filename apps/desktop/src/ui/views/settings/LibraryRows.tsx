@@ -52,6 +52,9 @@ export function LauncherAccountsRow({ level, disabled }: SettingsRowProps) {
       control={
         <Button
           disabled={disabled}
+          // Launcher accounts takes a mouse (its sign-ins open launcher
+          // windows): the controller walks past this button.
+          data-controller-ignore=""
           onClick={() => useAppStore.getState().setActiveView("accounts")}
         >
           {accountsT("Manage accounts")}

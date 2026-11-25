@@ -941,13 +941,14 @@ describe("formats regardless of language", () => {
 });
 
 describe("the controller skips what it can't finish", () => {
-  // A Windows folder or file window takes a mouse, and so does a guide: the
+  // A Windows folder or file window takes a mouse, and so do a guide and the
+  // Launcher accounts page (its sign-ins open launcher windows): the
   // controller never selects the buttons that open them.
   const skipped: [SettingsGroupId, string[]][] = [
     ["shortcuts", ["Show me how"]],
     ["play", ["Show me how", "Open folder"]],
     ["launching", ["Show me how"]],
-    ["library", ["Show me how", "Add folder"]],
+    ["library", ["Show me how", "Add folder", "Manage accounts"]],
     ["emulators", ["Show me how"]],
     ["discovery", ["Show me how", "Folder"]],
     [
