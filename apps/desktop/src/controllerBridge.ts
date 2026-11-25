@@ -636,13 +636,17 @@ function stopSelectedGame() {
   focusOpenedDialogWhenReady();
 }
 
+// The ring goes into the dialog on top, also when it opened over another,
+// like the screenshot viewer over Details. A dialog that pages
+// ([data-controller-pager], the viewer) gets no ring: Left / Right turn its
+// pages, B closes it.
 function focusOpenedDialogWhenReady(attempt = 0) {
   if (!globalThis.requestAnimationFrame) return;
   globalThis.requestAnimationFrame(() => {
-    const dialog = document.querySelector<HTMLElement>(
-      '[role="dialog"][aria-modal="true"]',
-    );
-    if (dialog) {
+    const dialog = topDialog();
+    if (dialog?.hasAttribute("data-controller-pager")) {
+      clearControllerSelection();
+    } else if (dialog) {
       const items = controllerItems();
       const preferred =
         dialog.querySelector<HTMLElement>("[data-autofocus]") ??
@@ -650,6 +654,26 @@ function focusOpenedDialogWhenReady(attempt = 0) {
       focusItem(preferred);
     } else if (attempt < 2) {
       focusOpenedDialogWhenReady(attempt + 1);
+    }
+  });
+}
+
+// A dialog that B closed hands focus back a frame or two later
+// (useDialogFocus). When it lands on an item of the dialog still open, like
+// the picture the viewer was opened from, the ring goes with it.
+function ringFocusWhenBack(attempt = 0) {
+  globalThis.requestAnimationFrame?.(() => {
+    const dialog = topDialog();
+    if (!dialog) return;
+    const focused = document.activeElement;
+    if (
+      focused instanceof HTMLElement &&
+      dialog.contains(focused) &&
+      controllerItems().includes(focused)
+    ) {
+      focusItem(focused);
+    } else if (attempt < 2) {
+      ringFocusWhenBack(attempt + 1);
     }
   });
 }
@@ -720,12 +744,27 @@ function handleControllerEvent(
     return;
   }
 
+  // A dialog that pages, like the screenshot viewer: Left and Right turn
+  // its pages.
+  if (event.action === "left" || event.action === "right") {
+    const pager = topDialog()?.querySelector<HTMLElement>(
+      event.action === "left"
+        ? "[data-controller-previous]"
+        : "[data-controller-next]",
+    );
+    if (pager) {
+      pager.click();
+      return;
+    }
+  }
+
   if (event.action === "back") {
     clearControllerSelection();
     if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
       window.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
+      ringFocusWhenBack();
       return;
     }
     // Deep in a settings page, B goes to its menu item first.
@@ -837,7 +876,15 @@ function navigateItems(action: ControllerAction, keyboard = false) {
 
     moveWithinItems(items, selected, action);
   } else if (action === "confirm") {
-    const selected = items[current < 0 ? 0 : current];
+    // A dialog can ring what the arrows don't walk, like its open tab: A
+    // presses that, never the dialog's first item.
+    const ringed =
+      current < 0
+        ? topDialog()?.querySelector<HTMLElement>(
+            '[data-controller-selected="true"]',
+          )
+        : null;
+    const selected = ringed ?? items[current < 0 ? 0 : current];
     focusItem(selected);
     activateItem(selected, keyboard);
   }

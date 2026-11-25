@@ -441,3 +441,46 @@ describe("pictures that are still loading", () => {
     ).toBe(true);
   });
 });
+
+describe("with a controller", () => {
+  it("lets it select every picture in the strip and the tab, and not Show in folder", async () => {
+    ownPictures();
+    details({ screenshotUrls: IGDB_SHOTS });
+    await openDetails();
+    const strip = document.querySelector<HTMLElement>(
+      "[data-screenshot-strip]",
+    )!;
+    const stripTiles = [...strip.querySelectorAll("button")];
+    expect(stripTiles).toHaveLength(7);
+    for (const tile of stripTiles)
+      expect(tile.getAttribute("data-controller-item")).toBe("screenshot");
+
+    await act(() => tabButton()!.click());
+    const tabTiles = [
+      ...section("Your screenshots").querySelectorAll("button[aria-label]"),
+      ...section("From IGDB").querySelectorAll("button"),
+    ];
+    expect(tabTiles).toHaveLength(7);
+    for (const tile of tabTiles)
+      expect(tile.getAttribute("data-controller-item")).toBe("screenshot");
+    const showInFolder = [
+      ...section("Your screenshots").querySelectorAll("button"),
+    ].find((button) => button.textContent === "Show in folder")!;
+    expect(showInFolder.hasAttribute("data-controller-item")).toBe(false);
+  });
+
+  it("pages the viewer with Left and Right", async () => {
+    ownPictures();
+    details({ screenshotUrls: IGDB_SHOTS });
+    await openTab();
+    await act(() => section("From IGDB").querySelector("button")!.click());
+
+    expect(viewer()!.hasAttribute("data-controller-pager")).toBe(true);
+    const previous = viewer()!.querySelector<HTMLElement>(
+      "[data-controller-previous]",
+    );
+    const next = viewer()!.querySelector<HTMLElement>("[data-controller-next]");
+    expect(previous?.getAttribute("aria-label")).toBe("Previous screenshot");
+    expect(next?.getAttribute("aria-label")).toBe("Next screenshot");
+  });
+});

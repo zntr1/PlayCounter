@@ -173,6 +173,8 @@ function OpenViewer() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="screenshot-viewer-title"
+        // A controller pages it with Left / Right (controllerBridge).
+        data-controller-pager
         tabIndex={-1}
         className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-16 pb-6 pt-14 outline-none"
       >
@@ -271,6 +273,7 @@ function OpenViewer() {
               icon={ChevronLeft}
               aria-label={t("Previous screenshot")}
               title={t("Previous screenshot")}
+              data-controller-previous
               onClick={() => go(-1)}
               className="absolute left-4 top-1/2 h-11 w-11 -translate-y-1/2 bg-black/40"
             />
@@ -278,6 +281,7 @@ function OpenViewer() {
               icon={ChevronRight}
               aria-label={t("Next screenshot")}
               title={t("Next screenshot")}
+              data-controller-next
               onClick={() => go(1)}
               className="absolute right-4 top-1/2 h-11 w-11 -translate-y-1/2 bg-black/40"
             />

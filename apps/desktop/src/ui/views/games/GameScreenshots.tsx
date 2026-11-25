@@ -126,6 +126,7 @@ export function ScreenshotStrip({
           <li key={shot.path} className="w-[220px] shrink-0">
             <button
               type="button"
+              data-controller-item="screenshot"
               aria-label={label(index)}
               title={shot.caption ?? undefined}
               onClick={() => open(index)}
@@ -151,6 +152,7 @@ export function ScreenshotStrip({
           >
             <button
               type="button"
+              data-controller-item="screenshot"
               aria-label={label(own.length + index)}
               onClick={() => open(own.length + index)}
               className={TILE}
@@ -224,6 +226,7 @@ export function GameScreenshotsTab({
                     <button
                       type="button"
                       data-shot
+                      data-controller-item="screenshot"
                       aria-label={label(index)}
                       onClick={() => open(index)}
                       className={TILE}
@@ -276,6 +279,7 @@ export function GameScreenshotsTab({
                 <li key={url}>
                   <button
                     type="button"
+                    data-controller-item="screenshot"
                     aria-label={label(own.length + index)}
                     onClick={() => open(own.length + index)}
                     className={TILE}

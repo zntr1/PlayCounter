@@ -588,6 +588,97 @@ it("switches the open dialog's tabs, not the view's, and the ring follows the ta
   expect(openTab(dialogTabs)).toBe("notes");
 });
 
+/** A Details-like dialog: its tab row, the open tab first, and two pictures
+ *  the controller walks. A on a picture opens a viewer over it that pages
+ *  with its Previous / Next buttons; Escape closes the viewer and, a frame
+ *  later, hands focus back to the picture (like useDialogFocus). */
+function picturesDialog() {
+  enableController();
+  useAppStore.getState().setActiveView("games");
+  content.setAttribute("aria-busy", "false");
+  const details = modal();
+  const tabs = tabRow(details, ["general", "screenshots"], true);
+  details.insertAdjacentHTML(
+    "beforeend",
+    `<button id="shot-1" data-controller-item="screenshot">1</button>
+     <button id="shot-2" data-controller-item="screenshot">2</button>`,
+  );
+  place({
+    general: [0, 0, 80, 30],
+    screenshots: [90, 0, 80, 30],
+    "shot-1": [0, 50, 200, 110],
+    "shot-2": [210, 50, 200, 110],
+  });
+  const byId = (id: string) => document.getElementById(id)!;
+  const paged: string[] = [];
+  const opened = vi.fn();
+  const openViewer = (from: HTMLElement) => {
+    opened(from.id);
+    const viewer = modal();
+    viewer.setAttribute("data-controller-pager", "");
+    viewer.innerHTML = `
+      <button id="viewer-close" data-autofocus>Close</button>
+      <button id="viewer-previous" data-controller-previous>Previous</button>
+      <button id="viewer-next" data-controller-next>Next</button>`;
+    for (const id of ["viewer-previous", "viewer-next"])
+      byId(id).addEventListener("click", () => paged.push(id));
+    byId("viewer-close").focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      window.removeEventListener("keydown", close);
+      viewer.remove();
+      requestAnimationFrame(() => from.focus());
+    };
+    window.addEventListener("keydown", close);
+  };
+  for (const id of ["shot-1", "shot-2"])
+    byId(id).addEventListener("click", () => openViewer(byId(id)));
+  return { tabs, byId, paged, opened };
+}
+
+it("walks a dialog's pictures from its open tab, and A on the tab opens none of them", () => {
+  const { tabs, byId, opened } = picturesDialog();
+  // The ring on the open tab, like after Y opened Details.
+  tabs[0].focus();
+  input("nextTab");
+  input("previousTab");
+  expect(tabs[0].getAttribute("data-controller-selected")).toBe("true");
+
+  input("confirm");
+  frame();
+  expect(opened).not.toHaveBeenCalled();
+  expect(tabs[0].getAttribute("data-controller-selected")).toBe("true");
+
+  input("down");
+  expect(document.activeElement).toBe(byId("shot-1"));
+  input("right");
+  expect(document.activeElement).toBe(byId("shot-2"));
+  input("left");
+  expect(document.activeElement).toBe(byId("shot-1"));
+});
+
+it("opens a picture with A, pages it with Left / Right, and B comes back to the picture", () => {
+  const { byId, paged, opened } = picturesDialog();
+  input("down");
+  input("right");
+  input("confirm");
+  frame();
+  expect(opened).toHaveBeenCalledWith("shot-2");
+  // No ring in the viewer, and none left on the dialog behind it.
+  expect(document.querySelector('[data-controller-selected="true"]')).toBeNull();
+
+  input("right");
+  input("right");
+  input("left");
+  expect(paged).toEqual(["viewer-next", "viewer-next", "viewer-previous"]);
+
+  input("back");
+  frame();
+  frame();
+  expect(document.activeElement).toBe(byId("shot-2"));
+  expect(byId("shot-2").getAttribute("data-controller-selected")).toBe("true");
+});
+
 function showSettings() {
   enableController();
   useAppStore.getState().setActiveView("settings");
