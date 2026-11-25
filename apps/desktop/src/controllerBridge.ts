@@ -505,11 +505,11 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
     }
   }
   const followRebuilt = isControl(item) ? rememberControlPlace(item) : () => {};
-  const inDialog = topDialog()?.contains(item) ?? false;
+  const dialog = topDialog();
   item.click();
   focusOpenedDialogWhenReady();
   // An answer that closes its dialog: the ring follows focus back.
-  if (inDialog) ringFocusWhenBack();
+  if (dialog?.contains(item)) ringFocusWhenBack(dialog);
   followRebuilt();
 }
 
@@ -559,7 +559,8 @@ function openSelectedDetails() {
 
 // LB / RB (L1 / R1) open the tab before or after the open one, round like
 // the arrow keys: in the open dialog, else in the view. A ring on the tab
-// row moves along.
+// row moves along. In a dialog the ring always goes to the new tab: a ring
+// in the old tab's content (a picture in Details) would go with it.
 function switchTab(step: 1 | -1) {
   const dialog = topDialog();
   const scope =
@@ -575,7 +576,7 @@ function switchTab(step: 1 | -1) {
       scope,
       (tab) => tab.getAttribute("aria-selected") === "true",
       step,
-      tablist.contains(document.activeElement),
+      dialog !== undefined || tablist.contains(document.activeElement),
     );
     return;
   }
@@ -670,20 +671,24 @@ function focusOpenedDialogWhenReady(attempt = 0) {
   });
 }
 
-// A dialog that B or an answer closed hands focus back a frame or two later
-// (useDialogFocus). When it lands on something the controller walks, like
-// the picture the viewer was opened from or the Settings button that asked,
-// the ring goes with it.
-function ringFocusWhenBack(attempt = 0) {
+// A dialog that B or an answer closed hands focus back once it is gone
+// (useDialogFocus), which in a heavy view like My Games can take several
+// frames. When focus lands on something the controller walks, like the card
+// Details was opened from or the Settings button that asked, the ring goes
+// with it. Up to about a second; a ring set meanwhile (the player moved on,
+// another dialog opened) ends the wait.
+function ringFocusWhenBack(closing: HTMLElement | undefined, attempt = 0) {
   globalThis.requestAnimationFrame?.(() => {
+    if (document.querySelector('[data-controller-selected="true"]')) return;
     const focused = document.activeElement;
     if (
+      !closing?.isConnected &&
       focused instanceof HTMLElement &&
       controllerItems().includes(focused)
     ) {
       focusItem(focused);
-    } else if (attempt < 2) {
-      ringFocusWhenBack(attempt + 1);
+    } else if (attempt < 60) {
+      ringFocusWhenBack(closing, attempt + 1);
     }
   });
 }
@@ -780,11 +785,12 @@ function handleControllerEvent(
     // it is.
     if (!topDialog() && document.activeElement?.closest?.("aside")) return;
     clearControllerSelection();
-    if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+    const closing = topDialog();
+    if (closing) {
       window.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
-      ringFocusWhenBack();
+      ringFocusWhenBack(closing);
       return;
     }
     // Deep in a settings page, B goes to its menu item first.

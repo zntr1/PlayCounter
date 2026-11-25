@@ -697,6 +697,18 @@ it("walks a dialog's pictures from its open tab, and A on the tab opens none of 
   expect(document.activeElement).toBe(byId("shot-1"));
 });
 
+it("moves the ring from a dialog's picture to the tab LB / RB opens, since the picture goes with its tab", () => {
+  const { tabs, byId } = picturesDialog();
+  input("down");
+  expect(document.activeElement).toBe(byId("shot-1"));
+
+  input("nextTab");
+  expect(openTab(tabs)).toBe("screenshots");
+  expect(document.activeElement).toBe(tabs[1]);
+  expect(tabs[1].getAttribute("data-controller-selected")).toBe("true");
+  expect(byId("shot-1").hasAttribute("data-controller-selected")).toBe(false);
+});
+
 it("opens a picture with A, pages it with Left / Right, and B comes back to the picture", () => {
   const { byId, paged, opened } = picturesDialog();
   input("down");
@@ -934,6 +946,39 @@ it("answers a dialog's question with the controller: Left / Right pick a footer 
   input("back");
   expect(answered).not.toHaveBeenCalled();
   frame();
+  expect(document.activeElement).toBe(byId("reset"));
+  expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
+});
+
+it("rings what gets focus back after B, even when the dialog takes several frames to close", () => {
+  const { byId } = showSettings();
+  byId("reset").addEventListener("click", () => {
+    const dialog = modal();
+    dialog.innerHTML = `<div data-modal-footer><button id="slow-cancel" data-autofocus>Cancel</button></div>`;
+    place({ "slow-cancel": [300, 400, 100, 36] });
+    // A heavy view: closing takes three frames, focus comes back on the
+    // fourth (useDialogFocus).
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      window.removeEventListener("keydown", onKey);
+      const later = (frames: number, run: () => void) =>
+        requestAnimationFrame(() =>
+          frames > 1 ? later(frames - 1, run) : run(),
+        );
+      later(3, () => {
+        dialog.remove();
+        requestAnimationFrame(() => byId("reset").focus());
+      });
+    };
+    window.addEventListener("keydown", onKey);
+  });
+  byId("reset").focus();
+  input("confirm");
+  frame();
+  expect(document.activeElement).toBe(byId("slow-cancel"));
+
+  input("back");
+  for (let step = 0; step < 6; step++) frame();
   expect(document.activeElement).toBe(byId("reset"));
   expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
 });

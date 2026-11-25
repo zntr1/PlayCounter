@@ -3,6 +3,7 @@ import { cn } from "./cn";
 import {
   forwardRef,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -299,11 +300,19 @@ const modalSizes: Record<ModalSize, string> = {
   full: "h-[80vh] max-w-none",
 };
 
+// Focus goes back to what had it before the dialog showed. A layout effect,
+// so that is still the card: a passive effect can run after the frame in
+// which the controller already put its ring (and focus) on the dialog's
+// first tab. The element is kept in a ref, and a run that finds focus inside
+// the dialog leaves it alone: StrictMode runs this twice in development, the
+// second time with focus on the dialog's first tab already.
 export function useDialogFocus(containerRef: RefObject<HTMLElement | null>) {
-  useEffect(() => {
+  const returnTo = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const previous = document.activeElement as HTMLElement | null;
+    const active = document.activeElement as HTMLElement | null;
+    if (!container.contains(active)) returnTo.current = active;
     const focusableSelector =
       'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
     const preferred = container.querySelector<HTMLElement>("[data-autofocus]");
@@ -337,6 +346,7 @@ export function useDialogFocus(containerRef: RefObject<HTMLElement | null>) {
     return () => {
       container.removeEventListener("keydown", handleKeyDown);
       requestAnimationFrame(() => {
+        const previous = returnTo.current;
         if (document.activeElement === document.body)
           (previous?.isConnected
             ? previous

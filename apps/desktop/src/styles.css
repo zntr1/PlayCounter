@@ -405,7 +405,7 @@
    does not reliably activate the browser's :focus-visible heuristic. */
 [data-controller-selected="true"]:not(.game-library-card):not(.library-tab):not(
     .corner-pick
-  ) {
+  ):not([role="tab"]):not([data-controller-item="screenshot"]) {
   z-index: 30;
   outline: 5px solid rgb(var(--color-accent));
   outline-offset: 3px;
@@ -433,6 +433,23 @@
 
 .corner-pick[data-controller-selected="true"] > span {
   opacity: 1;
+}
+
+/* Tab rows scroll sideways (Details), which clips the ring above to two side
+   bars beside the tab. Like the library tabs below, a tab gets its ring
+   inside its own box. */
+[role="tab"][data-controller-selected="true"] {
+  z-index: 30;
+  background: rgb(var(--color-accent) / 0.16);
+  box-shadow: inset 0 0 0 2px rgb(var(--color-accent) / 0.85);
+}
+
+/* Screenshots sit in a strip that scrolls sideways (Details' General) and
+   in panels, which cut the ring above off at the top. Their ring is drawn
+   inside the picture instead, over it. */
+[data-controller-item="screenshot"][data-controller-selected="true"] {
+  outline: 4px solid rgb(var(--color-accent));
+  outline-offset: -4px;
 }
 
 /* Library tabs live in a horizontally scrolling, vertically clipped strip, so
