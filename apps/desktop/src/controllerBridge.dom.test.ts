@@ -348,6 +348,28 @@ it("keeps the controller on the sidebar when A opens a view without cards, and R
   expect(document.activeElement).toBe(nowNav);
 });
 
+it("scrolls the view's content with the right stick while the ring is on the sidebar", () => {
+  enableController();
+  const aside = document.querySelector<HTMLElement>("aside")!;
+  // The sidebar scrolls on its own too, but the stick never moves it.
+  aside.setAttribute("data-controller-scroll", "");
+  const sidebarScroll = vi.fn();
+  const contentScroll = vi.fn();
+  aside.scrollBy = sidebarScroll;
+  content.scrollBy = contentScroll;
+  const nav = document.querySelector<HTMLElement>("#nav-now")!;
+  nav.focus();
+
+  input("scrollDown");
+  input("scrollUp");
+  expect(contentScroll.mock.calls).toEqual([
+    [{ top: 34, behavior: "auto" }],
+    [{ top: -34, behavior: "auto" }],
+  ]);
+  expect(sidebarScroll).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(nav);
+});
+
 it.each(["controller", "keyboard"])(
   "walks from My Games into its source tabs and opens one with the %s",
   (mode) => {
@@ -983,7 +1005,7 @@ it("moves into the page with A on a settings menu item, past the page's guide li
   expect(document.activeElement).toBe(document.getElementById("play-switch"));
 });
 
-it("goes back with B from deep in a settings page to its menu item, then to the sidebar", () => {
+it("goes back with B from deep in a settings page to its menu item, then to the sidebar, where B does nothing", () => {
   const { nav, byId } = showSettings();
   byId("reset").focus();
 
@@ -994,6 +1016,10 @@ it("goes back with B from deep in a settings page to its menu item, then to the 
   );
   input("back");
   expect(document.activeElement).toBe(nav);
+  // On the sidebar there is nothing further back: the ring stays.
+  input("back");
+  expect(document.activeElement).toBe(nav);
+  expect(nav.getAttribute("data-controller-selected")).toBe("true");
 });
 
 it("walks the settings pages round with LB / RB, the ring on the new page's menu item", () => {

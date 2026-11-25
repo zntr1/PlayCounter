@@ -993,7 +993,6 @@ export function App() {
           )}
         </div>
         <nav
-          data-controller-scroll
           className={clsx(
             "flex-1 overflow-y-auto overflow-x-hidden pb-6",
             sidebarCollapsed ? "px-2.5" : "px-3",

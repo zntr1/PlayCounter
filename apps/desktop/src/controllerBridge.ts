@@ -688,6 +688,10 @@ function ringFocusWhenBack(attempt = 0) {
   });
 }
 
+// The right stick scrolls what the player looks at: the open dialog, or the
+// view's content, also while the ring is on the sidebar, so My History
+// scrolls right after it is picked there. A scroll region the ring sits in
+// (a pane of a dialog) goes first; the sidebar's own never does.
 function scrollCurrentView(direction: "scrollUp" | "scrollDown") {
   if (typeof document === "undefined") return;
   const focused = document.activeElement as HTMLElement | null;
@@ -696,8 +700,11 @@ function scrollCurrentView(direction: "scrollUp" | "scrollDown") {
       '[role="dialog"][aria-modal="true"]',
     ),
   ].at(-1);
+  const ownRegion = focused?.closest("aside")
+    ? null
+    : focused?.closest<HTMLElement>("[data-controller-scroll]");
   const container =
-    focused?.closest<HTMLElement>("[data-controller-scroll]") ??
+    ownRegion ??
     modal?.querySelector<HTMLElement>("[data-controller-scroll]") ??
     document.querySelector<HTMLElement>('[data-tour="content"]');
   container?.scrollBy({
@@ -769,6 +776,9 @@ function handleControllerEvent(
   }
 
   if (event.action === "back") {
+    // On the sidebar there is nothing further back: B leaves the ring where
+    // it is.
+    if (!topDialog() && document.activeElement?.closest?.("aside")) return;
     clearControllerSelection();
     if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
       window.dispatchEvent(
@@ -794,7 +804,7 @@ function handleControllerEvent(
       return;
     }
     const activeNavigation = activeNavigationItem();
-    if (activeNavigation && !document.activeElement?.closest?.("aside")) {
+    if (activeNavigation) {
       focusItem(activeNavigation);
       return;
     }
