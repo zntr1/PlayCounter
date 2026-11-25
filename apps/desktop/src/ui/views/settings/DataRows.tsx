@@ -136,6 +136,7 @@ export function ImportDataRow({ level, disabled }: SettingsRowProps) {
               <Button
                 variant="primary"
                 icon={FolderOpen}
+                data-controller-ignore=""
                 onClick={() => {
                   setConfirming(false);
                   void handleImport();

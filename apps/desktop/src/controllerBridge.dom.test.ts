@@ -843,6 +843,79 @@ it("skips what a pad can't finish: guides and Windows file and folder windows", 
   expect(document.activeElement).not.toBe(byId("open-folder"));
 });
 
+/** A Reset-like question over Settings: Cancel (the safe answer, focused
+ *  first) and Reset in its footer, a close button in its head. Either
+ *  answer or Escape closes it, and a frame later focus goes back to the
+ *  button that opened it (like useDialogFocus). */
+function questionDialog(from: HTMLElement) {
+  const dialog = modal();
+  dialog.innerHTML = `
+    <button id="dialog-close">Close</button>
+    <p>Reset settings?</p>
+    <div data-modal-footer>
+      <button id="dialog-cancel" data-autofocus>Cancel</button>
+      <button id="dialog-reset">Reset</button>
+    </div>`;
+  place({
+    "dialog-close": [600, 100, 30, 30],
+    "dialog-cancel": [300, 400, 100, 36],
+    "dialog-reset": [410, 400, 100, 36],
+  });
+  const answered = vi.fn();
+  const close = () => {
+    dialog.remove();
+    window.removeEventListener("keydown", onKey);
+    requestAnimationFrame(() => from.focus());
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Escape") close();
+  };
+  window.addEventListener("keydown", onKey);
+  for (const answer of ["cancel", "reset"])
+    document
+      .getElementById(`dialog-${answer}`)!
+      .addEventListener("click", () => {
+        answered(answer);
+        close();
+      });
+  return answered;
+}
+
+it("answers a dialog's question with the controller: Left / Right pick a footer button, A presses it, the ring goes back", () => {
+  const { byId } = showSettings();
+  let answered = vi.fn();
+  byId("reset").addEventListener("click", () => {
+    answered = questionDialog(byId("reset"));
+  });
+  byId("reset").focus();
+
+  input("confirm");
+  frame();
+  expect(document.activeElement).toBe(byId("dialog-cancel"));
+  input("right");
+  expect(document.activeElement).toBe(byId("dialog-reset"));
+  expect(byId("dialog-reset").getAttribute("data-controller-selected")).toBe(
+    "true",
+  );
+  input("left");
+  expect(document.activeElement).toBe(byId("dialog-cancel"));
+  input("right");
+  input("confirm");
+  expect(answered).toHaveBeenCalledWith("reset");
+  frame();
+  expect(document.activeElement).toBe(byId("reset"));
+  expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
+
+  // B closes it without an answer, and the ring goes back too.
+  input("confirm");
+  frame();
+  input("back");
+  expect(answered).not.toHaveBeenCalled();
+  frame();
+  expect(document.activeElement).toBe(byId("reset"));
+  expect(byId("reset").getAttribute("data-controller-selected")).toBe("true");
+});
+
 it("changes a settings dropdown with Left and Right, skipping choices that are off", () => {
   const { byId } = showSettings();
   const select = byId("reminder") as HTMLSelectElement;

@@ -968,6 +968,14 @@ describe("the controller skips what it can't finish", () => {
     },
   );
 
+  it("leaves Import's Choose file to the mouse too", async () => {
+    await renderSettings("backup");
+    await click(buttonByText("Import", container));
+    const choose = buttonByText("Choose file");
+    expect(choose.closest("[data-controller-ignore]")).not.toBeNull();
+    expect(buttonByText("Cancel").closest("[data-controller-ignore]")).toBeNull();
+  });
+
   it("still lets the controller remove a watched folder", async () => {
     localStorage.setItem(
       "playcounter.watchFolders",

@@ -135,20 +135,26 @@ function track(
 // The keyboard and the controller walk only the cards and the sidebar: its
 // views and the library's source tabs under My Games. The controls above the
 // cards keep their own keyboard behavior. Inside a dialog every item is
-// reachable, since that is the only way to answer it. The controller also
-// walks every control of a [data-controller-controls] region (Settings); the
-// keyboard leaves those to Tab and their own keys.
+// reachable, and so are the buttons of its footer (Modal's answers, like
+// Cancel and Reset), since that is the only way to answer it. The controller
+// also walks every control of a [data-controller-controls] region
+// (Settings); the keyboard leaves those to Tab and their own keys.
 const SIDEBAR_ROLES = new Set(["navigation", "library-tab"]);
 const NAVIGABLE_ROLES = new Set(["game-card", ...SIDEBAR_ROLES]);
-const CONTROL_SELECTOR = [
+const CONTROLS = [
   "button",
   "select",
   "a[href]",
   'input[type="checkbox"]',
   'input[type="radio"]',
-]
-  .map((control) => "[data-controller-controls] " + control)
-  .join(", ");
+];
+const CONTROL_SELECTOR = CONTROLS.map(
+  (control) => "[data-controller-controls] " + control,
+).join(", ");
+const DIALOG_ITEM_SELECTOR = [
+  "[data-controller-item]",
+  ...CONTROLS.map((control) => "[data-modal-footer] " + control),
+].join(", ");
 
 function isSidebarItem(item: Element) {
   return SIDEBAR_ROLES.has(item.getAttribute("data-controller-item") ?? "");
@@ -202,9 +208,11 @@ function controllerItems(keyboard = false) {
   if (typeof document === "undefined") return [];
   const root: Document | HTMLElement = topDialog() ?? document;
   const selector =
-    root === document && !keyboard
-      ? "[data-controller-item], " + CONTROL_SELECTOR
-      : "[data-controller-item]";
+    root !== document
+      ? DIALOG_ITEM_SELECTOR
+      : keyboard
+        ? "[data-controller-item]"
+        : "[data-controller-item], " + CONTROL_SELECTOR;
   return [...root.querySelectorAll<HTMLElement>(selector)].filter(
     (item, index, items) => {
       if (items.indexOf(item) !== index || item.offsetParent === null)
@@ -497,8 +505,11 @@ function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
     }
   }
   const followRebuilt = isControl(item) ? rememberControlPlace(item) : () => {};
+  const inDialog = topDialog()?.contains(item) ?? false;
   item.click();
   focusOpenedDialogWhenReady();
+  // An answer that closes its dialog: the ring follows focus back.
+  if (inDialog) ringFocusWhenBack();
   followRebuilt();
 }
 
@@ -659,17 +670,15 @@ function focusOpenedDialogWhenReady(attempt = 0) {
   });
 }
 
-// A dialog that B closed hands focus back a frame or two later
-// (useDialogFocus). When it lands on an item of the dialog still open, like
-// the picture the viewer was opened from, the ring goes with it.
+// A dialog that B or an answer closed hands focus back a frame or two later
+// (useDialogFocus). When it lands on something the controller walks, like
+// the picture the viewer was opened from or the Settings button that asked,
+// the ring goes with it.
 function ringFocusWhenBack(attempt = 0) {
   globalThis.requestAnimationFrame?.(() => {
-    const dialog = topDialog();
-    if (!dialog) return;
     const focused = document.activeElement;
     if (
       focused instanceof HTMLElement &&
-      dialog.contains(focused) &&
       controllerItems().includes(focused)
     ) {
       focusItem(focused);
