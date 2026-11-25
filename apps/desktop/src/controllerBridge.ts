@@ -361,10 +361,10 @@ function moveWithinItems(
 
 // Settings: in a wide window the menu is a column beside the open page. Up
 // and Down stay in their column, Right goes from the menu into the page. In a
-// narrow one the menu is a row above the page and Down goes into it. Left at
-// the page's left edge goes to the open page's menu item, from the menu to
-// the sidebar. On a dropdown Left and Right change its value: a pad can't
-// work its list.
+// narrow one the menu is a row above the page and Down goes into it. No
+// direction leads out of the page again: B goes back to its menu item (in
+// with A, out with B). Left from the menu goes to the sidebar. On a dropdown
+// Left and Right change its value: a pad can't work its list.
 function moveAmongControls(
   items: HTMLElement[],
   selected: HTMLElement,
@@ -382,8 +382,9 @@ function moveAmongControls(
   const menu =
     region?.querySelector<HTMLElement>("[data-controller-menu]") ?? null;
   const inMenu = menu?.contains(selected) ?? false;
+  const pageControls = controls.filter((item) => !menu?.contains(item));
   if (action === "right") {
-    moveWithinItems(controls, selected, action, false);
+    moveWithinItems(inMenu ? controls : pageControls, selected, action, false);
     return;
   }
   const menuBeside =
@@ -391,17 +392,17 @@ function moveAmongControls(
     menu !== null &&
     menu.getBoundingClientRect().width <
       region.getBoundingClientRect().width / 2;
-  const column = menuBeside
-    ? controls.filter((item) => menu.contains(item) === inMenu)
-    : controls;
+  const column = !inMenu
+    ? pageControls
+    : menuBeside
+      ? controls.filter((item) => menu.contains(item))
+      : controls;
   if (action === "left") {
     const rects: ControllerItemRect[] = column.map((item) =>
       item.getBoundingClientRect(),
     );
     if (isLeftmostVisualItem(rects, column.indexOf(selected))) {
-      const openPage = inMenu ? undefined : openPageItem(region);
-      if (openPage && controls.includes(openPage)) focusItem(openPage);
-      else focusActiveNavigationItem();
+      if (inMenu) focusActiveNavigationItem();
       return;
     }
   }
@@ -859,8 +860,10 @@ function navigateItems(action: ControllerAction, keyboard = false) {
         const cardRects: ControllerItemRect[] = gameCards.map((item) =>
           item.getBoundingClientRect(),
         );
+        // The arrow keys go left from the first card to the sidebar. The
+        // controller stays: B takes it there (in with A, out with B).
         if (action === "left" && isLeftmostVisualItem(cardRects, cardIndex)) {
-          focusActiveNavigationItem();
+          if (keyboard) focusActiveNavigationItem();
           return;
         }
         moveWithinItems(gameCards, selected, action);

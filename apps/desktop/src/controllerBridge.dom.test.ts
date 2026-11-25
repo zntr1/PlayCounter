@@ -297,6 +297,24 @@ it("keeps the arrow keys and the controller off the controls above the cards", (
   expect(document.activeElement?.id).toBe("card-a");
 });
 
+it("keeps the controller on the cards until B takes it to the sidebar; the arrow keys still go left to it", () => {
+  showLibrary();
+  enableController();
+  const gamesNav = document.querySelector<HTMLElement>("#nav-games")!;
+  gamesNav.setAttribute("data-controller-active-view", "true");
+  const card = document.querySelector<HTMLElement>("#card-a")!;
+  card.focus();
+
+  input("left");
+  expect(document.activeElement).toBe(card);
+  input("back");
+  expect(document.activeElement).toBe(gamesNav);
+
+  card.focus();
+  press("ArrowLeft");
+  expect(document.activeElement).toBe(gamesNav);
+});
+
 it("keeps the controller on the sidebar when A opens a view without cards, and Right enters it to scroll", () => {
   const nowNav = document.querySelector<HTMLElement>("#nav-now")!;
   nowNav.addEventListener("click", () => {
@@ -754,8 +772,13 @@ it("goes down from the settings menu into the page when a narrow window puts the
   expect(document.activeElement).toBe(byId("seg-on"));
   input("left");
   expect(document.activeElement).toBe(byId("seg-off"));
-  // The page's left edge: back up to the open page's menu item.
+  // Neither Left at the page's edge nor Up at its top goes back into the
+  // menu above it: only B does.
   input("left");
+  expect(document.activeElement).toBe(byId("seg-off"));
+  for (let step = 0; step < 3; step++) input("up");
+  expect(byId("settings-menu").contains(document.activeElement)).toBe(false);
+  input("back");
   expect(document.activeElement).toBe(byId("menu-play"));
 });
 
@@ -795,8 +818,11 @@ it("walks the settings menu and page with the controller and works their switche
   input("down");
   expect(document.activeElement).toBe(byId("reset"));
 
-  // Left from the page goes to the open page's menu item, then the sidebar.
+  // No direction leaves the page: only B, for the open page's menu item.
+  // Left from the menu goes on to the sidebar.
   input("left");
+  expect(document.activeElement).toBe(byId("reset"));
+  input("back");
   expect(document.activeElement).toBe(byId("menu-play"));
   input("left");
   expect(document.activeElement).toBe(nav);

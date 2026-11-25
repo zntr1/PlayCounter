@@ -2086,6 +2086,16 @@ img[data-img-failed] {
   padding: 3rem clamp(10px, 4.5cqi, 16px) clamp(10px, 4.5cqi, 16px);
 }
 
+/* A cover the controller leaves hides its panel at once. Fading out, the
+   panel showed its mouse look for 150 ms (Play instead of A Play, no
+   Details), because the controller's look goes the moment the ring does.
+   The cover the ring moves to still fades its panel in. */
+:root[data-controller-mode="true"]
+  .game-library-card:not([data-controller-selected="true"])
+  .covers-hover {
+  transition: none;
+}
+
 .covers-hover-name {
   font-size: clamp(14px, 6cqi, 20px);
 }
