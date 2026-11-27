@@ -296,9 +296,15 @@ export function MarkupTools({
     else onDone();
   }, [onDone]);
 
-  // Esc and Ctrl+Z, before the viewer's own Esc, which would close it.
+  // Esc and Ctrl+Z, before the viewer's own Esc, which would close it. Not
+  // in a text field (the caption): Esc closes the field, Ctrl+Z undoes text.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest("input, textarea")
+      )
+        return;
       if (event.key === "Escape") {
         event.preventDefault();
         if (latest.current.saving) return;

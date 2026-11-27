@@ -276,6 +276,47 @@ describe("mark up", () => {
     });
   }
 
+  it("writes a caption while marking up; Esc in it closes only the field", async () => {
+    await drawNumber();
+    const field = () =>
+      container.querySelector<HTMLInputElement>(
+        'input[aria-label="Bildunterschrift"]',
+      );
+    const typeIn = (value: string) =>
+      act(() => {
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(field(), value);
+        field()!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    const pressIn = (name: string) =>
+      act(() => {
+        field()!.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: name,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      });
+    await act(() => button("Bildunterschrift hinzufügen")!.click());
+    await typeIn("Sunrise over the lake");
+    await pressIn("Enter");
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "caption",
+      path: pictures[4].path,
+      caption: "Sunrise over the lake",
+    });
+    expect(button("Stift")).toBeDefined();
+    await act(() => button("Bildunterschrift hinzufügen")!.click());
+    await typeIn("Something else");
+    await pressIn("Escape");
+    expect(field()).toBeNull();
+    expect(button("Stift")).toBeDefined();
+    expect(container.textContent).not.toContain("Discard your marks?");
+  });
+
   it("is only offered on pictures that can take marks", async () => {
     expect(button("Markieren")).toBeDefined();
     await update({

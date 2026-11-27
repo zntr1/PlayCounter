@@ -293,11 +293,17 @@ function OpenViewer() {
               onError={() => setMissing(true)}
               className={clsx(
                 "min-h-0 max-w-full rounded-lg object-contain shadow-raised data-[img-loading]:aspect-video data-[img-loading]:h-full",
-                shots.length > 1 || marking
-                  ? "max-h-[calc(100%-13rem)]"
-                  : "max-h-[calc(100%-8.5rem)]",
+                marking
+                  ? "max-h-[calc(100%-18rem)]"
+                  : shots.length > 1
+                    ? "max-h-[calc(100%-13rem)]"
+                    : "max-h-[calc(100%-8.5rem)]",
               )}
             />
+            {/* While marking up too: a caption can come with the marks. */}
+            <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+              {web ? null : <CaptionLine key={shotKey} shot={shot} />}
+            </div>
             {marking && !isWebPicture(shot) ? (
               <ScreenshotMarkup
                 key={shotKey}
@@ -306,11 +312,7 @@ function OpenViewer() {
                 width={pictureWidth}
                 onDone={() => setMarking(false)}
               />
-            ) : (
-              <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
-                {web ? null : <CaptionLine key={shotKey} shot={shot} />}
-              </div>
-            )}
+            ) : null}
           </>
         )}
         {shots.length > 1 && !marking ? (

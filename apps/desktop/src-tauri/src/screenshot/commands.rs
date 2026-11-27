@@ -44,6 +44,17 @@ static TAKING: Mutex<()> = Mutex::new(());
 /// takes about 4 ms, too slow for a long list at every start.
 const CAPTIONS: &str = "captions.json";
 static CAPTIONS_FILE: Mutex<()> = Mutex::new(());
+/// Caption, marks and the Recycle Bin change a picture's file one at a time:
+/// a caption written while the marks go in would be lost
+/// (docs/session-screenshots-plan.md: the caption field in mark up).
+static FILE_CHANGES: Mutex<()> = Mutex::new(());
+
+fn one_file_change<T>(change: impl FnOnce() -> T) -> T {
+    let _one_at_a_time = FILE_CHANGES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    change()
+}
 
 type CaptionCache = HashMap<String, Option<String>>;
 
@@ -481,7 +492,7 @@ pub async fn screenshot_caption(
     let picture = own_picture(&app, &path)?;
     let (root, previews) = (root(&app)?, previews(&app)?);
     tauri::async_runtime::spawn_blocking(move || {
-        set_caption(&root, &previews, &picture, caption.as_deref())
+        one_file_change(|| set_caption(&root, &previews, &picture, caption.as_deref()))
     })
     .await
     .map_err(text)?
@@ -545,7 +556,7 @@ pub async fn screenshot_markup(
     let picture = own_picture(&app, &path)?;
     let (root, previews) = (root(&app)?, previews(&app)?);
     tauri::async_runtime::spawn_blocking(move || {
-        mark_up(&root, &previews, &picture, &marks, window::recycle)
+        one_file_change(|| mark_up(&root, &previews, &picture, &marks, window::recycle))
     })
     .await
     .map_err(text)?
@@ -663,10 +674,12 @@ pub async fn screenshot_delete(
     let picture = own_picture(&app, &path)?;
     let (root, previews) = (root(&app)?, previews(&app)?);
     tauri::async_runtime::spawn_blocking(move || {
-        if let (Ok(root), Ok(metadata)) = (fs::canonicalize(&root), fs::metadata(&picture)) {
-            let _ = fs::remove_file(preview_path_for(&root, &previews, &picture, &metadata));
-        }
-        window::recycle(&picture)
+        one_file_change(|| {
+            if let (Ok(root), Ok(metadata)) = (fs::canonicalize(&root), fs::metadata(&picture)) {
+                let _ = fs::remove_file(preview_path_for(&root, &previews, &picture, &metadata));
+            }
+            window::recycle(&picture)
+        })
     })
     .await
     .map_err(text)?
@@ -837,6 +850,29 @@ mod window {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn changes_a_picture_file_one_at_a_time() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+        let first_done = Arc::new(AtomicBool::new(false));
+        let started = Arc::new(std::sync::Barrier::new(2));
+        let first = {
+            let (first_done, started) = (first_done.clone(), started.clone());
+            std::thread::spawn(move || {
+                one_file_change(|| {
+                    started.wait();
+                    std::thread::sleep(std::time::Duration::from_millis(150));
+                    first_done.store(true, Ordering::SeqCst);
+                })
+            })
+        };
+        started.wait();
+        // The caption is being written; the marks wait for it.
+        let saw_it_done = one_file_change(|| first_done.load(Ordering::SeqCst));
+        first.join().unwrap();
+        assert!(saw_it_done);
+    }
 
     fn keys(names: &[&str]) -> Vec<String> {
         names.iter().map(|name| name.to_string()).collect()

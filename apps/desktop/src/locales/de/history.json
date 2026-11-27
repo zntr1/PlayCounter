@@ -250,5 +250,6 @@
   "Picture to draw on": "Bild zum Zeichnen",
   "Esc takes you back to the game.": "Esc bringt dich zurück ins Spiel.",
   "{{count}} screenshots this session_one": "{{count}} Screenshot in dieser Sitzung",
-  "{{count}} screenshots this session_other": "{{count}} Screenshots in dieser Sitzung"
+  "{{count}} screenshots this session_other": "{{count}} Screenshots in dieser Sitzung",
+  "Tab": "Tab"
 }

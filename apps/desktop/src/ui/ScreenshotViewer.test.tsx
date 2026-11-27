@@ -311,6 +311,25 @@ describe("mark up", () => {
     expect(save().disabled).toBe(true);
   });
 
+  it("writes a caption while marking up; Esc in it closes only the field", async () => {
+    await startWithNumbers(1);
+    await act(() => button("“Boss arena”")!.click());
+    await type("Boss arena, phase two");
+    await press("Enter");
+    expect(setCaptionMock).toHaveBeenCalledExactlyOnceWith(
+      withCaption.path,
+      "Boss arena, phase two",
+    );
+    expect(marking()).toBe(true);
+    await act(() => button("“Boss arena, phase two”")!.click());
+    await type("Something else");
+    await press("Escape");
+    expect(input()).toBeNull();
+    expect(marking()).toBe(true);
+    expect(document.body.textContent).not.toContain("Discard your marks?");
+    expect(useScreenshotViewer.getState().shots).toHaveLength(2);
+  });
+
   it("doesn't page to another picture or close while drawing", async () => {
     await act(() => markUp()!.click());
     await key("ArrowRight");

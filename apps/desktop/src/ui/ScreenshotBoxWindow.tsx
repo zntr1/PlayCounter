@@ -344,11 +344,24 @@ export function ScreenshotBoxWindow({
             onError={() => setMissing(true)}
             className={cn(
               "min-h-0 max-w-full rounded-lg object-contain shadow-raised",
-              pictures.length > 1 || marking
-                ? "max-h-[calc(100%-13rem)]"
-                : "max-h-[calc(100%-8.5rem)]",
+              marking
+                ? "max-h-[calc(100%-18rem)]"
+                : pictures.length > 1
+                  ? "max-h-[calc(100%-13rem)]"
+                  : "max-h-[calc(100%-8.5rem)]",
             )}
           />
+          {/* While marking up too: a caption can come with the marks. */}
+          <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+            <CaptionLine
+              key={shot.path}
+              shot={shot}
+              label={label}
+              onSave={(caption) =>
+                onAction({ kind: "caption", path: shot.path, caption })
+              }
+            />
+          </div>
           {marking ? (
             <MarkupTools
               key={shot.path}
@@ -358,18 +371,7 @@ export function ScreenshotBoxWindow({
               save={saveMarks}
               onDone={() => (markUpFirst ? close(true) : setMarking(false))}
             />
-          ) : (
-            <div className="mt-3 flex h-12 max-w-full shrink-0 items-start justify-center">
-              <CaptionLine
-                key={shot.path}
-                shot={shot}
-                label={label}
-                onSave={(caption) =>
-                  onAction({ kind: "caption", path: shot.path, caption })
-                }
-              />
-            </div>
-          )}
+          ) : null}
         </>
       )}
       {pictures.length > 1 && !marking ? (

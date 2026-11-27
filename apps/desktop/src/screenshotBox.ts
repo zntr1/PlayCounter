@@ -342,6 +342,10 @@ async function applyScreenshotBoxAction(action: ScreenshotBoxAction) {
     });
 }
 
+/** The box's actions, one after the other: a caption saved on the way to
+ *  Save into picture must be in the file before the marks go in. */
+let actions: Promise<void> = Promise.resolve();
+
 let lifecycle: {
   disposed: boolean;
   unlisten: UnlistenFn[];
@@ -379,7 +383,8 @@ export function initializeScreenshotBox(
   void listen<ScreenshotBoxAction>(
     SCREENSHOT_BOX_ACTION_EVENT,
     ({ payload }) => {
-      if (!current.disposed) void applyScreenshotBoxAction(payload);
+      if (current.disposed) return;
+      actions = actions.then(() => applyScreenshotBoxAction(payload));
     },
   )
     .then(keep)

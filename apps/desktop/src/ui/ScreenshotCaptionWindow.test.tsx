@@ -139,3 +139,32 @@ it("opens the picture to mark up on a click, keeping what was typed", async () =
   await act(() => window.dispatchEvent(new Event("blur")));
   expect(onClose).toHaveBeenCalledOnce();
 });
+
+it("opens the picture to mark up on Tab, keeping what was typed", async () => {
+  await type("Fork past the bridge");
+  await press("Tab");
+  expect(onClose).toHaveBeenCalledExactlyOnceWith(
+    "Fork past the bridge",
+    false,
+    true,
+  );
+});
+
+it("leaves Shift+Tab to move back", async () => {
+  await act(() =>
+    input().dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Tab",
+        shiftKey: true,
+        bubbles: true,
+      }),
+    ),
+  );
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it("shows Tab on the picture, next to Mark up", () => {
+  const markUp = container.querySelector('button[aria-label="Mark up"]')!;
+  expect(markUp.textContent).toContain("Mark up");
+  expect(markUp.querySelector("kbd")?.textContent).toBe("Tab");
+});

@@ -130,7 +130,8 @@ export type CaptionLabel =
   | "Enter saves · Esc keeps the picture without a caption"
   | "Skip"
   | "Save"
-  | "Mark up";
+  | "Mark up"
+  | "Tab";
 
 function captionLabels(): Record<CaptionLabel, string> {
   return {
@@ -147,6 +148,8 @@ function captionLabels(): Record<CaptionLabel, string> {
     Skip: t("Skip"),
     Save: t("Save"),
     "Mark up": historyT("Mark up"),
+    // The key's name, shown on the picture next to Mark up.
+    Tab: historyT("Tab"),
   };
 }
 

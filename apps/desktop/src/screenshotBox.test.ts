@@ -410,3 +410,36 @@ it("shows no popup for marks saved in the box the key opened", async () => {
   await vi.waitFor(() => expect(lastUpdate()?.done?.ok).toBe(true));
   expect(showScreenshotOverlay).not.toHaveBeenCalled();
 });
+
+it("does what the box asks one after the other, so a caption and marks don't meet in the file", async () => {
+  await openScreenshotBox();
+  let finishCaption!: () => void;
+  const before = useScreenshots
+    .getState()
+    .files.find((entry) => entry.path === sunrise.path)!;
+  invokeMock.mockImplementation(async (command) => {
+    if (command === "screenshot_caption") {
+      await new Promise<void>((resolve) => (finishCaption = resolve));
+      return { ...before, caption: "Sunrise" };
+    }
+    if (command === "screenshot_markup")
+      return { ...before, caption: "Sunrise", modifiedMs: NOW + 5 };
+    return true;
+  });
+  actionHandler!({ kind: "caption", path: sunrise.path, caption: "Sunrise" });
+  actionHandler!({ kind: "markUp", path: sunrise.path, png: "iVBORw==" });
+  await vi.waitFor(() => expect(finishCaption).toBeTypeOf("function"));
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  expect(invokeMock).not.toHaveBeenCalledWith(
+    "screenshot_markup",
+    expect.anything(),
+  );
+  finishCaption();
+  await vi.waitFor(() =>
+    expect(lastUpdate()?.done).toEqual({
+      kind: "markUp",
+      path: sunrise.path,
+      ok: true,
+    }),
+  );
+});

@@ -259,5 +259,6 @@
   "Esc takes you back to the game.": "Esc te devuelve al juego.",
   "{{count}} screenshots this session_one": "{{count}} captura de pantalla en esta sesión",
   "{{count}} screenshots this session_many": "{{count}} capturas de pantalla en esta sesión",
-  "{{count}} screenshots this session_other": "{{count}} capturas de pantalla en esta sesión"
+  "{{count}} screenshots this session_other": "{{count}} capturas de pantalla en esta sesión",
+  "Tab": "Tab"
 }

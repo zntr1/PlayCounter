@@ -101,6 +101,9 @@ export function ScreenshotCaptionWindow({
             >
               <PenLine size={13} />
               {label("Mark up")}
+              <kbd className="rounded border border-current px-1 font-sans text-[10px] font-semibold leading-4 opacity-80">
+                {label("Tab")}
+              </kbd>
             </span>
           </button>
         )}
@@ -115,6 +118,9 @@ export function ScreenshotCaptionWindow({
             if (event.key === "Escape") {
               event.preventDefault();
               close(false, true);
+            } else if (event.key === "Tab" && !event.shiftKey) {
+              event.preventDefault();
+              markUp();
             } else if (
               event.key === "Enter" &&
               !event.nativeEvent.isComposing
