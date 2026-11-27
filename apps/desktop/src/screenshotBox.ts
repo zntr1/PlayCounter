@@ -15,8 +15,10 @@ import {
   markUpScreenshot,
   onThisPc,
   screenshotSource,
+  SCREENSHOT_CAPTION_CLOSE_EVENT,
   setScreenshotCaption,
   useScreenshots,
+  type CaptionBoxClosed,
   type PictureGroup,
 } from "./screenshots";
 import {
@@ -75,6 +77,9 @@ export type ScreenshotBoxState = {
   pictures: ScreenshotBoxPicture[];
   index: number;
   done?: ScreenshotBoxDone;
+  /** Opened from the caption box to mark up the picture just taken: the box
+   *  starts with the tools and goes back to the game when they close. */
+  markUpFirst?: boolean;
 };
 
 export type ScreenshotBoxLabel =
@@ -178,9 +183,31 @@ function boxPictures(game: Game): ScreenshotBoxPicture[] {
 }
 
 let pidsOf: ((session: ActiveSession) => number[]) | null = null;
-/** The game the open box shows. */
-let openFor: Game | null = null;
+/** The game the open box shows, and how it was opened. */
+let openFor: (Game & { coverUrl: string | null; markUpFirst: boolean }) | null =
+  null;
 let lastSent = "";
+
+/** The games on this PC, started last first. */
+function runningGames() {
+  return useAppStore
+    .getState()
+    .activeSessions.filter(onThisPc)
+    .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
+}
+
+function gameOf(session: ActiveSession): Game {
+  return {
+    gameKey: resolvedCanonicalGameKey(session),
+    gameName: session.gameName,
+  };
+}
+
+function coverOf(session: ActiveSession) {
+  return (
+    coverOverride(useAppStore.getState(), session) ?? (session.coverUrl || null)
+  );
+}
 
 /** The game in front when the key was pressed, else the game started last. */
 async function gameInFront(sessions: ActiveSession[]) {
@@ -196,42 +223,21 @@ async function gameInFront(sessions: ActiveSession[]) {
   );
 }
 
-/** The "Show screenshots" key. */
-export async function openScreenshotBox() {
-  if (currentPlatform() === "macos") return;
-  const sessions = useAppStore
-    .getState()
-    .activeSessions.filter(onThisPc)
-    .sort((left, right) => right.startedAt.localeCompare(left.startedAt));
-  if (!sessions.length) {
-    showCurrentSessionOverlay();
-    return;
-  }
-  const session = await gameInFront(sessions);
-  const game = {
-    gameKey: resolvedCanonicalGameKey(session),
-    gameName: session.gameName,
-  };
-  const coverUrl =
-    coverOverride(useAppStore.getState(), session) ??
-    (session.coverUrl || null);
-  const pictures = boxPictures(game);
-  if (!pictures.length) {
-    showScreenshotOverlay({
-      outcome: "none",
-      gameName: session.gameName,
-      coverUrl: coverUrl ?? undefined,
-    });
-    return;
-  }
+async function openBox(
+  session: ActiveSession,
+  pictures: ScreenshotBoxPicture[],
+  index: number,
+  markUpFirst: boolean,
+) {
+  const coverUrl = coverOf(session);
   const payload: ScreenshotBoxPayload = {
     gameName: session.gameName,
     coverUrl,
-    screenshots: { pictures, index: pictures.length - 1 },
+    screenshots: { pictures, index, ...(markUpFirst ? { markUpFirst } : {}) },
     labels: screenshotBoxLabels(),
     ...boxLook(),
   };
-  openFor = game;
+  openFor = { ...gameOf(session), coverUrl, markUpFirst };
   lastSent = JSON.stringify(pictures);
   try {
     // False when the key closed an open box instead.
@@ -240,6 +246,41 @@ export async function openScreenshotBox() {
   } catch (error) {
     console.error("screenshot box failed to open", error);
     openFor = null;
+  }
+}
+
+/** The "Show screenshots" key. */
+export async function openScreenshotBox() {
+  if (currentPlatform() === "macos") return;
+  const sessions = runningGames();
+  if (!sessions.length) {
+    showCurrentSessionOverlay();
+    return;
+  }
+  const session = await gameInFront(sessions);
+  const pictures = boxPictures(gameOf(session));
+  if (!pictures.length) {
+    showScreenshotOverlay({
+      outcome: "none",
+      gameName: session.gameName,
+      coverUrl: coverOf(session) ?? undefined,
+    });
+    return;
+  }
+  await openBox(session, pictures, pictures.length - 1, false);
+}
+
+/** The picture in the caption box was clicked: what was typed becomes its
+ *  caption, then the box opens over the game to mark it up. */
+async function markUpFromCaptionBox(path: string, caption: string | null) {
+  if (caption)
+    await setScreenshotCaption(path, caption).catch((error) =>
+      console.error("screenshot caption failed", error),
+    );
+  for (const session of runningGames()) {
+    const pictures = boxPictures(gameOf(session));
+    const index = pictures.findIndex((picture) => picture.path === path);
+    if (index >= 0) return openBox(session, pictures, index, true);
   }
 }
 
@@ -287,11 +328,23 @@ async function applyScreenshotBoxAction(action: ScreenshotBoxAction) {
       ok = false;
     }
   send({ kind: action.kind, path: action.path, ok });
+  // Opened from the caption box: its popup comes once the marks are in.
+  if (ok && action.kind === "markUp" && game.markUpFirst)
+    showScreenshotOverlay({
+      outcome: "saved",
+      gameName: game.gameName,
+      coverUrl: game.coverUrl ?? undefined,
+      caption:
+        useScreenshots
+          .getState()
+          .files.find((shot) => shot.path === action.path)?.caption ??
+        undefined,
+    });
 }
 
 let lifecycle: {
   disposed: boolean;
-  unlisten?: UnlistenFn;
+  unlisten: UnlistenFn[];
   unsubscribe: () => void;
 } | null = null;
 
@@ -312,30 +365,40 @@ export function initializeScreenshotBox(
   });
   const current = {
     disposed: false,
-    unlisten: undefined as UnlistenFn | undefined,
+    unlisten: [] as UnlistenFn[],
     unsubscribe: () => {
       unsubscribeFiles();
       unsubscribeSessions();
     },
   };
   lifecycle = current;
+  const keep = (unlisten: UnlistenFn) => {
+    if (current.disposed) unlisten();
+    else current.unlisten.push(unlisten);
+  };
   void listen<ScreenshotBoxAction>(
     SCREENSHOT_BOX_ACTION_EVENT,
     ({ payload }) => {
       if (!current.disposed) void applyScreenshotBoxAction(payload);
     },
   )
-    .then((unlisten) => {
-      if (current.disposed) unlisten();
-      else current.unlisten = unlisten;
-    })
+    .then(keep)
+    .catch((error) => console.error("screenshot box listener failed", error));
+  void listen<CaptionBoxClosed>(
+    SCREENSHOT_CAPTION_CLOSE_EVENT,
+    ({ payload }) => {
+      if (!current.disposed && payload.markUp)
+        void markUpFromCaptionBox(payload.path, payload.caption);
+    },
+  )
+    .then(keep)
     .catch((error) => console.error("screenshot box listener failed", error));
 }
 
 export function disposeScreenshotBox() {
   if (!lifecycle) return;
   lifecycle.disposed = true;
-  lifecycle.unlisten?.();
+  lifecycle.unlisten.forEach((unlisten) => unlisten());
   lifecycle.unsubscribe();
   lifecycle = null;
   pidsOf = null;

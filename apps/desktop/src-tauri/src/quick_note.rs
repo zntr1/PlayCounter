@@ -132,6 +132,14 @@ pub struct ScreenshotBox {
     index: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     done: Option<BoxDone>,
+    /// Opened from the caption box to mark up the picture just taken: it
+    /// starts with the tools and goes back to the game when they close.
+    #[serde(default, skip_serializing_if = "is_false")]
+    mark_up_first: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// What the screenshot box asks the main window for.
@@ -297,6 +305,9 @@ struct ClosedCaption {
     path: String,
     /// None when the player skipped it.
     caption: Option<String>,
+    /// The player clicked the picture to mark it up: the screenshot box
+    /// opens next, so the focus stays for it.
+    mark_up: bool,
 }
 
 #[derive(Default)]
@@ -862,6 +873,8 @@ pub fn quick_note_ready(
 
 /// `note` is None for Cancel, and for Skip in the caption box. `restore_focus`
 /// is false when the box closes because the player clicked somewhere else.
+/// `mark_up`: the caption box closes because its picture was clicked to mark
+/// up; the screenshot box opens next and gives the focus back to the game.
 #[tauri::command(async)]
 pub fn quick_note_close(
     app: tauri::AppHandle,
@@ -869,6 +882,7 @@ pub fn quick_note_close(
     state: tauri::State<'_, QuickNoteState>,
     note: Option<String>,
     restore_focus: bool,
+    mark_up: Option<bool>,
 ) -> Result<(), String> {
     note_window_only(&window)?;
     use tauri::Emitter;
@@ -878,6 +892,18 @@ pub fn quick_note_close(
         .lock()
         .map_err(|error| error.to_string())?
         .take();
+    let mark_up = mark_up.unwrap_or(false) && caption_path.is_some();
+    let foreground = if mark_up {
+        *state.foreground.lock().map_err(|error| error.to_string())?
+    } else {
+        None
+    };
+    // Closed before the main window hears of it, so a box it opens next is
+    // a new one, not this one brought back.
+    imp::close(&app, &state, restore_focus && !mark_up)?;
+    if mark_up {
+        *state.foreground.lock().map_err(|error| error.to_string())? = foreground;
+    }
     if let Some(path) = caption_path {
         // Always sent: the main window shows the screenshot popup then.
         app.emit_to(
@@ -886,6 +912,7 @@ pub fn quick_note_close(
             ClosedCaption {
                 path,
                 caption: note.map(|caption| truncate(caption, CAPTION_LIMIT)),
+                mark_up,
             },
         )
         .map_err(|error| error.to_string())?;
@@ -900,7 +927,7 @@ pub fn quick_note_close(
         )
         .map_err(|error| error.to_string())?;
     }
-    imp::close(&app, &state, restore_focus)
+    Ok(())
 }
 
 /// The quick add box asks the main window to search for a game.
@@ -1421,6 +1448,7 @@ mod tests {
                 .collect(),
             index: SCREENSHOT_BOX_LIMIT + 99,
             done: None,
+            mark_up_first: false,
         });
         assert_eq!(clean.pictures.len(), SCREENSHOT_BOX_LIMIT);
         // The oldest are left out; the one shown stays the newest.
@@ -1440,6 +1468,7 @@ mod tests {
             pictures: vec![long_picture()],
             index: 0,
             done: None,
+            mark_up_first: false,
         });
         assert_eq!(long.pictures[0].path.chars().count(), 4096);
     }
@@ -1510,6 +1539,33 @@ mod tests {
     }
 
     #[test]
+    fn a_screenshot_box_opens_to_mark_up_only_when_asked() {
+        let plain = sanitize(screenshot_box_payload(3, 2));
+        assert!(!plain.screenshots.unwrap().mark_up_first);
+        let mut asked = screenshot_box_payload(3, 2);
+        asked.screenshots.as_mut().unwrap().mark_up_first = true;
+        let asked = sanitize(asked).screenshots.unwrap();
+        assert!(asked.mark_up_first);
+        assert_eq!(
+            serde_json::to_value(&asked).unwrap()["markUpFirst"],
+            serde_json::json!(true)
+        );
+    }
+
+    #[test]
+    fn tells_the_main_window_a_caption_box_closed_to_mark_up() {
+        assert_eq!(
+            serde_json::to_value(ClosedCaption {
+                path: "C:\\shot.jpg".into(),
+                caption: Some("Fork".into()),
+                mark_up: true,
+            })
+            .unwrap(),
+            serde_json::json!({ "path": "C:\\shot.jpg", "caption": "Fork", "markUp": true })
+        );
+    }
+
+    #[test]
     fn refuses_marks_bigger_than_any_picture_needs() {
         let huge = ScreenshotBoxAction::MarkUp {
             path: "C:\\shot.jpg".into(),
@@ -1528,6 +1584,7 @@ mod tests {
                 path: "C:\\shot.jpg".into(),
                 ok: true,
             }),
+            mark_up_first: false,
         };
         assert_eq!(
             serde_json::to_value(&update).unwrap(),

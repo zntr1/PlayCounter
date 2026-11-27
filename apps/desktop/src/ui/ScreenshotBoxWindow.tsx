@@ -111,7 +111,9 @@ export function ScreenshotBoxWindow({
       payload.screenshots.pictures.length - 1,
     ),
   );
-  const [marking, setMarking] = useState(false);
+  /** Opened from the caption box to mark up: the tools close the box. */
+  const markUpFirst = payload.screenshots.markUpFirst === true;
+  const [marking, setMarking] = useState(markUpFirst);
   const [missing, setMissing] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const shot: ScreenshotBoxPicture | undefined = pictures[index];
@@ -354,7 +356,7 @@ export function ScreenshotBoxWindow({
               width={pictureWidth}
               texts={markupTexts}
               save={saveMarks}
-              onDone={() => setMarking(false)}
+              onDone={() => (markUpFirst ? close(true) : setMarking(false))}
             />
           ) : (
             <div className="mt-3 flex h-12 max-w-full shrink-0 items-start justify-center">

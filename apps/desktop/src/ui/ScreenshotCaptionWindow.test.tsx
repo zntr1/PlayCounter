@@ -120,3 +120,22 @@ it("keeps what was typed when the player clicks somewhere else", async () => {
     false,
   );
 });
+
+// docs/session-screenshots-plan.md: a click on the picture opens it to mark
+// up, over the game, with what was typed saved as its caption.
+it("opens the picture to mark up on a click, keeping what was typed", async () => {
+  await type("Fork past the bridge");
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>('button[aria-label="Mark up"]')!
+      .click(),
+  );
+  expect(onClose).toHaveBeenCalledExactlyOnceWith(
+    "Fork past the bridge",
+    false,
+    true,
+  );
+  // The box closing loses the focus; that must not close it a second time.
+  await act(() => window.dispatchEvent(new Event("blur")));
+  expect(onClose).toHaveBeenCalledOnce();
+});

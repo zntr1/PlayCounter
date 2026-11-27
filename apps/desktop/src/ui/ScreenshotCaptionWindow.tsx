@@ -1,3 +1,4 @@
+import { PenLine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { CaptionLabel, CaptionPayload } from "../quickNote";
 
@@ -8,14 +9,21 @@ const CAPTION_LIMIT = 150;
    The picture is already saved: Enter adds the caption, Escape and Skip keep
    the picture without one, and clicking anywhere else keeps what was typed.
    Every close hands focus back to the game except that last one, where the
-   player already chose where to go. */
+   player already chose where to go. A click on the picture opens it to mark
+   up over the game (docs/session-screenshots-plan.md), with what was typed
+   saved as its caption. */
 export function ScreenshotCaptionWindow({
   payload,
   onClose,
 }: {
   payload: CaptionPayload;
-  /** `caption` is null when there is nothing to save. */
-  onClose: (caption: string | null, restoreFocus: boolean) => void;
+  /** `caption` is null when there is nothing to save. `markUp`: the
+   *  picture was clicked to mark it up. */
+  onClose: (
+    caption: string | null,
+    restoreFocus: boolean,
+    markUp?: boolean,
+  ) => void;
 }) {
   const label = (key: CaptionLabel) => payload.labels[key] ?? key;
   const [draft, setDraft] = useState("");
@@ -30,6 +38,12 @@ export function ScreenshotCaptionWindow({
     closed.current = true;
     const text = draftRef.current.trim();
     onClose(save && text ? text : null, restoreFocus);
+  }
+
+  function markUp() {
+    if (closed.current) return;
+    closed.current = true;
+    onClose(draftRef.current.trim() || null, false, true);
   }
 
   useEffect(() => {
@@ -67,13 +81,28 @@ export function ScreenshotCaptionWindow({
         {pictureFailed ? (
           <div className="aspect-video w-full shrink-0 rounded-[10px] border border-border bg-surface-hover" />
         ) : (
-          <img
-            src={payload.caption.pictureUrl}
-            alt=""
-            draggable={false}
-            onError={() => setPictureFailed(true)}
-            className="aspect-video w-full shrink-0 rounded-[10px] border border-border object-cover"
-          />
+          <button
+            type="button"
+            aria-label={label("Mark up")}
+            title={label("Mark up")}
+            onClick={markUp}
+            className="group relative block aspect-video w-full shrink-0 overflow-hidden rounded-[10px] border border-border transition hover:border-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <img
+              src={payload.caption.pictureUrl}
+              alt=""
+              draggable={false}
+              onError={() => setPictureFailed(true)}
+              className="h-full w-full object-cover"
+            />
+            <span
+              aria-hidden
+              className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-lg bg-black/70 px-2.5 py-1 text-xs font-semibold text-white opacity-80 transition group-hover:bg-accent group-hover:text-accent-fg group-hover:opacity-100"
+            >
+              <PenLine size={13} />
+              {label("Mark up")}
+            </span>
+          </button>
         )}
         <input
           ref={inputRef}

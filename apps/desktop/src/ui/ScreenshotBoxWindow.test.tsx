@@ -336,3 +336,78 @@ describe("mark up", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe("opened to mark up the picture just taken", () => {
+  beforeEach(async () => {
+    marksPngMock
+      .mockReset()
+      .mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(
+      1920,
+    );
+    vi.spyOn(
+      HTMLImageElement.prototype,
+      "naturalHeight",
+      "get",
+    ).mockReturnValue(1080);
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      "getBoundingClientRect",
+    ).mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 880, height: 495 }),
+    );
+    await act(() =>
+      root.render(
+        <ScreenshotBoxWindow
+          key="mark-up-first"
+          payload={{
+            ...payload,
+            screenshots: { pictures, index: 3, markUpFirst: true },
+          }}
+          onAction={onAction}
+          onClose={onClose}
+          subscribe={(listener) => {
+            send = listener;
+            return () => {};
+          }}
+        />,
+      ),
+    );
+  });
+
+  it("starts with the tools, and Cancel takes you back to the game", async () => {
+    expect(button("Stift")).toBeDefined();
+    expect(shown()!.getAttribute("src")).toBe("asset://cliff.jpg");
+    await act(() => button("Cancel")!.click());
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("takes you back to the game once the marks are saved", async () => {
+    await act(() => button("Nummer")!.click());
+    const Pointer = window.PointerEvent ?? MouseEvent;
+    const canvas =
+      container.querySelector<HTMLCanvasElement>("canvas[aria-label]")!;
+    await act(() => {
+      for (const type of ["pointerdown", "pointerup"])
+        canvas.dispatchEvent(
+          new Pointer(type, {
+            bubbles: true,
+            clientX: 100,
+            clientY: 100,
+            button: 0,
+          }),
+        );
+    });
+    await act(() => button("Ins Bild speichern")!.click());
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "markUp", path: pictures[3].path }),
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    await update({
+      pictures,
+      index: 4,
+      done: { kind: "markUp", path: pictures[3].path, ok: true },
+    });
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(true);
+  });
+});

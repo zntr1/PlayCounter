@@ -43,6 +43,14 @@ export type ScreenshotFile = {
 export const SCREENSHOT_CAPTION_CLOSE_EVENT =
   "playcounter:screenshot-caption-close";
 
+/** What Rust says when the caption box closes. `markUp`: its picture was
+ *  clicked to mark it up. */
+export type CaptionBoxClosed = {
+  path: string;
+  caption: string | null;
+  markUp?: boolean;
+};
+
 /** With the moment it was taken: the time in its name, else the file's. */
 export type Screenshot = ScreenshotFile & { takenAtMs: number };
 
@@ -347,10 +355,14 @@ export function initializeScreenshots(
   };
   lifecycle = state;
   void loadScreenshots();
-  void listen<{ path: string; caption: string | null }>(
+  void listen<CaptionBoxClosed>(
     SCREENSHOT_CAPTION_CLOSE_EVENT,
     ({ payload }) => {
-      if (!state.disposed) void captionBoxClosed(payload.path, payload.caption);
+      if (state.disposed) return;
+      // Clicked to mark up: the screenshot box saves the caption and says when
+      // it's done (screenshotBox.ts).
+      if (payload.markUp) captionBoxes.delete(payload.path);
+      else void captionBoxClosed(payload.path, payload.caption);
     },
   )
     .then((unlisten) => {

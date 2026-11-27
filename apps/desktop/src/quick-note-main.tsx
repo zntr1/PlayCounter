@@ -66,9 +66,9 @@ function QuickNoteRoot() {
   }, []);
 
   if (!payload) return null;
-  const close = (note: string | null, restoreFocus: boolean) =>
-    void invoke("quick_note_close", { note, restoreFocus }).catch((error) =>
-      console.error("quick note failed to close", error),
+  const close = (note: string | null, restoreFocus: boolean, markUp = false) =>
+    void invoke("quick_note_close", { note, restoreFocus, markUp }).catch(
+      (error) => console.error("quick note failed to close", error),
     );
   // The same window searches a game to add when the quick add key opened it.
   if (isQuickAdd(payload))

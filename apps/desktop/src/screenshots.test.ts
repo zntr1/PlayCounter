@@ -234,7 +234,11 @@ describe("the screenshot key", () => {
   const pidsOf = (session: ActiveSession) => [session.id * 100];
 
   /** The caption box closing, as Rust tells the main window. */
-  let closeBox: (path: string, caption: string | null) => Promise<void>;
+  let closeBox: (
+    path: string,
+    caption: string | null,
+    markUp?: boolean,
+  ) => Promise<void>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -242,8 +246,8 @@ describe("the screenshot key", () => {
     openBoxMock.mockReset().mockResolvedValue(true);
     listenMock.mockReset().mockImplementation((event, handler) => {
       if (event === SCREENSHOT_CAPTION_CLOSE_EVENT)
-        closeBox = async (path, caption) => {
-          handler({ payload: { path, caption } } as never);
+        closeBox = async (path, caption, markUp = false) => {
+          handler({ payload: { path, caption, markUp } } as never);
           for (let i = 0; i < 10; i++) await Promise.resolve();
         };
       return Promise.resolve(vi.fn());
@@ -415,6 +419,20 @@ describe("the screenshot key", () => {
       expect(popup).toMatchObject({ outcome: "saved", gameName: "Game 1" });
       expect(popup.caption).toBeUndefined();
       error.mockRestore();
+    });
+
+    // docs/session-screenshots-plan.md: a click on the picture in the box
+    // opens it to mark up; the screenshot box saves the caption and says
+    // when it's done.
+    it("leaves a box closed to mark up the picture to the screenshot box", async () => {
+      await takeWithCaption();
+      invokeMock.mockClear();
+      await closeBox(saved.path, "Fork past the bridge", true);
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "screenshot_caption",
+        expect.anything(),
+      );
+      expect(showScreenshotOverlay).not.toHaveBeenCalled();
     });
 
     it("shows the popup at once when a box is already open", async () => {

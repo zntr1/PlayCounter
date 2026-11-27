@@ -9,6 +9,7 @@ import { formatDuration } from "./ui/components";
 import { appLocale, getT } from "./i18n";
 
 const t = getT("overlays");
+const historyT = getT("history");
 
 export const QUICK_NOTE_SAVE_EVENT = "playcounter:quick-note-save";
 
@@ -128,7 +129,8 @@ export type CaptionLabel =
   | "What's happening in this picture?"
   | "Enter saves · Esc keeps the picture without a caption"
   | "Skip"
-  | "Save";
+  | "Save"
+  | "Mark up";
 
 function captionLabels(): Record<CaptionLabel, string> {
   return {
@@ -144,6 +146,7 @@ function captionLabels(): Record<CaptionLabel, string> {
     ),
     Skip: t("Skip"),
     Save: t("Save"),
+    "Mark up": historyT("Mark up"),
   };
 }
 
