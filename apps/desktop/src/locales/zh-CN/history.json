@@ -239,5 +239,7 @@
   "Saved into the picture": "已保存到图片",
   "The picture without your marks is in the Recycle Bin.": "没有标注的原图在回收站中。",
   "The marks couldn't be saved.": "无法保存标注。",
-  "Picture to draw on": "用于绘制的图片"
+  "Picture to draw on": "用于绘制的图片",
+  "Esc takes you back to the game.": "按 Esc 返回游戏。",
+  "{{count}} screenshots this session_other": "这次游玩有 {{count}} 张截图"
 }

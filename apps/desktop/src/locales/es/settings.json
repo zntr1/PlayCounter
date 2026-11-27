@@ -421,5 +421,7 @@
   "24-hour": "24 horas",
   "12-hour": "12 horas",
   "Previous page": "Página anterior",
-  "Next page": "Página siguiente"
+  "Next page": "Página siguiente",
+  "Show screenshots": "Mostrar capturas de pantalla",
+  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Abre la imagen más reciente del juego al que estás jugando, justo sobre el juego. Las flechas llevan a las anteriores, y puedes marcarlas allí mismo. Esc te devuelve al juego."
 }

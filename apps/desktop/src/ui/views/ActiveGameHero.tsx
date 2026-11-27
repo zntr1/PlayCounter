@@ -51,6 +51,7 @@ import { getT } from "../../i18n";
 import { igdbTerm } from "../../igdbTerms";
 import { NowPlayingCounters } from "../counters/CounterParts";
 import { openGameCounters } from "../openGameDetails";
+import { NowPlayingScreenshots } from "../SessionScreenshots";
 
 const t = getT("nowPlaying");
 
@@ -433,6 +434,7 @@ export function ActiveGameHero({
               {summary}
             </p>
           ) : null}
+          <NowPlayingScreenshots session={session} className="mt-4" />
         </div>
       </div>
 

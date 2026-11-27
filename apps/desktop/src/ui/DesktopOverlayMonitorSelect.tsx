@@ -22,6 +22,7 @@ export function DesktopOverlayMonitorSelect() {
       !!state.settings.pauseTimerHotkey ||
       !!state.settings.screenshotHotkey ||
       !!state.settings.screenshotCaptionHotkey ||
+      !!state.settings.screenshotViewerHotkey ||
       !!state.settings.quickAddHotkey,
   );
   const setMonitor = useAppStore((state) => state.setOverlayMonitor);

@@ -247,5 +247,8 @@
   "Saved into the picture": "Ins Bild gespeichert",
   "The picture without your marks is in the Recycle Bin.": "Das Bild ohne deine Markierungen liegt im Papierkorb.",
   "The marks couldn't be saved.": "Die Markierungen konnten nicht gespeichert werden.",
-  "Picture to draw on": "Bild zum Zeichnen"
+  "Picture to draw on": "Bild zum Zeichnen",
+  "Esc takes you back to the game.": "Esc bringt dich zurück ins Spiel.",
+  "{{count}} screenshots this session_one": "{{count}} Screenshot in dieser Sitzung",
+  "{{count}} screenshots this session_other": "{{count}} Screenshots in dieser Sitzung"
 }

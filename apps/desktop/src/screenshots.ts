@@ -7,6 +7,7 @@ import {
   showCurrentSessionOverlay,
   showScreenshotOverlay,
 } from "./desktopOverlayBridge";
+import { appLocale, getT } from "./i18n";
 import { screenshotBlackNotification } from "./notifications";
 import { coverOverride } from "./pickedCovers";
 import { isSampleShot, useSampleScreenshots } from "./screenshotSample";
@@ -16,6 +17,8 @@ import {
   useAppStore,
   type ActiveSession,
 } from "./store";
+
+const t = getT("history");
 
 /* Screenshots (docs/memory-book-plan.md). The screenshot key saves a picture
    of the game to Pictures\PlayCounter\<Game>\. That folder is the whole list:
@@ -222,29 +225,103 @@ export function useGameScreenshots(
   const files = useScreenshots((state) => state.files);
   const recent = useAppStore((state) => state.recentSessions);
   const active = useAppStore((state) => state.activeSessions);
-  return useMemo(() => {
-    if (!files.length) return NO_GAME_SHOTS;
-    const bySession = sessionPictures(files, recent, active);
-    const result: GameScreenshot[] = [];
-    if (gameKey)
-      for (const session of [...recent, ...active]) {
-        if (resolvedCanonicalGameKey(session) !== gameKey) continue;
-        for (const shot of bySession.get(session.id) ?? [])
-          result.push({ shot, session });
-      }
-    const claimed = new Set(
-      [...bySession.values()].flat().map((shot) => shot.path),
-    );
-    const folder = simplified(gameName);
-    if (folder)
-      for (const shot of files)
-        if (!claimed.has(shot.path) && simplified(shot.folder) === folder)
-          result.push({ shot });
-    if (!result.length) return NO_GAME_SHOTS;
-    return result.sort(
-      (left, right) => right.shot.takenAtMs - left.shot.takenAtMs,
-    );
-  }, [files, recent, active, gameKey, gameName]);
+  return useMemo(
+    () => gameScreenshotList(files, recent, active, gameKey, gameName),
+    [files, recent, active, gameKey, gameName],
+  );
+}
+
+/** useGameScreenshots' list, from the lists given. */
+export function gameScreenshotList(
+  files: Screenshot[],
+  recent: Session[],
+  active: ActiveSession[],
+  gameKey: string | null,
+  gameName: string,
+): GameScreenshot[] {
+  if (!files.length) return NO_GAME_SHOTS;
+  const bySession = sessionPictures(files, recent, active);
+  const result: GameScreenshot[] = [];
+  if (gameKey)
+    for (const session of [...recent, ...active]) {
+      if (resolvedCanonicalGameKey(session) !== gameKey) continue;
+      for (const shot of bySession.get(session.id) ?? [])
+        result.push({ shot, session });
+    }
+  const claimed = new Set(
+    [...bySession.values()].flat().map((shot) => shot.path),
+  );
+  const folder = simplified(gameName);
+  if (folder)
+    for (const shot of files)
+      if (!claimed.has(shot.path) && simplified(shot.folder) === folder)
+        result.push({ shot });
+  if (!result.length) return NO_GAME_SHOTS;
+  return result.sort(
+    (left, right) => right.shot.takenAtMs - left.shot.takenAtMs,
+  );
+}
+
+/** Where a picture sits in the viewer's row (docs/session-screenshots-plan.md):
+ *  under its session's day, the running session's under "This session". */
+export type PictureGroup = { key: string; label: string; current: boolean };
+
+function localDay(ms: number) {
+  const date = new Date(ms);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** "Sat 23 Nov", with the year when it isn't this year's. */
+function dayLabel(ms: number, nowMs: number) {
+  const thisYear = new Date(ms).getFullYear() === new Date(nowMs).getFullYear();
+  return new Date(ms).toLocaleDateString(appLocale(), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    ...(thisYear ? {} : { year: "numeric" }),
+  });
+}
+
+/** All of a game's own pictures, oldest first, each with its group: the
+ *  viewer's list from Now Playing and the screenshot box's. */
+export function gamePictures(gameKey: string | null, gameName: string) {
+  const { files } = useScreenshots.getState();
+  const { recentSessions, activeSessions } = useAppStore.getState();
+  const running = new Set(activeSessions.map((session) => session.id));
+  const nowMs = Date.now();
+  const list = [
+    ...gameScreenshotList(
+      files,
+      recentSessions,
+      activeSessions,
+      gameKey,
+      gameName,
+    ),
+  ].reverse();
+  const groups = new Map<string, PictureGroup>();
+  for (const { shot, session } of list) {
+    if (session && running.has(session.id))
+      groups.set(shot.path, {
+        key: `session:${session.id}`,
+        label: t("This session"),
+        current: true,
+      });
+    else if (session) {
+      const startMs = Date.parse(session.startedAt);
+      groups.set(shot.path, {
+        key: `session:${session.id}`,
+        label: dayLabel(startMs, nowMs),
+        current: false,
+      });
+    } else
+      groups.set(shot.path, {
+        key: `day:${localDay(shot.takenAtMs)}`,
+        label: dayLabel(shot.takenAtMs, nowMs),
+        current: false,
+      });
+  }
+  return { shots: list.map(({ shot }) => shot), groups };
 }
 
 let pidsOf: ((session: ActiveSession) => number[]) | null = null;
@@ -255,7 +332,7 @@ type PopupGame = { gameName?: string; coverUrl?: string };
 const captionBoxes = new Map<string, PopupGame>();
 
 /** A game on this PC. Console and hand-timed sessions have no window here. */
-function onThisPc(session: ActiveSession) {
+export function onThisPc(session: ActiveSession) {
   return !session.recoveredFromCheckpoint && !session.timer && !session.console;
 }
 
@@ -546,20 +623,29 @@ export const useScreenshotViewer = create<{
   shots: ViewerPicture[];
   index: number;
   title?: string;
+  /** Each picture's session by its path, when the row shows sessions. */
+  groups?: Map<string, PictureGroup>;
 }>(() => ({ shots: [], index: 0 }));
 
 export function openScreenshotViewer(
   shots: ViewerPicture[],
   index: number,
   title?: string,
+  groups?: Map<string, PictureGroup>,
 ) {
   useScreenshotViewer.setState({
     shots,
     index: Math.min(Math.max(0, index), shots.length - 1),
     title,
+    groups,
   });
 }
 
 export function closeScreenshotViewer() {
-  useScreenshotViewer.setState({ shots: [], index: 0, title: undefined });
+  useScreenshotViewer.setState({
+    shots: [],
+    index: 0,
+    title: undefined,
+    groups: undefined,
+  });
 }

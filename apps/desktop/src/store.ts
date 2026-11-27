@@ -816,6 +816,7 @@ export type AppState = {
       | "pauseTimerHotkey"
       | "screenshotHotkey"
       | "screenshotCaptionHotkey"
+      | "screenshotViewerHotkey"
       | "quickAddHotkey"
       | "counterUndoHotkey"
       | "counterBoxHotkey",

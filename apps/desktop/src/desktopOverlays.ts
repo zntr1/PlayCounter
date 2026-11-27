@@ -161,7 +161,9 @@ export type ScreenshotOutcome =
   | "black"
   | "minimized"
   | "no-window"
-  | "failed";
+  | "failed"
+  /** The "Show screenshots" key, for a game without pictures yet. */
+  | "none";
 
 export type TrackerOverlayEvent = Exclude<
   OverlayEvent,
@@ -345,10 +347,15 @@ function overlayCopy(
       minimized: t("The game is minimized. Bring it back and try again."),
       "no-window": t("PlayCounter couldn't find the game's window."),
       failed: t("PlayCounter couldn't take the screenshot."),
+      none: t("No screenshots of this game yet."),
     };
     return {
       kicker:
-        event.outcome === "saved" ? t("SCREENSHOT SAVED") : t("NO SCREENSHOT"),
+        event.outcome === "saved"
+          ? t("SCREENSHOT SAVED")
+          : event.outcome === "none"
+            ? t("SCREENSHOTS")
+            : t("NO SCREENSHOT"),
       title: event.gameName ?? t("Screenshot"),
       body: bodies[event.outcome],
       coverUrl: event.coverUrl,

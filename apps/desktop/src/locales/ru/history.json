@@ -263,5 +263,10 @@
   "Saved into the picture": "Сохранено в изображении",
   "The picture without your marks is in the Recycle Bin.": "Изображение без разметки находится в корзине.",
   "The marks couldn't be saved.": "Не удалось сохранить разметку.",
-  "Picture to draw on": "Изображение для рисования"
+  "Picture to draw on": "Изображение для рисования",
+  "Esc takes you back to the game.": "Esc возвращает в игру.",
+  "{{count}} screenshots this session_one": "{{count}} скриншот за эту сессию",
+  "{{count}} screenshots this session_few": "{{count}} скриншота за эту сессию",
+  "{{count}} screenshots this session_many": "{{count}} скриншотов за эту сессию",
+  "{{count}} screenshots this session_other": "{{count}} скриншота за эту сессию"
 }

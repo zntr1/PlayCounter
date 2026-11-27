@@ -77,5 +77,7 @@
   "This playthrough": "Cette partie",
   "COUNTERS": "COMPTEURS",
   "This game has no counters yet. Add one in the counter box.": "Ce jeu n'a pas encore de compteur. Ajoutez-en un dans la boîte des compteurs.",
-  "No counter has the controller icon. Click it on the counter the controller should count.": "Aucun compteur n'a l'icône manette. Cliquez dessus sur le compteur que la manette doit compter."
+  "No counter has the controller icon. Click it on the counter the controller should count.": "Aucun compteur n'a l'icône manette. Cliquez dessus sur le compteur que la manette doit compter.",
+  "SCREENSHOTS": "CAPTURES D'ÉCRAN",
+  "No screenshots of this game yet.": "Pas encore de capture d'écran de ce jeu."
 }

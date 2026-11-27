@@ -157,6 +157,41 @@ it("moves the text cursor with the arrow keys, not to another picture", async ()
   expect(useScreenshotViewer.getState().index).toBe(0);
 });
 
+// docs/session-screenshots-plan.md: opened from Now Playing, every picture
+// sits under its session, and this session's say so next to the time.
+it("shows each picture's session over the row, and this session's by the time", async () => {
+  await act(() =>
+    openScreenshotViewer(
+      [withCaption, without],
+      0,
+      "Elden Ring",
+      new Map([
+        [
+          withCaption.path,
+          { key: "session:1", label: "Sat 23 Nov", current: false },
+        ],
+        [
+          without.path,
+          { key: "session:2", label: "This session", current: true },
+        ],
+      ]),
+    ),
+  );
+  const groups = [
+    ...document.body.querySelectorAll("[data-picture-group]"),
+  ].map((group) => group.textContent);
+  expect(groups).toEqual(["Sat 23 Nov", "This session"]);
+  expect(document.body.querySelector("[data-current-session]")).toBeNull();
+  await act(() => useScreenshotViewer.setState({ index: 1 }));
+  expect(
+    document.body.querySelector("[data-current-session]")?.textContent,
+  ).toBe("This session");
+});
+
+it("shows no session labels when opened without them", () => {
+  expect(document.body.querySelector("[data-picture-group]")).toBeNull();
+});
+
 describe("mark up", () => {
   const markUp = () =>
     document.body.querySelector<HTMLButtonElement>(

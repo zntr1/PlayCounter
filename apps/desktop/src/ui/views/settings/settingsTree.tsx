@@ -214,6 +214,15 @@ const screenshotCaptionKey = hotkey(
     ),
   screenshotsUnsupported,
 );
+const screenshotViewerKey = hotkey(
+  "screenshotViewerHotkey",
+  () => t("Show screenshots"),
+  () =>
+    t(
+      "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.",
+    ),
+  screenshotsUnsupported,
+);
 
 const GROUPS: SettingsGroupDef[] = [
   {
@@ -425,7 +434,7 @@ const GROUPS: SettingsGroupDef[] = [
       {
         id: "screenshots",
         title: () => t("Screenshots"),
-        nodes: [screenshotKey, screenshotCaptionKey],
+        nodes: [screenshotKey, screenshotCaptionKey, screenshotViewerKey],
       },
     ],
   },
@@ -506,6 +515,7 @@ const GROUPS: SettingsGroupDef[] = [
           },
           screenshotKey,
           screenshotCaptionKey,
+          screenshotViewerKey,
         ],
       },
     ],

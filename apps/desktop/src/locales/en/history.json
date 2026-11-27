@@ -247,5 +247,8 @@
   "Saved into the picture": "Saved into the picture",
   "The picture without your marks is in the Recycle Bin.": "The picture without your marks is in the Recycle Bin.",
   "The marks couldn't be saved.": "The marks couldn't be saved.",
-  "Picture to draw on": "Picture to draw on"
+  "Picture to draw on": "Picture to draw on",
+  "Esc takes you back to the game.": "Esc takes you back to the game.",
+  "{{count}} screenshots this session_one": "{{count}} screenshot this session",
+  "{{count}} screenshots this session_other": "{{count}} screenshots this session"
 }

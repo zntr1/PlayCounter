@@ -77,5 +77,7 @@
   "This playthrough": "Это прохождение",
   "COUNTERS": "СЧЁТЧИКИ",
   "This game has no counters yet. Add one in the counter box.": "У этой игры пока нет счётчиков. Добавьте его в окне счётчиков.",
-  "No counter has the controller icon. Click it on the counter the controller should count.": "Ни у одного счётчика нет значка геймпада. Нажмите его у счётчика, который должен считать геймпад."
+  "No counter has the controller icon. Click it on the counter the controller should count.": "Ни у одного счётчика нет значка геймпада. Нажмите его у счётчика, который должен считать геймпад.",
+  "SCREENSHOTS": "СКРИНШОТЫ",
+  "No screenshots of this game yet.": "Скриншотов этой игры пока нет."
 }

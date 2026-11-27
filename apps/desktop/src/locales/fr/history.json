@@ -255,5 +255,9 @@
   "Saved into the picture": "Enregistré dans l'image",
   "The picture without your marks is in the Recycle Bin.": "L'image sans vos annotations est dans la Corbeille.",
   "The marks couldn't be saved.": "Les annotations n'ont pas pu être enregistrées.",
-  "Picture to draw on": "Image sur laquelle dessiner"
+  "Picture to draw on": "Image sur laquelle dessiner",
+  "Esc takes you back to the game.": "Échap vous ramène au jeu.",
+  "{{count}} screenshots this session_one": "{{count}} capture d'écran dans cette session",
+  "{{count}} screenshots this session_many": "{{count}} captures d'écran dans cette session",
+  "{{count}} screenshots this session_other": "{{count}} captures d'écran dans cette session"
 }

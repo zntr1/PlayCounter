@@ -10,25 +10,42 @@ import type {
 } from "./counterBox";
 import type { QuickAddPayload, QuickAddReply } from "./quickAdd";
 import type { QuickNotePayload } from "./quickNote";
+import type {
+  ScreenshotBoxAction,
+  ScreenshotBoxPayload,
+  ScreenshotBoxState,
+} from "./screenshotBox";
 import "./styles.css";
 import { applyTheme } from "./theme";
 import { CounterBoxWindow } from "./ui/CounterBoxWindow";
 import { QuickAddWindow } from "./ui/QuickAddWindow";
 import { QuickNoteWindow } from "./ui/QuickNoteWindow";
+import { ScreenshotBoxWindow } from "./ui/ScreenshotBoxWindow";
 import { ScreenshotCaptionWindow } from "./ui/ScreenshotCaptionWindow";
 
 /** quick_note.rs QUICK_ADD_REPLY_EVENT: the main window's answers. */
 const QUICK_ADD_REPLY_EVENT = "playcounter:quick-add-reply";
 /** quick_note.rs COUNTER_BOX_UPDATE_EVENT: what the counter box shows now. */
 const COUNTER_BOX_UPDATE_EVENT = "playcounter:counter-box-update";
+/** quick_note.rs SCREENSHOT_BOX_UPDATE_EVENT: the screenshot box's new list. */
+const SCREENSHOT_BOX_UPDATE_EVENT = "playcounter:screenshot-box-update";
 
-type BoxPayload = QuickNotePayload | QuickAddPayload | CounterBoxPayload;
+type BoxPayload =
+  | QuickNotePayload
+  | QuickAddPayload
+  | CounterBoxPayload
+  | ScreenshotBoxPayload;
 
 const isQuickAdd = (payload: BoxPayload): payload is QuickAddPayload =>
   "quickAdd" in payload && payload.quickAdd === true;
 
 const isCounterBox = (payload: BoxPayload): payload is CounterBoxPayload =>
   "counterBox" in payload && Boolean(payload.counterBox);
+
+const isScreenshotBox = (
+  payload: BoxPayload,
+): payload is ScreenshotBoxPayload =>
+  "screenshots" in payload && Boolean(payload.screenshots);
 
 const logged = (what: string) => (error: unknown) =>
   console.error(`quick add ${what} failed`, error);
@@ -94,6 +111,26 @@ function QuickNoteRoot() {
         subscribe={(listener) => {
           const unlisten = listen<CounterBoxState>(
             COUNTER_BOX_UPDATE_EVENT,
+            ({ payload: next }) => listener(next),
+          );
+          return () => void unlisten.then((stop) => stop());
+        }}
+      />
+    );
+  // The same window shows the running game's pictures over the game.
+  if (isScreenshotBox(payload))
+    return (
+      <ScreenshotBoxWindow
+        payload={payload}
+        onAction={(action: ScreenshotBoxAction) =>
+          void invoke("screenshot_box_action", { action }).catch(
+            logged("screenshot box action"),
+          )
+        }
+        onClose={(restoreFocus) => close(null, restoreFocus)}
+        subscribe={(listener) => {
+          const unlisten = listen<ScreenshotBoxState>(
+            SCREENSHOT_BOX_UPDATE_EVENT,
             ({ payload: next }) => listener(next),
           );
           return () => void unlisten.then((stop) => stop());

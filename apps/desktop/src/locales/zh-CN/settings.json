@@ -403,5 +403,7 @@
   "24-hour": "24 小时制",
   "12-hour": "12 小时制",
   "Previous page": "上一页",
-  "Next page": "下一页"
+  "Next page": "下一页",
+  "Show screenshots": "查看截图",
+  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "在游戏上方直接打开你正在玩的游戏的最新截图。用方向键查看更早的截图，也可以直接在上面标注。按 Esc 返回游戏。"
 }

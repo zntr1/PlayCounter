@@ -13,6 +13,7 @@ import {
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
+import { openScreenshotBox } from "./screenshotBox";
 import { openQuickAdd } from "./quickAdd";
 import { takeScreenshot } from "./screenshots";
 import { togglePauseFromHotkey } from "./tracker";
@@ -29,6 +30,7 @@ vi.mock("./quickNote", () => ({
 vi.mock("./quickAdd", () => ({ openQuickAdd: vi.fn() }));
 vi.mock("./liveTimer", () => ({ cycleLiveTimer: vi.fn() }));
 vi.mock("./screenshots", () => ({ takeScreenshot: vi.fn() }));
+vi.mock("./screenshotBox", () => ({ openScreenshotBox: vi.fn() }));
 vi.mock("./tracker", () => ({ togglePauseFromHotkey: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
@@ -53,6 +55,7 @@ beforeEach(() => {
       pauseTimerHotkey: null,
       screenshotHotkey: null,
       screenshotCaptionHotkey: null,
+      screenshotViewerHotkey: null,
       quickAddHotkey: null,
     },
   }));
@@ -75,6 +78,7 @@ describe("global hotkeys", () => {
         pauseTimerHotkey: "Alt+F6",
         screenshotHotkey: "Alt+F11",
         screenshotCaptionHotkey: "Alt+F12",
+        screenshotViewerHotkey: "Alt+F5",
         quickAddHotkey: "Alt+F7",
       },
     }));
@@ -88,6 +92,7 @@ describe("global hotkeys", () => {
       "playcounter:pause-timer-hotkey",
       "playcounter:screenshot-hotkey",
       "playcounter:screenshot-caption-hotkey",
+      "playcounter:screenshot-viewer-hotkey",
       "playcounter:quick-add-hotkey",
       "playcounter:counter-undo-hotkey",
       "playcounter:counter-box-hotkey",
@@ -105,6 +110,10 @@ describe("global hotkeys", () => {
       [
         "set_global_hotkey",
         { action: "screenshot-caption", shortcut: "Alt+F12" },
+      ],
+      [
+        "set_global_hotkey",
+        { action: "screenshot-viewer", shortcut: "Alt+F5" },
       ],
       ["set_global_hotkey", { action: "quick-add", shortcut: "Alt+F7" }],
       ["set_global_hotkey", { action: "counter-undo", shortcut: null }],
@@ -133,6 +142,10 @@ describe("global hotkeys", () => {
     listenMock.mock.calls[5][1]({ payload: null } as never);
     expect(takeScreenshot).toHaveBeenCalledTimes(2);
     expect(takeScreenshot).toHaveBeenLastCalledWith({ caption: true });
+    // docs/session-screenshots-plan.md: the game's pictures, over the game.
+    listenMock.mock.calls[6][1]({ payload: null } as never);
+    expect(openScreenshotBox).toHaveBeenCalledOnce();
+    expect(takeScreenshot).toHaveBeenCalledTimes(2);
   });
 
   it("opens the quick add box from its hotkey, with no game running", async () => {
@@ -211,6 +224,7 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "pause-timer", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot-caption", shortcut: null }],
+      ["set_global_hotkey", { action: "screenshot-viewer", shortcut: null }],
       ["set_global_hotkey", { action: "quick-add", shortcut: null }],
       ["set_global_hotkey", { action: "counter-undo", shortcut: null }],
       ["set_global_hotkey", { action: "counter-box", shortcut: null }],

@@ -12,6 +12,7 @@ import { initializeQuickAdd, disposeQuickAdd } from "./quickAdd";
 import { disposeCounterKeys, initializeCounterKeys } from "./counterInput";
 import { disposeCounterBox, initializeCounterBox } from "./counterBox";
 import { initializeScreenshots, disposeScreenshots } from "./screenshots";
+import { disposeScreenshotBox, initializeScreenshotBox } from "./screenshotBox";
 import {
   initializeLiveTimer,
   disposeLiveTimer,
@@ -585,6 +586,7 @@ export async function initializeTracker() {
     togglePauseSession(sessionId);
   });
   initializeScreenshots(runningGamePids);
+  initializeScreenshotBox(runningGamePids);
   initializeAutoPause({
     gamePids: runningGamePids,
     pause: (sessionId, at) => pauseSession(sessionId, { at, kind: "away" }),
@@ -649,6 +651,7 @@ export async function stopTrackerForReset() {
   disposeCounterBox();
   disposeLiveTimer();
   disposeScreenshots();
+  disposeScreenshotBox();
   disposeAutoPause();
   disposePlayStationLive();
   disposeNintendoRefresh();
@@ -744,6 +747,7 @@ async function finishTrackerStartup() {
     disposeCounterBox();
     disposeLiveTimer();
     disposeScreenshots();
+    disposeScreenshotBox();
     disposeAutoPause();
     disposePlayStationLive();
     disposeNintendoRefresh();

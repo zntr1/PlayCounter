@@ -4,12 +4,14 @@ import { cn } from "./cn";
 import { Camera, MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+  gamePictures,
   makeScreenshotPreview,
   openScreenshotViewer,
   screenshotSource,
   useSessionScreenshots,
   type Screenshot,
 } from "../screenshots";
+import { resolvedCanonicalGameKey, type ActiveSession } from "../store";
 import { isSampleShot, useSampleScreenshots } from "../screenshotSample";
 import { getT } from "../i18n";
 import { useLibraryPractice } from "./PersonalLibraryContext";
@@ -124,6 +126,88 @@ function ScreenshotStrip({
         </li>
       ) : null}
     </ul>
+  );
+}
+
+/** How many of the running session's pictures Now Playing shows before
+ *  "+N". */
+const NOW_SHOWN = 6;
+
+/** Now Playing (docs/session-screenshots-plan.md): the running session's
+ *  pictures, newest first. A click opens all of the game's pictures at that
+ *  one, each under its session. Nothing before the first picture. */
+export function NowPlayingScreenshots({
+  session,
+  className,
+}: {
+  session: ActiveSession;
+  className?: string;
+}) {
+  const own = useSessionScreenshots(session.id);
+  if (!own.length) return null;
+  const newest = [...own].reverse();
+  const shown = newest.slice(0, NOW_SHOWN);
+  const more = newest.length - shown.length;
+  const open = (shot: Screenshot) => {
+    const { shots, groups } = gamePictures(
+      resolvedCanonicalGameKey(session),
+      session.gameName,
+    );
+    const index = shots.findIndex((entry) => entry.path === shot.path);
+    if (index >= 0)
+      openScreenshotViewer(shots, index, session.gameName, groups);
+    else openScreenshotViewer(own, own.indexOf(shot), session.gameName);
+  };
+  const tile =
+    "relative block h-12 w-[86px] shrink-0 overflow-hidden rounded-md border border-border bg-surface-hover transition hover:border-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
+  return (
+    <div className={className}>
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-text-muted">
+        <Camera size={14} aria-hidden />
+        {t("{{count}} screenshots this session", { count: own.length })}
+      </div>
+      <ul aria-label={t("Screenshots")} className="flex flex-wrap gap-1.5">
+        {shown.map((shot, index) => (
+          <li key={shot.path}>
+            <button
+              type="button"
+              className={tile}
+              aria-label={t("Open screenshot {{index}} of {{total}}", {
+                index: index + 1,
+                total: newest.length,
+              })}
+              title={shot.caption ?? undefined}
+              onClick={() => open(shot)}
+            >
+              <ScreenshotThumb shot={shot} />
+              {shot.caption ? (
+                <span
+                  data-caption-mark
+                  className="absolute bottom-1 left-1 grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-black/70 text-accent"
+                >
+                  <MessageSquare size={11} aria-hidden />
+                </span>
+              ) : null}
+            </button>
+          </li>
+        ))}
+        {more > 0 ? (
+          <li>
+            <button
+              type="button"
+              className={clsx(
+                tile,
+                "grid place-items-center text-sm font-semibold text-text-muted",
+              )}
+              aria-label={t("Show all screenshots")}
+              onClick={() => open(newest[NOW_SHOWN])}
+            >
+              +{more}
+            </button>
+          </li>
+        ) : null}
+      </ul>
+    </div>
   );
 }
 

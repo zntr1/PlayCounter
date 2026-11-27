@@ -778,6 +778,9 @@ export interface Settings {
   screenshotHotkey?: string | null;
   /** Takes the picture, then opens a box for its caption. */
   screenshotCaptionHotkey?: string | null;
+  /** Opens the running game's pictures over the game
+   *  (docs/session-screenshots-plan.md). */
+  screenshotViewerHotkey?: string | null;
   quickAddHotkey?: string | null;
   /** Takes one off the counter counted last (docs/counters-plan.md). */
   counterUndoHotkey?: string | null;

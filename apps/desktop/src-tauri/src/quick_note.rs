@@ -1,9 +1,10 @@
 //! The quick note box: a small window over the game for writing a note to a
 //! session, a caption to a screenshot just taken, (quick add) searching a
 //! game to add to My Games, or (counter box) counting with the running game's
-//! counters. Unlike the notification overlay it takes keyboard focus, and it
-//! hands focus back to the window that had it (usually the game) when it
-//! closes.
+//! counters, or (screenshot box) showing the running game's pictures as big
+//! as the game's screen. Unlike the notification overlay it takes keyboard
+//! focus, and it hands focus back to the window that had it (usually the
+//! game) when it closes.
 
 use crate::screenshot::caption::CAPTION_LIMIT;
 use serde::{Deserialize, Serialize};
@@ -55,8 +56,19 @@ pub const COUNTER_BOX_UPDATE_EVENT: &str = "playcounter:counter-box-update";
 const COUNTER_LIMIT: usize = 50;
 const COUNTER_NAME_LIMIT: usize = 60;
 const COUNT_LIMIT: u32 = 10_000_000;
-/// Texts the boxes get in the main window's language.
-const LABEL_LIMIT: usize = 48;
+/// Texts the boxes get in the main window's language. The screenshot box
+/// needs the most: mark up alone has about 26.
+const LABEL_LIMIT: usize = 96;
+/// What the screenshot box asks the main window to do.
+pub const SCREENSHOT_BOX_ACTION_EVENT: &str = "playcounter:screenshot-box-action";
+/// The main window's new list for the screenshot box.
+pub const SCREENSHOT_BOX_UPDATE_EVENT: &str = "playcounter:screenshot-box-update";
+/// The screenshot box keeps the game's newest pictures, this many
+/// (screenshotBox.ts).
+const SCREENSHOT_BOX_LIMIT: usize = 500;
+/// The marks for one picture as base64 text. A see-through PNG of marks on
+/// an 8K picture stays far below.
+const MARKS_LIMIT: usize = 64 * 1024 * 1024;
 #[cfg(target_os = "macos")]
 const UNSUPPORTED: &str = "Desktop overlays are not supported on this platform.";
 
@@ -69,6 +81,71 @@ pub struct CaptionTarget {
     picture_url: String,
     /// When it was taken, ready to show.
     taken_at: String,
+}
+
+/// Where a picture sits in the screenshot box's row: its session's day, or
+/// "This session".
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PictureGroup {
+    key: String,
+    label: String,
+    current: bool,
+}
+
+/// One picture as the screenshot box shows it, everything ready to show.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoxPicture {
+    path: String,
+    url: String,
+    thumb_url: String,
+    taken_at: String,
+    group: PictureGroup,
+    caption: Option<String>,
+    markable: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BoxActionKind {
+    Caption,
+    Recycle,
+    MarkUp,
+}
+
+/// What the main window did with the box's last action.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoxDone {
+    kind: BoxActionKind,
+    path: String,
+    ok: bool,
+}
+
+/// The game's pictures, oldest first, and the one to open at; with `done`
+/// after an action.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenshotBox {
+    pictures: Vec<BoxPicture>,
+    index: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    done: Option<BoxDone>,
+}
+
+/// What the screenshot box asks the main window for.
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ScreenshotBoxAction {
+    Caption { path: String, caption: Option<String> },
+    Recycle { path: String },
+    /// The marks as a see-through PNG, in base64.
+    MarkUp { path: String, png: String },
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -104,6 +181,9 @@ pub struct QuickNotePayload {
     /// Set for the counter box.
     #[serde(default)]
     counter_box: Option<CounterBox>,
+    /// Set for the screenshot box.
+    #[serde(default)]
+    screenshots: Option<ScreenshotBox>,
 }
 
 /// One counter as the counter box shows it.
@@ -231,6 +311,8 @@ pub struct QuickNoteState {
     quick_add: Mutex<bool>,
     /// The open box is the counter box.
     counter_box: Mutex<bool>,
+    /// The open box is the screenshot box.
+    screenshot_box: Mutex<bool>,
 }
 
 fn truncate(value: String, max_chars: usize) -> String {
@@ -254,6 +336,7 @@ fn sanitize(mut payload: QuickNotePayload) -> QuickNotePayload {
     payload.locale = payload.locale.map(|value| truncate(value, 35));
     payload.theme = truncate(payload.theme, 16);
     payload.accent_color = payload.accent_color.map(|value| truncate(value, 16));
+    payload.screenshots = payload.screenshots.map(sanitize_screenshot_box);
     payload.caption = payload.caption.map(|target| CaptionTarget {
         path: truncate(target.path, 4096),
         picture_url: truncate(target.picture_url, 8192),
@@ -279,6 +362,67 @@ fn sanitize_counter_box(mut counter_box: CounterBox) -> CounterBox {
         row.playthrough = row.playthrough.min(COUNT_LIMIT);
     }
     counter_box
+}
+
+/// Keeps the newest pictures and cuts every text to size. The one shown stays
+/// the one it was, or the newest when it was left out.
+fn sanitize_screenshot_box(mut screenshots: ScreenshotBox) -> ScreenshotBox {
+    let dropped = screenshots
+        .pictures
+        .len()
+        .saturating_sub(SCREENSHOT_BOX_LIMIT);
+    screenshots.pictures.drain(..dropped);
+    screenshots.index = screenshots
+        .index
+        .saturating_sub(dropped)
+        .min(screenshots.pictures.len().saturating_sub(1));
+    screenshots.pictures = screenshots
+        .pictures
+        .into_iter()
+        .map(|picture| BoxPicture {
+            path: truncate(picture.path, 4096),
+            url: truncate(picture.url, 8192),
+            thumb_url: truncate(picture.thumb_url, 8192),
+            taken_at: truncate(picture.taken_at, 64),
+            group: PictureGroup {
+                key: truncate(picture.group.key, 64),
+                label: truncate(picture.group.label, 64),
+                current: picture.group.current,
+            },
+            caption: picture
+                .caption
+                .map(|caption| truncate(caption, CAPTION_LIMIT)),
+            markable: picture.markable,
+        })
+        .collect();
+    screenshots.done = screenshots.done.map(|done| BoxDone {
+        path: truncate(done.path, 4096),
+        ..done
+    });
+    screenshots
+}
+
+/// A caption is cut to one caption's size; marks too big for any picture are
+/// refused.
+fn sanitize_screenshot_action(action: ScreenshotBoxAction) -> Result<ScreenshotBoxAction, String> {
+    Ok(match action {
+        ScreenshotBoxAction::Caption { path, caption } => ScreenshotBoxAction::Caption {
+            path: truncate(path, 4096),
+            caption: caption.map(|caption| truncate(caption, CAPTION_LIMIT)),
+        },
+        ScreenshotBoxAction::Recycle { path } => ScreenshotBoxAction::Recycle {
+            path: truncate(path, 4096),
+        },
+        ScreenshotBoxAction::MarkUp { path, png } => {
+            if png.len() > MARKS_LIMIT {
+                return Err("the marks are too big".to_string());
+            }
+            ScreenshotBoxAction::MarkUp {
+                path: truncate(path, 4096),
+                png,
+            }
+        }
+    })
 }
 
 /// The box sends one press or one change at a time; anything bigger is cut.
@@ -327,10 +471,12 @@ fn sanitize_reply(reply: QuickAddReply) -> QuickAddReply {
     }
 }
 
-/// The session a note box writes to. The quick add box and the counter box
-/// have none, so nothing they close with can land on a session as a note.
+/// The session a note box writes to. The quick add box, the counter box and
+/// the screenshot box have none, so nothing they close with can land on a
+/// session as a note.
 fn session_of(payload: &QuickNotePayload) -> Option<i64> {
-    (!payload.quick_add && payload.counter_box.is_none()).then_some(payload.session_id)
+    (!payload.quick_add && payload.counter_box.is_none() && payload.screenshots.is_none())
+        .then_some(payload.session_id)
 }
 
 /// The quick add box's height in logical pixels, within its limits. None for a
@@ -391,8 +537,15 @@ mod imp {
         payload: QuickNotePayload,
     ) -> Result<bool, String> {
         // A second press while the box is open brings it back instead of
-        // replacing what is being typed.
+        // replacing what is being typed. The screenshot key closes its box
+        // instead, back to the game.
         if let Some(window) = app.get_webview_window(LABEL) {
+            let screenshot_box_open =
+                *state.screenshot_box.lock().map_err(|error| error.to_string())?;
+            if screenshot_box_open && payload.screenshots.is_some() {
+                close(app, state, true)?;
+                return Ok(false);
+            }
             let _ = window.show();
             window.set_focus().map_err(|error| error.to_string())?;
             return Ok(false);
@@ -415,6 +568,15 @@ mod imp {
         *state.quick_add.lock().map_err(|error| error.to_string())? = payload.quick_add;
         *state.counter_box.lock().map_err(|error| error.to_string())? =
             payload.counter_box.is_some();
+        let screenshot_box = payload.screenshots.is_some();
+        *state.screenshot_box.lock().map_err(|error| error.to_string())? = screenshot_box;
+        // The screenshot box covers the game's screen, not the popup screen.
+        let game_screen = if screenshot_box {
+            let foreground = *state.foreground.lock().map_err(|error| error.to_string())?;
+            game_monitor(app, foreground)
+        } else {
+            None
+        };
         *state.pending.lock().map_err(|error| error.to_string())? = Some(payload);
         let window = tauri::WebviewWindowBuilder::new(
             app,
@@ -436,6 +598,18 @@ mod imp {
         .focused(true)
         .build()
         .map_err(|error| error.to_string())?;
+        if screenshot_box {
+            let screen = game_screen.unwrap_or(monitor);
+            window
+                .set_size(*screen.size())
+                .map_err(|error| error.to_string())?;
+            window
+                .set_position(*screen.position())
+                .map_err(|error| error.to_string())?;
+            window.show().map_err(|error| error.to_string())?;
+            window.set_focus().map_err(|error| error.to_string())?;
+            return Ok(true);
+        }
         let area = monitor.work_area();
         let scale = monitor.scale_factor();
         let width = ((logical_width * scale).round() as u32).min(area.size.width);
@@ -477,6 +651,7 @@ mod imp {
             .take();
         *state.quick_add.lock().map_err(|error| error.to_string())? = false;
         *state.counter_box.lock().map_err(|error| error.to_string())? = false;
+        *state.screenshot_box.lock().map_err(|error| error.to_string())? = false;
         let foreground = state
             .foreground
             .lock()
@@ -518,6 +693,44 @@ mod imp {
         None
     }
 
+    /// The screen the window (the game) is on, by its middle.
+    #[cfg(target_os = "windows")]
+    fn game_monitor(app: &tauri::AppHandle, hwnd: Option<isize>) -> Option<tauri::Monitor> {
+        use windows_sys::Win32::{Foundation::RECT, UI::WindowsAndMessaging::GetWindowRect};
+        let hwnd = hwnd? as windows_sys::Win32::Foundation::HWND;
+        let mut rect = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
+        if unsafe { GetWindowRect(hwnd, &mut rect) } == 0 {
+            return None;
+        }
+        let x = (f64::from(rect.left) + f64::from(rect.right)) / 2.0;
+        let y = (f64::from(rect.top) + f64::from(rect.bottom)) / 2.0;
+        app.monitor_from_point(x, y).ok().flatten()
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn game_monitor(_app: &tauri::AppHandle, _hwnd: Option<isize>) -> Option<tauri::Monitor> {
+        None
+    }
+
+    /// The process a window belongs to; 0 when it has none any more.
+    #[cfg(target_os = "windows")]
+    pub fn process_id(hwnd: isize) -> u32 {
+        use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+        let mut pid = 0;
+        unsafe { GetWindowThreadProcessId(hwnd as windows_sys::Win32::Foundation::HWND, &mut pid) };
+        pid
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub fn process_id(_hwnd: isize) -> u32 {
+        0
+    }
+
     #[cfg(target_os = "windows")]
     fn focus_window(hwnd: isize) {
         use windows_sys::Win32::UI::WindowsAndMessaging::{IsWindow, SetForegroundWindow};
@@ -557,6 +770,9 @@ mod imp {
     pub fn foreground_window() -> Option<isize> {
         None
     }
+    pub fn process_id(_hwnd: isize) -> u32 {
+        0
+    }
 }
 
 fn main_only(window: &tauri::Window) -> Result<(), String> {
@@ -586,6 +802,20 @@ fn quick_add_box_only(window: &tauri::Window, state: &QuickNoteState) -> Result<
         Ok(())
     } else {
         Err("no quick add box is open".to_string())
+    }
+}
+
+fn screenshot_box_open(state: &QuickNoteState) -> Result<bool, String> {
+    Ok(*state.screenshot_box.lock().map_err(|error| error.to_string())?)
+}
+
+/// Only the screenshot box asks for captions, marks and the Recycle Bin.
+fn screenshot_box_only(window: &tauri::Window, state: &QuickNoteState) -> Result<(), String> {
+    note_window_only(window)?;
+    if screenshot_box_open(state)? {
+        Ok(())
+    } else {
+        Err("no screenshot box is open".to_string())
     }
 }
 
@@ -766,6 +996,58 @@ pub fn counter_box_update(
     Ok(true)
 }
 
+/// The process of the window that was in front when the hotkey was pressed,
+/// so the main window knows which running game it was. None without one.
+#[tauri::command(async)]
+pub fn quick_note_foreground_pid(
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+) -> Result<Option<u32>, String> {
+    main_only(&window)?;
+    let foreground = *state.foreground.lock().map_err(|error| error.to_string())?;
+    Ok(foreground
+        .map(imp::process_id)
+        .filter(|&pid| pid != 0 && pid != std::process::id()))
+}
+
+/// The screenshot box asks the main window to write a caption, mark up or
+/// recycle a picture.
+#[tauri::command(async)]
+pub fn screenshot_box_action(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    action: ScreenshotBoxAction,
+) -> Result<(), String> {
+    screenshot_box_only(&window, &state)?;
+    use tauri::Emitter;
+    app.emit_to(
+        crate::notification_overlay::MAIN_LABEL,
+        SCREENSHOT_BOX_ACTION_EVENT,
+        sanitize_screenshot_action(action)?,
+    )
+    .map_err(|error| error.to_string())
+}
+
+/// The main window sends the screenshot box its new list. False when no
+/// screenshot box is open any more.
+#[tauri::command(async)]
+pub fn screenshot_box_update(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    state: tauri::State<'_, QuickNoteState>,
+    update: ScreenshotBox,
+) -> Result<bool, String> {
+    main_only(&window)?;
+    if !screenshot_box_open(&state)? {
+        return Ok(false);
+    }
+    use tauri::Emitter;
+    app.emit_to(LABEL, SCREENSHOT_BOX_UPDATE_EVENT, sanitize_screenshot_box(update))
+        .map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
 /// The quick add box and the counter box grow and shrink with what they
 /// show.
 #[tauri::command(async)]
@@ -805,6 +1087,7 @@ mod tests {
             caption: None,
             quick_add: false,
             counter_box: None,
+            screenshots: None,
         }
     }
 
@@ -1075,6 +1358,185 @@ mod tests {
         assert_eq!(caption.path.chars().count(), 4096);
         assert_eq!(caption.picture_url.chars().count(), 8192);
         assert_eq!(caption.taken_at.chars().count(), 64);
+    }
+
+    /// What the main window sends for the screenshot box (screenshotBox.ts).
+    fn screenshot_box_payload(pictures: usize, index: usize) -> QuickNotePayload {
+        serde_json::from_value(serde_json::json!({
+            "gameName": "Elden Ring",
+            "coverUrl": null,
+            "screenshots": {
+                "pictures": (0..pictures).map(|number| serde_json::json!({
+                    "path": format!("C:\\Pictures\\PlayCounter\\Elden Ring\\{number}.jpg"),
+                    "url": format!("asset://{number}.jpg"),
+                    "thumbUrl": format!("asset://previews/{number}.jpg"),
+                    "takenAt": "23 Nov 2026, 19:40",
+                    "group": { "key": "session:1", "label": "Sat 23 Nov", "current": false },
+                    "caption": null,
+                    "markable": true
+                })).collect::<Vec<_>>(),
+                "index": index
+            },
+            "labels": { "Mark up": "Markieren" },
+            "monitor": "primary",
+            "locale": "de",
+            "theme": "dark",
+            "accentColor": null,
+            "reducedMotion": false
+        }))
+        .expect("a screenshot box payload needs no note session")
+    }
+
+    fn long_picture() -> BoxPicture {
+        BoxPicture {
+            path: "p".repeat(5000),
+            url: "u".repeat(9000),
+            thumb_url: "t".repeat(9000),
+            taken_at: "a".repeat(100),
+            group: PictureGroup {
+                key: "k".repeat(100),
+                label: "l".repeat(100),
+                current: true,
+            },
+            caption: Some("c".repeat(400)),
+            markable: true,
+        }
+    }
+
+    #[test]
+    fn a_screenshot_box_keeps_no_note_session() {
+        let screenshots = screenshot_box_payload(3, 2);
+        assert!(screenshots.screenshots.is_some());
+        assert_eq!(session_of(&screenshots), None);
+    }
+
+    #[test]
+    fn caps_the_screenshot_box_and_keeps_the_newest_pictures() {
+        let clean = sanitize_screenshot_box(ScreenshotBox {
+            pictures: (0..SCREENSHOT_BOX_LIMIT + 100)
+                .map(|number| BoxPicture {
+                    path: format!("{number}.jpg"),
+                    ..long_picture()
+                })
+                .collect(),
+            index: SCREENSHOT_BOX_LIMIT + 99,
+            done: None,
+        });
+        assert_eq!(clean.pictures.len(), SCREENSHOT_BOX_LIMIT);
+        // The oldest are left out; the one shown stays the newest.
+        assert_eq!(clean.pictures[0].path, "100.jpg");
+        assert_eq!(clean.index, SCREENSHOT_BOX_LIMIT - 1);
+        let picture = &clean.pictures[0];
+        assert_eq!(picture.url.chars().count(), 8192);
+        assert_eq!(picture.thumb_url.chars().count(), 8192);
+        assert_eq!(picture.taken_at.chars().count(), 64);
+        assert_eq!(picture.group.key.chars().count(), 64);
+        assert_eq!(picture.group.label.chars().count(), 64);
+        assert_eq!(
+            picture.caption.as_ref().unwrap().chars().count(),
+            CAPTION_LIMIT
+        );
+        let long = sanitize_screenshot_box(ScreenshotBox {
+            pictures: vec![long_picture()],
+            index: 0,
+            done: None,
+        });
+        assert_eq!(long.pictures[0].path.chars().count(), 4096);
+    }
+
+    #[test]
+    fn a_screenshot_box_opens_at_a_picture_it_has() {
+        let clean = sanitize(screenshot_box_payload(3, 40));
+        assert_eq!(clean.screenshots.unwrap().index, 2);
+        let empty = sanitize(screenshot_box_payload(0, 5));
+        assert_eq!(empty.screenshots.unwrap().index, 0);
+    }
+
+    #[test]
+    fn the_screenshot_box_gets_all_of_its_texts() {
+        let mut many = screenshot_box_payload(1, 0);
+        many.labels = (0..120)
+            .map(|index| (format!("key {index}"), "v".to_string()))
+            .collect();
+        assert_eq!(sanitize(many).labels.len(), LABEL_LIMIT);
+        assert!(LABEL_LIMIT >= 64);
+    }
+
+    #[test]
+    fn reads_the_screenshot_box_actions_the_way_the_box_writes_them() {
+        let caption: ScreenshotBoxAction = serde_json::from_value(serde_json::json!({
+            "kind": "caption",
+            "path": "C:\\shot.jpg",
+            "caption": "c".repeat(400)
+        }))
+        .unwrap();
+        let ScreenshotBoxAction::Caption { caption, .. } =
+            sanitize_screenshot_action(caption).unwrap()
+        else {
+            panic!("a caption stays a caption");
+        };
+        assert_eq!(caption.unwrap().chars().count(), CAPTION_LIMIT);
+        let none: ScreenshotBoxAction = serde_json::from_value(serde_json::json!({
+            "kind": "caption",
+            "path": "C:\\shot.jpg",
+            "caption": null
+        }))
+        .unwrap();
+        assert!(matches!(
+            none,
+            ScreenshotBoxAction::Caption { caption: None, .. }
+        ));
+        let recycle: ScreenshotBoxAction = serde_json::from_value(serde_json::json!({
+            "kind": "recycle",
+            "path": "C:\\shot.jpg"
+        }))
+        .unwrap();
+        assert_eq!(
+            recycle,
+            ScreenshotBoxAction::Recycle {
+                path: "C:\\shot.jpg".into()
+            }
+        );
+        let mark_up: ScreenshotBoxAction = serde_json::from_value(serde_json::json!({
+            "kind": "markUp",
+            "path": "C:\\shot.jpg",
+            "png": "iVBORw0KGgo="
+        }))
+        .unwrap();
+        assert_eq!(
+            sanitize_screenshot_action(mark_up.clone()).unwrap(),
+            mark_up
+        );
+    }
+
+    #[test]
+    fn refuses_marks_bigger_than_any_picture_needs() {
+        let huge = ScreenshotBoxAction::MarkUp {
+            path: "C:\\shot.jpg".into(),
+            png: "A".repeat(MARKS_LIMIT + 1),
+        };
+        assert!(sanitize_screenshot_action(huge).is_err());
+    }
+
+    #[test]
+    fn says_what_was_done_the_way_the_box_reads_it() {
+        let update = ScreenshotBox {
+            pictures: vec![],
+            index: 0,
+            done: Some(BoxDone {
+                kind: BoxActionKind::MarkUp,
+                path: "C:\\shot.jpg".into(),
+                ok: true,
+            }),
+        };
+        assert_eq!(
+            serde_json::to_value(&update).unwrap(),
+            serde_json::json!({
+                "pictures": [],
+                "index": 0,
+                "done": { "kind": "markUp", "path": "C:\\shot.jpg", "ok": true }
+            })
+        );
     }
 
     #[cfg(not(target_os = "macos"))]

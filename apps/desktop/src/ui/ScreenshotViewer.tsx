@@ -28,6 +28,7 @@ import {
   screenshotSource,
   setScreenshotCaption,
   useScreenshotViewer,
+  type PictureGroup,
   type Screenshot,
   type ViewerPicture,
 } from "../screenshots";
@@ -56,7 +57,7 @@ export function ScreenshotViewer() {
 }
 
 function OpenViewer() {
-  const { shots, index, title } = useScreenshotViewer();
+  const { shots, index, title, groups } = useScreenshotViewer();
   const shot = shots[Math.min(index, shots.length - 1)];
   const panelRef = useRef<HTMLDivElement>(null);
   const [missing, setMissing] = useState(false);
@@ -158,6 +159,7 @@ function OpenViewer() {
       });
   const name = title || (web ? "" : shot.folder);
   const position = { index: index + 1, total: shots.length };
+  const current = !web && groups?.get(shot.path)?.current === true;
 
   return createPortal(
     <div
@@ -206,7 +208,15 @@ function OpenViewer() {
             >
               {name || t("Screenshot")}
             </h2>
-            <p className="text-sm text-white/60">
+            <p className="flex items-center gap-2 text-sm text-white/60">
+              {current && !marking ? (
+                <span
+                  data-current-session
+                  className="shrink-0 rounded-full bg-success/15 px-2 text-xs font-semibold text-success"
+                >
+                  {t("This session")}
+                </span>
+              ) : null}
               {marking
                 ? t(
                     "Draw on the picture. Drag stickers and numbers to move them.",
@@ -304,7 +314,7 @@ function OpenViewer() {
           </>
         )}
         {shots.length > 1 && !marking ? (
-          <PictureRow shots={shots} index={index} />
+          <PictureRow shots={shots} index={index} groups={groups} />
         ) : null}
         {shots.length > 1 && !marking ? (
           <>
@@ -390,9 +400,12 @@ function OwnPictureButtons({
 function PictureRow({
   shots,
   index,
+  groups,
 }: {
   shots: ViewerPicture[];
   index: number;
+  /** Each picture's session: its label shows over the first one of it. */
+  groups?: Map<string, PictureGroup>;
 }) {
   const activeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -409,40 +422,72 @@ function PictureRow({
       {shots.map((picture, position) => {
         const web = isWebPicture(picture);
         const afterOwn = position > 0 && !isWebPicture(shots[position - 1]);
+        const group = web ? undefined : groups?.get(picture.path);
+        const before = shots[position - 1];
+        const startsGroup =
+          group &&
+          (!before ||
+            isWebPicture(before) ||
+            groups?.get(before.path)?.key !== group.key);
         return (
-          <li key={pictureKey(picture)} className="flex shrink-0 items-center">
+          <li
+            key={pictureKey(picture)}
+            className={clsx(
+              "flex shrink-0",
+              groups ? "items-end" : "items-center",
+            )}
+          >
             {web && afterOwn ? (
               <span aria-hidden className="mx-2 h-8 w-px bg-white/20" />
             ) : null}
-            <button
-              ref={position === index ? activeRef : undefined}
-              type="button"
-              aria-label={t("Open screenshot {{index}} of {{total}}", {
-                index: position + 1,
-                total: shots.length,
-              })}
-              aria-current={position === index ? "true" : undefined}
-              onClick={() => useScreenshotViewer.setState({ index: position })}
-              className={clsx(
-                "relative block h-12 w-[86px] overflow-hidden rounded-md bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-                position === index
-                  ? "opacity-100 ring-2 ring-accent"
-                  : "opacity-50 hover:opacity-90",
-              )}
-            >
-              {web ? (
-                <ArtImage
-                  src={igdbScreenshotThumb(picture.url)}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  draggable={false}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <ScreenshotThumb shot={picture} />
-              )}
-            </button>
+            {startsGroup && position > 0 ? (
+              <span aria-hidden className="w-2.5 shrink-0" />
+            ) : null}
+            <div className="grid gap-0.5">
+              {groups ? (
+                <span
+                  data-picture-group={startsGroup ? "" : undefined}
+                  className={clsx(
+                    "h-4 truncate text-[11px] font-semibold leading-4",
+                    group?.current ? "text-success" : "text-white/50",
+                    !startsGroup && "invisible",
+                  )}
+                >
+                  {startsGroup ? group.label : null}
+                </span>
+              ) : null}
+              <button
+                ref={position === index ? activeRef : undefined}
+                type="button"
+                aria-label={t("Open screenshot {{index}} of {{total}}", {
+                  index: position + 1,
+                  total: shots.length,
+                })}
+                aria-current={position === index ? "true" : undefined}
+                onClick={() =>
+                  useScreenshotViewer.setState({ index: position })
+                }
+                className={clsx(
+                  "relative block h-12 w-[86px] overflow-hidden rounded-md bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  position === index
+                    ? "opacity-100 ring-2 ring-accent"
+                    : "opacity-50 hover:opacity-90",
+                )}
+              >
+                {web ? (
+                  <ArtImage
+                    src={igdbScreenshotThumb(picture.url)}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <ScreenshotThumb shot={picture} />
+                )}
+              </button>
+            </div>
           </li>
         );
       })}

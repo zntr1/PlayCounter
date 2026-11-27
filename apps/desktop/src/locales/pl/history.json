@@ -263,5 +263,10 @@
   "Saved into the picture": "Zapisano w obrazie",
   "The picture without your marks is in the Recycle Bin.": "Obraz bez twoich oznaczeń jest w koszu.",
   "The marks couldn't be saved.": "Nie udało się zapisać oznaczeń.",
-  "Picture to draw on": "Obraz do rysowania"
+  "Picture to draw on": "Obraz do rysowania",
+  "Esc takes you back to the game.": "Esc wraca do gry.",
+  "{{count}} screenshots this session_one": "{{count}} zrzut ekranu w tej sesji",
+  "{{count}} screenshots this session_few": "{{count}} zrzuty ekranu w tej sesji",
+  "{{count}} screenshots this session_many": "{{count}} zrzutów ekranu w tej sesji",
+  "{{count}} screenshots this session_other": "{{count}} zrzutu ekranu w tej sesji"
 }
