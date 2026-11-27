@@ -1,6 +1,6 @@
 //! The quick note box: a small window over the game for writing a note to a
-//! session, a caption to a screenshot just taken, (quick add) searching a
-//! game to add to My Games, or (counter box) counting with the running game's
+//! session, (quick add) searching a game to add to My Games, or (counter box)
+//! counting with the running game's
 //! counters, or (screenshot box) showing the running game's pictures as big
 //! as the game's screen. Unlike the notification overlay it takes keyboard
 //! focus, and it hands focus back to the window that had it (usually the
@@ -13,19 +13,12 @@ use std::sync::Mutex;
 
 pub const LABEL: &str = "quick-note";
 pub const SAVE_EVENT: &str = "playcounter:quick-note-save";
-/// Sent when the caption box closes, with or without a caption.
-pub const CAPTION_EVENT: &str = "playcounter:screenshot-caption-close";
 /// Same limit as the main window's session notes.
 const NOTE_LIMIT: usize = 1000;
 #[cfg(not(target_os = "macos"))]
 const WINDOW_LOGICAL_WIDTH: f64 = 560.0;
 #[cfg(not(target_os = "macos"))]
 const WINDOW_LOGICAL_HEIGHT: f64 = 236.0;
-/// The caption box shows the picture, with the caption under it.
-#[cfg(not(target_os = "macos"))]
-const CAPTION_WINDOW_LOGICAL_WIDTH: f64 = 488.0;
-#[cfg(not(target_os = "macos"))]
-const CAPTION_WINDOW_LOGICAL_HEIGHT: f64 = 430.0;
 /// The quick add box is as wide as the note box. It starts with the field and
 /// the buttons, grows with the search results up to its full height, and is
 /// placed as if it had that height, so its top edge never moves.
@@ -71,17 +64,6 @@ const SCREENSHOT_BOX_LIMIT: usize = 500;
 const MARKS_LIMIT: usize = 64 * 1024 * 1024;
 #[cfg(target_os = "macos")]
 const UNSUPPORTED: &str = "Desktop overlays are not supported on this platform.";
-
-/// The screenshot a caption is written for, instead of a session note.
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CaptionTarget {
-    path: String,
-    /// The picture as the box can load it.
-    picture_url: String,
-    /// When it was taken, ready to show.
-    taken_at: String,
-}
 
 /// Where a picture sits in the screenshot box's row: its session's day, or
 /// "This session".
@@ -132,7 +114,7 @@ pub struct ScreenshotBox {
     index: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     done: Option<BoxDone>,
-    /// Opened from the caption box to mark up the picture just taken: it
+    /// Opened to mark up the picture just taken ("Screenshot and mark up"): it
     /// starts with the tools and goes back to the game when they close.
     #[serde(default, skip_serializing_if = "is_false")]
     mark_up_first: bool,
@@ -180,9 +162,6 @@ pub struct QuickNotePayload {
     theme: String,
     accent_color: Option<String>,
     reduced_motion: bool,
-    /// Set for a screenshot caption.
-    #[serde(default)]
-    caption: Option<CaptionTarget>,
     /// Set for the quick add box.
     #[serde(default)]
     quick_add: bool,
@@ -299,25 +278,12 @@ struct SavedNote {
     note: String,
 }
 
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct ClosedCaption {
-    path: String,
-    /// None when the player skipped it.
-    caption: Option<String>,
-    /// The player clicked the picture to mark it up: the screenshot box
-    /// opens next, so the focus stays for it.
-    mark_up: bool,
-}
-
 #[derive(Default)]
 pub struct QuickNoteState {
     pending: Mutex<Option<QuickNotePayload>>,
     session_id: Mutex<Option<i64>>,
     /// The window in front when the note was asked for, as a raw HWND.
     foreground: Mutex<Option<isize>>,
-    /// The picture the open box writes a caption for.
-    caption_path: Mutex<Option<String>>,
     /// The open box is the quick add box.
     quick_add: Mutex<bool>,
     /// The open box is the counter box.
@@ -348,11 +314,6 @@ fn sanitize(mut payload: QuickNotePayload) -> QuickNotePayload {
     payload.theme = truncate(payload.theme, 16);
     payload.accent_color = payload.accent_color.map(|value| truncate(value, 16));
     payload.screenshots = payload.screenshots.map(sanitize_screenshot_box);
-    payload.caption = payload.caption.map(|target| CaptionTarget {
-        path: truncate(target.path, 4096),
-        picture_url: truncate(target.picture_url, 8192),
-        taken_at: truncate(target.taken_at, 64),
-    });
     payload
 }
 
@@ -513,8 +474,6 @@ fn window_size(payload: &QuickNotePayload) -> (f64, f64) {
         (QUICK_ADD_WIDTH, QUICK_ADD_START_HEIGHT)
     } else if payload.counter_box.is_some() {
         (COUNTER_BOX_WIDTH, COUNTER_BOX_START_HEIGHT)
-    } else if payload.caption.is_some() {
-        (CAPTION_WINDOW_LOGICAL_WIDTH, CAPTION_WINDOW_LOGICAL_HEIGHT)
     } else {
         (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT)
     }
@@ -555,9 +514,9 @@ mod imp {
         state: &QuickNoteState,
         payload: QuickNotePayload,
     ) -> Result<bool, String> {
-        // A box that just closed (the caption box handing over to mark up)
-        // is still there until Tauri's main loop destroys it: wait for it,
-        // or it would be taken for an open box and brought back.
+        // A box that just closed is still there until Tauri's main loop
+        // destroys it: wait for it, or it would be taken for an open box and
+        // brought back.
         let pending = state
             .pending
             .lock()
@@ -595,11 +554,6 @@ mod imp {
         let (logical_width, logical_height) = window_size(&payload);
         let logical_placement = placement_height(&payload);
         *state.session_id.lock().map_err(|error| error.to_string())? = session_of(&payload);
-        *state
-            .caption_path
-            .lock()
-            .map_err(|error| error.to_string())? =
-            payload.caption.as_ref().map(|target| target.path.clone());
         *state.quick_add.lock().map_err(|error| error.to_string())? = payload.quick_add;
         *state.counter_box.lock().map_err(|error| error.to_string())? =
             payload.counter_box.is_some();
@@ -676,11 +630,6 @@ mod imp {
             .take();
         state
             .session_id
-            .lock()
-            .map_err(|error| error.to_string())?
-            .take();
-        state
-            .caption_path
             .lock()
             .map_err(|error| error.to_string())?
             .take();
@@ -895,10 +844,8 @@ pub fn quick_note_ready(
         .clone())
 }
 
-/// `note` is None for Cancel, and for Skip in the caption box. `restore_focus`
-/// is false when the box closes because the player clicked somewhere else.
-/// `mark_up`: the caption box closes because its picture was clicked to mark
-/// up; the screenshot box opens next and gives the focus back to the game.
+/// `note` is None for Cancel. `restore_focus` is false when the box closes
+/// because the player clicked somewhere else.
 #[tauri::command(async)]
 pub fn quick_note_close(
     app: tauri::AppHandle,
@@ -906,41 +853,11 @@ pub fn quick_note_close(
     state: tauri::State<'_, QuickNoteState>,
     note: Option<String>,
     restore_focus: bool,
-    mark_up: Option<bool>,
 ) -> Result<(), String> {
     note_window_only(&window)?;
     use tauri::Emitter;
     let session_id = *state.session_id.lock().map_err(|error| error.to_string())?;
-    let caption_path = state
-        .caption_path
-        .lock()
-        .map_err(|error| error.to_string())?
-        .take();
-    let mark_up = mark_up.unwrap_or(false) && caption_path.is_some();
-    let foreground = if mark_up {
-        *state.foreground.lock().map_err(|error| error.to_string())?
-    } else {
-        None
-    };
-    // Closed before the main window hears of it, so a box it opens next is
-    // a new one, not this one brought back.
-    imp::close(&app, &state, restore_focus && !mark_up)?;
-    if mark_up {
-        *state.foreground.lock().map_err(|error| error.to_string())? = foreground;
-    }
-    if let Some(path) = caption_path {
-        // Always sent: the main window shows the screenshot popup then.
-        app.emit_to(
-            crate::notification_overlay::MAIN_LABEL,
-            CAPTION_EVENT,
-            ClosedCaption {
-                path,
-                caption: note.map(|caption| truncate(caption, CAPTION_LIMIT)),
-                mark_up,
-            },
-        )
-        .map_err(|error| error.to_string())?;
-    } else if let (Some(note), Some(session_id)) = (note, session_id) {
+    if let (Some(note), Some(session_id)) = (note, session_id) {
         app.emit_to(
             crate::notification_overlay::MAIN_LABEL,
             SAVE_EVENT,
@@ -951,7 +868,7 @@ pub fn quick_note_close(
         )
         .map_err(|error| error.to_string())?;
     }
-    Ok(())
+    imp::close(&app, &state, restore_focus)
 }
 
 /// The quick add box asks the main window to search for a game.
@@ -1135,7 +1052,6 @@ mod tests {
             theme: "dark".to_string(),
             accent_color: None,
             reduced_motion: false,
-            caption: None,
             quick_add: false,
             counter_box: None,
             screenshots: None,
@@ -1395,22 +1311,6 @@ mod tests {
             .all(|value| value.chars().count() == 200));
     }
 
-    #[test]
-    fn caps_the_picture_a_caption_is_for() {
-        let clean = sanitize(QuickNotePayload {
-            caption: Some(CaptionTarget {
-                path: "p".repeat(5000),
-                picture_url: "u".repeat(9000),
-                taken_at: "t".repeat(100),
-            }),
-            ..payload()
-        });
-        let caption = clean.caption.unwrap();
-        assert_eq!(caption.path.chars().count(), 4096);
-        assert_eq!(caption.picture_url.chars().count(), 8192);
-        assert_eq!(caption.taken_at.chars().count(), 64);
-    }
-
     /// What the main window sends for the screenshot box (screenshotBox.ts).
     fn screenshot_box_payload(pictures: usize, index: usize) -> QuickNotePayload {
         serde_json::from_value(serde_json::json!({
@@ -1576,28 +1476,14 @@ mod tests {
         );
     }
 
-    /// The caption box closes to mark up, and the screenshot box opens at
-    /// once: the old window is still there for a moment and must not be
-    /// taken for an open box.
+    /// A box closes and the next one opens at once: the old window is
+    /// still there for a moment and must not be taken for an open box.
     #[cfg(not(target_os = "macos"))]
     #[test]
     fn a_window_without_a_box_is_one_still_closing() {
         assert!(closing_window(true, false));
         assert!(!closing_window(true, true));
         assert!(!closing_window(false, false));
-    }
-
-    #[test]
-    fn tells_the_main_window_a_caption_box_closed_to_mark_up() {
-        assert_eq!(
-            serde_json::to_value(ClosedCaption {
-                path: "C:\\shot.jpg".into(),
-                caption: Some("Fork".into()),
-                mark_up: true,
-            })
-            .unwrap(),
-            serde_json::json!({ "path": "C:\\shot.jpg", "caption": "Fork", "markUp": true })
-        );
     }
 
     #[test]
@@ -1631,23 +1517,4 @@ mod tests {
         );
     }
 
-    #[cfg(not(target_os = "macos"))]
-    #[test]
-    fn the_caption_box_is_bigger_than_the_note_box() {
-        let note = window_size(&payload());
-        let caption = window_size(&QuickNotePayload {
-            caption: Some(CaptionTarget {
-                path: "C:\\pictures\\shot.jpg".into(),
-                picture_url: "asset://shot.jpg".into(),
-                taken_at: "21:44".into(),
-            }),
-            ..payload()
-        });
-        assert_eq!(note, (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT));
-        assert_eq!(
-            caption,
-            (CAPTION_WINDOW_LOGICAL_WIDTH, CAPTION_WINDOW_LOGICAL_HEIGHT)
-        );
-        assert!(caption.1 > note.1);
-    }
 }

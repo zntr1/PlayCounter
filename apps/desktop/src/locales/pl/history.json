@@ -268,6 +268,5 @@
   "{{count}} screenshots this session_one": "{{count}} zrzut ekranu w tej sesji",
   "{{count}} screenshots this session_few": "{{count}} zrzuty ekranu w tej sesji",
   "{{count}} screenshots this session_many": "{{count}} zrzutów ekranu w tej sesji",
-  "{{count}} screenshots this session_other": "{{count}} zrzutu ekranu w tej sesji",
-  "Tab": "Tab"
+  "{{count}} screenshots this session_other": "{{count}} zrzutu ekranu w tej sesji"
 }

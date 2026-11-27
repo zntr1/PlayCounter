@@ -111,7 +111,7 @@ export function ScreenshotBoxWindow({
       payload.screenshots.pictures.length - 1,
     ),
   );
-  /** Opened from the caption box to mark up: the tools close the box. */
+  /** Opened to mark up the picture just taken: the tools close the box. */
   const markUpFirst = payload.screenshots.markUpFirst === true;
   const [marking, setMarking] = useState(markUpFirst);
   const [missing, setMissing] = useState(false);

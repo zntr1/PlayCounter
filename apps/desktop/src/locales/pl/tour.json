@@ -456,7 +456,6 @@
   "In the app, after a first import, new installs from Steam, Battle.net, Epic Games and GOG join My Games, as do new PlayStation games you play. Xbox needs another import. Games you removed are not added again.": "W aplikacji po pierwszym imporcie nowe instalacje ze Steam, Battle.net, Epic Games i GOG dołączają do Moich gier, tak samo nowe gry z PlayStation, w które grasz. Xbox wymaga kolejnego importu. Usunięte gry nie są dodawane ponownie.",
   "A key takes a picture of the game you play, and it lands on its session.": "Klawisz robi zdjęcie gry, w którą grasz, a ono trafia do jej sesji.",
   "Pick your screenshot keys": "Wybierz klawisze zrzutów ekranu",
-  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.": "<b>Zrób zrzut ekranu</b> od razu zapisuje obraz. <b>Zrzut ekranu z podpisem</b> otwiera też małe pole na linijkę tekstu. Klawisz nie jest ustawiony, dopóki go nie wybierzesz: kliknij pole i naciśnij wybrane klawisze.",
   "Pictures sit on their session": "Zdjęcia są przy swojej sesji",
   "Under a session you see small pictures of it. A small mark on a picture means it has a caption.": "Pod sesją widać jej małe zdjęcia. Mały znaczek na zdjęciu oznacza, że ma podpis.",
   "Click one of the pictures.": "Kliknij jedno ze zdjęć.",
@@ -631,5 +630,6 @@
   "Every card has this menu": "Każdy kafelek ma to menu",
   "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "W aplikacji kliknij prawym przyciskiem dowolny kafelek w <b>Moje gry</b> albo najedź na niego i kliknij <b>Więcej</b>.",
   "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "Kliknij <b>Dodaj podpis</b> albo istniejący podpis, wpisz linijkę i naciśnij <kbd>Enter</kbd>.",
-  "Click the clock button on the sample card, then close the dialog or log a session.": "Kliknij przycisk zegara na przykładowym kafelku, potem zamknij okno albo dodaj sesję."
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Kliknij przycisk zegara na przykładowym kafelku, potem zamknij okno albo dodaj sesję.",
+  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want.": "<b>Zrób zrzut ekranu</b> od razu zapisuje obraz. <b>Zrzut ekranu i oznaczanie</b> otwiera go też nad grą, żeby na nim rysować albo dodać podpis. Klawisz nie jest ustawiony, dopóki go nie wybierzesz: kliknij pole i naciśnij wybrane klawisze."
 }

@@ -911,7 +911,7 @@ mod tests {
         assert_eq!(next, cache);
     }
 
-    /// What the viewer and the caption box ask for: the picture's resolved
+    /// What the viewer asks for: the picture's resolved
     /// path (\\?\C:\…), as `own_picture` hands it on.
     #[cfg(windows)]
     #[test]

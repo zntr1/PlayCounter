@@ -21,7 +21,6 @@ import { CounterBoxWindow } from "./ui/CounterBoxWindow";
 import { QuickAddWindow } from "./ui/QuickAddWindow";
 import { QuickNoteWindow } from "./ui/QuickNoteWindow";
 import { ScreenshotBoxWindow } from "./ui/ScreenshotBoxWindow";
-import { ScreenshotCaptionWindow } from "./ui/ScreenshotCaptionWindow";
 
 /** quick_note.rs QUICK_ADD_REPLY_EVENT: the main window's answers. */
 const QUICK_ADD_REPLY_EVENT = "playcounter:quick-add-reply";
@@ -66,9 +65,9 @@ function QuickNoteRoot() {
   }, []);
 
   if (!payload) return null;
-  const close = (note: string | null, restoreFocus: boolean, markUp = false) =>
-    void invoke("quick_note_close", { note, restoreFocus, markUp }).catch(
-      (error) => console.error("quick note failed to close", error),
+  const close = (note: string | null, restoreFocus: boolean) =>
+    void invoke("quick_note_close", { note, restoreFocus }).catch((error) =>
+      console.error("quick note failed to close", error),
     );
   // The same window searches a game to add when the quick add key opened it.
   if (isQuickAdd(payload))
@@ -135,14 +134,6 @@ function QuickNoteRoot() {
           );
           return () => void unlisten.then((stop) => stop());
         }}
-      />
-    );
-  // The same window writes a screenshot's caption when one is set.
-  if (payload.caption)
-    return (
-      <ScreenshotCaptionWindow
-        payload={{ ...payload, caption: payload.caption }}
-        onClose={close}
       />
     );
   return <QuickNoteWindow payload={payload} onClose={close} />;

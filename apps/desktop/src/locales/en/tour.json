@@ -453,7 +453,6 @@
   "In the app, after a first import, new installs from Steam, Battle.net, Epic Games and GOG join My Games, as do new PlayStation games you play. Xbox needs another import. Games you removed are not added again.": "In the app, after a first import, new installs from Steam, Battle.net, Epic Games and GOG join My Games, as do new PlayStation games you play. Xbox needs another import. Games you removed are not added again.",
   "A key takes a picture of the game you play, and it lands on its session.": "A key takes a picture of the game you play, and it lands on its session.",
   "Pick your screenshot keys": "Pick your screenshot keys",
-  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.": "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.",
   "Pictures sit on their session": "Pictures sit on their session",
   "Under a session you see small pictures of it. A small mark on a picture means it has a caption.": "Under a session you see small pictures of it. A small mark on a picture means it has a caption.",
   "Click one of the pictures.": "Click one of the pictures.",
@@ -629,5 +628,6 @@
   "Every card has this menu": "Every card has this menu",
   "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.",
   "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.",
-  "Click the clock button on the sample card, then close the dialog or log a session.": "Click the clock button on the sample card, then close the dialog or log a session."
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Click the clock button on the sample card, then close the dialog or log a session.",
+  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want.": "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want."
 }

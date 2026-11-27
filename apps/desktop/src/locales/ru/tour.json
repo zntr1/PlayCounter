@@ -456,7 +456,6 @@
   "In the app, after a first import, new installs from Steam, Battle.net, Epic Games and GOG join My Games, as do new PlayStation games you play. Xbox needs another import. Games you removed are not added again.": "В приложении после первого импорта новые установки Steam, Battle.net, Epic Games и GOG попадают в «Мои игры», как и новые игры PlayStation, в которые вы играете. Для Xbox нужен повторный импорт. Удалённые вами игры повторно не добавляются.",
   "A key takes a picture of the game you play, and it lands on its session.": "Клавиша делает снимок игры, в которую вы играете, и он попадает в её сессию.",
   "Pick your screenshot keys": "Выберите клавиши для скриншотов",
-  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.": "<b>Сделать скриншот</b> сразу сохраняет снимок. <b>Скриншот с подписью</b> ещё открывает небольшое поле для строки текста. Пока вы не выберете, клавиш нет: щёлкните поле и нажмите нужные клавиши.",
   "Pictures sit on their session": "Снимки лежат в своей сессии",
   "Under a session you see small pictures of it. A small mark on a picture means it has a caption.": "Под сессией видны её маленькие снимки. Небольшая отметка на снимке означает, что у него есть подпись.",
   "Click one of the pictures.": "Нажмите на один из снимков.",
@@ -631,5 +630,6 @@
   "Every card has this menu": "Это меню есть у каждой карточки",
   "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "В приложении щёлкните правой кнопкой любую карточку в <b>Мои игры</b> или наведите на неё курсор и нажмите <b>Ещё</b>.",
   "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "Нажмите <b>Добавить подпись</b> или на уже имеющуюся подпись, введите строку и нажмите <kbd>Enter</kbd>.",
-  "Click the clock button on the sample card, then close the dialog or log a session.": "Нажмите кнопку с часами на карточке-примере, затем закройте окно или добавьте сессию."
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Нажмите кнопку с часами на карточке-примере, затем закройте окно или добавьте сессию.",
+  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want.": "<b>Сделать скриншот</b> сразу сохраняет снимок. <b>Скриншот и разметка</b> ещё открывает его поверх игры, чтобы рисовать на нём или добавить подпись. Пока вы не выберете, клавиш нет: щёлкните поле и нажмите нужные клавиши."
 }

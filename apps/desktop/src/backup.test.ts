@@ -137,6 +137,28 @@ describe("backup transfer data", () => {
     },
   );
 
+  // docs/session-screenshots-plan.md: "Screenshot with caption" is gone;
+  // its key now opens the picture to mark up, caption field included.
+  it.each([
+    [{ screenshotCaptionHotkey: "Alt+F12" }, "Alt+F12"],
+    [
+      { screenshotCaptionHotkey: "Alt+F12", screenshotMarkUpHotkey: "Alt+F4" },
+      "Alt+F4",
+    ],
+    [{ screenshotCaptionHotkey: null }, null],
+    [{}, null],
+  ])(
+    "gives a saved caption key to Screenshot and mark up (%j)",
+    (saved, markUpKey) => {
+      installLocalStorage(JSON.stringify({ settings: saved }));
+      useAppStore.setState(useAppStore.getInitialState(), true);
+      hydrate();
+      const { settings } = useAppStore.getState();
+      expect(settings.screenshotMarkUpHotkey ?? null).toBe(markUpKey);
+      expect("screenshotCaptionHotkey" in settings).toBe(false);
+    },
+  );
+
   it.each(["timeToBeat", "rating"] as const)(
     "accepts a backup saved while My Games was sorted by %s",
     (librarySortKey) => {

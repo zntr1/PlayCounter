@@ -57,7 +57,7 @@ describe("Screenshots: the guide", () => {
     expect(text).toMatch(/No key is set until you pick one/);
     expect(boldNames(stepOf(guide, "keys").body)).toEqual([
       "Take a screenshot",
-      "Screenshot with caption",
+      "Screenshot and mark up",
     ]);
   });
 });

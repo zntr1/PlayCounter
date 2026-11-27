@@ -16,7 +16,6 @@ import {
   type ScreenshotBoxPayload,
 } from "./screenshotBox";
 import {
-  SCREENSHOT_CAPTION_CLOSE_EVENT,
   toScreenshot,
   useScreenshots,
   type ScreenshotFile,
@@ -106,16 +105,12 @@ const hades = active(3, 2, "Hades", TONIGHT + minutes(20));
 
 let foregroundPid: number | null;
 let actionHandler: ((action: ScreenshotBoxAction) => void) | null;
-type CaptionClosed = { path: string; caption: string | null; markUp: boolean };
-/** The caption box closing, as Rust tells the main window. */
-let captionClosed: ((closed: CaptionClosed) => void) | null;
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   foregroundPid = ELDEN_PID;
   actionHandler = null;
-  captionClosed = null;
   invokeMock.mockReset().mockImplementation(async (command, args) => {
     if (command === "quick_note_foreground_pid") return foregroundPid;
     if (command === "quick_note_open") return true;
@@ -141,11 +136,6 @@ beforeEach(() => {
       actionHandler = (action) =>
         (handler as (event: { payload: ScreenshotBoxAction }) => void)({
           payload: action,
-        });
-    if (event === SCREENSHOT_CAPTION_CLOSE_EVENT)
-      captionClosed = (closed) =>
-        (handler as (event: { payload: CaptionClosed }) => void)({
-          payload: closed,
         });
     return () => {};
   });
@@ -357,46 +347,17 @@ it("sends a picture taken while the box is open", async () => {
   expect(lastUpdate()!.done).toBeUndefined();
 });
 
-/* A click on the picture in the caption box opens it to mark up, and the box
-   takes you back to the game afterwards. */
-
-it("opens the picture just taken to mark up, with its caption saved first", async () => {
-  captionClosed!({ path: cliff.path, caption: "Cliff jump", markUp: true });
-  await vi.waitFor(() => expect(openedPayload()).toBeDefined());
-  const commands = invokeMock.mock.calls.map(([command]) => command);
-  expect(commands.indexOf("screenshot_caption")).toBeGreaterThanOrEqual(0);
-  expect(commands.indexOf("screenshot_caption")).toBeLessThan(
-    commands.indexOf("quick_note_open"),
-  );
-  const { screenshots } = openedPayload()!;
-  expect(screenshots.markUpFirst).toBe(true);
-  expect(screenshots.pictures[screenshots.index]).toMatchObject({
-    path: cliff.path,
-    caption: "Cliff jump",
-  });
-});
+/* "Screenshot and mark up": the picture just taken opens to mark up, and
+   the box takes you back to the game afterwards. */
 
 it("finds the game the picture belongs to, whichever game is in front", async () => {
   foregroundPid = HADES_PID;
-  captionClosed!({ path: sunrise.path, caption: null, markUp: true });
-  await vi.waitFor(() => expect(openedPayload()).toBeDefined());
+  expect(await openToMarkUp(sunrise.path)).toBe(true);
   expect(openedPayload()!.gameName).toBe("Elden Ring");
-  expect(invokeMock).not.toHaveBeenCalledWith(
-    "screenshot_caption",
-    expect.anything(),
-  );
-});
-
-it("opens nothing for a caption box closed without marking up", async () => {
-  captionClosed!({ path: cliff.path, caption: "Cliff jump", markUp: false });
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(openedPayload()).toBeUndefined();
 });
 
 it("says the picture is saved once its marks are, when it was opened to mark up", async () => {
-  captionClosed!({ path: cliff.path, caption: null, markUp: true });
-  await vi.waitFor(() => expect(openedPayload()).toBeDefined());
+  await openToMarkUp(cliff.path);
   actionHandler!({ kind: "markUp", path: cliff.path, png: "iVBORw==" });
   await vi.waitFor(() =>
     expect(showScreenshotOverlay).toHaveBeenCalledExactlyOnceWith(

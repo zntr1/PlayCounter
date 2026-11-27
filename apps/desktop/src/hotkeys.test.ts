@@ -57,7 +57,6 @@ beforeEach(() => {
       liveTimerHotkey: null,
       pauseTimerHotkey: null,
       screenshotHotkey: null,
-      screenshotCaptionHotkey: null,
       screenshotViewerHotkey: null,
       screenshotMarkUpHotkey: null,
       quickAddHotkey: null,
@@ -81,7 +80,6 @@ describe("global hotkeys", () => {
         liveTimerHotkey: "Alt+F10",
         pauseTimerHotkey: "Alt+F6",
         screenshotHotkey: "Alt+F11",
-        screenshotCaptionHotkey: "Alt+F12",
         screenshotViewerHotkey: "Alt+F5",
         screenshotMarkUpHotkey: "Alt+F4",
         quickAddHotkey: "Alt+F7",
@@ -96,7 +94,6 @@ describe("global hotkeys", () => {
       "playcounter:live-timer-hotkey",
       "playcounter:pause-timer-hotkey",
       "playcounter:screenshot-hotkey",
-      "playcounter:screenshot-caption-hotkey",
       "playcounter:screenshot-viewer-hotkey",
       "playcounter:screenshot-markup-hotkey",
       "playcounter:quick-add-hotkey",
@@ -113,10 +110,6 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "live-timer", shortcut: "Alt+F10" }],
       ["set_global_hotkey", { action: "pause-timer", shortcut: "Alt+F6" }],
       ["set_global_hotkey", { action: "screenshot", shortcut: "Alt+F11" }],
-      [
-        "set_global_hotkey",
-        { action: "screenshot-caption", shortcut: "Alt+F12" },
-      ],
       [
         "set_global_hotkey",
         { action: "screenshot-viewer", shortcut: "Alt+F5" },
@@ -148,17 +141,13 @@ describe("global hotkeys", () => {
     listenMock.mock.calls[4][1]({ payload: null } as never);
     expect(takeScreenshot).toHaveBeenCalledOnce();
     expect(takeScreenshot).toHaveBeenLastCalledWith();
-    // The caption key takes the same picture, then asks for a caption.
-    listenMock.mock.calls[5][1]({ payload: null } as never);
-    expect(takeScreenshot).toHaveBeenCalledTimes(2);
-    expect(takeScreenshot).toHaveBeenLastCalledWith({ caption: true });
     // docs/session-screenshots-plan.md: the game's pictures, over the game.
-    listenMock.mock.calls[6][1]({ payload: null } as never);
+    listenMock.mock.calls[5][1]({ payload: null } as never);
     expect(openScreenshotBox).toHaveBeenCalledOnce();
-    expect(takeScreenshot).toHaveBeenCalledTimes(2);
+    expect(takeScreenshot).toHaveBeenCalledTimes(1);
     // The same picture, then straight into mark up over the game.
-    listenMock.mock.calls[7][1]({ payload: null } as never);
-    expect(takeScreenshot).toHaveBeenCalledTimes(3);
+    listenMock.mock.calls[6][1]({ payload: null } as never);
+    expect(takeScreenshot).toHaveBeenCalledTimes(2);
     expect(takeScreenshot).toHaveBeenLastCalledWith({ markUp: openToMarkUp });
   });
 
@@ -237,7 +226,6 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "live-timer", shortcut: null }],
       ["set_global_hotkey", { action: "pause-timer", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot", shortcut: null }],
-      ["set_global_hotkey", { action: "screenshot-caption", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot-viewer", shortcut: null }],
       ["set_global_hotkey", { action: "screenshot-markup", shortcut: null }],
       ["set_global_hotkey", { action: "quick-add", shortcut: null }],

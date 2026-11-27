@@ -16,10 +16,8 @@ import {
   onThisPc,
   pictureSource,
   screenshotSource,
-  SCREENSHOT_CAPTION_CLOSE_EVENT,
   setScreenshotCaption,
   useScreenshots,
-  type CaptionBoxClosed,
   type PictureGroup,
 } from "./screenshots";
 import {
@@ -78,8 +76,9 @@ export type ScreenshotBoxState = {
   pictures: ScreenshotBoxPicture[];
   index: number;
   done?: ScreenshotBoxDone;
-  /** Opened from the caption box to mark up the picture just taken: the box
-   *  starts with the tools and goes back to the game when they close. */
+  /** Opened to mark up the picture just taken ("Screenshot and mark up"):
+   *  the box starts with the tools and goes back to the game when they
+   *  close. */
   markUpFirst?: boolean;
 };
 
@@ -271,19 +270,9 @@ export async function openScreenshotBox() {
   await openBox(session, pictures, pictures.length - 1, false);
 }
 
-/** The picture in the caption box was clicked: what was typed becomes its
- *  caption, then the box opens over the game to mark it up. */
-async function markUpFromCaptionBox(path: string, caption: string | null) {
-  if (caption)
-    await setScreenshotCaption(path, caption).catch((error) =>
-      console.error("screenshot caption failed", error),
-    );
-  await openToMarkUp(path);
-}
-
 /** Opens a running game's picture over the game to mark it up ("Screenshot
- *  and mark up", the caption box). False when no running game has it, or
- *  the box didn't open. */
+ *  and mark up"). False when no running game has it, or the box didn't
+ *  open. */
 export async function openToMarkUp(path: string) {
   if (currentPlatform() === "macos") return false;
   for (const session of runningGames()) {
@@ -341,7 +330,8 @@ async function applyScreenshotBoxAction(action: ScreenshotBoxAction) {
       ok = false;
     }
   send({ kind: action.kind, path: action.path, ok });
-  // Opened from the caption box: its popup comes once the marks are in.
+  // Opened to mark up the picture just taken: its popup comes once the
+  // marks are in.
   if (ok && action.kind === "markUp" && game.markUpFirst)
     showScreenshotOverlay({
       outcome: "saved",
@@ -398,15 +388,6 @@ export function initializeScreenshotBox(
     ({ payload }) => {
       if (current.disposed) return;
       actions = actions.then(() => applyScreenshotBoxAction(payload));
-    },
-  )
-    .then(keep)
-    .catch((error) => console.error("screenshot box listener failed", error));
-  void listen<CaptionBoxClosed>(
-    SCREENSHOT_CAPTION_CLOSE_EVENT,
-    ({ payload }) => {
-      if (!current.disposed && payload.markUp)
-        void markUpFromCaptionBox(payload.path, payload.caption);
     },
   )
     .then(keep)

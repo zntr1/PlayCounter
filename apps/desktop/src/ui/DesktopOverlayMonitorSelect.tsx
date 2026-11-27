@@ -21,7 +21,6 @@ export function DesktopOverlayMonitorSelect() {
       !!state.settings.quickNoteHotkey ||
       !!state.settings.pauseTimerHotkey ||
       !!state.settings.screenshotHotkey ||
-      !!state.settings.screenshotCaptionHotkey ||
       !!state.settings.screenshotViewerHotkey ||
       !!state.settings.screenshotMarkUpHotkey ||
       !!state.settings.quickAddHotkey,

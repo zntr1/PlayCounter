@@ -6,7 +6,11 @@ import {
   disposePostGameAchievementRefresh,
   schedulePostGameAchievementRefresh,
 } from "./achievements/backgroundRefresh";
-import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
+import {
+  initializeHotkeys,
+  disposeHotkeys,
+  moveCaptionHotkey,
+} from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
 import { initializeQuickAdd, disposeQuickAdd } from "./quickAdd";
 import { disposeCounterKeys, initializeCounterKeys } from "./counterInput";
@@ -1119,7 +1123,7 @@ export function hydrate() {
     !Array.isArray(persisted.autoDetectedGameKeys);
   const loadedSettings = applyBuildApiEndpoint({
     ...useAppStore.getState().settings,
-    ...persisted.settings,
+    ...moveCaptionHotkey(persisted.settings),
     accentColor: normalizeAccentColor(persisted.settings?.accentColor),
     ignoredEmulatorIds: [
       ...new Set(

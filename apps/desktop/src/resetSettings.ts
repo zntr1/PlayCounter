@@ -29,10 +29,6 @@ export async function resetSettings() {
   await saveHotkey("pauseTimerHotkey", defaults.pauseTimerHotkey ?? null);
   await saveHotkey("screenshotHotkey", defaults.screenshotHotkey ?? null);
   await saveHotkey(
-    "screenshotCaptionHotkey",
-    defaults.screenshotCaptionHotkey ?? null,
-  );
-  await saveHotkey(
     "screenshotViewerHotkey",
     defaults.screenshotViewerHotkey ?? null,
   );

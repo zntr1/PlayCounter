@@ -453,7 +453,6 @@
   "In the app, after a first import, new installs from Steam, Battle.net, Epic Games and GOG join My Games, as do new PlayStation games you play. Xbox needs another import. Games you removed are not added again.": "在应用中，首次导入后，Steam、Battle.net、Epic Games 和 GOG 的新安装会加入“我的游戏”，你玩的新 PlayStation 游戏也一样。Xbox 需要再导入一次。你移除过的游戏不会再次添加。",
   "A key takes a picture of the game you play, and it lands on its session.": "按一个键就能给你正在玩的游戏截图，图片会出现在对应的游玩记录上。",
   "Pick your screenshot keys": "设置你的截图按键",
-  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.": "<b>截图</b>会立即保存一张图片。<b>带说明的截图</b>还会打开一个小框，让你写一行文字。在你选择之前没有设置按键：点击一个输入框，然后按下你想用的按键。",
   "Pictures sit on their session": "图片附在游玩记录上",
   "Under a session you see small pictures of it. A small mark on a picture means it has a caption.": "游玩记录下方能看到它的小图片。图片上的小标记表示它有说明。",
   "Click one of the pictures.": "点击其中一张图片。",
@@ -628,5 +627,6 @@
   "Every card has this menu": "每张卡片都有这个菜单",
   "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "在应用中，右键点击<b>我的游戏</b>里的任意卡片，或把鼠标移到卡片上并点击<b>更多</b>。",
   "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "点击<b>添加说明</b>或已有的说明，输入一行内容，然后按 <kbd>Enter</kbd>。",
-  "Click the clock button on the sample card, then close the dialog or log a session.": "点击示例卡片上的时钟按钮，然后关闭对话框或记录一次游玩。"
+  "Click the clock button on the sample card, then close the dialog or log a session.": "点击示例卡片上的时钟按钮，然后关闭对话框或记录一次游玩。",
+  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want.": "<b>截图</b>会立即保存一张图片。<b>截图并标注</b>还会在游戏上方打开它，让你在上面画画或添加说明。在你选择之前没有设置按键：点击一个输入框，然后按下你想用的按键。"
 }

@@ -12,14 +12,13 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
 /// What a hotkey can do.
-const ACTIONS: [&str; 12] = [
+const ACTIONS: [&str; 11] = [
     "show-window",
     "current-session",
     "quick-note",
     "live-timer",
     "pause-timer",
     "screenshot",
-    "screenshot-caption",
     "screenshot-viewer",
     "screenshot-markup",
     "quick-add",
@@ -130,12 +129,6 @@ pub fn set_global_hotkey(
                         crate::screenshot::commands::key_pressed(app);
                         let _ = app.emit_to("main", "playcounter:screenshot-markup-hotkey", ());
                     }
-                    "screenshot-caption" => {
-                        // The same picture; the main window then opens the
-                        // caption box over the game.
-                        crate::screenshot::commands::key_pressed(app);
-                        let _ = app.emit_to("main", "playcounter:screenshot-caption-hotkey", ());
-                    }
                     _ => {
                         let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
                     }
@@ -173,7 +166,6 @@ mod tests {
             "live-timer",
             "pause-timer",
             "screenshot",
-            "screenshot-caption",
             "screenshot-viewer",
             "screenshot-markup",
             "quick-add",
@@ -185,6 +177,8 @@ mod tests {
             assert!(is_known_action(action), "{action}");
         }
         assert!(!is_known_action("delete-everything"));
+        // Gone: "Screenshot and mark up" has the caption field now.
+        assert!(!is_known_action("screenshot-caption"));
         assert!(!is_known_action(""));
         assert!(!is_known_action("counter-key:"));
         assert!(!is_known_action(&format!("counter-key:{}", "x".repeat(65))));

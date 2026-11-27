@@ -454,7 +454,6 @@
   "In the app, after a first import, new installs from Steam, Battle.net, Epic Games and GOG join My Games, as do new PlayStation games you play. Xbox needs another import. Games you removed are not added again.": "In der App kommen nach einem ersten Import neue Installationen von Steam, Battle.net, Epic Games und GOG in „Meine Spiele“, ebenso neue PlayStation-Spiele, die du spielst. Xbox braucht einen weiteren Import. Spiele, die du entfernt hast, werden nicht erneut hinzugefügt.",
   "A key takes a picture of the game you play, and it lands on its session.": "Eine Taste macht ein Bild vom Spiel, das du spielst, und es landet bei seiner Sitzung.",
   "Pick your screenshot keys": "Wähl deine Screenshot-Tasten",
-  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.": "<b>Screenshot aufnehmen</b> speichert sofort ein Bild. <b>Screenshot mit Bildunterschrift</b> öffnet zusätzlich ein kleines Feld für eine Textzeile. Keine Taste ist gesetzt, bis du eine wählst: Klick auf ein Feld und drück die gewünschten Tasten.",
   "Pictures sit on their session": "Die Bilder hängen an ihrer Sitzung",
   "Under a session you see small pictures of it. A small mark on a picture means it has a caption.": "Unter einer Sitzung siehst du kleine Bilder davon. Eine kleine Markierung auf einem Bild heißt, dass es eine Bildunterschrift hat.",
   "Click one of the pictures.": "Klick auf eins der Bilder.",
@@ -629,5 +628,6 @@
   "Every card has this menu": "Jede Kachel hat dieses Menü",
   "In the app, right-click any card in <b>My Games</b>, or point at it and click <b>More</b>.": "Klick in der App mit rechts auf eine Kachel in <b>Meine Spiele</b>, oder zeig darauf und klick auf <b>Mehr</b>.",
   "Click <b>Add a caption</b>, or the caption that is there, type a line and press <kbd>Enter</kbd>.": "Klick auf <b>Bildunterschrift hinzufügen</b> oder auf die vorhandene Bildunterschrift, tipp eine Zeile und drück <kbd>Enter</kbd>.",
-  "Click the clock button on the sample card, then close the dialog or log a session.": "Klick auf die Uhr-Schaltfläche an der Beispielkachel, dann schließ den Dialog oder trag eine Sitzung ein."
+  "Click the clock button on the sample card, then close the dialog or log a session.": "Klick auf die Uhr-Schaltfläche an der Beispielkachel, dann schließ den Dialog oder trag eine Sitzung ein.",
+  "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want.": "<b>Screenshot aufnehmen</b> speichert sofort ein Bild. <b>Screenshot und markieren</b> öffnet es zusätzlich über deinem Spiel, damit du darauf zeichnen oder eine Bildunterschrift hinzufügen kannst. Keine Taste ist gesetzt, bis du eine wählst: Klick auf ein Feld und drück die gewünschten Tasten."
 }

@@ -38,11 +38,11 @@ export function screenshotsGuide(): TourDefinition {
         view: "settings",
         settingsGroup: "shortcuts",
         anchor: a("settings-row-screenshotHotkey"),
-        additionalAnchors: [a("settings-row-screenshotCaptionHotkey")],
+        additionalAnchors: [a("settings-row-screenshotMarkUpHotkey")],
         optional: true,
         title: t("Pick your screenshot keys"),
         body: t(
-          "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot with caption</b> also opens a small box for a line of text. No key is set until you pick one: click a field and press the keys you want.",
+          "<b>Take a screenshot</b> saves a picture at once. <b>Screenshot and mark up</b> also opens it over your game, to draw on it or add a caption. No key is set until you pick one: click a field and press the keys you want.",
         ),
       },
       {

@@ -1,5 +1,4 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Session } from "@playcounter/shared";
 import { useMemo } from "react";
 import { create } from "zustand";
@@ -11,7 +10,6 @@ import { appLocale, getT } from "./i18n";
 import { screenshotBlackNotification } from "./notifications";
 import { coverOverride } from "./pickedCovers";
 import { isSampleShot, useSampleScreenshots } from "./screenshotSample";
-import { openScreenshotCaptionBox } from "./quickNote";
 import {
   resolvedCanonicalGameKey,
   useAppStore,
@@ -37,18 +35,6 @@ export type ScreenshotFile = {
   previewPath: string | null;
   /** Kept in the picture file itself. */
   caption: string | null;
-};
-
-/** Sent by Rust when the caption box closes, with or without a caption. */
-export const SCREENSHOT_CAPTION_CLOSE_EVENT =
-  "playcounter:screenshot-caption-close";
-
-/** What Rust says when the caption box closes. `markUp`: its picture was
- *  clicked to mark it up. */
-export type CaptionBoxClosed = {
-  path: string;
-  caption: string | null;
-  markUp?: boolean;
 };
 
 /** With the moment it was taken: the time in its name, else the file's.
@@ -345,11 +331,7 @@ export function gamePictures(gameKey: string | null, gameName: string) {
 }
 
 let pidsOf: ((session: ActiveSession) => number[]) | null = null;
-let lifecycle: { disposed: boolean; unlisten?: UnlistenFn } | null = null;
-
-type PopupGame = { gameName?: string; coverUrl?: string };
-/** Pictures whose caption box is open, with the game for the popup after. */
-const captionBoxes = new Map<string, PopupGame>();
+let lifecycle: { disposed: boolean } | null = null;
 
 /** A game on this PC. Console and hand-timed sessions have no window here. */
 export function onThisPc(session: ActiveSession) {
@@ -362,58 +344,14 @@ export function initializeScreenshots(
 ) {
   pidsOf = pids;
   if (lifecycle) return;
-  const state: { disposed: boolean; unlisten?: UnlistenFn } = {
-    disposed: false,
-  };
-  lifecycle = state;
+  lifecycle = { disposed: false };
   void loadScreenshots();
-  void listen<CaptionBoxClosed>(
-    SCREENSHOT_CAPTION_CLOSE_EVENT,
-    ({ payload }) => {
-      if (state.disposed) return;
-      // Clicked to mark up: the screenshot box saves the caption and says when
-      // it's done (screenshotBox.ts).
-      if (payload.markUp) captionBoxes.delete(payload.path);
-      else void captionBoxClosed(payload.path, payload.caption);
-    },
-  )
-    .then((unlisten) => {
-      if (state.disposed) unlisten();
-      else state.unlisten = unlisten;
-    })
-    .catch((error) => console.error("caption listener failed", error));
 }
 
 export function disposeScreenshots() {
-  if (lifecycle) {
-    lifecycle.disposed = true;
-    lifecycle.unlisten?.();
-  }
+  if (lifecycle) lifecycle.disposed = true;
   lifecycle = null;
   pidsOf = null;
-  captionBoxes.clear();
-}
-
-/** The caption box closed: save what was written, then show the popup the
- *  picture would have had at once. */
-async function captionBoxClosed(path: string, caption: string | null) {
-  const game = captionBoxes.get(path) ?? {};
-  captionBoxes.delete(path);
-  if (caption?.trim()) {
-    try {
-      const shot = await setScreenshotCaption(path, caption);
-      showScreenshotOverlay({
-        outcome: "saved",
-        ...game,
-        caption: shot.caption ?? undefined,
-      });
-      return;
-    } catch (error) {
-      // The picture is saved anyway; the popup just has no caption.
-      console.error("screenshot caption failed", error);
-    }
-  }
-  showScreenshotOverlay({ outcome: "saved", ...game });
 }
 
 /** Writes the caption into the picture (null removes it) and updates the
@@ -478,15 +416,12 @@ export async function loadScreenshots() {
 }
 
 /** The screenshot key: a picture of the game in front, or of the game
- *  started last, added to its running session. With `caption`, the caption
- *  box opens over the game first and the popup comes when it closes. With
- *  `markUp`, the picture opens over the game to mark it up
- *  (screenshotBox.ts); it answers whether it opened. */
+ *  started last, added to its running session. With `markUp` ("Screenshot
+ *  and mark up"), the picture opens over the game to mark it up, caption
+ *  field included (screenshotBox.ts); it answers whether it opened. */
 export async function takeScreenshot({
-  caption = false,
   markUp,
 }: {
-  caption?: boolean;
   markUp?: (path: string) => Promise<boolean>;
 } = {}) {
   const state = useAppStore.getState();
@@ -531,18 +466,7 @@ export async function takeScreenshot({
           shot,
         ],
       }));
-      if (caption) {
-        captionBoxes.set(shot.path, game(session));
-        const opened = await openScreenshotCaptionBox(shot, {
-          sessionId: session.id,
-          ...game(session),
-        }).catch((error) => {
-          console.error("caption box failed", error);
-          return false;
-        });
-        if (opened) return;
-        captionBoxes.delete(shot.path);
-      } else if (markUp) {
+      if (markUp) {
         const opened = await markUp(shot.path).catch((error) => {
           console.error("mark up box failed", error);
           return false;

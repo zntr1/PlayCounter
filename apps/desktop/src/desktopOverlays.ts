@@ -151,7 +151,7 @@ export type OverlayEvent =
       outcome: ScreenshotOutcome;
       gameName?: string;
       coverUrl?: string;
-      /** Written in the caption box. */
+      /** Its caption, when it has one. */
       caption?: string;
     };
 

@@ -358,7 +358,6 @@ describe("hotkeys save as soon as you press them", () => {
       "counterUndoHotkey",
       "screenshotFolder",
       "screenshotHotkey",
-      "screenshotCaptionHotkey",
       "screenshotMarkUpHotkey",
       "screenshotViewerHotkey",
     ]);

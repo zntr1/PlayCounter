@@ -11,6 +11,7 @@ import { takeScreenshot } from "./screenshots";
 import { openScreenshotBox, openToMarkUp } from "./screenshotBox";
 import { togglePauseFromHotkey } from "./tracker";
 import { useAppStore } from "./store";
+import type { Settings } from "@playcounter/shared";
 import { getT } from "./i18n";
 import { nativeText } from "./nativeText";
 
@@ -23,7 +24,6 @@ export type HotkeySetting =
   | "liveTimerHotkey"
   | "pauseTimerHotkey"
   | "screenshotHotkey"
-  | "screenshotCaptionHotkey"
   | "screenshotViewerHotkey"
   | "screenshotMarkUpHotkey"
   | "quickAddHotkey"
@@ -36,7 +36,6 @@ const actions: Record<HotkeySetting, string> = {
   liveTimerHotkey: "live-timer",
   pauseTimerHotkey: "pause-timer",
   screenshotHotkey: "screenshot",
-  screenshotCaptionHotkey: "screenshot-caption",
   screenshotViewerHotkey: "screenshot-viewer",
   screenshotMarkUpHotkey: "screenshot-markup",
   quickAddHotkey: "quick-add",
@@ -54,7 +53,6 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
   // With nothing running, the session popup says so.
   pauseTimerHotkey: () => togglePauseFromHotkey(),
   screenshotHotkey: () => void takeScreenshot(),
-  screenshotCaptionHotkey: () => void takeScreenshot({ caption: true }),
   // With nothing running, the session popup says so.
   screenshotViewerHotkey: () => void openScreenshotBox(),
   screenshotMarkUpHotkey: () => void takeScreenshot({ markUp: openToMarkUp }),
@@ -70,13 +68,29 @@ const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   liveTimerHotkey: "playcounter:live-timer-hotkey",
   pauseTimerHotkey: "playcounter:pause-timer-hotkey",
   screenshotHotkey: "playcounter:screenshot-hotkey",
-  screenshotCaptionHotkey: "playcounter:screenshot-caption-hotkey",
   screenshotViewerHotkey: "playcounter:screenshot-viewer-hotkey",
   screenshotMarkUpHotkey: "playcounter:screenshot-markup-hotkey",
   quickAddHotkey: "playcounter:quick-add-hotkey",
   counterUndoHotkey: "playcounter:counter-undo-hotkey",
   counterBoxHotkey: "playcounter:counter-box-hotkey",
 };
+/** "Screenshot with caption" is gone (docs/session-screenshots-plan.md): a
+ *  key saved for it goes to "Screenshot and mark up", which has the caption
+ *  field, unless that one has a key of its own. */
+export function moveCaptionHotkey<T extends object>(
+  saved: T | undefined,
+): Partial<Settings> {
+  if (!saved || !("screenshotCaptionHotkey" in saved)) return saved ?? {};
+  const { screenshotCaptionHotkey: captionKey, ...rest } = saved as T & {
+    screenshotCaptionHotkey?: unknown;
+  } & Partial<Settings>;
+  return typeof captionKey === "string" &&
+    captionKey &&
+    !rest.screenshotMarkUpHotkey
+    ? { ...rest, screenshotMarkUpHotkey: captionKey }
+    : rest;
+}
+
 export const useHotkeyStatus = create<{
   errors: Partial<Record<HotkeySetting, string>>;
 }>(() => ({ errors: {} }));
