@@ -47,6 +47,7 @@ import {
   lazy,
   Suspense,
 } from "react";
+import { createPortal } from "react-dom";
 import { initializeTracker } from "../tracker";
 import {
   useLauncherAccountChecks,
@@ -1705,10 +1706,13 @@ export function ToastViewport() {
   const toasts = useAppStore((state) => state.toasts);
   const dismissToast = useAppStore((state) => state.dismissToast);
 
-  return (
+  // On the page body above every window-covering layer (dialogs z-50, the
+  // screenshot viewer, the guide and the welcome prompt z-70), or a toast
+  // shown while one is open is hidden behind it. Tooltips stay above.
+  return createPortal(
     <div
       aria-label={t("Notifications")}
-      className="pointer-events-none fixed bottom-5 right-5 z-50 grid w-[min(22rem,calc(100vw-2.5rem))] gap-3"
+      className="pointer-events-none fixed bottom-5 right-5 z-[75] grid w-[min(22rem,calc(100vw-2.5rem))] gap-3"
     >
       {toasts.map((toast) => (
         <ToastCard
@@ -1717,7 +1721,8 @@ export function ToastViewport() {
           onDismiss={() => dismissToast(toast.id)}
         />
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -155,7 +155,7 @@ export function ScreenshotMarkup({
   const [sticker, setSticker] = useState<StickerId>("way");
   const [asking, setAsking] = useState(false);
   const [saving, setSaving] = useState(false);
-  /** Saving went wrong. Toasts sit behind the viewer, so it says so here. */
+  /** Saving went wrong. Said under the tools, next to the marks it kept. */
   const [failed, setFailed] = useState(false);
   const [place, setPlace] = useState<Place | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

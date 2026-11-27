@@ -328,7 +328,6 @@ describe("mark up", () => {
     expect(picture()!.getAttribute("src")).not.toBe(before);
   });
 
-  // Toasts sit behind the viewer, so the message shows under the tools.
   it("says so under the tools when saving fails, and keeps the marks", async () => {
     vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(
       1920,
