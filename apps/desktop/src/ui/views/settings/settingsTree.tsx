@@ -214,6 +214,15 @@ const screenshotCaptionKey = hotkey(
     ),
   screenshotsUnsupported,
 );
+const screenshotMarkUpKey = hotkey(
+  "screenshotMarkUpHotkey",
+  () => t("Screenshot and mark up"),
+  () =>
+    t(
+      "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.",
+    ),
+  screenshotsUnsupported,
+);
 const screenshotViewerKey = hotkey(
   "screenshotViewerHotkey",
   () => t("Show screenshots"),
@@ -434,7 +443,12 @@ const GROUPS: SettingsGroupDef[] = [
       {
         id: "screenshots",
         title: () => t("Screenshots"),
-        nodes: [screenshotKey, screenshotCaptionKey, screenshotViewerKey],
+        nodes: [
+          screenshotKey,
+          screenshotCaptionKey,
+          screenshotMarkUpKey,
+          screenshotViewerKey,
+        ],
       },
     ],
   },
@@ -515,6 +529,7 @@ const GROUPS: SettingsGroupDef[] = [
           },
           screenshotKey,
           screenshotCaptionKey,
+          screenshotMarkUpKey,
           screenshotViewerKey,
         ],
       },

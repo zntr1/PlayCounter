@@ -347,6 +347,41 @@ describe("the screenshot key", () => {
     error.mockRestore();
   });
 
+  // docs/session-screenshots-plan.md: "Screenshot and mark up" takes the
+  // picture and opens it over the game to mark it up, instead of the popup.
+  describe("to mark up", () => {
+    const saved = file("Game 1 2026-11-07 19-14-03.jpg", "Game 1", 5);
+
+    async function takeToMarkUp(opened: boolean) {
+      useAppStore.setState({
+        activeSessions: [active(1, "2026-11-07T18:00:00.000Z")],
+      });
+      invokeMock.mockResolvedValueOnce({
+        status: "saved",
+        sessionId: 1,
+        file: saved,
+      });
+      const markUp = vi.fn().mockResolvedValue(opened);
+      await takeScreenshot({ markUp });
+      return markUp;
+    }
+
+    it("opens the picture just taken to mark up instead of the popup", async () => {
+      const markUp = await takeToMarkUp(true);
+      expect(markUp).toHaveBeenCalledExactlyOnceWith(saved.path);
+      expect(useScreenshots.getState().files).toEqual([toScreenshot(saved)]);
+      expect(openBoxMock).not.toHaveBeenCalled();
+      expect(showScreenshotOverlay).not.toHaveBeenCalled();
+    });
+
+    it("still says the picture is saved when the box can't open", async () => {
+      await takeToMarkUp(false);
+      expect(showScreenshotOverlay).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: "saved", gameName: "Game 1" }),
+      );
+    });
+  });
+
   describe("with a caption", () => {
     const saved = file("Game 1 2026-11-07 19-14-03.jpg", "Game 1", 5);
 

@@ -432,5 +432,7 @@
   "Previous page": "Предыдущая страница",
   "Next page": "Следующая страница",
   "Show screenshots": "Показать скриншоты",
-  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Открывает самый новый снимок игры, в которую вы играете, прямо поверх игры. Стрелки ведут к более старым, и их можно сразу разметить. Esc возвращает в игру."
+  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Открывает самый новый снимок игры, в которую вы играете, прямо поверх игры. Стрелки ведут к более старым, и их можно сразу разметить. Esc возвращает в игру.",
+  "Screenshot and mark up": "Скриншот и разметка",
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Сразу делает снимок и открывает его поверх игры для разметки. Там же можно добавить подпись. Сохранение или Esc возвращает в игру."
 }

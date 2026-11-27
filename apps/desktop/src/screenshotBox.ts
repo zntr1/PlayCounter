@@ -277,11 +277,23 @@ async function markUpFromCaptionBox(path: string, caption: string | null) {
     await setScreenshotCaption(path, caption).catch((error) =>
       console.error("screenshot caption failed", error),
     );
+  await openToMarkUp(path);
+}
+
+/** Opens a running game's picture over the game to mark it up ("Screenshot
+ *  and mark up", the caption box). False when no running game has it, or
+ *  the box didn't open. */
+export async function openToMarkUp(path: string) {
+  if (currentPlatform() === "macos") return false;
   for (const session of runningGames()) {
     const pictures = boxPictures(gameOf(session));
     const index = pictures.findIndex((picture) => picture.path === path);
-    if (index >= 0) return openBox(session, pictures, index, true);
+    if (index >= 0) {
+      await openBox(session, pictures, index, true);
+      return openFor !== null;
+    }
   }
+  return false;
 }
 
 /** Sends the box its list when it changed, and always with `done`. */

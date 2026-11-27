@@ -330,6 +330,15 @@ describe("mark up", () => {
     expect(useScreenshotViewer.getState().shots).toHaveLength(2);
   });
 
+  it("puts the caption under the tools while marking up", async () => {
+    await act(() => markUp()!.click());
+    const tools = document.body.querySelector('[role="toolbar"]')!;
+    const caption = button("“Boss arena”")!;
+    expect(
+      tools.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("doesn't page to another picture or close while drawing", async () => {
     await act(() => markUp()!.click());
     await key("ArrowRight");

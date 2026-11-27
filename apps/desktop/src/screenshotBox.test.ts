@@ -10,6 +10,7 @@ import {
   disposeScreenshotBox,
   initializeScreenshotBox,
   openScreenshotBox,
+  openToMarkUp,
   SCREENSHOT_BOX_ACTION_EVENT,
   type ScreenshotBoxAction,
   type ScreenshotBoxPayload,
@@ -442,4 +443,18 @@ it("does what the box asks one after the other, so a caption and marks don't mee
       ok: true,
     }),
   );
+});
+
+it("opens a picture to mark up for the screenshot and mark up key", async () => {
+  expect(await openToMarkUp(sunrise.path)).toBe(true);
+  const { screenshots } = openedPayload()!;
+  expect(screenshots.markUpFirst).toBe(true);
+  expect(screenshots.pictures[screenshots.index].path).toBe(sunrise.path);
+});
+
+it("says so when it finds no running game with the picture", async () => {
+  expect(await openToMarkUp("C:\\Pictures\\PlayCounter\\Other\\x.jpg")).toBe(
+    false,
+  );
+  expect(openedPayload()).toBeUndefined();
 });

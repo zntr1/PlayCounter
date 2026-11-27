@@ -247,6 +247,16 @@ export function ScreenshotBoxWindow({
   }, [shot?.url, missing]);
 
   if (!shot) return null;
+  const captionLine = (
+    <CaptionLine
+      key={shot.path}
+      shot={shot}
+      label={label}
+      onSave={(caption) =>
+        onAction({ kind: "caption", path: shot.path, caption })
+      }
+    />
+  );
   const saveMarks = (png: Uint8Array) =>
     new Promise<void>((resolve, reject) => {
       savingMarks.current = { path: shot.path, resolve, reject };
@@ -351,17 +361,6 @@ export function ScreenshotBoxWindow({
                   : "max-h-[calc(100%-8.5rem)]",
             )}
           />
-          {/* While marking up too: a caption can come with the marks. */}
-          <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
-            <CaptionLine
-              key={shot.path}
-              shot={shot}
-              label={label}
-              onSave={(caption) =>
-                onAction({ kind: "caption", path: shot.path, caption })
-              }
-            />
-          </div>
           {marking ? (
             <MarkupTools
               key={shot.path}
@@ -370,8 +369,18 @@ export function ScreenshotBoxWindow({
               texts={markupTexts}
               save={saveMarks}
               onDone={() => (markUpFirst ? close(true) : setMarking(false))}
+              // A caption can come with the marks, under the tools.
+              caption={
+                <div className="flex h-16 max-w-full shrink-0 items-start justify-center">
+                  {captionLine}
+                </div>
+              }
             />
-          ) : null}
+          ) : (
+            <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+              {captionLine}
+            </div>
+          )}
         </>
       )}
       {pictures.length > 1 && !marking ? (

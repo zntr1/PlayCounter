@@ -359,6 +359,7 @@ describe("hotkeys save as soon as you press them", () => {
       "screenshotFolder",
       "screenshotHotkey",
       "screenshotCaptionHotkey",
+      "screenshotMarkUpHotkey",
       "screenshotViewerHotkey",
     ]);
   });

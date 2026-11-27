@@ -36,6 +36,10 @@ export async function resetSettings() {
     "screenshotViewerHotkey",
     defaults.screenshotViewerHotkey ?? null,
   );
+  await saveHotkey(
+    "screenshotMarkUpHotkey",
+    defaults.screenshotMarkUpHotkey ?? null,
+  );
   await saveHotkey("quickAddHotkey", defaults.quickAddHotkey ?? null);
   await saveHotkey("counterUndoHotkey", defaults.counterUndoHotkey ?? null);
   await saveHotkey("counterBoxHotkey", defaults.counterBoxHotkey ?? null);

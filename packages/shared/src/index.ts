@@ -781,6 +781,8 @@ export interface Settings {
   /** Opens the running game's pictures over the game
    *  (docs/session-screenshots-plan.md). */
   screenshotViewerHotkey?: string | null;
+  /** Takes the picture, then opens it over the game to mark it up. */
+  screenshotMarkUpHotkey?: string | null;
   quickAddHotkey?: string | null;
   /** Takes one off the counter counted last (docs/counters-plan.md). */
   counterUndoHotkey?: string | null;

@@ -12,7 +12,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub struct HotkeyState(Mutex<HashMap<String, Shortcut>>);
 
 /// What a hotkey can do.
-const ACTIONS: [&str; 11] = [
+const ACTIONS: [&str; 12] = [
     "show-window",
     "current-session",
     "quick-note",
@@ -21,6 +21,7 @@ const ACTIONS: [&str; 11] = [
     "screenshot",
     "screenshot-caption",
     "screenshot-viewer",
+    "screenshot-markup",
     "quick-add",
     "counter-undo",
     "counter-box",
@@ -123,6 +124,12 @@ pub fn set_global_hotkey(
                         crate::quick_note::remember_foreground(app);
                         let _ = app.emit_to("main", "playcounter:screenshot-viewer-hotkey", ());
                     }
+                    "screenshot-markup" => {
+                        // The same picture; the main window then opens it
+                        // over the game to mark it up.
+                        crate::screenshot::commands::key_pressed(app);
+                        let _ = app.emit_to("main", "playcounter:screenshot-markup-hotkey", ());
+                    }
                     "screenshot-caption" => {
                         // The same picture; the main window then opens the
                         // caption box over the game.
@@ -168,6 +175,7 @@ mod tests {
             "screenshot",
             "screenshot-caption",
             "screenshot-viewer",
+            "screenshot-markup",
             "quick-add",
             "counter-undo",
             "counter-box",

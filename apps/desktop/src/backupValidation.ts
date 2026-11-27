@@ -344,6 +344,7 @@ const settings = object({}, {
   screenshotHotkey: nullable(string),
   screenshotCaptionHotkey: nullable(string),
   screenshotViewerHotkey: nullable(string),
+  screenshotMarkUpHotkey: nullable(string),
   quickAddHotkey: nullable(string),
   counterUndoHotkey: nullable(string),
   counterBoxHotkey: nullable(string),

@@ -405,5 +405,7 @@
   "Previous page": "上一页",
   "Next page": "下一页",
   "Show screenshots": "查看截图",
-  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "在游戏上方直接打开你正在玩的游戏的最新截图。用方向键查看更早的截图，也可以直接在上面标注。按 Esc 返回游戏。"
+  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "在游戏上方直接打开你正在玩的游戏的最新截图。用方向键查看更早的截图，也可以直接在上面标注。按 Esc 返回游戏。",
+  "Screenshot and mark up": "截图并标注",
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "立即截图，并在游戏上方打开它供你标注。也可以在那里添加说明。保存或按 Esc 返回游戏。"
 }

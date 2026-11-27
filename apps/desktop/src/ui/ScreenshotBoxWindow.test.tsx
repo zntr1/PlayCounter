@@ -317,6 +317,15 @@ describe("mark up", () => {
     expect(container.textContent).not.toContain("Discard your marks?");
   });
 
+  it("puts the caption under the tools while marking up", async () => {
+    await act(() => button("Markieren")!.click());
+    const tools = container.querySelector('[role="toolbar"]')!;
+    const caption = button("Bildunterschrift hinzufügen")!;
+    expect(
+      tools.compareDocumentPosition(caption) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("is only offered on pictures that can take marks", async () => {
     expect(button("Markieren")).toBeDefined();
     await update({

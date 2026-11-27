@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { markUpScreenshot, type Screenshot } from "../screenshots";
 import { useAppStore } from "../store";
 import { getT } from "../i18n";
@@ -52,6 +52,7 @@ export function ScreenshotMarkup({
   image,
   width,
   onDone,
+  caption,
 }: {
   shot: Screenshot;
   /** The picture as the viewer shows it; the canvas lies over it. */
@@ -59,9 +60,12 @@ export function ScreenshotMarkup({
   /** The picture's width as shown, so the tools line up with it. */
   width: number | null;
   onDone: () => void;
+  /** The picture's caption line, under the tools. */
+  caption?: ReactNode;
 }) {
   return (
     <MarkupTools
+      caption={caption}
       image={image}
       width={width}
       texts={markupTexts()}

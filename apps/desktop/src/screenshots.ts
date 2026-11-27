@@ -457,8 +457,16 @@ export async function loadScreenshots() {
 
 /** The screenshot key: a picture of the game in front, or of the game
  *  started last, added to its running session. With `caption`, the caption
- *  box opens over the game first and the popup comes when it closes. */
-export async function takeScreenshot({ caption = false } = {}) {
+ *  box opens over the game first and the popup comes when it closes. With
+ *  `markUp`, the picture opens over the game to mark it up
+ *  (screenshotBox.ts); it answers whether it opened. */
+export async function takeScreenshot({
+  caption = false,
+  markUp,
+}: {
+  caption?: boolean;
+  markUp?: (path: string) => Promise<boolean>;
+} = {}) {
   const state = useAppStore.getState();
   const sessions = state.activeSessions
     .filter(onThisPc)
@@ -512,6 +520,12 @@ export async function takeScreenshot({ caption = false } = {}) {
         });
         if (opened) return;
         captionBoxes.delete(shot.path);
+      } else if (markUp) {
+        const opened = await markUp(shot.path).catch((error) => {
+          console.error("mark up box failed", error);
+          return false;
+        });
+        if (opened) return;
       }
       showScreenshotOverlay({ outcome: "saved", ...game(session) });
       return;

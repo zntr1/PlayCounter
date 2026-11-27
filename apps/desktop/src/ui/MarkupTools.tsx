@@ -23,6 +23,7 @@ import {
   useRef,
   useState,
   type PointerEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 import {
@@ -187,6 +188,7 @@ export function MarkupTools({
   texts,
   save: saveMarks,
   onDone,
+  caption,
 }: {
   /** The picture as the viewer shows it; the canvas lies over it. */
   image: RefObject<HTMLImageElement | null>;
@@ -198,6 +200,8 @@ export function MarkupTools({
    *  keeps the marks. */
   save: (png: Uint8Array) => Promise<void>;
   onDone: () => void;
+  /** The picture's caption line, under the tools. */
+  caption?: ReactNode;
 }) {
   const t = (text: MarkupText) => texts[text];
   // The texts come anew with every render of the caller; the canvas keeps
@@ -603,6 +607,7 @@ export function MarkupTools({
               })
             : null}
         </div>
+        {caption}
         <div className="flex h-8 items-center justify-center gap-2 text-center">
           {asking ? (
             <>

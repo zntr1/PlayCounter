@@ -423,5 +423,7 @@
   "Previous page": "Página anterior",
   "Next page": "Próxima página",
   "Show screenshots": "Mostrar capturas de tela",
-  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Abre a imagem mais recente do jogo que você está jogando, bem por cima do jogo. As setas levam às mais antigas, e você pode marcá-las ali mesmo. Esc leva você de volta ao jogo."
+  "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Abre a imagem mais recente do jogo que você está jogando, bem por cima do jogo. As setas levam às mais antigas, e você pode marcá-las ali mesmo. Esc leva você de volta ao jogo.",
+  "Screenshot and mark up": "Captura de tela e marcar",
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Tira a imagem na hora e a abre sobre o jogo para você marcá-la. Ali também dá para adicionar uma legenda. Salvar ou Esc leva você de volta ao jogo."
 }

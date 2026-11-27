@@ -300,10 +300,6 @@ function OpenViewer() {
                     : "max-h-[calc(100%-8.5rem)]",
               )}
             />
-            {/* While marking up too: a caption can come with the marks. */}
-            <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
-              {web ? null : <CaptionLine key={shotKey} shot={shot} />}
-            </div>
             {marking && !isWebPicture(shot) ? (
               <ScreenshotMarkup
                 key={shotKey}
@@ -311,8 +307,18 @@ function OpenViewer() {
                 image={imageRef}
                 width={pictureWidth}
                 onDone={() => setMarking(false)}
+                // A caption can come with the marks, under the tools.
+                caption={
+                  <div className="flex h-16 max-w-full shrink-0 items-start justify-center">
+                    <CaptionLine key={shotKey} shot={shot} />
+                  </div>
+                }
               />
-            ) : null}
+            ) : (
+              <div className="mt-3 flex h-16 max-w-full shrink-0 items-start justify-center">
+                {web ? null : <CaptionLine key={shotKey} shot={shot} />}
+              </div>
+            )}
           </>
         )}
         {shots.length > 1 && !marking ? (
