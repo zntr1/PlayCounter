@@ -430,6 +430,41 @@ describe("opened to mark up the picture just taken", () => {
       (entry) => entry.textContent?.trim() === name,
     );
 
+  it("saves on Enter and takes you back to the game", async () => {
+    await key("Enter");
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("saves only the caption on Enter in the caption field", async () => {
+    await act(() => button("Bildunterschrift hinzufügen")!.click());
+    const field = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Bildunterschrift"]',
+    )!;
+    await act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(field, "Cliff jump");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(() => {
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "caption",
+      path: pictures[3].path,
+      caption: "Cliff jump",
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(button("Stift")).toBeDefined();
+  });
+
   it("saves with nothing drawn and takes you back to the game", async () => {
     await act(() => saveButton("Save")!.click());
     expect(onClose).toHaveBeenCalledExactlyOnceWith(true);

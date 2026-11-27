@@ -303,8 +303,12 @@ export function MarkupTools({
     else onDone();
   }, [onDone]);
 
-  // Esc and Ctrl+Z, before the viewer's own Esc, which would close it. Not
-  // in a text field (the caption): Esc closes the field, Ctrl+Z undoes text.
+  /** Save, as the button does; set once `save` exists, below. */
+  const saveNow = useRef<() => void>(() => {});
+
+  // Esc, Ctrl+Z and Enter (Save), before the viewer's own Esc, which would
+  // close it. Not in a text field (the caption): there Esc closes the
+  // field, Ctrl+Z undoes text and Enter saves the caption.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (
@@ -324,6 +328,15 @@ export function MarkupTools({
       ) {
         event.preventDefault();
         if (!latest.current.saving) setMarks((list) => list.slice(0, -1));
+      } else if (
+        event.key === "Enter" &&
+        !event.repeat &&
+        !latest.current.asking &&
+        !latest.current.saving
+      ) {
+        // Also keeps Enter from pressing whichever button has the focus.
+        event.preventDefault();
+        saveNow.current();
       }
     }
     window.addEventListener("keydown", onKeyDown, true);
@@ -465,6 +478,8 @@ export function MarkupTools({
       setSaving(false);
     }
   }
+
+  saveNow.current = () => void save();
 
   const empty = marks.length === 0;
   return (

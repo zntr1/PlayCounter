@@ -331,6 +331,36 @@ describe("mark up", () => {
     expect(useScreenshotViewer.getState().shots).toHaveLength(2);
   });
 
+  // Enter saves the picture, except in the caption field, where it saves
+  // the caption.
+  it("saves the picture on Enter", async () => {
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(
+      1920,
+    );
+    vi.spyOn(
+      HTMLImageElement.prototype,
+      "naturalHeight",
+      "get",
+    ).mockReturnValue(1080);
+    marksPngMock.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
+    markUpMock.mockResolvedValue(withCaption);
+    await startWithNumbers(1);
+    await key("Enter");
+    expect(markUpMock).toHaveBeenCalledOnce();
+    expect(marking()).toBe(false);
+  });
+
+  it("saves only the caption on Enter in the caption field", async () => {
+    await startWithNumbers(1);
+    await act(() => button("“Boss arena”")!.click());
+    await type("Boss arena, phase two");
+    await press("Enter");
+    expect(setCaptionMock).toHaveBeenCalledOnce();
+    expect(markUpMock).not.toHaveBeenCalled();
+    expect(marksPngMock).not.toHaveBeenCalled();
+    expect(marking()).toBe(true);
+  });
+
   it("writes a caption while marking up; Esc in it closes only the field", async () => {
     await startWithNumbers(1);
     await act(() => button("“Boss arena”")!.click());
