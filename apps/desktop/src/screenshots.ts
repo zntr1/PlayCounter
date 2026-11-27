@@ -51,8 +51,14 @@ export type CaptionBoxClosed = {
   markUp?: boolean;
 };
 
-/** With the moment it was taken: the time in its name, else the file's. */
-export type Screenshot = ScreenshotFile & { takenAtMs: number };
+/** With the moment it was taken: the time in its name, else the file's.
+ *  `pictureMs` is the file's time when its picture last changed (marked up).
+ *  A caption changes the file, not the picture: the picture keeps its
+ *  address (`pictureSource`), so nothing shown loads again and flickers. */
+export type Screenshot = ScreenshotFile & {
+  takenAtMs: number;
+  pictureMs?: number;
+};
 
 /** What the screenshot key's Rust side answers. */
 type TakeResult =
@@ -101,7 +107,13 @@ export function toScreenshot(file: ScreenshotFile): Screenshot {
   return {
     ...file,
     takenAtMs: screenshotTimeFromName(file.name) ?? file.modifiedMs,
+    pictureMs: file.modifiedMs,
   };
+}
+
+/** The picture as listed now, for keeping what didn't change. */
+function listed(path: string) {
+  return useScreenshots.getState().files.find((entry) => entry.path === path);
 }
 
 function sessionSpan(session: SessionLike, nowMs: number) {
@@ -432,7 +444,17 @@ export async function setScreenshotCaption(
     path,
     caption,
   });
-  const shot = toScreenshot({ ...file, path });
+  const before = listed(path);
+  // The file's time moved, not the picture or the moment it was taken.
+  const shot: Screenshot = {
+    ...toScreenshot({ ...file, path }),
+    ...(before
+      ? {
+          takenAtMs: before.takenAtMs,
+          pictureMs: before.pictureMs ?? before.modifiedMs,
+        }
+      : {}),
+  };
   const swap = <T extends ViewerPicture>(shots: T[]) =>
     shots.map((entry) =>
       !isWebPicture(entry) && entry.path === path ? shot : entry,
@@ -560,6 +582,12 @@ export function screenshotSource(path: string, version?: number) {
   return version ? `${source}?v=${version}` : source;
 }
 
+/** The picture's address: new when the picture changed, not when only its
+ *  caption did. */
+export function pictureSource(shot: Screenshot) {
+  return screenshotSource(shot.path, shot.pictureMs ?? shot.modifiedMs);
+}
+
 /** Only the player's own pictures can be marked up, and only JPEGs: that's
  *  what the screenshot key saves. Not IGDB's, not the guide's sample, not a
  *  PNG or WebP put into the folder by hand. */
@@ -579,7 +607,12 @@ export async function markUpScreenshot(path: string, marks: Uint8Array) {
     path,
     marks: Array.from(marks),
   });
-  const shot = toScreenshot({ ...file, path });
+  const before = listed(path);
+  // A new picture (new address), taken at the same moment.
+  const shot: Screenshot = {
+    ...toScreenshot({ ...file, path }),
+    ...(before ? { takenAtMs: before.takenAtMs } : {}),
+  };
   const swap = <T extends ViewerPicture>(shots: T[]) =>
     shots.map((entry) =>
       !isWebPicture(entry) && entry.path === path ? shot : entry,

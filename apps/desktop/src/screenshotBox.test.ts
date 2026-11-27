@@ -458,3 +458,22 @@ it("says so when it finds no running game with the picture", async () => {
   );
   expect(openedPayload()).toBeUndefined();
 });
+
+it("keeps a picture's address in the box when only its caption changes", async () => {
+  await openScreenshotBox();
+  const url = (pictures: { path: string; url: string }[]) =>
+    pictures.find((picture) => picture.path === cliff.path)!.url;
+  const before = url(openedPayload()!.screenshots.pictures);
+  invokeMock.mockImplementation(async (command) => {
+    if (command === "screenshot_caption") {
+      const file = useScreenshots
+        .getState()
+        .files.find((entry) => entry.path === cliff.path)!;
+      return { ...file, caption: "Cliff jump", modifiedMs: NOW + 99 };
+    }
+    return true;
+  });
+  actionHandler!({ kind: "caption", path: cliff.path, caption: "Cliff jump" });
+  await vi.waitFor(() => expect(lastUpdate()?.done?.kind).toBe("caption"));
+  expect(url(lastUpdate()!.pictures)).toBe(before);
+});

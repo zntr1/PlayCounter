@@ -24,8 +24,8 @@ import {
   deleteScreenshot,
   isWebPicture,
   openScreenshot,
+  pictureSource,
   revealScreenshot,
-  screenshotSource,
   setScreenshotCaption,
   useScreenshotViewer,
   type PictureGroup,
@@ -78,9 +78,8 @@ function OpenViewer() {
   const shotKey = pictureKey(shot);
   useEffect(() => setMissing(false), [shotKey]);
   // A marked up picture keeps its path: its time makes it a new address.
-  const source = web
-    ? igdbScreenshotLarge(shot.url)
-    : screenshotSource(shot.path, shot.modifiedMs);
+  // A new caption doesn't: the picture stays as it is.
+  const source = web ? igdbScreenshotLarge(shot.url) : pictureSource(shot);
 
   // The title and buttons line up with the picture's edges, so they take
   // its width as shown.

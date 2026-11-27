@@ -188,6 +188,26 @@ it("shows each picture's session over the row, and this session's by the time", 
   ).toBe("This session");
 });
 
+it("keeps the picture shown when only its caption changes", async () => {
+  const picture = () =>
+    document.body.querySelector<HTMLImageElement>('img[alt^="Screenshot"]');
+  const before = picture();
+  const src = before!.getAttribute("src");
+  await act(() =>
+    useScreenshotViewer.setState((state) => ({
+      shots: state.shots.map((entry) =>
+        "path" in entry && entry.path === withCaption.path
+          ? // What setScreenshotCaption gives: the file's new time, the
+            // picture's old one.
+            { ...entry, caption: "Boss arena!", modifiedMs: 7000, pictureMs: 0 }
+          : entry,
+      ),
+    })),
+  );
+  expect(picture()).toBe(before);
+  expect(picture()!.getAttribute("src")).toBe(src);
+});
+
 it("shows no session labels when opened without them", () => {
   expect(document.body.querySelector("[data-picture-group]")).toBeNull();
 });

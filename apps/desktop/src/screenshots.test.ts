@@ -8,6 +8,7 @@ import {
   initializeScreenshots,
   markUpScreenshot,
   openScreenshotViewer,
+  pictureSource,
   SCREENSHOT_CAPTION_CLOSE_EVENT,
   screenshotSource,
   screenshotTimeFromName,
@@ -568,5 +569,44 @@ describe("marking up a screenshot", () => {
     expect(
       canMarkUp({ ...toScreenshot(picture), path: "/tour/sample-shot-1.jpg" }),
     ).toBe(false);
+  });
+});
+
+/* Writing a caption changes the file (its time, its size, its preview's
+   name), not the picture: the picture keeps its address, so nothing shown
+   loads again and flickers. */
+describe("a caption changes the file, not the picture", () => {
+  // No time in the name: the picture's time is the file's.
+  const map = file("Map.jpg", "Elden Ring", 1000);
+
+  it("keeps the picture's address and time when only its caption changes", async () => {
+    useScreenshots.setState({ files: [toScreenshot(map)] });
+    const [before] = useScreenshots.getState().files;
+    invokeMock.mockResolvedValueOnce({
+      ...map,
+      caption: "Where the map was",
+      bytes: 1200,
+      modifiedMs: 7000,
+      previewPath: "C:\\previews\\renamed.jpg",
+    });
+    await setScreenshotCaption(map.path, "Where the map was");
+    const [after] = useScreenshots.getState().files;
+    expect(after).toMatchObject({
+      caption: "Where the map was",
+      modifiedMs: 7000,
+      previewPath: "C:\\previews\\renamed.jpg",
+    });
+    expect(pictureSource(after)).toBe(pictureSource(before));
+    expect(after.takenAtMs).toBe(before.takenAtMs);
+  });
+
+  it("gives a marked up picture a new address", async () => {
+    useScreenshots.setState({ files: [toScreenshot(map)] });
+    const [before] = useScreenshots.getState().files;
+    invokeMock.mockResolvedValueOnce({ ...map, modifiedMs: 7000 });
+    await markUpScreenshot(map.path, new Uint8Array([137, 80, 78, 71]));
+    const [after] = useScreenshots.getState().files;
+    expect(pictureSource(after)).not.toBe(pictureSource(before));
+    expect(after.takenAtMs).toBe(before.takenAtMs);
   });
 });

@@ -78,7 +78,12 @@ it("shows a picture's new preview once it was marked up", async () => {
   await act(() =>
     useScreenshots.setState({
       files: [
-        { ...first, modifiedMs: 9000, previewPath: "C:\\previews\\marked.jpg" },
+        {
+          ...first,
+          modifiedMs: 9000,
+          pictureMs: 9000,
+          previewPath: "C:\\previews\\marked.jpg",
+        },
         second,
       ],
     }),
@@ -93,4 +98,24 @@ it("marks pictures with a caption and shows the caption on hover", () => {
   expect(captioned.querySelector("[data-caption-mark]")).not.toBeNull();
   expect(plain.hasAttribute("title")).toBe(false);
   expect(plain.querySelector("[data-caption-mark]")).toBeNull();
+});
+
+it("keeps a small picture as it is when only its caption changes", async () => {
+  const [first, second] = useScreenshots.getState().files;
+  const before = container.querySelector("li button img");
+  await act(() =>
+    useScreenshots.setState({
+      files: [
+        {
+          ...first,
+          caption: "Boss arena, again",
+          modifiedMs: 7000,
+          previewPath: "C:\\previews\\renamed.jpg",
+        },
+        second,
+      ],
+    }),
+  );
+  // The same element: nothing loads again or shimmers.
+  expect(container.querySelector("li button img")).toBe(before);
 });

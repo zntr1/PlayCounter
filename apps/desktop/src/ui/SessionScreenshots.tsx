@@ -212,9 +212,15 @@ export function NowPlayingScreenshots({
 }
 
 /** The picture's preview, made on the spot when it has none yet. A marked up
- *  picture comes with a new preview, which starts afresh. */
+ *  picture comes with a new preview, which starts afresh. A new caption
+ *  renames the preview but leaves the picture: the one shown stays. */
 export function ScreenshotThumb({ shot }: { shot: Screenshot }) {
-  return <PreviewThumb key={shot.previewPath ?? shot.path} shot={shot} />;
+  return (
+    <PreviewThumb
+      key={`${shot.path}|${shot.pictureMs ?? shot.modifiedMs}`}
+      shot={shot}
+    />
+  );
 }
 
 function PreviewThumb({ shot }: { shot: Screenshot }) {
@@ -249,7 +255,12 @@ function PreviewThumb({ shot }: { shot: Screenshot }) {
       loading="lazy"
       decoding="async"
       draggable={false}
-      onError={() => setFailed(true)}
+      onError={() =>
+        // The preview was renamed (a new caption): take it by its new name.
+        shot.previewPath && shot.previewPath !== preview
+          ? setPreview(shot.previewPath)
+          : setFailed(true)
+      }
       className="h-full w-full object-cover"
     />
   );

@@ -14,6 +14,7 @@ import {
   gamePictures,
   markUpScreenshot,
   onThisPc,
+  pictureSource,
   screenshotSource,
   SCREENSHOT_CAPTION_CLOSE_EVENT,
   setScreenshotCaption,
@@ -166,7 +167,7 @@ type Game = { gameKey: string; gameName: string };
 function boxPictures(game: Game): ScreenshotBoxPicture[] {
   const { shots, groups } = gamePictures(game.gameKey, game.gameName);
   return shots.slice(-PICTURE_LIMIT).map((shot) => {
-    const url = screenshotSource(shot.path, shot.modifiedMs);
+    const url = pictureSource(shot);
     return {
       path: shot.path,
       url,
