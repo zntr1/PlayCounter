@@ -234,7 +234,7 @@
   "Saved monitor is disconnected. Popups will use the primary monitor until it returns.": "Saved monitor is disconnected. Popups will use the primary monitor until it returns.",
   "Refresh monitors": "Refresh monitors",
   "{{label}} hotkey": "{{label}} hotkey",
-  "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.": "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
+  "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.": "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.",
   "Erase your current PlayCounter data: your library, play history, notes, playthroughs, shelves, settings, custom artwork, ignore rules, and installation ID.": "Erase your current PlayCounter data: your library, play history, notes, playthroughs, shelves, settings, custom artwork, ignore rules, and installation ID.",
   "All backup files are kept, including automatic and safety backups. You can import a backup later to restore saved data.": "All backup files are kept, including automatic and safety backups. You can import a backup later to restore saved data.",
   "Your backup folder settings are kept. Automatic backups will be paused to protect your saved history; you can turn them back on in Settings.": "Your backup folder settings are kept. Automatic backups will be paused to protect your saved history; you can turn them back on in Settings.",
@@ -414,5 +414,15 @@
   "Show screenshots": "Show screenshots",
   "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.",
   "Screenshot and mark up": "Screenshot and mark up",
-  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game."
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.",
+  "Pause": "Pause",
+  "Scroll Lock": "Scroll Lock",
+  "Print Screen": "Print Screen",
+  "Play/Pause": "Play/Pause",
+  "Stop": "Stop",
+  "Next track": "Next track",
+  "Previous track": "Previous track",
+  "Volume up": "Volume up",
+  "Volume down": "Volume down",
+  "Mute": "Mute"
 }

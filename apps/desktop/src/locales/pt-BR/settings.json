@@ -234,7 +234,7 @@
   "Saved monitor is disconnected. Popups will use the primary monitor until it returns.": "O monitor salvo está desconectado. Os pop-ups vão usar o monitor principal até ele voltar.",
   "Refresh monitors": "Atualizar monitores",
   "{{label}} hotkey": "Atalho: {{label}}",
-  "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.": "Use Ctrl, Alt ou Win/Cmd com uma letra, número ou tecla de navegação, ou use F1–F24.",
+  "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.": "Use Ctrl, Alt ou Win/Cmd com uma letra, um número, uma tecla de navegação ou uma das teclas + - , . ou pressione sozinha uma destas teclas: F1–F24, uma tecla do teclado numérico, Pause, Scroll Lock, Print Screen ou uma tecla de mídia.",
   "Erase your current PlayCounter data: your library, play history, notes, playthroughs, shelves, settings, custom artwork, ignore rules, and installation ID.": "Apaga seus dados atuais do PlayCounter: sua biblioteca, histórico de jogo, notas, campanhas, prateleiras, configurações, imagens personalizadas, regras de ignorados e ID de instalação.",
   "All backup files are kept, including automatic and safety backups. You can import a backup later to restore saved data.": "Todos os arquivos de backup são mantidos, inclusive os backups automáticos e de segurança. Você pode importar um backup depois para restaurar os dados salvos.",
   "Your backup folder settings are kept. Automatic backups will be paused to protect your saved history; you can turn them back on in Settings.": "As configurações da sua pasta de backup são mantidas. Os backups automáticos ficarão pausados para proteger seu histórico salvo; você pode reativá-los em Configurações.",
@@ -423,5 +423,15 @@
   "Show screenshots": "Mostrar capturas de tela",
   "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Abre a imagem mais recente do jogo que você está jogando, bem por cima do jogo. As setas levam às mais antigas, e você pode marcá-las ali mesmo. Esc leva você de volta ao jogo.",
   "Screenshot and mark up": "Captura de tela e marcar",
-  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Tira a imagem na hora e a abre sobre o jogo para você marcá-la. Ali também dá para adicionar uma legenda. Salvar ou Esc leva você de volta ao jogo."
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Tira a imagem na hora e a abre sobre o jogo para você marcá-la. Ali também dá para adicionar uma legenda. Salvar ou Esc leva você de volta ao jogo.",
+  "Pause": "Pause",
+  "Scroll Lock": "Scroll Lock",
+  "Print Screen": "Print Screen",
+  "Play/Pause": "Reproduzir/Pausar",
+  "Stop": "Parar",
+  "Next track": "Próxima faixa",
+  "Previous track": "Faixa anterior",
+  "Volume up": "Aumentar volume",
+  "Volume down": "Diminuir volume",
+  "Mute": "Mudo"
 }

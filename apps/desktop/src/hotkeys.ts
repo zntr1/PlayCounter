@@ -205,6 +205,6 @@ export function disposeHotkeys() {
   });
 }
 
-export { shortcutFromKey } from "./shortcutKeys";
+export { recordsOnKeyUp, shortcutFromKey } from "./shortcutKeys";
 
 export { formatHotkey } from "./hotkeyFormat";

@@ -283,4 +283,164 @@ describe("shortcut recorder", () => {
       await i18next.changeLanguage("en");
     }
   });
+
+  // Keys nobody types may stand alone: Numpad, Pause, Scroll Lock, Print
+  // Screen and the media keys.
+  it("takes a key nobody types alone", () => {
+    for (const code of [
+      "Numpad1",
+      "NumpadAdd",
+      "Pause",
+      "ScrollLock",
+      "PrintScreen",
+      "MediaPlayPause",
+      "MediaStop",
+      "MediaTrackNext",
+      "MediaTrackPrevious",
+      "AudioVolumeUp",
+      "AudioVolumeDown",
+      "AudioVolumeMute",
+    ])
+      expect(shortcutFromKey({ ...key, key: "", code }), code).toBe(code);
+    expect(
+      shortcutFromKey({ ...key, key: "", code: "Pause", altKey: true }),
+    ).toBe("Alt+Pause");
+  });
+
+  it("keeps letters, numbers and the space bar for typing unless Ctrl, Alt or Win is held", () => {
+    for (const [code, typed] of [
+      ["KeyN", "n"],
+      ["Digit1", "1"],
+      ["Space", " "],
+    ]) {
+      expect(shortcutFromKey({ ...key, code, key: typed }), code).toBeNull();
+      expect(
+        shortcutFromKey({ ...key, code, key: typed, shiftKey: true }),
+        code,
+      ).toBeNull();
+    }
+    // Numpad Enter is Enter to Windows.
+    expect(
+      shortcutFromKey({ ...key, code: "NumpadEnter", key: "Enter" }),
+    ).toBeNull();
+  });
+
+  it("takes + - , . with Ctrl, Alt or Win, on a German keyboard too", () => {
+    // German layout: - sits where US has /, + where US has ]. Windows gives
+    // them the same code as on a US keyboard.
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "Slash",
+        key: "-",
+        keyCode: 189,
+        ctrlKey: true,
+      }),
+    ).toBe("Control+Minus");
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "BracketRight",
+        key: "+",
+        keyCode: 187,
+        altKey: true,
+      }),
+    ).toBe("Alt+Equal");
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "Comma",
+        key: ";",
+        keyCode: 188,
+        ctrlKey: true,
+        shiftKey: true,
+      }),
+    ).toBe("Control+Shift+Comma");
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "Period",
+        key: ".",
+        keyCode: 190,
+        metaKey: true,
+      }),
+    ).toBe("Super+Period");
+    // US layout.
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "Minus",
+        key: "-",
+        keyCode: 189,
+        ctrlKey: true,
+      }),
+    ).toBe("Control+Minus");
+    // Alone they stay free for typing.
+    expect(
+      shortcutFromKey({ ...key, code: "Slash", key: "-", keyCode: 189 }),
+    ).toBeNull();
+  });
+
+  it("leaves out keys whose Windows code changes with the layout, so ß never binds the - key", () => {
+    // German ß sits where US has -, but Windows calls it VK_OEM_4, not VK_OEM_MINUS.
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "Minus",
+        key: "ß",
+        keyCode: 219,
+        ctrlKey: true,
+      }),
+    ).toBeNull();
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "BracketLeft",
+        key: "ü",
+        keyCode: 186,
+        ctrlKey: true,
+      }),
+    ).toBeNull();
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "IntlBackslash",
+        key: "<",
+        keyCode: 226,
+        ctrlKey: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("does not take Ctrl+Pause, which Windows turns into Break", () => {
+    expect(
+      shortcutFromKey({
+        ...key,
+        code: "Pause",
+        key: "Cancel",
+        keyCode: 3,
+        ctrlKey: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("names the new keys in the app's language", async () => {
+    expect(formatHotkey("Control+Minus")).toBe("Ctrl+-");
+    expect(formatHotkey("Alt+Equal")).toBe("Alt++");
+    expect(formatHotkey("Control+Comma")).toBe("Ctrl+,");
+    expect(formatHotkey("Control+Period")).toBe("Ctrl+.");
+    expect(formatHotkey("ScrollLock")).toBe("Scroll Lock");
+    expect(formatHotkey("PrintScreen")).toBe("Print Screen");
+    expect(formatHotkey("MediaPlayPause")).toBe("Play/Pause");
+    expect(formatHotkey("AudioVolumeUp")).toBe("Volume up");
+    await i18next.changeLanguage("de");
+    try {
+      expect(formatHotkey("Pause")).toBe("Pause");
+      expect(formatHotkey("ScrollLock")).toBe("Rollen");
+      expect(formatHotkey("PrintScreen")).toBe("Druck");
+      expect(formatHotkey("AudioVolumeUp")).toBe("Lauter");
+    } finally {
+      await i18next.changeLanguage("en");
+    }
+  });
 });

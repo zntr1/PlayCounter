@@ -29,7 +29,7 @@ import {
 } from "../../counterInput";
 import { formatHotkey } from "../../hotkeyFormat";
 import { getT } from "../../i18n";
-import { shortcutFromKey } from "../../shortcutKeys";
+import { recordsOnKeyUp, shortcutFromKey } from "../../shortcutKeys";
 import {
   useAppStore,
   type ActiveSession,
@@ -151,6 +151,17 @@ export function useCounterKeyRecorder(
   /** Why the key could not be set up, if it couldn't. */
   const error = useCounterKeyStatus((s) => s.errors[counter.id]);
   const [recording, setRecording] = useState(false);
+  function record(event: KeyboardEvent<HTMLButtonElement>) {
+    const key = shortcutFromKey(event.nativeEvent);
+    if (!key) return;
+    setRecording(false);
+    const conflict = counterKeyConflict(api.getState(), game, counter.id, key);
+    if (conflict) addToast({ tone: "error", title: conflict });
+    else {
+      update(game, counter.id, { key });
+      completeTourStep("counters", "key");
+    }
+  }
   return {
     recording,
     /** What the button says while it waits for the key. */
@@ -169,20 +180,12 @@ export function useCounterKeyRecorder(
           setRecording(false);
           return;
         }
-        const key = shortcutFromKey(event.nativeEvent, { plain: true });
-        if (!key) return;
-        setRecording(false);
-        const conflict = counterKeyConflict(
-          api.getState(),
-          game,
-          counter.id,
-          key,
-        );
-        if (conflict) addToast({ tone: "error", title: conflict });
-        else {
-          update(game, counter.id, { key });
-          completeTourStep("counters", "key");
-        }
+        record(event);
+      },
+      onKeyUp: (event: KeyboardEvent<HTMLButtonElement>) => {
+        if (!recording || !recordsOnKeyUp(event)) return;
+        event.preventDefault();
+        record(event);
       },
     },
   };

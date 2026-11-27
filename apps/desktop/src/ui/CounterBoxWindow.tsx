@@ -18,7 +18,7 @@ import type {
   CounterBoxRow,
   CounterBoxState,
 } from "../counterBox";
-import { shortcutFromKey } from "../shortcutKeys";
+import { recordsOnKeyUp, shortcutFromKey } from "../shortcutKeys";
 
 /* The counter box (docs/counters-plan.md): the running game's counters over
    the game. ↑↓ pick a counter, + and − count it, Esc goes back to the game.
@@ -93,6 +93,22 @@ export function CounterBoxWindow({
     if (row) onAction({ kind: "count", counterId: row.id, delta });
   };
 
+  function record(event: React.KeyboardEvent) {
+    // A key nobody types may stand alone (shortcutKeys.ts).
+    const key = shortcutFromKey(event.nativeEvent);
+    if (key && recording) {
+      onAction({ kind: "key", counterId: recording, key });
+      setRecording(null);
+    }
+  }
+
+  function onKeyUp(event: React.KeyboardEvent) {
+    if (event.target instanceof HTMLInputElement) return;
+    if (!recording || !recordsOnKeyUp(event)) return;
+    event.preventDefault();
+    record(event);
+  }
+
   function onKeyDown(event: React.KeyboardEvent) {
     if (event.target instanceof HTMLInputElement) return;
     if (recording) {
@@ -101,12 +117,7 @@ export function CounterBoxWindow({
         setRecording(null);
         return;
       }
-      // A counter's key may be a Numpad key alone (shortcutKeys.ts).
-      const key = shortcutFromKey(event.nativeEvent, { plain: true });
-      if (key) {
-        onAction({ kind: "key", counterId: recording, key });
-        setRecording(null);
-      }
+      record(event);
       return;
     }
     if (event.key === "Escape") {
@@ -155,6 +166,7 @@ export function CounterBoxWindow({
       ref={rootRef}
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
       className="w-full p-1 outline-none"
     >
       <div className="quick-note-card quick-add-card">

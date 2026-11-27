@@ -205,19 +205,14 @@ describe("recording a counter's key", () => {
     ...mods,
   });
 
-  it("takes a Numpad key alone for a counter, but not for an app-wide hotkey", () => {
-    expect(shortcutFromKey(press("NumpadAdd", "+"), { plain: true })).toBe(
-      "NumpadAdd",
-    );
-    expect(shortcutFromKey(press("Numpad1", "1"), { plain: true })).toBe(
-      "Numpad1",
-    );
-    expect(shortcutFromKey(press("NumpadAdd", "+"))).toBeNull();
+  it("takes a Numpad key alone, as an app-wide hotkey takes it", () => {
+    expect(shortcutFromKey(press("NumpadAdd", "+"))).toBe("NumpadAdd");
+    expect(shortcutFromKey(press("Numpad1", "1"))).toBe("Numpad1");
     // A letter alone would steal it from the game's controls and chat.
-    expect(shortcutFromKey(press("KeyK", "k"), { plain: true })).toBeNull();
-    expect(
-      shortcutFromKey(press("Numpad5", "5", { ctrlKey: true }), { plain: true }),
-    ).toBe("Control+Numpad5");
+    expect(shortcutFromKey(press("KeyK", "k"))).toBeNull();
+    expect(shortcutFromKey(press("Numpad5", "5", { ctrlKey: true }))).toBe(
+      "Control+Numpad5",
+    );
   });
 
   it("shows Numpad keys as the player reads them", () => {

@@ -234,7 +234,7 @@
   "Saved monitor is disconnected. Popups will use the primary monitor until it returns.": "Сохранённый монитор отключён. Окна будут на основном мониторе, пока он не вернётся.",
   "Refresh monitors": "Обновить мониторы",
   "{{label}} hotkey": "Сочетание клавиш: {{label}}",
-  "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.": "Используйте Ctrl, Alt или Win / Cmd с буквой, цифрой или клавишей навигации либо F1–F24.",
+  "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.": "Используйте Ctrl, Alt или Win / Cmd с буквой, цифрой, клавишей навигации или одной из клавиш + - , . либо нажмите отдельно F1–F24, клавишу цифрового блока, Pause, Scroll Lock, Print Screen или мультимедийную клавишу.",
   "Erase your current PlayCounter data: your library, play history, notes, playthroughs, shelves, settings, custom artwork, ignore rules, and installation ID.": "Стереть текущие данные PlayCounter: библиотеку, историю игр, заметки, прохождения, полки, настройки, свои изображения, правила игнорирования и ID установки.",
   "All backup files are kept, including automatic and safety backups. You can import a backup later to restore saved data.": "Все файлы резервных копий сохраняются, включая автоматические и страховочные. Позже можно импортировать копию, чтобы восстановить сохранённые данные.",
   "Your backup folder settings are kept. Automatic backups will be paused to protect your saved history; you can turn them back on in Settings.": "Настройки папки резервных копий сохраняются. Автоматическое копирование будет приостановлено, чтобы защитить сохранённую историю; его можно снова включить в настройках.",
@@ -432,5 +432,15 @@
   "Show screenshots": "Показать скриншоты",
   "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "Открывает самый новый снимок игры, в которую вы играете, прямо поверх игры. Стрелки ведут к более старым, и их можно сразу разметить. Esc возвращает в игру.",
   "Screenshot and mark up": "Скриншот и разметка",
-  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Сразу делает снимок и открывает его поверх игры для разметки. Там же можно добавить подпись. Сохранение или Esc возвращает в игру."
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "Сразу делает снимок и открывает его поверх игры для разметки. Там же можно добавить подпись. Сохранение или Esc возвращает в игру.",
+  "Pause": "Pause",
+  "Scroll Lock": "Scroll Lock",
+  "Print Screen": "Print Screen",
+  "Play/Pause": "Воспроизведение/пауза",
+  "Stop": "Стоп",
+  "Next track": "Следующий трек",
+  "Previous track": "Предыдущий трек",
+  "Volume up": "Громче",
+  "Volume down": "Тише",
+  "Mute": "Без звука"
 }

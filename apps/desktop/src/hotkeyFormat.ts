@@ -24,8 +24,25 @@ export function formatHotkeyParts(shortcut: string | null | undefined) {
     Divide: "/",
     Decimal: ".",
   };
+  const named: Record<string, string> = {
+    Equal: "+",
+    Comma: ",",
+    Minus: "-",
+    Period: ".",
+    Pause: t("Pause"),
+    ScrollLock: t("Scroll Lock"),
+    PrintScreen: t("Print Screen"),
+    MediaPlayPause: t("Play/Pause"),
+    MediaStop: t("Stop"),
+    MediaTrackNext: t("Next track"),
+    MediaTrackPrevious: t("Previous track"),
+    AudioVolumeUp: t("Volume up"),
+    AudioVolumeDown: t("Volume down"),
+    AudioVolumeMute: t("Mute"),
+  };
   return shortcut.split("+").map((part) => {
     if (modifiers[part]) return modifiers[part];
+    if (named[part]) return named[part];
     const num = /^Numpad(.+)$/.exec(part);
     if (num) return `${t("Num")} ${numpad[num[1]] ?? num[1]}`;
     return part.replace(/^Key([A-Z])$/, "$1").replace(/^Digit([0-9])$/, "$1");

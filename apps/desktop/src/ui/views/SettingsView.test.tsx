@@ -315,7 +315,26 @@ describe("hotkeys save as soon as you press them", () => {
     await press(key, { key: "n", code: "KeyN" });
     expect(mocks.saveHotkey).not.toHaveBeenCalled();
     expect(text()).toContain(
-      "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
+      "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.",
+    );
+  });
+
+  it("saves Print Screen, which Windows only sends when the key goes up", async () => {
+    await renderSettings("shortcuts");
+    const key = byLabel<HTMLButtonElement>("Take a screenshot hotkey");
+    await click(key);
+    await act(() => {
+      key.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          bubbles: true,
+          key: "PrintScreen",
+          code: "PrintScreen",
+        }),
+      );
+    });
+    expect(mocks.saveHotkey).toHaveBeenCalledWith(
+      "screenshotHotkey",
+      "PrintScreen",
     );
   });
 

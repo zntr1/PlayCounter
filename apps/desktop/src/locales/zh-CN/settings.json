@@ -234,7 +234,7 @@
   "Saved monitor is disconnected. Popups will use the primary monitor until it returns.": "已保存的显示器未连接。在它重新连接前，弹窗会使用主显示器。",
   "Refresh monitors": "刷新显示器列表",
   "{{label}} hotkey": "{{label}} 快捷键",
-  "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.": "使用 Ctrl、Alt 或 Win / Cmd 加字母、数字或导航键，或使用 F1–F24。",
+  "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.": "使用 Ctrl、Alt 或 Win / Cmd 加字母、数字、导航键或 + - , . 中的一个键，或单独按 F1–F24、小键盘按键、Pause、Scroll Lock、Print Screen 或媒体键。",
   "Erase your current PlayCounter data: your library, play history, notes, playthroughs, shelves, settings, custom artwork, ignore rules, and installation ID.": "清除你当前的 PlayCounter 数据：游戏库、游玩历史、笔记、周目、分类架、设置、自定义图片、忽略规则和安装 ID。",
   "All backup files are kept, including automatic and safety backups. You can import a backup later to restore saved data.": "所有备份文件都会保留，包括自动备份和安全备份。你之后可以导入备份来恢复已保存的数据。",
   "Your backup folder settings are kept. Automatic backups will be paused to protect your saved history; you can turn them back on in Settings.": "你的备份文件夹设置会保留。自动备份会暂停以保护已保存的历史记录；你可以在设置中重新开启。",
@@ -405,5 +405,15 @@
   "Show screenshots": "查看截图",
   "Opens the newest picture of the game you're playing, right over the game. The arrows go to older ones, and you can mark them up there. Esc takes you back to the game.": "在游戏上方直接打开你正在玩的游戏的最新截图。用方向键查看更早的截图，也可以直接在上面标注。按 Esc 返回游戏。",
   "Screenshot and mark up": "截图并标注",
-  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "立即截图，并在游戏上方打开它供你标注。也可以在那里添加说明。保存或按 Esc 返回游戏。"
+  "Takes the picture at once, then opens it over your game to mark it up. You can add a caption there too. Saving or Esc takes you back to the game.": "立即截图，并在游戏上方打开它供你标注。也可以在那里添加说明。保存或按 Esc 返回游戏。",
+  "Pause": "Pause",
+  "Scroll Lock": "Scroll Lock",
+  "Print Screen": "Print Screen",
+  "Play/Pause": "播放/暂停",
+  "Stop": "停止",
+  "Next track": "下一曲",
+  "Previous track": "上一曲",
+  "Volume up": "音量加",
+  "Volume down": "音量减",
+  "Mute": "静音"
 }

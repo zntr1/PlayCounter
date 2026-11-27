@@ -2,6 +2,7 @@ import { Check, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatHotkeyParts } from "../../../hotkeyFormat";
 import {
+  recordsOnKeyUp,
   saveHotkey,
   shortcutFromKey,
   useHotkeyStatus,
@@ -89,6 +90,12 @@ function HotkeyKeys({
     }
   }
 
+  function record(event: React.KeyboardEvent) {
+    const shortcut = shortcutFromKey(event.nativeEvent);
+    if (shortcut) void apply(shortcut);
+    else if (!event.repeat) setHint(true);
+  }
+
   const keys = formatHotkeyParts(saved);
   return (
     <div className="grid justify-items-end gap-1.5">
@@ -133,9 +140,12 @@ function HotkeyKeys({
               return;
             }
             if (MODIFIER_KEYS.has(event.key)) return;
-            const shortcut = shortcutFromKey(event);
-            if (shortcut) void apply(shortcut);
-            else if (!event.repeat) setHint(true);
+            record(event);
+          }}
+          onKeyUp={(event) => {
+            if (!recording || !recordsOnKeyUp(event)) return;
+            event.preventDefault();
+            record(event);
           }}
           className={cn(
             "inline-flex h-9 min-w-[11.5rem] items-center gap-1 rounded-lg border bg-bg/55 px-2.5 text-[13px] outline-none transition focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50",
@@ -189,7 +199,7 @@ function HotkeyKeys({
       {hint ? (
         <p className="max-w-[20rem] text-right text-xs text-warning">
           {t(
-            "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
+            "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.",
           )}
         </p>
       ) : null}
