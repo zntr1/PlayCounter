@@ -297,18 +297,38 @@ describe("mark up", () => {
     expect(marksPngMock).not.toHaveBeenCalled();
   });
 
+  /** The Save button by its exact name: "Save" with nothing drawn yet. */
+  const saveButton = (name: string) =>
+    [...document.body.querySelectorAll("button")].find(
+      (entry) => entry.textContent?.trim() === name,
+    );
+
   it("takes back the last mark with Undo or Ctrl+Z, and clears them all", async () => {
-    const save = () => button("Save into picture")!;
     await startWithNumbers(3);
-    expect(save().disabled).toBe(false);
+    expect(saveButton("Save into picture")).toBeDefined();
     await act(() => byLabel("Undo")!.click());
     await key("z", { ctrlKey: true });
-    expect(save().disabled).toBe(false);
+    expect(saveButton("Save into picture")).toBeDefined();
     await key("z", { ctrlKey: true });
-    expect(save().disabled).toBe(true);
+    expect(saveButton("Save into picture")).toBeUndefined();
+    expect(byLabel("Undo")!.disabled).toBe(true);
     await click(300, 200);
     await act(() => byLabel("Clear all")!.click());
-    expect(save().disabled).toBe(true);
+    expect(saveButton("Save into picture")).toBeUndefined();
+    expect(byLabel("Clear all")!.disabled).toBe(true);
+  });
+
+  // docs/session-screenshots-plan.md: mark up is the full screenshot view,
+  // drawing is not a must.
+  it("saves with nothing drawn: leaves mark up, the picture stays as it is", async () => {
+    await act(() => markUp()!.click());
+    const save = saveButton("Save")!;
+    expect(save.disabled).toBe(false);
+    await act(() => save.click());
+    expect(marking()).toBe(false);
+    expect(marksPngMock).not.toHaveBeenCalled();
+    expect(markUpMock).not.toHaveBeenCalled();
+    expect(useScreenshotViewer.getState().shots).toHaveLength(2);
   });
 
   it("writes a caption while marking up; Esc in it closes only the field", async () => {

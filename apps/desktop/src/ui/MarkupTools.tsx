@@ -70,6 +70,7 @@ export type MarkupText =
   | "Undo"
   | "Clear all"
   | "Cancel"
+  | "Save"
   | "Save into picture"
   | "Discard your marks?"
   | "Keep drawing"
@@ -102,6 +103,7 @@ export const MARKUP_TEXTS: MarkupText[] = [
   "Undo",
   "Clear all",
   "Cancel",
+  "Save",
   "Save into picture",
   "Discard your marks?",
   "Keep drawing",
@@ -196,9 +198,10 @@ export function MarkupTools({
   width: number | null;
   texts: MarkupTexts;
   /** Draws the marks (a see-through PNG as big as the picture) into the
-   *  picture. Mark up ends when it resolves; when it throws, it says so and
-   *  keeps the marks. */
-  save: (png: Uint8Array) => Promise<void>;
+   *  picture; null when nothing was drawn, which is fine: mark up is the
+   *  full view of a screenshot, drawing is not a must. Mark up ends when it
+   *  resolves; when it throws, it says so and keeps the marks. */
+  save: (png: Uint8Array | null) => Promise<void>;
   onDone: () => void;
   /** The picture's caption line, under the tools. */
   caption?: ReactNode;
@@ -441,16 +444,19 @@ export function MarkupTools({
 
   async function save() {
     const picture = image.current;
-    if (!marks.length || saving || !picture) return;
+    if (saving || (marks.length && !picture)) return;
     setSaving(true);
     setFailed(false);
     try {
-      const png = await marksPng(
-        marks,
-        picture.naturalWidth,
-        picture.naturalHeight,
-        stickerText,
-      );
+      const png =
+        marks.length && picture
+          ? await marksPng(
+              marks,
+              picture.naturalWidth,
+              picture.naturalHeight,
+              stickerText,
+            )
+          : null;
       await saveMarks(png);
       onDone();
     } catch (error) {
@@ -567,12 +573,12 @@ export function MarkupTools({
           </button>
           <button
             type="button"
-            disabled={empty || saving}
+            disabled={saving}
             onClick={() => void save()}
             className={cn(buttonBase, buttonLooks.primary)}
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : null}
-            {t("Save into picture")}
+            {empty ? t("Save") : t("Save into picture")}
           </button>
         </div>
         <div className="flex h-8 flex-wrap items-center justify-center gap-2">

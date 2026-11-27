@@ -35,6 +35,7 @@ export function markupTexts(): MarkupTexts {
     Undo: t("Undo"),
     "Clear all": t("Clear all"),
     Cancel: t("Cancel"),
+    Save: t("Save"),
     "Save into picture": t("Save into picture"),
     "Discard your marks?": t("Discard your marks?"),
     "Keep drawing": t("Keep drawing"),
@@ -71,6 +72,8 @@ export function ScreenshotMarkup({
       texts={markupTexts()}
       onDone={onDone}
       save={async (png) => {
+        // Nothing drawn: a caption saves itself, so mark up just ends.
+        if (!png) return;
         await markUpScreenshot(shot.path, png);
         useAppStore.getState().addToast({
           tone: "success",

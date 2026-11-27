@@ -122,6 +122,12 @@ export function ScreenshotBoxWindow({
   const closed = useRef(false);
   const latest = useRef({ pictures, index, marking });
   latest.current = { pictures, index, marking };
+  /** A caption on its way to the main window: Save with nothing drawn
+   *  waits for it before the box closes, or closing could drop it. */
+  const captionSaving = useRef<{
+    done: Promise<void>;
+    resolve: () => void;
+  } | null>(null);
   /** The marks being saved, waiting for the main window's answer. */
   const savingMarks = useRef<{
     path: string;
@@ -165,8 +171,15 @@ export function ScreenshotBoxWindow({
             ? { text: label("Moved to the Recycle Bin"), tone: "done" }
             : { text: label("That didn't work"), tone: "failed" },
         );
-      else if (!done.ok)
-        tell({ text: label("The caption couldn't be saved."), tone: "failed" });
+      else {
+        captionSaving.current?.resolve();
+        captionSaving.current = null;
+        if (!done.ok)
+          tell({
+            text: label("The caption couldn't be saved."),
+            tone: "failed",
+          });
+      }
     },
     [label, tell],
   );
@@ -252,16 +265,26 @@ export function ScreenshotBoxWindow({
       key={shot.path}
       shot={shot}
       label={label}
-      onSave={(caption) =>
-        onAction({ kind: "caption", path: shot.path, caption })
-      }
+      onSave={(caption) => {
+        let resolve = () => {};
+        const done = new Promise<void>((settle) => (resolve = settle));
+        captionSaving.current = { done, resolve };
+        onAction({ kind: "caption", path: shot.path, caption });
+      }}
     />
   );
-  const saveMarks = (png: Uint8Array) =>
-    new Promise<void>((resolve, reject) => {
-      savingMarks.current = { path: shot.path, resolve, reject };
-      onAction({ kind: "markUp", path: shot.path, png: toBase64(png) });
-    });
+  const saveMarks = (png: Uint8Array | null) =>
+    png
+      ? new Promise<void>((resolve, reject) => {
+          savingMarks.current = { path: shot.path, resolve, reject };
+          onAction({ kind: "markUp", path: shot.path, png: toBase64(png) });
+        })
+      : // Nothing drawn: done once a caption on its way is in (at most a
+        // few seconds, should the main window not answer).
+        Promise.race([
+          captionSaving.current?.done ?? Promise.resolve(),
+          new Promise<void>((resolve) => window.setTimeout(resolve, 3000)),
+        ]);
 
   return (
     <div

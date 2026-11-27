@@ -425,6 +425,52 @@ describe("opened to mark up the picture just taken", () => {
     );
   });
 
+  const saveButton = (name: string) =>
+    [...container.querySelectorAll("button")].find(
+      (entry) => entry.textContent?.trim() === name,
+    );
+
+  it("saves with nothing drawn and takes you back to the game", async () => {
+    await act(() => saveButton("Save")!.click());
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(true);
+    expect(marksPngMock).not.toHaveBeenCalled();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("with only a caption, goes back to the game once the caption is in", async () => {
+    const field = () =>
+      container.querySelector<HTMLInputElement>(
+        'input[aria-label="Bildunterschrift"]',
+      )!;
+    await act(() => button("Bildunterschrift hinzufügen")!.click());
+    await act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(field(), "Cliff jump");
+      field().dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(() => {
+      field().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    });
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "caption",
+      path: pictures[3].path,
+      caption: "Cliff jump",
+    });
+    await act(() => saveButton("Save")!.click());
+    // Closing now could drop the caption on its way to the main window.
+    expect(onClose).not.toHaveBeenCalled();
+    await update({
+      pictures,
+      index: 4,
+      done: { kind: "caption", path: pictures[3].path, ok: true },
+    });
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
   it("starts with the tools, and Cancel takes you back to the game", async () => {
     expect(button("Stift")).toBeDefined();
     expect(shown()!.getAttribute("src")).toBe("asset://cliff.jpg");
