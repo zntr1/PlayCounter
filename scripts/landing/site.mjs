@@ -61,13 +61,14 @@ export const site = {
       height: 1250,
       alt: "PlayCounter Now Playing for Elden Ring: a live session timer with a pause button, total playtime, session count and counters for bosses and deaths with minus and plus buttons",
     },
+    // The owner's own screenshot, with the mark up tools open over the game.
     screenshots: {
       kind: "window",
-      file: "playcounter-screenshots-v1-7-0.webp",
-      small: "playcounter-screenshots-v1-7-0-1000.webp",
+      file: "playcounter-screenshot-markup-v1.webp",
+      small: "playcounter-screenshot-markup-v1-1000.webp",
       width: 2000,
-      height: 1250,
-      alt: "A screenshot of Elden Ring opened in PlayCounter, with the date it was taken, buttons to open, show in folder or delete it, and the caption “Made it to the castle at last” below the picture",
+      height: 1125,
+      alt: "PlayCounter marking up a screenshot of Queen’s Domain right over the game: a “Check later” sticker with an arrow pointing at a sealed door, a circle around a chest with the stickers “Loot” and “Locked”, the drawing tools and sticker choices under the picture, and a caption about the closed entrance and the locked chest",
     },
     counters: {
       kind: "window",
@@ -492,7 +493,7 @@ export const faq = [
   ],
   [
     "Can PlayCounter take screenshots of my games?",
-    "Yes. Set a key under <strong>Settings → While you play → Screenshots</strong>. PlayCounter saves a picture of the game window to your Pictures folder, without Steam or Game Bar, and shows it on the session it was taken in. A second key adds a caption right away; the caption is stored in the picture file. With HDR on, PlayCounter converts the HDR picture itself, so bright highlights are kept instead of cut off. Games in exclusive fullscreen can come out black, so use borderless or windowed mode.",
+    "Yes. Set a key under <strong>Settings → While you play → Screenshots</strong>. PlayCounter saves a picture of the game window to your Pictures folder, without Steam or Game Bar, and shows it on the session it was taken in. A second key, <strong>Screenshot and mark up</strong>, opens the new picture right over your game: draw arrows, circles, numbers and stickers like “Check later” on it and add a caption. Both are saved in the picture file. Another key shows the game’s pictures over the game, newest first. With HDR on, PlayCounter converts the HDR picture itself, so bright highlights are kept instead of cut off. Games in exclusive fullscreen can come out black, so use borderless or windowed mode.",
   ],
   [
     "Does it track PC ports and recompiled games like Ship of Harkinian?",
