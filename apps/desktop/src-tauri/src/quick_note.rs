@@ -482,6 +482,14 @@ fn sanitize_reply(reply: QuickAddReply) -> QuickAddReply {
     }
 }
 
+/// A box window whose payload is gone is closing: every open box keeps its
+/// payload until `close` takes it, while Tauri forgets the window only once
+/// its main loop has destroyed it.
+#[cfg(not(target_os = "macos"))]
+fn closing_window(window_found: bool, box_pending: bool) -> bool {
+    window_found && !box_pending
+}
+
 /// The session a note box writes to. The quick add box, the counter box and
 /// the screenshot box have none, so nothing they close with can land on a
 /// session as a note.
@@ -547,6 +555,22 @@ mod imp {
         state: &QuickNoteState,
         payload: QuickNotePayload,
     ) -> Result<bool, String> {
+        // A box that just closed (the caption box handing over to mark up)
+        // is still there until Tauri's main loop destroys it: wait for it,
+        // or it would be taken for an open box and brought back.
+        let pending = state
+            .pending
+            .lock()
+            .map_err(|error| error.to_string())?
+            .is_some();
+        if closing_window(app.get_webview_window(LABEL).is_some(), pending) {
+            for _ in 0..75 {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                if app.get_webview_window(LABEL).is_none() {
+                    break;
+                }
+            }
+        }
         // A second press while the box is open brings it back instead of
         // replacing what is being typed. The screenshot key closes its box
         // instead, back to the game.
@@ -1550,6 +1574,17 @@ mod tests {
             serde_json::to_value(&asked).unwrap()["markUpFirst"],
             serde_json::json!(true)
         );
+    }
+
+    /// The caption box closes to mark up, and the screenshot box opens at
+    /// once: the old window is still there for a moment and must not be
+    /// taken for an open box.
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn a_window_without_a_box_is_one_still_closing() {
+        assert!(closing_window(true, false));
+        assert!(!closing_window(true, true));
+        assert!(!closing_window(false, false));
     }
 
     #[test]
