@@ -214,6 +214,19 @@ describe("Game Details → Counters (list + detail)", () => {
     expect(button("Set a key", detail())).toBeTruthy();
   });
 
+  // docs/mouse-hotkeys-plan.md: "A counter can take a mouse button too."
+  it("sets a mouse button as the own key", async () => {
+    await render();
+    await click(button("Set a key", detail()));
+    await act(async () => {
+      document.body.dispatchEvent(
+        new MouseEvent("mousedown", { button: 3, bubbles: true, cancelable: true }),
+      );
+    });
+    expect(counter(malenia)?.key).toBe("Mouse4");
+    expect(detail().querySelector("kbd")?.textContent).toBe("Mouse 4");
+  });
+
   it("shows the controller row only with “Count with controller” on, one counter per game", async () => {
     await render();
     expect(detail().textContent).not.toContain("D-pad up");

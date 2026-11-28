@@ -319,6 +319,61 @@ describe("hotkeys save as soon as you press them", () => {
     );
   });
 
+  // docs/mouse-hotkeys-plan.md.
+  const MOUSE_HINT =
+    "Mouse 4, Mouse 5 and the middle mouse button work too, while your game is in front.";
+  const mouseDown = (target: EventTarget, button: number) =>
+    act(() => {
+      target.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, cancelable: true, button }),
+      );
+    });
+
+  it("saves a mouse button pressed while the keys wait, wherever the pointer is", async () => {
+    await renderSettings("shortcuts");
+    const key = byLabel<HTMLButtonElement>("Take a screenshot hotkey");
+    await click(key);
+    await mouseDown(document.body, 4);
+    expect(mocks.saveHotkey).toHaveBeenCalledWith("screenshotHotkey", "Mouse5");
+  });
+
+  it("says mouse buttons work too when a key doesn't", async () => {
+    await renderSettings("shortcuts");
+    const key = byLabel<HTMLButtonElement>("Take a screenshot hotkey");
+    await click(key);
+    await press(key, { key: "n", code: "KeyN" });
+    expect(text()).toContain(MOUSE_HINT);
+  });
+
+  it("explains on a right click instead of saving it", async () => {
+    await renderSettings("shortcuts");
+    const key = byLabel<HTMLButtonElement>("Take a screenshot hotkey");
+    await click(key);
+    await mouseDown(key, 2);
+    expect(mocks.saveHotkey).not.toHaveBeenCalled();
+    expect(text()).toContain(MOUSE_HINT);
+  });
+
+  it("keeps Quick add game on the keyboard: no game is in front for it", async () => {
+    await renderSettings("shortcuts");
+    const key = byLabel<HTMLButtonElement>("Quick add game hotkey");
+    await click(key);
+    await mouseDown(key, 3);
+    expect(mocks.saveHotkey).not.toHaveBeenCalled();
+    expect(text()).not.toContain(MOUSE_HINT);
+  });
+
+  it("takes no mouse button on macOS", async () => {
+    mocks.platform.value = "macos";
+    await renderSettings("shortcuts");
+    // This row works on macOS; the screenshot rows don't.
+    const key = byLabel<HTMLButtonElement>("Bring PlayCounter to front hotkey");
+    await click(key);
+    await mouseDown(document.body, 3);
+    expect(mocks.saveHotkey).not.toHaveBeenCalled();
+    expect(text()).not.toContain(MOUSE_HINT);
+  });
+
   it("saves Print Screen, which Windows only sends when the key goes up", async () => {
     await renderSettings("shortcuts");
     const key = byLabel<HTMLButtonElement>("Take a screenshot hotkey");

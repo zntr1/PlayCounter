@@ -415,5 +415,9 @@
   "Previous track": "上一曲",
   "Volume up": "音量加",
   "Volume down": "音量减",
-  "Mute": "静音"
+  "Mute": "静音",
+  "Middle mouse button": "鼠标中键",
+  "Mouse 4": "鼠标 4",
+  "Mouse 5": "鼠标 5",
+  "Mouse 4, Mouse 5 and the middle mouse button work too, while your game is in front.": "鼠标 4、鼠标 5 和鼠标中键也可以用，前提是游戏在前台。"
 }

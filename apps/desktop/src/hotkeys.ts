@@ -205,6 +205,27 @@ export function disposeHotkeys() {
   });
 }
 
-export { recordsOnKeyUp, shortcutFromKey } from "./shortcutKeys";
+export {
+  recordsOnKeyUp,
+  shortcutFromKey,
+  shortcutFromMouse,
+} from "./shortcutKeys";
+
+let mouseGames: string | null = null;
+
+/** The running games' processes, after each scan: a mouse button acts only
+ *  while one of their windows is in front (mouse_hotkeys.rs). Sent only when
+ *  they change. */
+export function setMouseHotkeyGames(pids: number[]) {
+  const sorted = [...new Set(pids)].sort((left, right) => left - right);
+  const key = sorted.join(",");
+  if (key === mouseGames) return;
+  mouseGames = key;
+  invoke("set_mouse_hotkey_games", { pids: sorted }).catch((error) => {
+    // The next scan tries again.
+    mouseGames = null;
+    console.warn("Mouse hotkey games could not be set", error);
+  });
+}
 
 export { formatHotkey } from "./hotkeyFormat";

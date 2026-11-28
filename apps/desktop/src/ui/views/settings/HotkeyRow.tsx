@@ -13,6 +13,7 @@ import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
 import { cn } from "../../cn";
 import { IconButton } from "../../primitives";
+import { useMouseShortcut } from "../../useMouseShortcut";
 import { SettingsRow, type SettingsRowProps } from "./SettingsKit";
 
 const t = getT("settings");
@@ -69,6 +70,15 @@ function HotkeyKeys({
   const [saving, setSaving] = useState(false);
   const [hint, setHint] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  // A mouse button acts only while a running game is in front
+  // (docs/mouse-hotkeys-plan.md); Quick add is for games PlayCounter doesn't
+  // track, so no tracked game is in front for it.
+  const mouseAllowed =
+    setting !== "quickAddHotkey" && currentPlatform() !== "macos";
+  useMouseShortcut(recording, (shortcut) => {
+    if (shortcut && mouseAllowed) void apply(shortcut);
+    else setHint(true);
+  });
 
   useEffect(() => {
     if (!justSaved) return;
@@ -201,6 +211,14 @@ function HotkeyKeys({
           {t(
             "Use Ctrl, Alt or Win / Cmd with a letter, a number, a navigation key or one of + - , . or press F1–F24, a Numpad key, Pause, Scroll Lock, Print Screen or a media key alone.",
           )}
+          {mouseAllowed ? (
+            <>
+              {" "}
+              {t(
+                "Mouse 4, Mouse 5 and the middle mouse button work too, while your game is in front.",
+              )}
+            </>
+          ) : null}
         </p>
       ) : null}
       {error ? (

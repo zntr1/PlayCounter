@@ -442,5 +442,9 @@
   "Previous track": "Предыдущий трек",
   "Volume up": "Громче",
   "Volume down": "Тише",
-  "Mute": "Без звука"
+  "Mute": "Без звука",
+  "Middle mouse button": "Средняя кнопка мыши",
+  "Mouse 4": "Мышь 4",
+  "Mouse 5": "Мышь 5",
+  "Mouse 4, Mouse 5 and the middle mouse button work too, while your game is in front.": "Мышь 4, Мышь 5 и средняя кнопка мыши тоже работают, пока игра на переднем плане."
 }

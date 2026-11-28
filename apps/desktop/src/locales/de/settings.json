@@ -424,5 +424,9 @@
   "Previous track": "Vorheriger Titel",
   "Volume up": "Lauter",
   "Volume down": "Leiser",
-  "Mute": "Stumm"
+  "Mute": "Stumm",
+  "Middle mouse button": "Mittlere Maustaste",
+  "Mouse 4": "Maus 4",
+  "Mouse 5": "Maus 5",
+  "Mouse 4, Mouse 5 and the middle mouse button work too, while your game is in front.": "Maus 4, Maus 5 und die mittlere Maustaste gehen auch, solange dein Spiel im Vordergrund ist."
 }

@@ -19,6 +19,7 @@ import type {
   CounterBoxState,
 } from "../counterBox";
 import { recordsOnKeyUp, shortcutFromKey } from "../shortcutKeys";
+import { useMouseShortcut } from "./useMouseShortcut";
 
 /* The counter box (docs/counters-plan.md): the running game's counters over
    the game. ↑↓ pick a counter, + and − count it, Esc goes back to the game.
@@ -93,20 +94,21 @@ export function CounterBoxWindow({
     if (row) onAction({ kind: "count", counterId: row.id, delta });
   };
 
-  function record(event: React.KeyboardEvent) {
+  function record(key: string | null) {
     // A key nobody types may stand alone (shortcutKeys.ts).
-    const key = shortcutFromKey(event.nativeEvent);
     if (key && recording) {
       onAction({ kind: "key", counterId: recording, key });
       setRecording(null);
     }
   }
+  // Or a mouse button (docs/mouse-hotkeys-plan.md).
+  useMouseShortcut(recording !== null, record);
 
   function onKeyUp(event: React.KeyboardEvent) {
     if (event.target instanceof HTMLInputElement) return;
     if (!recording || !recordsOnKeyUp(event)) return;
     event.preventDefault();
-    record(event);
+    record(shortcutFromKey(event.nativeEvent));
   }
 
   function onKeyDown(event: React.KeyboardEvent) {
@@ -117,7 +119,7 @@ export function CounterBoxWindow({
         setRecording(null);
         return;
       }
-      record(event);
+      record(shortcutFromKey(event.nativeEvent));
       return;
     }
     if (event.key === "Escape") {

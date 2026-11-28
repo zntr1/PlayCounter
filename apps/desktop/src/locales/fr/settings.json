@@ -433,5 +433,9 @@
   "Previous track": "Piste précédente",
   "Volume up": "Volume haut",
   "Volume down": "Volume bas",
-  "Mute": "Muet"
+  "Mute": "Muet",
+  "Middle mouse button": "Bouton central de la souris",
+  "Mouse 4": "Souris 4",
+  "Mouse 5": "Souris 5",
+  "Mouse 4, Mouse 5 and the middle mouse button work too, while your game is in front.": "Souris 4, Souris 5 et le bouton central de la souris fonctionnent aussi, tant que votre jeu est au premier plan."
 }

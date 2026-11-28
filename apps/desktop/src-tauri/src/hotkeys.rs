@@ -39,12 +39,73 @@ fn is_known_action(action: &str) -> bool {
     ACTIONS.contains(&action) || counter_key_id(action).is_some()
 }
 
+/// What a hotkey does, pressed as a key (below) or as a mouse button
+/// (mouse_hotkeys.rs).
+pub(crate) fn fire(app: &tauri::AppHandle, action: &str) {
+    match action {
+        "show-window" => crate::show_main_window(app),
+        "quick-note" => {
+            // The game is still in front here; the note window
+            // gives focus back to it when it closes.
+            crate::quick_note::remember_foreground(app);
+            let _ = app.emit_to("main", "playcounter:quick-note-hotkey", ());
+        }
+        "quick-add" => {
+            // As for the note: focus goes back to the window in
+            // front when the box closes.
+            crate::quick_note::remember_foreground(app);
+            let _ = app.emit_to("main", "playcounter:quick-add-hotkey", ());
+        }
+        "live-timer" => {
+            let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
+        }
+        "pause-timer" => {
+            let _ = app.emit_to("main", "playcounter:pause-timer-hotkey", ());
+        }
+        "counter-undo" => {
+            let _ = app.emit_to("main", "playcounter:counter-undo-hotkey", ());
+        }
+        "counter-box" => {
+            // As for the note: focus goes back to the game when
+            // the box closes.
+            crate::quick_note::remember_foreground(app);
+            let _ = app.emit_to("main", "playcounter:counter-box-hotkey", ());
+        }
+        action if counter_key_id(action).is_some() => {
+            let id = counter_key_id(action).unwrap_or_default().to_string();
+            let _ = app.emit_to("main", "playcounter:counter-key-hotkey", id);
+        }
+        "screenshot" => {
+            // The picture is taken right here, before the main
+            // window says which session it belongs to.
+            crate::screenshot::commands::key_pressed(app);
+            let _ = app.emit_to("main", "playcounter:screenshot-hotkey", ());
+        }
+        "screenshot-viewer" => {
+            // The game is still in front here: the box opens on
+            // its screen and gives the focus back to it.
+            crate::quick_note::remember_foreground(app);
+            let _ = app.emit_to("main", "playcounter:screenshot-viewer-hotkey", ());
+        }
+        "screenshot-markup" => {
+            // The same picture; the main window then opens it
+            // over the game to mark it up.
+            crate::screenshot::commands::key_pressed(app);
+            let _ = app.emit_to("main", "playcounter:screenshot-markup-hotkey", ());
+        }
+        _ => {
+            let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
+        }
+    }
+}
+
 // Registration dispatches to the main loop, so never block it with synchronous IPC.
 #[tauri::command(async)]
 pub fn set_global_hotkey(
     app: tauri::AppHandle,
     window: tauri::Window,
     state: tauri::State<'_, HotkeyState>,
+    mouse: tauri::State<'_, crate::mouse_hotkeys::MouseHotkeys>,
     action: String,
     shortcut: Option<String>,
 ) -> Result<(), String> {
@@ -54,12 +115,36 @@ pub fn set_global_hotkey(
     if !is_known_action(&action) {
         return Err("Unknown hotkey action".into());
     }
+    // A mouse button isn't a key: the mouse watcher takes it. An action has
+    // one or the other, so setting one clears the other.
+    let button = match shortcut.as_deref() {
+        Some(value) => crate::mouse_hotkeys::parse(value)?,
+        None => None,
+    };
+    if let Some(button) = button {
+        mouse.set(&app, &action, Some(button))?;
+        if let Err(error) = set_key(&app, &state, &action, None) {
+            // The action keeps the key it had.
+            let _ = mouse.set(&app, &action, None);
+            return Err(error);
+        }
+        return Ok(());
+    }
+    set_key(&app, &state, &action, shortcut.as_deref())?;
+    mouse.set(&app, &action, None)
+}
+
+fn set_key(
+    app: &tauri::AppHandle,
+    state: &HotkeyState,
+    action: &str,
+    shortcut: Option<&str>,
+) -> Result<(), String> {
     let next = shortcut
-        .as_deref()
         .map(|value| value.parse::<Shortcut>().map_err(|error| error.to_string()))
         .transpose()?;
     let mut bindings = state.0.lock().map_err(|error| error.to_string())?;
-    let previous = bindings.get(&action).copied();
+    let previous = bindings.get(action).copied();
     if previous == next {
         return Ok(());
     }
@@ -67,7 +152,7 @@ pub fn set_global_hotkey(
         if bindings.values().any(|existing| existing.id() == next.id()) {
             return Err("This hotkey is already assigned to another action.".into());
         }
-        let handler_action = action.clone();
+        let handler_action = action.to_string();
         let pressed = AtomicBool::new(false);
         app.global_shortcut()
             .on_shortcut(next, move |app, _, event| {
@@ -78,61 +163,7 @@ pub fn set_global_hotkey(
                 if pressed.swap(true, Ordering::AcqRel) {
                     return;
                 }
-                match handler_action.as_str() {
-                    "show-window" => crate::show_main_window(app),
-                    "quick-note" => {
-                        // The game is still in front here; the note window
-                        // gives focus back to it when it closes.
-                        crate::quick_note::remember_foreground(app);
-                        let _ = app.emit_to("main", "playcounter:quick-note-hotkey", ());
-                    }
-                    "quick-add" => {
-                        // As for the note: focus goes back to the window in
-                        // front when the box closes.
-                        crate::quick_note::remember_foreground(app);
-                        let _ = app.emit_to("main", "playcounter:quick-add-hotkey", ());
-                    }
-                    "live-timer" => {
-                        let _ = app.emit_to("main", "playcounter:live-timer-hotkey", ());
-                    }
-                    "pause-timer" => {
-                        let _ = app.emit_to("main", "playcounter:pause-timer-hotkey", ());
-                    }
-                    "counter-undo" => {
-                        let _ = app.emit_to("main", "playcounter:counter-undo-hotkey", ());
-                    }
-                    "counter-box" => {
-                        // As for the note: focus goes back to the game when
-                        // the box closes.
-                        crate::quick_note::remember_foreground(app);
-                        let _ = app.emit_to("main", "playcounter:counter-box-hotkey", ());
-                    }
-                    action if counter_key_id(action).is_some() => {
-                        let id = counter_key_id(action).unwrap_or_default().to_string();
-                        let _ = app.emit_to("main", "playcounter:counter-key-hotkey", id);
-                    }
-                    "screenshot" => {
-                        // The picture is taken right here, before the main
-                        // window says which session it belongs to.
-                        crate::screenshot::commands::key_pressed(app);
-                        let _ = app.emit_to("main", "playcounter:screenshot-hotkey", ());
-                    }
-                    "screenshot-viewer" => {
-                        // The game is still in front here: the box opens on
-                        // its screen and gives the focus back to it.
-                        crate::quick_note::remember_foreground(app);
-                        let _ = app.emit_to("main", "playcounter:screenshot-viewer-hotkey", ());
-                    }
-                    "screenshot-markup" => {
-                        // The same picture; the main window then opens it
-                        // over the game to mark it up.
-                        crate::screenshot::commands::key_pressed(app);
-                        let _ = app.emit_to("main", "playcounter:screenshot-markup-hotkey", ());
-                    }
-                    _ => {
-                        let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
-                    }
-                }
+                fire(app, &handler_action);
             })
             .map_err(|error| format!("Hotkey unavailable. Choose another combination. {error}"))?;
     }
@@ -146,9 +177,9 @@ pub fn set_global_hotkey(
         }
     }
     if let Some(next) = next {
-        bindings.insert(action, next);
+        bindings.insert(action.to_string(), next);
     } else {
-        bindings.remove(&action);
+        bindings.remove(action);
     }
     Ok(())
 }

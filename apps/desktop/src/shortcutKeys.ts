@@ -1,3 +1,6 @@
+import type { Platform } from "@playcounter/shared";
+import { currentPlatform } from "./platform";
+
 /** Keys nobody types, so they may stand alone. Numpad Enter is left out:
  *  Windows sends it as Enter. */
 const ALONE =
@@ -66,4 +69,31 @@ export function shortcutFromKey(
 /** Windows sends no keydown for Print Screen, only the keyup. */
 export function recordsOnKeyUp(event: Pick<KeyboardEvent, "code">) {
   return event.code === "PrintScreen";
+}
+
+/** The buttons by MouseEvent.button; left (0) and right (2) shoot and aim,
+ *  so they never are hotkeys. Rust reads the same names (mouse_hotkeys.rs). */
+const MOUSE_BUTTONS: Record<number, string> = {
+  1: "MouseMiddle",
+  3: "Mouse4",
+  4: "Mouse5",
+};
+
+/** A mouse button as a shortcut (docs/mouse-hotkeys-plan.md). It acts only
+ *  while a running game is in front, so it may stand alone. Windows only. */
+export function shortcutFromMouse(
+  event: Pick<MouseEvent, "button" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey">,
+  platform: Platform = currentPlatform(),
+): string | null {
+  const button = MOUSE_BUTTONS[event.button];
+  if (!button || platform === "macos") return null;
+  return [
+    event.ctrlKey && "Control", // i18n-exempt: shortcut format, translated in formatHotkey
+    event.altKey && "Alt",
+    event.shiftKey && "Shift",
+    event.metaKey && "Super",
+    button,
+  ]
+    .filter(Boolean)
+    .join("+");
 }

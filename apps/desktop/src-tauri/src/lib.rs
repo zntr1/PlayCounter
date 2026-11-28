@@ -29,6 +29,7 @@ mod install_source;
 mod launch;
 mod library;
 mod live_timer;
+mod mouse_hotkeys;
 mod moved_drives;
 mod notification_overlay;
 mod play_activity;
@@ -551,6 +552,7 @@ pub fn run() {
         .manage(emulator_launch::EmulatorLaunchGuard::default())
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
+        .manage(mouse_hotkeys::MouseHotkeys::default())
         .manage(quick_note::QuickNoteState::default())
         .manage(screenshot::commands::ScreenshotState::default())
         .manage(live_timer::LiveTimerState::default())
@@ -628,6 +630,7 @@ pub fn run() {
             main_window_parked,
             fullscreen::set_main_fullscreen,
             hotkeys::set_global_hotkey,
+            mouse_hotkeys::set_mouse_hotkey_games,
             install_uuid,
             adopt_install_uuid,
             date_format::system_date_pattern,

@@ -43,6 +43,7 @@ import {
 import { completeTourStep, tourCounters } from "../tour/tourDemoDetails";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { useGameJournal } from "../useGameJournal";
+import { useMouseShortcut } from "../useMouseShortcut";
 
 const t = getT("nowPlaying");
 
@@ -151,8 +152,7 @@ export function useCounterKeyRecorder(
   /** Why the key could not be set up, if it couldn't. */
   const error = useCounterKeyStatus((s) => s.errors[counter.id]);
   const [recording, setRecording] = useState(false);
-  function record(event: KeyboardEvent<HTMLButtonElement>) {
-    const key = shortcutFromKey(event.nativeEvent);
+  function record(key: string | null) {
     if (!key) return;
     setRecording(false);
     const conflict = counterKeyConflict(api.getState(), game, counter.id, key);
@@ -162,6 +162,8 @@ export function useCounterKeyRecorder(
       completeTourStep("counters", "key");
     }
   }
+  // A mouse button counts while the game is in front (docs/mouse-hotkeys-plan.md).
+  useMouseShortcut(recording, record);
   return {
     recording,
     /** What the button says while it waits for the key. */
@@ -180,12 +182,12 @@ export function useCounterKeyRecorder(
           setRecording(false);
           return;
         }
-        record(event);
+        record(shortcutFromKey(event.nativeEvent));
       },
       onKeyUp: (event: KeyboardEvent<HTMLButtonElement>) => {
         if (!recording || !recordsOnKeyUp(event)) return;
         event.preventDefault();
-        record(event);
+        record(shortcutFromKey(event.nativeEvent));
       },
     },
   };

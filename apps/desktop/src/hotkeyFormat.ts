@@ -39,6 +39,9 @@ export function formatHotkeyParts(shortcut: string | null | undefined) {
     AudioVolumeUp: t("Volume up"),
     AudioVolumeDown: t("Volume down"),
     AudioVolumeMute: t("Mute"),
+    MouseMiddle: t("Middle mouse button"),
+    Mouse4: t("Mouse 4"),
+    Mouse5: t("Mouse 5"),
   };
   return shortcut.split("+").map((part) => {
     if (modifiers[part]) return modifiers[part];

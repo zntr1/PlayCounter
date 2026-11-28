@@ -10,6 +10,7 @@ import {
   initializeHotkeys,
   disposeHotkeys,
   moveCaptionHotkey,
+  setMouseHotkeyGames,
 } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
 import { initializeQuickAdd, disposeQuickAdd } from "./quickAdd";
@@ -2595,6 +2596,12 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   }
   // A game can open its window from a process that started after it did.
   syncLiveTimer();
+  // A mouse hotkey acts only while one of these is in front.
+  setMouseHotkeyGames(
+    [...runningGameProcesses.values()]
+      .flat()
+      .flatMap((process) => (process.pid === undefined ? [] : [process.pid])),
+  );
   // A Game.exe matched through its folder link is not the unknown Game.exe
   // that Discovered or the picker waits for; its time must not count there.
   const matchedProcesses = new Set(matches.map((match) => match.process));

@@ -649,6 +649,8 @@ describe("UI code", () => {
 const RUST_ENGLISH_ON_PURPOSE = new Set([
   // Auto pause: the check logs it and tries again in a few seconds.
   "GetLastInputInfo failed",
+  // Mouse hotkeys: the recorder only writes Control/Alt/Shift/Super.
+  "Unknown modifier in {shortcut}",
   // Screenshots: logged only; the window shows its own texts for each case.
   "Screenshots are not supported on this platform.",
   "The screenshot thread stopped.",

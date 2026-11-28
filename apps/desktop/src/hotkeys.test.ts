@@ -7,7 +7,9 @@ import {
   formatHotkey,
   initializeHotkeys,
   saveHotkey,
+  setMouseHotkeyGames,
   shortcutFromKey,
+  shortcutFromMouse,
   useHotkeyStatus,
 } from "./hotkeys";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
@@ -442,5 +444,69 @@ describe("shortcut recorder", () => {
     } finally {
       await i18next.changeLanguage("en");
     }
+  });
+});
+
+// docs/mouse-hotkeys-plan.md, "Which buttons" and "How it fits the app".
+describe("mouse buttons", () => {
+  const press = (button: number, mods: Partial<MouseEvent> = {}) => ({
+    button,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    metaKey: false,
+    ...mods,
+  });
+
+  it("takes the middle button, Mouse 4 and Mouse 5, alone or with Ctrl/Alt/Shift/Win", () => {
+    expect(shortcutFromMouse(press(1), "windows")).toBe("MouseMiddle");
+    expect(shortcutFromMouse(press(3), "windows")).toBe("Mouse4");
+    expect(shortcutFromMouse(press(4), "windows")).toBe("Mouse5");
+    expect(
+      shortcutFromMouse(press(3, { ctrlKey: true, shiftKey: true }), "windows"),
+    ).toBe("Control+Shift+Mouse4");
+    expect(
+      shortcutFromMouse(press(4, { altKey: true, metaKey: true }), "windows"),
+    ).toBe("Alt+Super+Mouse5");
+  });
+
+  it("never takes left or right, which shoot and aim", () => {
+    expect(shortcutFromMouse(press(0), "windows")).toBeNull();
+    expect(shortcutFromMouse(press(2, { ctrlKey: true }), "windows")).toBeNull();
+  });
+
+  it("takes no mouse button on macOS", () => {
+    expect(shortcutFromMouse(press(3), "macos")).toBeNull();
+  });
+
+  it("names mouse buttons in the app's language", async () => {
+    expect(formatHotkey("Mouse4")).toBe("Mouse 4");
+    expect(formatHotkey("Control+MouseMiddle")).toBe("Ctrl+Middle mouse button");
+    await i18next.changeLanguage("de");
+    try {
+      expect(formatHotkey("Mouse5")).toBe("Maus 5");
+      expect(formatHotkey("Shift+MouseMiddle")).toBe(
+        "Umschalt+Mittlere Maustaste",
+      );
+    } finally {
+      await i18next.changeLanguage("en");
+    }
+  });
+
+  it("tells Rust which processes are running games, only when that changes", async () => {
+    const sent = () =>
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "set_mouse_hotkey_games",
+      );
+    setMouseHotkeyGames([42, 7]);
+    setMouseHotkeyGames([7, 42]);
+    await flush();
+    expect(sent()).toEqual([["set_mouse_hotkey_games", { pids: [7, 42] }]]);
+    setMouseHotkeyGames([]);
+    await flush();
+    expect(sent()).toEqual([
+      ["set_mouse_hotkey_games", { pids: [7, 42] }],
+      ["set_mouse_hotkey_games", { pids: [] }],
+    ]);
   });
 });
