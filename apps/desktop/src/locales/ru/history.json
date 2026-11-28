@@ -78,7 +78,7 @@
   "{{startTime}} – {{endTime}} next day": "{{startTime}} – {{endTime}} следующего дня",
   "{{gameName}}, session on {{sessionDate}}": "{{gameName}}, сессия {{sessionDate}}",
   "Entered manually": "Введено вручную",
-  "Remove history entry for {{gameName}}": "Удалить запись истории для {{gameName}}",
+  "More actions for {{gameName}}": "Другие действия с {{gameName}}",
   "<time>{{duration}}</time> played today": "Сегодня в игре: <time>{{duration}}</time>",
   "<time>{{duration}}</time> played in total": "Всего в игре: <time>{{duration}}</time>",
   "average": "в среднем",

@@ -193,3 +193,34 @@ it("opens Edit session from the pencil next to the note", async () => {
   );
   expect(onRequestEdit).toHaveBeenCalledWith(session);
 });
+
+it("shows Note, Edit and More on the row and keeps Delete in the menu", async () => {
+  await renderRow(changeProps(true));
+  const hoverButtons = [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      "[data-history-session-row] > div:last-of-type > button",
+    ),
+  ].map((button) => button.getAttribute("aria-label"));
+  expect(hoverButtons).toEqual([
+    "Add session note",
+    "Edit session",
+    "More actions for Hollow Knight",
+  ]);
+
+  // More opens the right-click menu.
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        '[aria-label="More actions for Hollow Knight"]',
+      )!
+      .click(),
+  );
+  expect(menuItems()).toEqual([
+    "Add session note",
+    "Edit game note",
+    "Playthroughs",
+    "Filter for this game",
+    "Playtime",
+    "Delete Session",
+  ]);
+});

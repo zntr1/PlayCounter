@@ -260,8 +260,9 @@ describe("Correct your history: the practice", () => {
     for (const id of ["edit", "split", "combine", "note"]) {
       await startGuide("correct-history", id);
       await click(
-        rows().at(-1)!.querySelector('[aria-label^="Remove history entry"]')!,
+        rows().at(-1)!.querySelector('[aria-label^="More actions for"]')!,
       );
+      await click(control("Delete Session"));
       await click(
         all(`${named("demo-history-delete")} button`).find(
           (button) => button.textContent === "Delete session",

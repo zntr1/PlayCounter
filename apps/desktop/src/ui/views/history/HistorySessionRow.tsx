@@ -5,6 +5,7 @@ import {
   Clock3,
   Filter,
   Merge,
+  MoreHorizontal,
   Pencil,
   RotateCcw,
   Scissors,
@@ -48,6 +49,7 @@ import {
 import { appLocale, formatNumericDate, getT } from "../../../i18n";
 
 const t = getT("history");
+const tc = getT("common");
 
 const holdDurationMs = 750;
 const holdRadius = 20;
@@ -508,11 +510,16 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             onClick={() => onRequestEdit(session)}
           />
         ) : null}
+        {/* The same menu as a right-click, so its actions can be found. */}
         <IconButton
-          icon={Trash2}
-          intent="danger"
-          aria-label={t("Remove history entry for {{gameName}}", { gameName })}
-          onClick={requestDelete}
+          icon={MoreHorizontal}
+          aria-label={t("More actions for {{gameName}}", { gameName })}
+          aria-haspopup="menu"
+          title={tc("More")}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            contextMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
+          }}
         />
       </div>
       <ContextMenu

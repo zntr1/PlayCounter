@@ -78,7 +78,7 @@
   "{{startTime}} – {{endTime}} next day": "{{startTime}} – {{endTime}} le lendemain",
   "{{gameName}}, session on {{sessionDate}}": "{{gameName}}, session du {{sessionDate}}",
   "Entered manually": "Saisie manuelle",
-  "Remove history entry for {{gameName}}": "Retirer l'entrée d'historique de {{gameName}}",
+  "More actions for {{gameName}}": "Plus d'actions pour {{gameName}}",
   "<time>{{duration}}</time> played today": "<time>{{duration}}</time> jouées aujourd'hui",
   "<time>{{duration}}</time> played in total": "<time>{{duration}}</time> jouées au total",
   "average": "moyenne",

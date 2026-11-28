@@ -444,8 +444,13 @@ it("deletes sample history through the real dialog without calling the tracker",
   await act(() =>
     document
       .querySelector<HTMLButtonElement>(
-        '[aria-label^="Remove history entry for"]',
+        '[aria-label^="More actions for"]',
       )!
+      .click(),
+  );
+  await act(() =>
+    [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((item) => item.textContent?.trim() === "Delete Session")!
       .click(),
   );
   await act(() =>

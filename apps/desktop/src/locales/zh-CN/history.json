@@ -78,7 +78,7 @@
   "{{startTime}} – {{endTime}} next day": "{{startTime}} – 次日 {{endTime}}",
   "{{gameName}}, session on {{sessionDate}}": "{{gameName}}，{{sessionDate}} 的游玩记录",
   "Entered manually": "手动输入",
-  "Remove history entry for {{gameName}}": "删除 {{gameName}} 的历史记录",
+  "More actions for {{gameName}}": "{{gameName}} 的更多操作",
   "<time>{{duration}}</time> played today": "今天已玩 <time>{{duration}}</time>",
   "<time>{{duration}}</time> played in total": "总共已玩 <time>{{duration}}</time>",
   "average": "平均",

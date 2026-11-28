@@ -174,7 +174,8 @@ describe("Read your stats: the practice", () => {
 
     // Deleting a sample session leaves the player's own history alone.
     await click(q('[aria-label="Clear game filter"]'));
-    await click(q('[aria-label^="Remove history entry for"]'));
+    await click(q('[aria-label^="More actions for"]'));
+    await click(control("Delete Session"));
     await click(
       all(`${named("demo-history-delete")} button`).find(
         (button) => button.textContent === "Delete session",
